@@ -24,7 +24,7 @@ from __future__ import annotations
 import logging
 import re
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Iterable, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -1573,4 +1573,889 @@ def view(store: Any, deskstore: Any = None,
         "note": (f"{len(artifacts)} artifact(s) on the desk, {len(killed)} "
                  f"killed by adversarial review, {len(open_reqs)} request(s) "
                  f"waiting for the CTO session"),
+    }
+
+
+# ============================================================================
+# THE DESK ENGINE v1 — docs/DESK_ENGINE_V1_2026-08-23.md
+#
+# Six CEO instructions in one sitting, of which the first two are the whole
+# problem: *"my desk is more cluttered than before... Why is everything
+# hitting my desk?"* and *"the agents dont get access to me directly, it makes
+# me a bottleneck for a team running 24x7"*.
+#
+# Everything below is a READING over folds that already exist. Not one of these
+# functions writes, and not one of them re-implements a predicate the desk
+# already owns: `next_actor` decides whose move it is, here and on the CTO
+# console and in the counter, because a client that re-implemented it in
+# TypeScript once read 11 where the spine read 6.
+# ============================================================================
+
+
+# ------------------------------------------------------ routing at birth ----
+
+#: Bumped when the required-field set or the undecided default changes.
+ROUTING_RULES_VERSION = "routing v1 (2026-08-23)"
+
+#: THE FOUR FIELDS EVERY NEW FILING MUST CARRY. Required means the KEY is
+#: present, not that the value is a number: `due_date` and `money_at_stake` may
+#: be null, because a recommendation that genuinely has no dated commitment and
+#: no quantifiable stake is a real thing and forcing a figure would fabricate
+#: one. What is refused is SILENCE — the seat must have considered each of the
+#: four and said so, which is the Stan R39 standard enforced by schema instead
+#: of by chair diligence.
+#:
+#: MEASURED BASIS — counted by this seat on the live corpus at 2026-08-23
+#: (167 open recommendations), not carried from a memo:
+#:
+#:   * **28 of the 54 rows on the CEO's counter are there by DEFAULT** — the
+#:     `next_actor` fold's rule 5, "nothing routed it elsewhere". A further 19
+#:     arrive by the kind `awaits-ceo`, and only **7 by an explicit
+#:     `next_actor`**. So better than half of his queue is a fall-through.
+#:   * `money_at_stake` reached 150 of 167 rows and `due_date` reached **4** —
+#:     the desk's TOP ranking key separates four rows out of a hundred and
+#:     sixty-seven, which is why the payload publishes `ranked_on_nothing`
+#:     rather than presenting arrival order as a ranking.
+#:
+#: (The spec quotes "54 of 91 CEO-routed rows arrived by default" from COO
+#: triage #7. That was a different day and a different population; the figures
+#: above are this seat's own count and are the ones the code rests on.)
+ROUTING_REQUIRED_FIELDS = ("next_actor", "due_date", "reversibility",
+                           "money_at_stake")
+
+#: What a seat may WRITE as `next_actor` at filing. `unknown` is absent on
+#: purpose: it is a reading the desk produces when a stored value cannot be
+#: understood, never a claim a filer is allowed to make.
+FILEABLE_NEXT_ACTORS = ("ceo", "chair", "seat", "nobody")
+
+#: The word a seat uses when it does not know whose move it is.
+UNDECIDED = "undecided"
+
+#: THE DEFAULT FLIPS, AND THIS CONSTANT IS THE FLIP. Before the engine, a row
+#: that said nothing fell through to the CEO (`next_actor`'s rule 5); 54 of the
+#: 91 rows on his desk arrived that way. Undecided now routes to the CHAIR,
+#: whose job is to work out whose move it is — which is what the chair was
+#: doing by hand anyway, one sweep at a time.
+#:
+#: THIS IS NOT A LOOSENING OF A CONTROL, and the distinction matters because
+#: the direction rule is strict here. Nothing about it changes who may approve
+#: anything, and no work leaves the record: an undecided row is on the chair's
+#: queue, counted in `by_actor`, and visible in the matrix's OPEN column. It
+#: moves ATTENTION, not authority. The inference default in `next_actor` (rule
+#: 5, still the CEO) is deliberately untouched, so a row filed before this
+#: engine still fails toward "he must look".
+UNDECIDED_ROUTES_TO = "chair"
+
+
+#: WHETHER ROUTING v1 IS ENFORCED AT THE DOOR. Shipped **False**, and the
+#: number that made it False is the reason it is a flag rather than a
+#: judgement call. Run over the last day of live traffic by the D22 blind
+#: review, routing v1's 422 would have REJECTED **16 of the 17 runs** recorded
+#: that day, across eight seats — every seat but the chair-composed one.
+#: Re-measured TWICE by this seat during the repair round, on the reviewer's
+#: own unchanged instrument (`scratchpad/advd22/probeB5.py`): **16 of 20**,
+#: then an hour later **16 of 21**, the same eight seats both times. The
+#: denominator grows with the day; the numerator has not moved once.
+#:
+#: The schema half shipped without its companion half (the seat protocols and
+#: the run-record format that teach seats to file the four fields), and a
+#: contract enforced on one side only does not tighten anything: it stops the
+#: record from being written at all, which is worse than a badly routed
+#: record.
+#:
+#: So the enforcement ships dark and the chair flips it in a one-line
+#: versioned change once the seat-protocol companion lands. Until then every
+#: filing is still MEASURED — `routing_errors` runs regardless and the
+#: endpoint returns the advisory — so the day the flag flips is a day whose
+#: cost is already known rather than discovered.
+#:
+#: A single run may opt IN ahead of the flag by declaring `routing_version`
+#: (see `record_agent_run`): a seat that has adopted the format gets the full
+#: refusal it is asking for without waiting for the fleet.
+DESK_ROUTING_ENFORCE = False
+
+#: The `routing_version` a run must declare to be validated under routing v1
+#: while `DESK_ROUTING_ENFORCE` is False.
+ROUTING_ENFORCED_FROM_VERSION = 1
+
+
+def validate_routing(rec: Any, index: Optional[int] = None,
+                     enforce: Optional[bool] = None) -> list[str]:
+    """Every reason this filing is REFUSED, or an empty list.
+
+    The enforcement gate lives here rather than at the endpoint so that every
+    caller asking "would this be rejected?" — the endpoint, a probe, a seat's
+    own pre-flight — gets one answer, and it is the answer the door will
+    actually give. `routing_errors` is the ungated measurement underneath;
+    when enforcement is off this function returns [] and the errors are still
+    computable, reported, and counted.
+    """
+    if enforce is None:
+        enforce = DESK_ROUTING_ENFORCE
+    if not enforce:
+        return []
+    return routing_errors(rec, index)
+
+
+def routing_errors(rec: Any, index: Optional[int] = None) -> list[str]:
+    """Every reason this filing is not routable, or an empty list.
+
+    Returns ALL the errors rather than the first, because a seat re-posting a
+    run to discover a second missing field one at a time is a seat spending
+    four round trips on one form.
+
+    ALWAYS COMPUTED, ENFORCED ONLY BEHIND THE FLAG. Measuring what a rule
+    would refuse is free and is how the flip stops being a leap.
+    """
+    from app.fund.deskstore import REVERSIBILITY, _due_date, _money_at_stake
+
+    where = "" if index is None else f"recommendations[{index}]: "
+    if not isinstance(rec, dict):
+        return [f"{where}not an object — a recommendation must be "
+                f"{{text, kind, {', '.join(ROUTING_REQUIRED_FIELDS)}}}"]
+    errors: list[str] = []
+    missing = [f for f in ROUTING_REQUIRED_FIELDS if f not in rec]
+    if missing:
+        errors.append(
+            f"{where}missing {missing}. All four are REQUIRED KEYS; "
+            f"`due_date` and `money_at_stake` may be null when there honestly "
+            f"is none, but the silence is refused — the desk ranks on these "
+            f"two and ranked on nothing for three weeks because no seat wrote "
+            f"them")
+
+    na = rec.get("next_actor")
+    if "next_actor" in rec:
+        v = na.strip().lower() if isinstance(na, str) else None
+        if v not in FILEABLE_NEXT_ACTORS and v != UNDECIDED:
+            errors.append(
+                f"{where}next_actor={na!r} is not one of "
+                f"{FILEABLE_NEXT_ACTORS} or {UNDECIDED!r}. Say "
+                f"{UNDECIDED!r} if you do not know — it routes to the "
+                f"{UNDECIDED_ROUTES_TO}, never to the CEO")
+
+    if "reversibility" in rec:
+        rv = rec.get("reversibility")
+        if not isinstance(rv, str) or rv.strip().lower() not in REVERSIBILITY:
+            errors.append(
+                f"{where}reversibility={rv!r} must be one of {REVERSIBILITY}. "
+                f"The seat knows whether its own recommendation can be taken "
+                f"back; the desk's kind-table inference does not")
+
+    if "due_date" in rec and rec.get("due_date") is not None:
+        if _due_date(rec.get("due_date")) is None:
+            errors.append(
+                f"{where}due_date={rec.get('due_date')!r} must be YYYY-MM-DD "
+                f"or null. Refused rather than nulled: a malformed date used "
+                f"to sort lexicographically against real ones and put the row "
+                f"in the wrong place silently")
+
+    if "money_at_stake" in rec and rec.get("money_at_stake") is not None:
+        raw = rec.get("money_at_stake")
+        # STRICTER AT THE DOOR THAN IN STORAGE, on purpose. `_money_at_stake`
+        # coerces a numeric STRING because it also reads rows that were
+        # already written that way; a NEW filing has no such excuse, and JSON
+        # has a number type. A quoted figure is the shape a seat produces when
+        # it lifted the number out of its own prose, which is the one thing
+        # this field exists to prevent.
+        if isinstance(raw, bool) or not isinstance(raw, (int, float)) \
+                or _money_at_stake(rec) is None:
+            errors.append(
+                f"{where}money_at_stake={raw!r} must be a JSON number or "
+                f"null — never a string, never NaN, never a boolean. A "
+                f"quoted figure is what a number lifted out of prose looks "
+                f"like, and this field exists so the desk never ranks on one")
+    return errors
+
+
+def route_at_birth(rec: dict[str, Any]) -> dict[str, Any]:
+    """The filed row with `undecided` resolved and the resolution recorded.
+
+    ``routed_from`` is kept beside the resolved actor so a reader can tell a
+    seat that SAID "chair" from a seat that said "I do not know" — and so the
+    payload can report how much of the chair's queue is genuine delegation
+    versus how much is the default doing its job. Overwriting the seat's own
+    word would delete the one measurement that says whether the flip is
+    working.
+    """
+    if not isinstance(rec, dict):
+        return rec
+    na = rec.get("next_actor")
+    v = na.strip().lower() if isinstance(na, str) else None
+    if v == UNDECIDED:
+        return {**rec, "next_actor": UNDECIDED_ROUTES_TO,
+                "routed_from": UNDECIDED,
+                "routing_rules_version": ROUTING_RULES_VERSION}
+    if v in FILEABLE_NEXT_ACTORS:
+        return {**rec, "next_actor": v,
+                "routing_rules_version": ROUTING_RULES_VERSION}
+    return rec
+
+
+# ------------------------------------------------------- the matrix view ----
+#
+# CEO instruction, 2026-08-23, verbatim: *"like put a matrix view that shows
+# intra-team ticket count -> I click it expands the list; then different
+# categories for whats closed, whats ticking, whats blocking, whats open"* —
+# after the previous desk page earned *"this feels like an infine scroll"*.
+#
+# ONE FOLD, ONE PREDICATE. The count in a cell and the list behind it are the
+# same list, computed once here, so a cell can never say 6 and open onto 11.
+# That is not hypothetical: it is exactly what the CEO desk and the counter did
+# to each other before `next_actor` moved into the spine.
+
+#: The four columns, in the CEO's own order.
+DESK_CATEGORIES = ("open", "ticking", "blocking", "closed")
+
+#: What each column MEANS, published in the payload so the UI renders the
+#: definition beside the number instead of a tooltip somebody wrote once.
+CATEGORY_DEFINITIONS = {
+    "open": "undecided — somebody still has to decide this",
+    "ticking": "decided and in motion — a clock is running on execution",
+    "blocking": "cannot move until something else does — a live supersession "
+                "edge, an approved request nobody has dispatched, or a row "
+                "whose next actor cannot be determined",
+    # THE ONE COLUMN THAT UNDERSTATES ITSELF, and it says so rather than
+    # letting a reader take it for the firm's closure rate. The desk's
+    # recommendation read (`DeskStore.open_recommendations`) returns only
+    # open / accepted / staged, so a recommendation that has been rejected,
+    # done or noted is not in this fold at all. Requests and in-tray items ARE
+    # complete here. Fixing it means a second query and a decision about how
+    # far back "closed" should reach, which is a scope question for a human,
+    # not a default for a builder.
+    "closed": ("terminal — decided, served, struck or withdrawn. INCOMPLETE "
+               "for recommendations: the desk's read returns only undecided "
+               "and in-flight rows, so closed RECOMMENDATIONS are not counted "
+               "here. Requests and in-tray items are complete"),
+}
+
+#: Terminal states per source. Mirrored here rather than imported from the
+#: database module for the reason `TERMINAL_STATUSES` already gives, and pinned
+#: equal to it by a test.
+_TERMINAL_REQUEST_STATUSES = ("resolved", "declined")
+
+
+def classify_item(item: dict[str, Any]) -> dict[str, str]:
+    """Which of the four columns this desk item belongs in, and why.
+
+    PRECEDENCE, and it is load-bearing:
+
+      1. TERMINAL wins over everything. A row that is done is not blocked, is
+         not ticking, and does not need a decision — and a superseded row that
+         was already rejected must not reappear under BLOCKING.
+      2. A live SUPERSESSION edge blocks. This is the R37 case: the row is
+         formally still `staged`, and treating it as "in motion" is exactly
+         the reading that would let it be clicked after the event that made it
+         wrong.
+      3. UNKNOWN next actor blocks. Nobody can act on a row whose owner cannot
+         be read, and parking it under OPEN would tell the CEO it is his.
+      4. Otherwise the lifecycle decides.
+
+    Every item lands in exactly one column. A partition, not four filters —
+    overlapping tallies is how "26 elsewhere" ended up beside "6 with the
+    chair", both true and one label apart.
+    """
+    source = item.get("source")
+    status = (item.get("status") or "").strip().lower() or "open"
+
+    if source == "request":
+        if status in _TERMINAL_REQUEST_STATUSES:
+            return {"category": "closed",
+                    "why": f"request status {status!r} is terminal"}
+    elif source == "intray":
+        if status == "struck":
+            return {"category": "closed",
+                    "why": "struck by the chair, with its reason, and "
+                           "returned to the sending seat"}
+    elif status in TERMINAL_STATUSES:
+        return {"category": "closed",
+                "why": f"status {status!r} is terminal — nothing follows it"}
+
+    if item.get("supersession"):
+        mode = (item["supersession"] or {}).get("mode")
+        return {"category": "blocking",
+                "why": f"carries a live {mode} edge — it cannot be approved "
+                       f"until the edge is confirmed or retracted"}
+
+    if item.get("next_actor_resolved") == "unknown":
+        return {"category": "blocking",
+                "why": "whose move it is could not be determined, so nobody "
+                       "can act on it — counted, never dropped"}
+
+    if source == "request":
+        if status == "approved":
+            if item.get("dispatched"):
+                return {"category": "ticking",
+                        "why": "approved and dispatched — a seat is on it"}
+            return {"category": "blocking",
+                    "why": "approved by the CEO and never dispatched — "
+                           "blocked on the chair firing it"}
+        return {"category": "open", "why": "filed and undecided"}
+
+    if source == "intray":
+        if status == "blessed":
+            return {"category": "ticking",
+                    "why": "blessed into the receiving seat's next brief"}
+        return {"category": "open",
+                "why": "posted, awaiting the chair's blessing at the "
+                       "receiving seat's next dispatch"}
+
+    if status in ("accepted", "staged"):
+        return {"category": "ticking",
+                "why": f"status {status!r} — the CEO decided; execution is "
+                       f"running"}
+    if status == "open":
+        return {"category": "open", "why": "filed and undecided"}
+    return {"category": "blocking",
+            "why": f"status {status!r} is outside the known vocabulary, so "
+                   f"whether anything is owed cannot be read"}
+
+
+#: How many rows a single matrix cell carries in the payload. A cap, not a
+#: count: `total` beside it is the true figure and `truncated` says which is
+#: which. Named because the last cap this desk shipped (25 runs) was read as a
+#: count and truncated the firm's first spend meter.
+MATRIX_CELL_LIMIT = 25
+
+
+def desk_matrix(items: Iterable[dict[str, Any]],
+                cell_limit: int = MATRIX_CELL_LIMIT) -> dict[str, Any]:
+    """Seats x {open, ticking, blocking, closed}, counts with their rows attached.
+
+    ``items`` are normalised desk items (see ``desk_items``): each carries a
+    ``seat``, a ``source`` and enough state for ``classify_item``. A row with
+    no readable seat lands under ``unattributed`` rather than being dropped —
+    the matrix must total to the desk.
+    """
+    cells: dict[str, dict[str, dict[str, Any]]] = {}
+    totals = {c: 0 for c in DESK_CATEGORIES}
+    n = 0
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        n += 1
+        verdict = classify_item(item)
+        cat = verdict["category"]
+        seat = (item.get("seat") or "").strip().lower() or "unattributed"
+        row = {**item, "category": cat, "category_why": verdict["why"]}
+        slot = cells.setdefault(seat, {c: {"count": 0, "items": []}
+                                       for c in DESK_CATEGORIES})
+        slot[cat]["count"] += 1
+        if len(slot[cat]["items"]) < cell_limit:
+            slot[cat]["items"].append(row)
+        totals[cat] += 1
+    for seat_cells in cells.values():
+        for cat, cell in seat_cells.items():
+            cell["truncated"] = cell["count"] > len(cell["items"])
+            cell["shown"] = len(cell["items"])
+    # Seats ordered by how much is OPEN then how much there is at all: the
+    # thing the CEO clicks first should be the thing with the most undecided
+    # work, not whoever sorts first alphabetically.
+    order = sorted(cells, key=lambda s: (-cells[s]["open"]["count"],
+                                         -sum(c["count"] for c in cells[s].values()),
+                                         s))
+    return {
+        "categories": list(DESK_CATEGORIES),
+        "definitions": dict(CATEGORY_DEFINITIONS),
+        "seats": order,
+        "cells": cells,
+        "totals": totals,
+        "items_classified": n,
+        "cell_limit": cell_limit,
+        "note": (f"{n} desk item(s) across {len(order)} seat(s); every item is "
+                 f"in exactly one column, so the four totals sum to the desk"),
+    }
+
+
+def desk_items(open_recommendations: Iterable[dict[str, Any]],
+               requests: Iterable[dict[str, Any]],
+               intray_items: Iterable[dict[str, Any]] = (),
+               supersessions: Optional[dict[str, dict[str, Any]]] = None,
+               dispatched_request_ids: Iterable[str] = (),
+               pending_orders: Iterable[dict[str, Any]] = (),
+               ) -> list[dict[str, Any]]:
+    """One flat, uniform list of desk items from the four sources that have them.
+
+    THE UNITS ARE THE SAME IN EVERY CELL, and that is the reason this function
+    exists rather than four parallel matrices. "Intra-team ticket count" is
+    one number or it is a chart nobody can read: a recommendation, a desk
+    request, an in-tray posting and a pending order are all TICKETS, and mixing
+    seat-activity states in with them would put two different things behind one
+    figure.
+
+    PENDING ORDERS ARE IN THIS LIST AND WERE NOT IN THE FIRST CUT, and the
+    reason is worth stating because it was caught by LOOKING at the rendered
+    page rather than by any test. ``desk_load`` counts pending orders; this
+    fold did not — so the CEO's page carried a fourth number claiming to be the
+    same thing as the other three. This desk has now shipped
+    one-quantity-computed-twice twice, and the fix is not another warning
+    banner, it is the same population.
+
+    Attribution, stated because it is a choice: a recommendation belongs to the
+    seat that FILED it (which is also the seat that must retire it when it is
+    superseded — the standing PM instruction); a request belongs to the seat it
+    SERVES (whoever must do the work); an in-tray item belongs to the seat it
+    was posted TO; a pending order belongs to nobody on the bench and is
+    attributed to ``execution`` — a machine-produced row on a human's queue.
+    """
+    from app.fund.deskengine import rec_ref, req_ref
+
+    sup = supersessions or {}
+    dispatched = {str(x) for x in dispatched_request_ids}
+    out: list[dict[str, Any]] = []
+
+    for rec in open_recommendations or []:
+        if not isinstance(rec, dict):
+            continue
+        ref = rec_ref(rec.get("run_id") or "", rec.get("rec_id") or 0) \
+            if rec.get("run_id") is not None else None
+        v = next_actor(rec)
+        out.append({
+            "source": "recommendation", "ref": ref,
+            "seat": rec.get("seat"),
+            "run_id": rec.get("run_id"), "rec_id": rec.get("rec_id"),
+            "title": rec.get("text"),
+            "kind": rec.get("kind"),
+            "status": rec.get("status") or "open",
+            "due_date": rec.get("due_date"),
+            "money_at_stake": rec.get("money_at_stake"),
+            "reversibility": rec.get("reversibility"),
+            "next_actor_resolved": v["actor"],
+            "next_actor_basis": v["basis"],
+            "at": rec.get("resolved_at"),
+            "supersession": sup.get(ref) if ref else None,
+        })
+
+    for req in requests or []:
+        if not isinstance(req, dict):
+            continue
+        rid = req.get("request_id")
+        ref = req_ref(rid) if rid else None
+        out.append({
+            "source": "request", "ref": ref,
+            "seat": req.get("seat") or req.get("serves"),
+            "request_id": rid,
+            "title": req.get("task") or req.get("subject"),
+            "kind": req.get("kind"),
+            "status": req.get("status") or "open",
+            "due_date": None,
+            "money_at_stake": None,
+            "reversibility": None,
+            # A desk request awaiting APPROVAL is the CEO's by the same
+            # measurement `desk_load` rests on: all 25 DeskRequestApproved
+            # events carry `ceo` or a via-chair identity, none a chair acting
+            # alone. After approval the move is the chair's.
+            "next_actor_resolved": ("ceo" if (req.get("status") or "open")
+                                    == "open" else "chair"),
+            "next_actor_basis": "request_lifecycle",
+            "at": req.get("at"),
+            "dispatched": str(rid) in dispatched,
+            "supersession": sup.get(ref) if ref else None,
+        })
+
+    for item in intray_items or []:
+        if not isinstance(item, dict):
+            continue
+        out.append({
+            "source": "intray", "ref": None,
+            "seat": item.get("to_seat"),
+            "item_id": item.get("item_id"),
+            "title": item.get("task"),
+            "kind": "intray",
+            "status": item.get("status") or "posted",
+            "due_date": None, "money_at_stake": None, "reversibility": None,
+            # SEAT-TO-SEAT TRAFFIC NEVER REACHES THE CEO'S DESK (the spec says
+            # so in as many words). It is in the matrix because the matrix is
+            # the FIRM's ticket board, and it is `seat` here so no fold can
+            # accidentally count it onto his figure.
+            "next_actor_resolved": "seat",
+            "next_actor_basis": "intray",
+            "at": item.get("posted_at"),
+            "from_seat": item.get("from_seat"),
+            "supersession": None,
+        })
+
+    for o in pending_orders or []:
+        if not isinstance(o, dict):
+            continue
+        oid = o.get("order_id") or o.get("id")
+        impact = o.get("impact_preview") if isinstance(o.get("impact_preview"),
+                                                       dict) else {}
+        notional = (impact or {}).get("notional_usd")
+        out.append({
+            "source": "order", "ref": None,
+            # Not a bench seat. An order is machine-produced and lands on a
+            # human's queue; filing it under whichever strategy proposed it
+            # would put execution rows in a seat's ticket count.
+            "seat": "execution",
+            "order_id": oid,
+            "title": (f"{str(o.get('side') or '').upper()} {o.get('qty')} "
+                      f"{o.get('symbol')}").strip(),
+            "kind": "order",
+            "status": "open",
+            "due_date": None,
+            "money_at_stake": (float(notional)
+                               if isinstance(notional, (int, float))
+                               and not isinstance(notional, bool) else None),
+            # An order that cannot be taken back once it fills. Stated rather
+            # than inferred from a kind table — this one is not a judgement.
+            "reversibility": "irreversible",
+            # AN ORDER AWAITING APPROVAL IS THE CEO'S CLICK BY CONSTRUCTION;
+            # anything the auto-approval envelope takes never appears here at
+            # all. Same reasoning `desk_load` already rests on.
+            "next_actor_resolved": "ceo",
+            "next_actor_basis": "order_lifecycle",
+            "at": o.get("created_at") or o.get("at"),
+            "supersession": None,
+        })
+    return out
+
+
+# --------------------------------------------------- the CEO's own surface --
+
+def _rank_key(item: dict[str, Any]) -> tuple:
+    """Due date first, then money — with ABSENT LAST on both, deliberately.
+
+    A row with no date must not sort as though its date were the epoch, and a
+    row with no dollar figure must not sort as though it were worth zero. Both
+    are absences and both rank behind every row that stated something; the
+    payload says how many rows are ranked on nothing so the reader knows how
+    much of the order is real.
+    """
+    due = item.get("due_date")
+    has_due = isinstance(due, str) and bool(due.strip())
+    money = item.get("money_at_stake")
+    has_money = isinstance(money, (int, float)) and not isinstance(money, bool)
+    # The two ABSENCE FLAGS lead their own key rather than trailing it. With
+    # the money magnitude first, a row stating a NEGATIVE stake would sort
+    # behind a row stating nothing — an absence beating a number, which is the
+    # error this whole ordering exists to avoid, hiding in a sign.
+    return (0 if has_due else 1,
+            due if has_due else "",
+            0 if has_money else 1,
+            -float(money) if has_money else 0.0,
+            str(item.get("at") or ""))
+
+
+def greeting(*, ceo_items: list[dict[str, Any]],
+             on_fire: list[dict[str, Any]],
+             since: Optional[str] = None,
+             changed: Optional[dict[str, Any]] = None,
+             hygiene: Optional[dict[str, Any]] = None,
+             now: Optional[str] = None) -> dict[str, Any]:
+    """The executive greeting: what changed, what needs you, what is on fire.
+
+    GENERATED FROM THE SAME FOLDS THE PAGE RENDERS, never hand-written and
+    never a second count. Three sentences, each backed by a number that
+    appears elsewhere in the payload — if the greeting and the list ever
+    disagree, one of them is reading a different fold and that is a defect,
+    not a rounding.
+
+    ``since`` ABSENT IS SAID OUT LOUD. "Nothing has changed since your last
+    visit" and "we do not know when your last visit was" are different
+    sentences and only one of them is a fact. The client supplies its own last
+    visit; the spine does not stamp one, because a GET that writes is a GET
+    that lies about being safe.
+    """
+    n = len(ceo_items)
+    fire = len(on_fire)
+    changed = changed or {}
+    if since:
+        bits = [f"{v} {k.replace('_', ' ')}" for k, v in sorted(changed.items())
+                if isinstance(v, int) and v]
+        changed_line = (f"Since {since}: " + ", ".join(bits) + "."
+                        if bits else
+                        f"Nothing has been recorded since {since}.")
+    else:
+        changed_line = ("No previous visit was supplied, so nothing is marked "
+                        "new — this is everything currently open, not a diff.")
+    needs_line = (
+        f"{n} item(s) need you." if n else
+        "Nothing is waiting on you right now.")
+    if fire:
+        fire_line = (f"{fire} on fire: " + "; ".join(
+            f"{(i.get('title') or '')[:90]}"
+            + (f" (due {i['due_date']})" if i.get("due_date") else "")
+            for i in on_fire[:3]) + ".")
+    else:
+        fire_line = ("Nothing dated is overdue and no loss alarm is "
+                     "standing.")
+    hyg = ""
+    if hygiene:
+        c = hygiene.get("counts") or {}
+        if c.get("proposals"):
+            hyg = (f" Auto-hygiene has {c['proposals']} bookkeeping close(s) "
+                   f"waiting for one click.")
+        elif c.get("unlinkable"):
+            hyg = (f" Auto-hygiene could not read {c['unlinkable']} request(s) "
+                   f"— they carry no evidence edge, which is not the same as "
+                   f"being open.")
+    return {
+        "at": now,
+        "since": since,
+        "changed": changed_line,
+        "needs_you": needs_line,
+        "on_fire": fire_line,
+        "hygiene": hyg.strip() or None,
+        "text": " ".join(x for x in [changed_line, needs_line, fire_line,
+                                     hyg.strip()] if x),
+    }
+
+
+def _overdue(item: dict[str, Any], today: str) -> bool:
+    due = item.get("due_date")
+    return isinstance(due, str) and bool(due.strip()) and due.strip() <= today
+
+
+def ceo_desk(*, open_recommendations: Iterable[dict[str, Any]],
+             requests: Iterable[dict[str, Any]],
+             intray_items: Iterable[dict[str, Any]] = (),
+             supersessions: Optional[dict[str, dict[str, Any]]] = None,
+             dispatched_request_ids: Iterable[str] = (),
+             pending_orders: Iterable[dict[str, Any]] = (),
+             briefings_shelf: Optional[dict[str, Any]] = None,
+             hygiene: Optional[dict[str, Any]] = None,
+             halted: Optional[bool] = None,
+             since: Optional[str] = None,
+             changed: Optional[dict[str, Any]] = None,
+             now: Optional[str] = None,
+             decisions_limit: int = 50) -> dict[str, Any]:
+    """The CEO's decision surface: his rows, ranked, plus the shelf and the matrix.
+
+    THE TARGET IS SINGLE DIGITS and the falsifier is written into the spec: if
+    this page still exceeds ~15 rows at steady state after a week, the engine
+    failed its one job. So the payload reports ``decisions.total`` beside
+    what it shows — a page that quietly paginated its way to looking calm
+    would defeat its own measurement.
+
+    ``decisions.total`` IS THE SAME NUMBER ``desk_load.total`` REPORTS, and a
+    test pins the two equal over the live corpus. That equality is not a
+    coincidence to be maintained by care: both count rows whose next actor is
+    the CEO or cannot be read, over the same four sources, and the only
+    documented difference is rows this fold removes because the SERVER WOULD
+    REFUSE the click (a live supersession edge). Anything else is a defect.
+
+    The first cut of this function got that wrong and the SCREENSHOT is what
+    caught it: it filtered to categories `open` and `blocking`, which silently
+    dropped every `accepted`/`staged` row whose EXECUTION is still the CEO's
+    own act — the COO's standing objection of 2026-08-21, and the exact case
+    the explicit `next_actor` field exists for.
+
+    MEASURED, on the live corpus of 167 open recommendations and 92 requests
+    (2026-08-23, and re-counted at bundling time rather than inferred from two
+    figures taken at different moments): the old filter dropped **exactly one
+    row** — `run-pm-0908` rec 1, the 2026-09-08 exit package, staged, $1,847.36
+    at stake, the largest single figure on the desk. One row is the whole
+    defect and it is the one that mattered most, which is the argument for the
+    invariant rather than for the count.
+
+    NOTHING RENDERS UNBOUNDED. Every list here carries `shown`, `total` and
+    `truncated`; the matrix caps each cell; the shelf is capped by its own
+    fold. The previous desk earned *"this feels like an infine scroll"* and the
+    fix belongs on the server, where the count and the list are the same fold.
+    """
+    from datetime import datetime, timezone
+    now = now or datetime.now(timezone.utc).isoformat()
+    today = now[:10]
+
+    items = desk_items(open_recommendations, requests, intray_items,
+                       supersessions=supersessions,
+                       dispatched_request_ids=dispatched_request_ids,
+                       pending_orders=pending_orders)
+    matrix = desk_matrix(items)
+
+    # HIS rows: next actor is the CEO (or could not be read — an unreadable
+    # owner counts toward him, which is this desk's oldest rule), the row is
+    # not terminal, and it is not blocked behind a supersession edge. A
+    # superseded row is not a decision he can take: the server refuses the
+    # approval, so putting it on the decision list would be offering a button
+    # that fails.
+    #
+    # NOTE WHAT IS *NOT* IN THAT LIST: a category filter. A `ticking` row whose
+    # next actor is the CEO is a row he must still act on — see the docstring.
+    mine = [i for i in items
+            if i.get("next_actor_resolved") in ("ceo", "unknown")
+            and classify_item(i)["category"] != "closed"
+            and not i.get("supersession")]
+    mine.sort(key=_rank_key)
+
+    on_fire = [i for i in mine if _overdue(i, today)]
+    ranked_on_nothing = sum(
+        1 for i in mine
+        if not (isinstance(i.get("due_date"), str) and i["due_date"].strip())
+        and not isinstance(i.get("money_at_stake"), (int, float)))
+
+    blocked = [i for i in items if i.get("supersession")]
+    from app.fund.deskengine import SHELVED_MODES
+    kill_shelf = [i for i in blocked
+                  if ((i.get("supersession") or {}).get("mode")
+                      in SHELVED_MODES)]
+
+    return {
+        "at": now,
+        "rules_version": ROUTING_RULES_VERSION,
+        "greeting": greeting(ceo_items=mine, on_fire=on_fire, since=since,
+                             changed=changed, hygiene=hygiene, now=now),
+        "decisions": {
+            "shown": len(mine[:decisions_limit]),
+            "total": len(mine),
+            "truncated": len(mine) > decisions_limit,
+            "ranked_by": "due_date, then money_at_stake — absent last on both",
+            "ranked_on_nothing": ranked_on_nothing,
+            "items": mine[:decisions_limit],
+            "note": (f"{len(mine)} row(s) await the CEO"
+                     + (f"; {ranked_on_nothing} of them state neither a date "
+                        "nor a dollar figure, so their order is arrival "
+                        "order and not a ranking"
+                        if ranked_on_nothing else "")
+                     + "."),
+        },
+        "on_fire": {
+            "shown": len(on_fire), "total": len(on_fire),
+            "items": on_fire,
+            # `halted` is passed in from the risk monitor and may be None. None
+            # is UNKNOWN and says so: a desk that renders "not halted" because
+            # it could not reach the monitor is the absence-as-zero error on
+            # the one control that stops losses.
+            "risk_halted": halted,
+            "definition": ("dated and due today or earlier, or the risk "
+                           "monitor is halted. Nothing else goes here"),
+        },
+        "briefings": briefings_shelf,
+        "matrix": matrix,
+        "hygiene": hygiene,
+        # EVERY row carrying a live edge, UNCAPPED and listed separately from
+        # the matrix. The matrix caps each cell at 25, so a client that read
+        # its blocked rows from there would silently miss the 26th — and the
+        # one thing a client must never miss is a row whose approve button has
+        # to be disabled. Uncapped is safe here because an edge is a chair
+        # action, not a bench output; `total` is published so the day that
+        # stops being true is visible.
+        "blocked": {
+            "shown": len(blocked), "total": len(blocked), "items": blocked,
+            "note": ("rows carrying a live supersession edge — unapprovable "
+                     "at the server, and listed whole so no surface can offer "
+                     "a button the spine would refuse"),
+        },
+        "kill_shelf": {
+            "shown": len(kill_shelf), "total": len(kill_shelf),
+            "items": kill_shelf,
+            "note": ("rows superseded or killed — off the desk, kept whole "
+                     "with their lineage"),
+        },
+        "elsewhere": {
+            # COUNTS ONLY, on purpose. Everything not his is summarised so it
+            # cannot become a scroll; the matrix is where it is read.
+            "by_actor": {a: sum(1 for i in items
+                                if i.get("next_actor_resolved") == a)
+                         for a in NEXT_ACTORS},
+            "by_source": {s: sum(1 for i in items if i.get("source") == s)
+                          for s in ("recommendation", "request", "intray")},
+        },
+    }
+
+
+# ----------------------------------------------------- the briefings shelf --
+
+#: WHOSE MEMOS REACH THE CEO DIRECTLY, and only these three. The spec names
+#: them: Donna's archives, the COO's triages, Grace's ledgers. Deliberately
+#: absent: `docs/reviews` (adversarial verdicts already render in `artifacts`,
+#: paired with what they attacked, which is the more useful shape) and
+#: `docs/pm` (Stan's memos reach the desk as recommendations with money and
+#: dates on them — a second copy on the shelf would be one artifact in two
+#: places disagreeing about its own status).
+BRIEFING_SOURCES = (
+    {"seat": "secretary", "who": "Donna", "label": "Daily archive",
+     "dir": "archives"},
+    {"seat": "coo", "who": "Vishesh", "label": "Triage", "dir": "coo"},
+    {"seat": "cfo", "who": "Grace", "label": "Ledger", "dir": "cfo"},
+)
+
+#: How many memos the shelf carries. Newest first, so the cap drops the oldest
+#: — and `total` beside it says how many there are. Bounded on the server for
+#: the same reason every other list here is.
+SHELF_LIMIT = 12
+
+_DATE_IN_NAME_RE = re.compile(r"(\d{4}-\d{2}-\d{2})")
+
+
+def briefings(review_state: Optional[dict[str, dict[str, Any]]] = None,
+              limit: int = SHELF_LIMIT) -> dict[str, Any]:
+    """Seat memos, newest first, each with its chair-verification badge.
+
+    AUTO-PUBLISHED AT FILING. A memo appears here the moment the seat files it,
+    stamped ``chair-unverified`` — the chair is CC, never relay (CEO
+    instruction 3: *"COO reaches to me directly with you in CC"*). The badge
+    flips when the chair records a verification; a discrepancy found after
+    publication becomes a visible CORRECTION chip and never a silent edit,
+    because the findings-doc rule applies to the shelf too.
+
+    ``review_state`` is what the chair has recorded (see
+    ``deskengine.BriefingLedger.state``). Passing ``None`` means the ledger
+    could not be read, and every badge then reads ``unknown`` rather than
+    ``unverified`` — an unreadable ledger is not an unverified memo, and
+    collapsing the two would put a false badge on work the chair HAS checked.
+    """
+    ledger_readable = review_state is not None
+    review_state = review_state or {}
+    memos: list[dict[str, Any]] = []
+    unreadable: list[str] = []
+    for src in BRIEFING_SOURCES:
+        d = DOCS / src["dir"]
+        if not d.exists():
+            continue
+        try:
+            paths = sorted(d.glob("*.md"))
+        except OSError as e:  # noqa: BLE001
+            logger.info("briefings: %s unreadable: %s", d, e)
+            unreadable.append(str(d).replace("\\", "/"))
+            continue
+        for p in paths:
+            path = str(p).replace("\\", "/")
+            m = _DATE_IN_NAME_RE.search(p.name)
+            try:
+                head = p.read_text(encoding="utf-8", errors="replace")[:4000]
+            except OSError as e:  # noqa: BLE001
+                logger.info("briefings: %s unreadable: %s", p, e)
+                unreadable.append(path)
+                continue
+            state = review_state.get(path) or {}
+            memos.append({
+                "path": path,
+                "seat": src["seat"], "who": src["who"], "label": src["label"],
+                "title": _title_of(head),
+                "date": m.group(1) if m else None,
+                "badge": ("unknown" if not ledger_readable
+                          else "chair-verified" if state.get("verified_by")
+                          else "chair-unverified"),
+                "verified_by": state.get("verified_by"),
+                "verified_at": state.get("verified_at"),
+                "corrections": state.get("corrections") or [],
+            })
+    # Newest first by the date IN THE FILENAME, not by mtime: a PDF re-render
+    # or a `git checkout` moves mtime and would silently reorder the shelf.
+    # ONE sort, and the leading flag is what keeps undated memos LAST under a
+    # descending order — an undated memo is not new.
+    memos.sort(key=lambda x: (1 if x["date"] else 0, x["date"] or "",
+                              x["path"]), reverse=True)
+    total = len(memos)
+    unverified = sum(1 for m in memos if m["badge"] == "chair-unverified")
+    corrected = sum(1 for m in memos if m["corrections"])
+    return {
+        "memos": memos[:limit],
+        "shown": len(memos[:limit]),
+        "total": total,
+        "truncated": total > limit,
+        "ledger_readable": ledger_readable,
+        "unreadable": sorted(set(unreadable)),
+        "sources": [dict(s) for s in BRIEFING_SOURCES],
+        "note": (
+            f"{total} seat memo(s) on the shelf"
+            + (f", {unverified} still chair-unverified" if unverified else "")
+            + (f", {corrected} carrying a correction" if corrected else "")
+            + ("" if ledger_readable else
+               " — the verification ledger could not be read, so every badge "
+               "reads UNKNOWN rather than unverified")
+            + (f"; {len(set(unreadable))} file(s) could not be read"
+               if unreadable else "")
+            + "."),
     }
