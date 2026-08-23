@@ -472,17 +472,22 @@ def test_the_engines_volatility_is_read_with_its_unit_not_assumed(raw, expect):
     unit-confusion shape, and it would be invisible in a field nobody
     re-derives.
     """
-    from app.fund.leanrunner import _annual_vol_pct
+    from app.fund.leanrunner import _annual_vol_fraction, _annual_vol_pct
     stats = dict(REAL_STATS)
     if raw is None:
         stats.pop("Annual Standard Deviation")
     else:
         stats["Annual Standard Deviation"] = raw
     got = _annual_vol_pct(stats)
+    frac = _annual_vol_fraction(stats)
     if expect is None:
-        assert got is None
+        assert got is None and frac is None
     else:
         assert got == pytest.approx(expect)
+        # The percentage is DERIVED from the fraction, never re-parsed, so the
+        # two cannot drift and the stored fraction carries no scaling artefact.
+        assert frac == pytest.approx(expect / 100.0)
+        assert got == frac * 100.0
 
 
 def test_the_robustness_block_carries_the_engines_volatility():

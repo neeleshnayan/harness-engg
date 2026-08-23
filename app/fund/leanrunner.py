@@ -1627,12 +1627,11 @@ def psr_inputs(stats: dict, daily: Optional[dict[str, Any]] = None
         "zero_return_days": sum(1 for x in series if x == 0.0),
         "clock_note": (None if clock.get("usable") else clock.get("reason")),
     }
-    published = None
-    try:
-        published = float(str(stats.get("Annual Standard Deviation")).replace(
-            "%", "").replace(",", ""))
-    except (TypeError, ValueError):
-        published = None
+    # ONE unit reader, shared with `_robustness`. Two copies of "is this a
+    # fraction or a percentage" is the two-copies-of-one-belief defect, and the
+    # failure would be a `reproduces: False` that means nothing more than the
+    # engine changed its formatting.
+    published = _annual_vol_fraction(stats)
     _, sd = _stats.mean_std(series)
     recomputed = sd * math.sqrt(252.0) if sd else None
     out["engine_volatility_reproduction"] = {
@@ -1805,13 +1804,18 @@ def premia_inputs(result: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-def _annual_vol_pct(stats: dict) -> Optional[float]:
-    """LEAN's ``Annual Standard Deviation`` as a PERCENTAGE, unit-checked.
+def _annual_vol_fraction(stats: dict) -> Optional[float]:
+    """LEAN's ``Annual Standard Deviation`` as a FRACTION, unit-checked.
 
-    The engine writes this one bare (a fraction) while writing ``Drawdown`` and
+    The engine writes this one bare (0.116) while writing ``Drawdown`` and
     ``Compounding Annual Return`` with a "%" in the same block, so the unit has
     to be read off the string rather than assumed. Returns None when it is
     absent or unparseable — an unreadable volatility is not a zero one.
+
+    The fraction is the base and the percentage is derived from it, rather than
+    the other way round: reading 0.116, scaling to 11.6 and dividing back gives
+    0.11600000000000002, and a stored payload should not carry a float artefact
+    of the order in which two callers happened to want the number.
     """
     raw = stats.get("Annual Standard Deviation")
     if raw is None:
@@ -1821,7 +1825,13 @@ def _annual_vol_pct(stats: dict) -> Optional[float]:
         value = float(text.replace("%", "").replace(",", ""))
     except ValueError:
         return None
-    return value if "%" in text else value * 100.0
+    return value / 100.0 if "%" in text else value
+
+
+def _annual_vol_pct(stats: dict) -> Optional[float]:
+    """The same figure as a percentage. One law, expressed once."""
+    fraction = _annual_vol_fraction(stats)
+    return None if fraction is None else fraction * 100.0
 
 
 def _robustness(stats: dict, equity: list[float], dates: list[str],
