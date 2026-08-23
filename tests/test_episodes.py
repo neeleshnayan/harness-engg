@@ -918,3 +918,64 @@ def test_the_report_RENDERS_and_shows_a_zero_tag_explicitly(store, tmp_path):
         "simply does not appear reads as a tag nobody defined")
     assert "API_CARD.md" in text
     assert "UNINTERPRETABLE sections: 1" in text
+
+
+# --- the query renderer ------------------------------------------------------
+#
+# Both defects below were in code I had just written and were found by LOOKING
+# at the rendered output, not by the diff and not by the suite. Eleventh
+# consecutive dispatch.
+
+def test_the_renderer_says_NONE_when_there_are_no_filters(store):
+    """``"a: " + x or "b"`` parses as ``("a: " + x) or "b"`` and ``"a: "`` is
+    truthy, so the fallback never fired: an unfiltered query printed a bare
+    ``filters:`` and read like a query whose filters had been lost."""
+    from scripts.episodes.query import find
+    _add(store)
+    text = find(store.episodes())
+    assert "filters: NONE — the whole store" in text
+
+
+def test_the_renderer_does_not_GLUE_a_long_tag_list_to_the_run_id(store):
+    """Measured: four tags ran 27 characters into a 26-wide column and
+    produced "...futuresrun-mechanism-cycle2". A reader could not see where
+    the tags ended."""
+    from scripts.episodes.query import find
+    _add(store, market_tags=["bonds", "commodities", "equities", "etf", "fx"],
+         cited_run="run-mechanism-cycle2")
+    line = [ln for ln in find(store.episodes()).splitlines()
+            if "run-mechanism-cycle2" in ln][0]
+    assert "fxrun-" not in line
+    assert "fx  run-mechanism-cycle2" in line
+
+
+def test_the_renderer_prints_the_absences_even_on_a_NON_empty_answer(store):
+    """A short answer against a large store is the case a reader misreads
+    most, so the counts are printed always and not only when empty."""
+    from scripts.episodes.query import find
+    for i in range(3):
+        _add(store, md=f"## s{i}\n\nbody\n", seat="quant")
+    _add(store, seat="pm", md="## p\n\nbody\n", market_tags=["bonds"])
+    text = find(store.episodes(seat="quant"))
+    assert "matched 3 of 4 episode(s) in the store" in text
+    assert "seats in store: pm, quant" in text
+    assert "tags in store:  bonds" in text
+
+
+def test_the_coverage_renderer_names_the_untagged_meaning(store):
+    from scripts.episodes.query import coverage
+    _add(store, seat="quant")
+    text = coverage(store.coverage())
+    assert "UNTAGGED means no market was named" in text
+    assert "does NOT mean the episode applies to every market" in text
+
+
+def test_the_vocabulary_command_prints_every_tag_with_its_patterns():
+    """The tags are a classification this firm invented; a reader must be able
+    to see what produced one without reading the module."""
+    from app.fund.episodes import MARKET_TAGS
+    from scripts.episodes.query import vocabulary
+    text = vocabulary()
+    for tag in MARKET_TAGS:
+        assert f"    {tag}\n" in text + "\n"
+    assert "SPY" in text and "implied vol" in text

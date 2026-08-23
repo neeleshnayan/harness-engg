@@ -50,14 +50,21 @@ def _head(md: str, heading: str | None, width: int = 96) -> str:
 
 
 def find(d: dict, full: bool = False) -> str:
-    L = ["# episodes", "",
-         "filters: " + ", ".join(f"{k}={v}" for k, v in d["filters"].items()
-                                 if v not in (None, False)) or "filters: none",
+    # `"a: " + x or "b"` reads as `("a: " + x) or "b"` and "a: " is truthy, so
+    # the fallback never fires. Caught by running it with no filters.
+    shown = ", ".join(f"{k}={v}" for k, v in d["filters"].items()
+                      if v not in (None, False))
+    L = ["# episodes", "", f"filters: {shown or 'NONE — the whole store'}",
          f"note: {d['note']}", ""]
     for e in d["episodes"]:
         tags = ",".join(e["market_tags"]) or "NO MARKET NAMED"
-        L.append(f"{(e['episode_at'] or 'UNDATED')[:10]}  {e['seat']:<12}"
-                 f"{e['kind']:<8}{tags:<26}{e['cited_run']}"
+        # A COLUMN THAT CAN OVERFLOW IS A COLUMN THAT WILL. Measured: four
+        # tags on one episode ran 27 chars into a 26-wide field and glued
+        # themselves to the run id ("...futuresrun-mechanism-cycle2"). The
+        # separator is explicit now, so a long value stays readable instead of
+        # merging with its neighbour.
+        L.append(f"{(e['episode_at'] or 'UNDATED')[:10]}  {e['seat']:<12}  "
+                 f"{e['kind']:<7}  {tags:<28}  {e['cited_run']}"
                  + ("   [VOIDED]" if e["voided"] else ""))
         L.append(f"    {_head(e['episode_md'], e['heading'])}")
         L.append(f"    {e['source_ref'] or 'NO SOURCE REF'}")
