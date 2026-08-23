@@ -21,12 +21,15 @@
  * printed the fund's figure and rendered fewer rows without comment would be
  * worse, because the reader would think they had seen everything.
  *
- * So `laneCount()` is three-valued in a way a reader can act on:
- *   - served figure present and equal to the rows        → one number
- *   - served figure present and larger                   → "N · showing M"
- *   - served figure absent                               → the row count, and
- *                                                          it says it is the
- *                                                          page's own
+ * So `laneCount()` has four answers, each of which a reader can act on:
+ *   - served figure present, equal to the rows           → one number
+ *   - served figure present, larger than the rows        → "N · showing M"
+ *   - served figure absent, the desk readable            → the row count, said
+ *                                                          to be the page's own
+ *   - served figure absent AND the desk unreadable       → UNKNOWN, as a word
+ *
+ * The fourth was missing from the first cut and all five lanes rendered `0`
+ * on an unreachable spine. See `laneCount`.
  *
  * SUPERSEDED ROWS NEVER APPEAR IN AN ACTIVE LANE. They are withdrawn by
  * lineage — the server refuses their approval — so a lane that listed one
@@ -47,7 +50,7 @@ export interface LaneCount {
   value: number | null;
   /** How many rows this page can actually put on screen. */
   shown: number;
-  /** Where `value` came from. */
+  /** Where `value` came from. `unknown` means NEITHER fold could speak. */
   source: "spine" | "page" | "unknown";
   /** Non-null whenever a reader would otherwise misread the pair. */
   note: string | null;
@@ -112,11 +115,28 @@ export function utcDay(iso: string | null | undefined): string | null {
 
 /**
  * The pair of numbers a lane renders, and the sentence that keeps them honest.
+ *
+ * `pageReadable` IS NOT DECORATION AND IT WAS NOT IN THE FIRST CUT. Without
+ * it, a spine that served no figure fell back to the page's row count — and
+ * on an UNREADABLE desk the page's row count is zero, so all five lanes
+ * rendered a confident `0`. That is the absence-as-zero error, in the desk
+ * whose whole discipline is that absence is never zero, written by the person
+ * writing this comment and caught by the test three lines below the one that
+ * was passing. Neither fold speaking is UNKNOWN, and UNKNOWN renders as a
+ * word.
  */
 export function laneCount(
   served: number | null | undefined, shown: number, what: string,
+  pageReadable = true,
 ): LaneCount {
   if (typeof served !== "number" || !Number.isFinite(served)) {
+    if (!pageReadable) {
+      return {
+        value: null, shown, source: "unknown",
+        note: `Neither the fund nor this page could count ${what}, so it is `
+          + "UNKNOWN — not none. Anything waiting is still waiting.",
+      };
+    }
     return {
       value: shown, shown, source: "page",
       note: `Counted by this page, not by the fund — the spine served no `
@@ -161,6 +181,10 @@ export function deskLanes(input: LaneInput): Lane[] {
   const recs = desk?.open_recommendations ?? [];
   const requests = desk?.requests ?? [];
   const today = utcDay(now);
+  /* THE ONE INPUT EVERY LANE NEEDS. A page that cannot read the desk has no
+     row count to fall back on, and a lane rendering 0 there would be claiming
+     an empty queue it never looked at. */
+  const readable = desk !== null;
 
   const isBlocked = (runId: string, recId: number) =>
     blocked.has(`${runId}#${recId}`);
@@ -251,7 +275,7 @@ export function deskLanes(input: LaneInput): Lane[] {
       label: "Awaiting you",
       lede: "Every row that needs your click, ranked by the fund. Nothing else "
         + "on this page is waiting on you.",
-      count: laneCount(awaitingServed, awaitingShown, "what awaits you"),
+      count: laneCount(awaitingServed, awaitingShown, "what awaits you", readable),
       rows: [],
       openByDefault: true,
       withdrawn: 0,
@@ -262,7 +286,7 @@ export function deskLanes(input: LaneInput): Lane[] {
       lede: "You said yes; these have not happened yet. Each names who has it "
         + "now — the missing third state this desk rendered as nothing.",
       count: laneCount(load?.decided_awaiting_execution, decidedRows.length,
-        "decided work"),
+        "decided work", readable),
       rows: decidedRows,
       openByDefault: false,
       withdrawn: decidedAll.length - decidedLive.length,
@@ -273,7 +297,7 @@ export function deskLanes(input: LaneInput): Lane[] {
       lede: "You approved these asks; the chair fires them. An approval is "
         + "recorded on the log and triggers nothing by itself.",
       count: laneCount(load?.requests_approved_undispatched, dispatchRows.length,
-        "the chair's dispatch queue"),
+        "the chair's dispatch queue", readable),
       rows: dispatchRows,
       openByDefault: false,
       withdrawn: 0,
@@ -284,7 +308,7 @@ export function deskLanes(input: LaneInput): Lane[] {
       lede: "Nobody has decided these and nobody is waiting on you for them. "
         + "Each names the actor it went to and the spine's reason.",
       count: laneCount(load?.open_elsewhere, elsewhereRows.length,
-        "open work owned elsewhere"),
+        "open work owned elsewhere", readable),
       rows: elsewhereRows,
       openByDefault: false,
       withdrawn: elsewhereAll.length - elsewhereLive.length,
@@ -296,7 +320,7 @@ export function deskLanes(input: LaneInput): Lane[] {
         + "the record carries. A closure with no text is shown as one.",
       // NO SERVED FIGURE EXISTS for this lane, and that is stated rather than
       // hidden: `desk_load` counts what is open, never what closed today.
-      count: laneCount(null, resolvedRows.length, "today's resolutions"),
+      count: laneCount(null, resolvedRows.length, "today's resolutions", readable),
       rows: resolvedRows,
       openByDefault: false,
       withdrawn: 0,

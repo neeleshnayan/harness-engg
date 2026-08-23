@@ -181,6 +181,13 @@ export interface Lineage {
   supersessions: LineageStage<DeskSupersessionEdge>;
   /** How this chain was assembled, for a reader who wants to disagree with it. */
   joinNote: string;
+  /** WHICH STORES COULD NOT BE READ, recorded from the SOURCES rather than
+   *  inferred from the stages. The two are not the same thing and conflating
+   *  them names the wrong culprit: an unreadable DESK makes the decisions
+   *  stage unknown while the event log answered perfectly, and a warning line
+   *  reading "the event log could not be read" there sends a reader to
+   *  investigate a healthy store. */
+  storesUnread: string[];
 }
 
 /** Everything the fold reads. Each may be null, and null means UNREADABLE. */
@@ -436,14 +443,25 @@ export function lineageFor(anchor: LineageAnchor, src: LineageSources): Lineage 
   }
   decisionRows.sort((a, b) => (a.at ?? "").localeCompare(b.at ?? ""));
 
+  // THE JOIN'S INPUT CAN FAIL WITHOUT THE LOG FAILING, and reporting that as
+  // "no decision" would be an outage wearing an empty record's clothes. A
+  // request anchor has no rec of its own: the rows it owns are enumerated from
+  // the DESK's run list, so an unreadable desk leaves nothing to look up and
+  // the stage is UNKNOWN even though the log answered perfectly.
+  const cannotEnumerate = desk === null && wanted.size === 0;
   const decisions: LineageStage<LineageDecision> = events === null
     ? stage("unreadable", [], UNREADABLE_LOG)
-    : decisionRows.length > 0
-      ? stage("found", decisionRows, "what was decided, and in whose words")
-      : stage("absent", [],
-        "No decision has been recorded against these rows in the events this "
-        + "page can see. The log endpoint is capped, so an older decision is "
-        + "outside the window rather than absent.");
+    : cannotEnumerate
+      ? stage("unreadable", [],
+        "The event log was read, but the desk was not — so which rows belong "
+        + "to this chain could not be established, and whether any of them was "
+        + "decided is UNKNOWN rather than no.")
+      : decisionRows.length > 0
+        ? stage("found", decisionRows, "what was decided, and in whose words")
+        : stage("absent", [],
+          "No decision has been recorded against these rows in the events this "
+          + "page can see. The log endpoint is capped, so an older decision is "
+          + "outside the window rather than absent.");
 
   /* ---- 6. execution evidence ------------------------------------------- */
 
@@ -499,28 +517,27 @@ export function lineageFor(anchor: LineageAnchor, src: LineageSources): Lineage 
       + "`serves_requests` is a declaration by the run; `trace_id` is a shared "
       + "id and is a weaker claim.";
 
+  const storesUnread: string[] = [];
+  if (desk === null) storesUnread.push("the desk");
+  if (events === null) storesUnread.push("the event log");
+  if (edges === null) storesUnread.push("the supersession store");
+
   return {
     request, dispatches, runs, recommendations, decisions, execution,
-    supersessions, joinNote,
+    supersessions, joinNote, storesUnread,
   };
 }
 
 /**
- * Every stage that is UNREADABLE, for the one warning line the drawer prints.
+ * The stores behind this chain that could not be read, for the ONE warning
+ * line the drawer prints above everything.
  *
  * Kept apart from the per-stage sentences on purpose: a reader scanning a
  * chain needs to know at the TOP that part of it is an outage, before they
  * read six stages and conclude the record is thin.
  */
 export function unreadableStages(l: Lineage): string[] {
-  const out: string[] = [];
-  const pairs: [string, LineageState][] = [
-    ["the desk", l.request.state],
-    ["the event log", l.decisions.state],
-    ["the supersession store", l.supersessions.state],
-  ];
-  for (const [name, st] of pairs) if (st === "unreadable") out.push(name);
-  return Array.from(new Set(out));
+  return l.storesUnread;
 }
 
 /**
