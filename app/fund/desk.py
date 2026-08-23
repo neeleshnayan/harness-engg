@@ -2176,6 +2176,19 @@ def ceo_desk(*, open_recommendations: Iterable[dict[str, Any]],
         "briefings": briefings_shelf,
         "matrix": matrix,
         "hygiene": hygiene,
+        # EVERY row carrying a live edge, UNCAPPED and listed separately from
+        # the matrix. The matrix caps each cell at 25, so a client that read
+        # its blocked rows from there would silently miss the 26th — and the
+        # one thing a client must never miss is a row whose approve button has
+        # to be disabled. Uncapped is safe here because an edge is a chair
+        # action, not a bench output; `total` is published so the day that
+        # stops being true is visible.
+        "blocked": {
+            "shown": len(blocked), "total": len(blocked), "items": blocked,
+            "note": ("rows carrying a live supersession edge — unapprovable "
+                     "at the server, and listed whole so no surface can offer "
+                     "a button the spine would refuse"),
+        },
         "kill_shelf": {
             "shown": len(kill_shelf), "total": len(kill_shelf),
             "items": kill_shelf,
