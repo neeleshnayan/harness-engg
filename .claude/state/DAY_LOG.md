@@ -40,6 +40,18 @@ at ~00:05Z ("you too rest post closing these 5 items; will see you on
 Monday"). The five fan-out items all resolved; the floor rests until Monday.
 
 **DECIDED**
+- **THE LEVERAGE RULE: THE REFUSAL STANDS (chair decision under the CEO'''s
+  explicit delegation, verbatim "Yes you decide").** Gate v5r3 refuses
+  premia claims above 1.0x gross, fail-closed, as shipped. Grounds:
+  nothing today needs leverage (all algorithms <=0.95; zero candidates
+  blocked); the financing alternative is expensive AND unsafe before the
+  intraday-sampling question is answered; no measured candidate demands
+  the widening. REOPENING TRIGGER recorded at decision time: a concrete
+  premia proposal with gross > 1.0 carrying a NAMED financing
+  counterparty and rate, reaching the funnel, AND the validator'''s
+  intraday answer in hand — then adversary-blind first, CEO click always
+  (a widening). Demonstrated need, never symmetry.
+
 - **CLOSURE BECOMES A FOLD, NOT A CHAIR ACT (CEO, verbatim: items feel
   open despite being closed; postgres is the right way rather than manual
   sweeps).** Filed as the D34 addendum (4a4f6b0d): a one-time
