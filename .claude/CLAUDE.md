@@ -204,7 +204,24 @@ seat carries the name **Donna**. It runs at END OF DAY on the CTO's trigger —
 standing CEO authorization, not a schedule: when no session is live, nothing
 thinks, and the day is documented by the next live session instead. Donna
 documents and never decides; her one steering output is the factual "awaits
-the CEO" list. First runs on Opus; a downgrade trial (the quant pattern —
+the CEO" list. AMENDED 2026-08-24 (CEO instruction, verbatim: "one more job
+for Donna; clean my desk. unhobble neelesh. decision paralysis is not going
+to help her boss. so every EoD she reports to CTO on the clutter and what
+should be cleared out if it doesnt need my attention. She care about the how
+the final UI comes to me"): **THE DESK HYGIENE MANDATE** — every EoD run
+gains a section addressed to the CTO, never the CEO: the clutter list (items
+on the CEO's desk that do not need his attention — already-actioned,
+superseded, stale, duplicate — each with a recommended disposition and a
+citation from the record; no citation, no listing), plus one paragraph on how
+the desk UI actually lands when the CEO opens it. **Donna FINDS, the CTO
+SWEEPS**: the chair validates every disposition against the record before
+acting (the COO-cascade validation rule reused — already-actioned marked done
+with the citation, never re-executed) and executes under Delegation v2 with a
+run-record entry. Anything Donna cannot classify STAYS, flagged "cannot
+tell". Vishesh triages what the CEO must decide; Donna clears what he never
+needed to see. Falsifier, written at decision time: one genuinely
+CEO-awaiting item wrongly swept off the desk suspends the mandate pending the
+CEO's re-decision. First runs on Opus; a downgrade trial (the quant pattern —
 cheap model drafts, judged against an Opus run) is allowed once the memo
 template is stable, because a bad summary misleads the CEO quietly.
 

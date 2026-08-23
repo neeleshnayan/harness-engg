@@ -625,3 +625,21 @@ itself; that is the product.
 308bps mean / SOFI 38bps vs the 5bps assumption; SPY median 4.0bps. The
 flat cost assumption flatters small names. The D36/D34 family must consume
 the measured table or record why not.
+
+
+---
+
+## 2026-08-24 — THE DESK SWEEP (chair's half of Donna's hygiene mandate, CEO decision)
+
+On every Donna EoD return, her THE DESK, SWEPT section is a CHAIR WORK
+QUEUE, not information: validate each recommended disposition against the
+record (her citation is the starting point, never the proof — re-check it),
+then execute the sweep under Delegation v2 in one pass — already-actioned
+marked done citing her citation, superseded/stale closed with the reason,
+duplicates folded. Record the sweep as a run-record entry (what was cleared,
+what was kept against her recommendation and why). Items she flags "cannot
+tell" and items I cannot verify STAY on the desk — the mandate's falsifier
+is one real decision hidden by hygiene, and the sweep must never be the
+place that fires it. Her UI-read paragraph routes as ordinary builder
+tickets. The riskofficer sees sweep entries on the neelesh-via-cto channel
+like everything else.

@@ -39,6 +39,12 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
 (13:30Z open). Opened by resolving Grace's growth-mandate audition.
 
 **DECIDED**
+- **Donna gains THE DESK HYGIENE MANDATE (CEO, verbatim in the
+  constitution): every EoD she reports to the CTO on desk clutter — cited
+  dispositions for everything that does not need the CEO's attention, plus
+  a UI-landing read.** Donna finds, the chair validates-then-sweeps under
+  v2. Falsifier at birth: one genuinely CEO-awaiting item wrongly swept
+  suspends the mandate. First report: tonight's EoD run.
 - **Grace's C1 challenge ACCEPTED (a tightening): THE SWITCH-ON CHECK joins
   the chair's resolve protocol** — a dispatch delivering an instrument
   records served? / filled? / read? before it closes; an explained absence
