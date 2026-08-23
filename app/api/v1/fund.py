@@ -589,13 +589,36 @@ def verify_ledger_chain(limit: int = Query(100_000, ge=1)):
 
 
 @router.get("/fund/tca")
-def get_transaction_costs(limit: int = Query(500, ge=1, le=5000)):
+def get_transaction_costs(limit: int = Query(100_000, ge=1, le=1_000_000)):
     """What trading actually cost, against what the backtests assumed.
 
     Folded from the order lifecycle already in the log, so it applies
     retroactively to every order the fund has placed. Until this is measured,
     every Sharpe ratio in the system describes an assumption rather than a
     strategy.
+
+    ``limit`` COUNTS EVENTS, NOT ORDERS, AND IT USED TO DEFAULT TO 500. That
+    default silently truncated this whole report. ``tca.costs`` hands it to
+    ``EventStore.stream``, which serves the OLDEST ``limit`` events — so the
+    default view showed the HEAD of the log and dropped everything after it,
+    and the gap widened with every event the fund wrote.
+
+    Measured on the live log 2026-08-23 (1,254 events), before and after:
+
+        limit=500    20 orders, DBA absent from by_symbol entirely
+        limit=1254   22 orders, DBA present
+
+    The two missing rows were the fund's two most recent filled orders — the
+    2026-08-21 experimental deployment whose written learning goal was "the
+    fund's first informative execution-cost observations". Nothing in the
+    response said it had been cut. Reproduce:
+    ``curl -s '<spine>/api/v1/fund/tca?limit=500'  | jq .summary.orders``
+    ``curl -s '<spine>/api/v1/fund/tca?limit=99999'| jq .summary.orders``
+
+    The default now matches ``tca.costs``' own (100,000), which is what every
+    non-HTTP caller of that function has always used. A caller may still ask
+    for fewer; the response does not yet report that it was cut, and that
+    remains open work on ``tca.py`` rather than on this route.
     """
     from app.fund.tca import TransactionCosts
 
