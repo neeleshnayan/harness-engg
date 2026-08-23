@@ -123,6 +123,18 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   is fired and discharged by this work — the register cannot record
   either; recorded here, and the evaluability ticket (a26debb9 family)
   remains the owner.
+- **THE MACHINERY'S POSITIVE CONTROL commissioned (CEO: 'if our
+  machinery fails to produce decent strategies then its the machinery
+  that needs tuning... no strategy will survive a machinery that kills
+  everything on one grounds or the other').** The validator now measures
+  THE JOINT TRUE-POSITIVE RATE of gate v4.3 end-to-end (every bar can be
+  individually defensible while the gauntlet is jointly unpassable -
+  never computed) + designs the META positive-control archetypes with a
+  scored prediction ledger (belt runs follow via the quant) + quantifies
+  THE PREMIA GAP: the strategies that made money sensibly on META are
+  premia-shaped and the gate still only knows alpha - the v5 organ,
+  likely finding #1. The META pilot is now BOTH the dossier-instrument
+  pilot AND the machinery's known-good calibration.
 - **THE META DOSSIER v1 ticketed as the coverage pilot** (CEO: 'pick a
   simple one say meta and build a deep understanding of it'). Learning
   goal explicit: prove the dossier INSTRUMENT (alpha = bonus). Bars from
