@@ -617,3 +617,117 @@ def test_coverage_zero_fill_events_gives_none_pct_not_zero():
     out = coverage([], [])
     assert out["fill_events_total"] == 0
     assert out["pct_measured"] is None
+
+
+# ===========================================================================
+# Added by the builder to close three mutation survivors (M23, M29, M65).
+# Each docstring names the mutant it kills.
+# ===========================================================================
+
+def test_the_submitted_venue_is_read_from_the_submitted_leg_not_the_fill():
+    """KILLS M23: the fold dropping submitted_venue entirely.
+
+    THE REAL CASE, order 17d64dcd (DBA, 2026-08-21): OrderSubmitted says
+    ``paper`` and OrderFilled says ``alpaca``. Those are a fact and a wish —
+    the submitted leg carries what the connector that ran the order handed
+    back, the filled leg carries a string the proposer put on the request.
+    ``tca.py`` preferred the wish and counted a simulated fill as an
+    informative execution cost for a day.
+
+    Nothing else in this file would notice if the fold stopped populating
+    submitted_venue: every other test passes a venue to execution_class
+    directly, so the whole class partition would silently read ``executed``.
+    """
+    events = [
+        ev(1, "17d64dcd", "OrderProposed",
+           {"qty": 5.314306, "side": "buy", "venue": "alpaca",
+            "symbol": "DBA"}),
+        ev(2, "17d64dcd", "OrderSubmitted",
+           {"venue": "paper", "venue_ref": "4a8f",
+            "arrival_price": 28.3799991607666}),
+        ev(3, "17d64dcd", "OrderFilled",
+           {"fees": "0", "side": "buy", "venue": "alpaca", "symbol": "DBA",
+            "avg_price": "28.3799991607666", "filled_qty": "5.314306",
+            "strategy_id": "sleeve_premia_carry"}),
+    ]
+    rec = fold_order_lifecycles(events)["17d64dcd"]
+    assert rec["submitted_venue"] == "paper"
+    assert rec["filled_venue"] == "alpaca"
+    assert rec["was_submitted"] is True
+
+    leg = fill_legs(fold_order_lifecycles(events))[0]
+    assert leg["submitted_venue"] == "paper"
+    assert leg["execution_class"] == "simulated", (
+        "the fill leg followed the proposer's wish instead of the connector's "
+        "fact - this is the tca.py defect reproduced")
+
+
+def test_an_order_never_submitted_has_no_submitted_venue_and_says_so():
+    """The other half of M23: absent, and absent for the right reason.
+
+    Seven of the live log's twenty nine filled orders have no OrderSubmitted
+    at all. submitted_venue must be None AND was_submitted must be False, so
+    a reader can tell "never sent to anybody" from "sent by a connector that
+    recorded no venue name".
+    """
+    events = [
+        ev(1, "backfill-1", "OrderFilled",
+           {"fees": "0", "side": "buy", "venue": "alpaca", "symbol": "SOFI",
+            "avg_price": "18.15", "filled_qty": "8.0"}),
+    ]
+    rec = fold_order_lifecycles(events)["backfill-1"]
+    assert rec["submitted_venue"] is None
+    assert rec["was_submitted"] is False
+    assert fill_legs({"backfill-1": rec})[0]["execution_class"] == "not_submitted"
+
+
+def _qrow(order_id, seq, cls_venue, eff, submitted=True, kind="filled"):
+    return {"order_id": order_id, "event_seq": seq, "event_kind": kind,
+            "symbol": "SPY", "submitted_venue": cls_venue,
+            "was_submitted": submitted, "feed": "sip",
+            "effective_spread_bps": eff,
+            "signed_effective_spread_bps": eff}
+
+
+def test_single_and_multi_leg_buckets_partition_their_class_exactly():
+    """KILLS M29: the single-leg bucket silently emptied.
+
+    single_leg is THE headline figure — on a single-fill order ``avg_price``
+    IS the print, so its effective spread is the textbook quantity, while a
+    multi-leg order's is a running average against a point-in-time mid. A
+    mutation that made single_leg always empty survived every other test in
+    this file, which means nothing was checking the number the report puts a
+    marker beside.
+
+    Asserted as a partition (single + multi == the class, and neither is
+    silently zero) rather than as two independent counts, because two counts
+    that are both wrong in the same direction still add up.
+    """
+    rows = [
+        _qrow("single-a", 1, "alpaca", 2.0),
+        _qrow("single-b", 2, "alpaca", 4.0),
+        _qrow("multi", 3, "alpaca", 10.0, kind="partially_filled"),
+        _qrow("multi", 4, "alpaca", 20.0),
+    ]
+    ex = summarise_quote_rows(rows)["by_execution_class"]["executed"]
+    assert ex["fills"] == 4
+    assert ex["single_leg"]["fills"] == 2
+    assert ex["multi_leg"]["fills"] == 2
+    assert ex["single_leg"]["fills"] + ex["multi_leg"]["fills"] == ex["fills"]
+    # The numbers, not just the counts: pooling the two would give 9.0.
+    assert ex["single_leg"]["effective_spread_bps"]["mean"] == 3.0
+    assert ex["multi_leg"]["effective_spread_bps"]["mean"] == 15.0
+    assert ex["effective_spread_bps"]["mean"] == 9.0
+
+
+def test_a_lone_fill_is_single_leg_and_the_multi_bucket_is_absent_not_zero():
+    """The empty half of the partition reports None, never a mean of 0.0.
+
+    An execution-cost panel reading 0.0 bps because nothing landed in the
+    bucket is the absence-as-zero failure at the top of the non-negotiables.
+    """
+    ex = summarise_quote_rows([_qrow("solo", 1, "alpaca", 3.5)])
+    ex = ex["by_execution_class"]["executed"]
+    assert ex["single_leg"]["effective_spread_bps"]["n"] == 1
+    assert ex["multi_leg"]["fills"] == 0
+    assert ex["multi_leg"]["effective_spread_bps"] is None

@@ -516,6 +516,53 @@ def test_the_endpoint_serves_a_populated_store_with_its_class_cut(
     assert ex["mean"] == round(raw, 4)
 
 
+def test_the_endpoint_counts_fills_from_the_WHOLE_log_not_a_page(monkeypatch):
+    """KILLS the mutant that reads a page of the log instead of all of it.
+
+    ``coverage`` is a claim about EVERY fill the fund has ever made. If the
+    endpoint's own read of the log is capped, the DENOMINATOR quietly becomes
+    "the events we happened to fetch" and the percentage measured goes up as
+    the fund forgets its own history. This is the same defect measured live in
+    ``/fund/tca`` on the same day, so it is not hypothetical.
+
+    A shortened read survived every other endpoint test because the test
+    ledger is small. This plants a fill past any plausible page size.
+    """
+    from fastapi.testclient import TestClient
+    from app.main import app
+    import app.api.v1.fund as fundmod
+
+    events = [{"seq": i + 1, "aggregate_id": f"n{i}", "aggregate_type": "nav",
+               "type": "NavStruck", "actor": "system",
+               "ts": "2026-08-01T00:00:00+00:00", "payload": {}}
+              for i in range(4000)]
+    events += [
+        {"seq": 4001, "aggregate_id": "late", "aggregate_type": "order",
+         "type": "OrderSubmitted", "actor": "system",
+         "ts": "2026-08-21T13:31:00+00:00",
+         "payload": {"venue": "alpaca", "venue_ref": "r",
+                     "arrival_price": 10.0}},
+        {"seq": 4002, "aggregate_id": "late", "aggregate_type": "order",
+         "type": "OrderFilled", "actor": "system",
+         "ts": "2026-08-21T13:31:01+00:00",
+         "payload": {"fees": "0", "side": "buy", "symbol": "ZZZ",
+                     "avg_price": "10.02", "filled_qty": "1.0"}},
+    ]
+
+    class Store:
+        def stream(self, since_seq=0, limit=200):
+            return [e for e in events if e["seq"] > since_seq][:limit]
+
+    monkeypatch.setattr(fundmod, "_store", Store())
+    monkeypatch.setattr(fundmod, "_execution_quotes", lambda: None)
+    body = TestClient(app).get("/api/v1/fund/execution/quality").json()
+
+    assert body["coverage"]["fill_events_total"] == 1, (
+        "the endpoint's read of the log was capped, so the newest fill fell "
+        "out of the denominator of every coverage figure")
+    assert [r["symbol"] for r in body["retro_mark_basis"]["rows"]] == ["ZZZ"]
+
+
 def test_the_endpoint_route_is_registered_and_is_read_only():
     """The route exists at the path the desk will call, and it is GET only.
 
