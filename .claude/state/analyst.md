@@ -521,3 +521,21 @@ Every recommendation in your output MUST carry all four routing fields, stated, 
 ## 2026-08-23 — CEO DECISION carried by the chair: dossier routing amended (Ed challenge accepted as written)
 
 Your dossiers now route to Stan (risk parameters) and Ed (cross-sectional leads) — never as a per-name candidate source. This does not shrink the dossier mandate; it names where its output lands. Your MDE clause 5 remains the gate on any event-class claim.
+
+## 2026-08-23 — STATE from run-analyst-pituniverse, appended verbatim by the chair (full memo: docs/research/PIT_UNIVERSE_FREE_2026-08-23.md)
+
+**THE HEADLINE: PIT MEMBERSHIP IS FREE AND GOOD; FREE DELISTED PRICES DO NOT EXIST.** fja05680/sp500: 2,718 rows, 1996-01-02→2026-06-30 (54d stale), 1,206 distinct tickers, **703 leavers**, 756 drops/604 dates, 772 adds/611 dates; base is **Clenow's Trading Evolved file (1996–2019), NOT Wikipedia**; 5/5 spot-checks vs press releases exact. Cached: `scratchpad/pit/`. **DATING PRECISION SPLITS AT 2019** (median row gap 2d → 15.5d; drops within 4d: 69.7% → 14.9%; upper bound, not the error — never date a 2019+ index event from this file alone). **hanshof IS DEFECTIVE — DO NOT USE** (appends today's Wikipedia table per run; 81 fja tickers absent, 60 of them leavers; EMC on 0 rows).
+
+**YAHOO RECYCLES TICKERS AND OUR FEED CANNOT SEE IT.** 703 leavers probed: **428 ABSENT (60.9%), 120 RECYCLED alien-series-at-200 (17.1%), 144 still trading, 5 ambiguous, 6 USABLE (0.9%, all died 2018).** `marketdata.py:208-296` never reads `result["meta"]`; `:378` strips only "." so BRK-B/BF-B unreachable. Ticketed as a class.
+
+**MY OWN ERROR, CAUGHT AND CORRECTED**: first pass classified on the last TIMESTAMP and called AET live; Yahoo's YHD series carry real closes to the delisting then null-pad to today. **Always classify on the last NON-NULL close.** Third absence-wearing-values instance this week.
+
+**STOOQ IS GATED** (JS proof-of-work at HTTP 200 with a 796-byte body — a naive puller saves the challenge as data; circumvention declined). **TIINGO**: keyless supported_tickers.zip (108,423 rows; 2,192 tickers with >1 row — **recycling represented structurally**; APC's old row ends exactly 2019-08-08; DTV's row is NOT DirecTV; `assetType` stamped from the CURRENT instrument). Leaver coverage by era: 12.1% / 36.4% / **82.3% post-2015**. Free tier 500 symbols/MONTH, 50 req/hr, "Internal Use Only" — the licence is the CEO's question. 5-URL probe spec'd in the memo; **probe 1 (apc 2019-07..09) is the decider; no bulk pull before it returns.**
+
+**PANEL COMPLETENESS (REUSE)**: free 42.0% (1996) → 59.4% (2005) → 77.9% (2015) → 94.4% (2022) → 100.0% (2026) — the survivorship glow as a picture. **MDE CONSTANT (REUSE): residual daily sd vs SPY = 1.61%** (median of 44 sampled members, beta 1.02); MDE@|t|=2, N=20: n=100→2.88%, n=196→2.06%, n=28→5.44%.
+
+**FAMILY VERDICTS**: merger arb ~479 true / 6 free / 110 post-2015-only → FENCED (one regime, no sub-period split). Distress n=28 → FENCED structurally. Deletion PARTIALLY OPEN free (236/756) **conditional on PIT reasons from the S&P DJI press-release archive** — free, dated, one dispatch. Going-private: **SC 13E-3 over our 372,263 EDGAR records is an untried free classifier.** Index ADDITIONS: 66.1% alive-today; pre-2015 not usable free, censoring one-directional.
+
+**PRICES VERIFIED FROM VENDOR PAGES**: Norgate Platinum **$630/YEAR** (3y ≈ NAV); Tiingo Power $360/yr; QC on-prem $600/yr (OHLCV inclusion UNVERIFIED); **QC FREE CLOUD: survivorship-free 1998+, ~27,500 names, compute-in/no-export (10KB logs), no API on free** — the strongest $0 lane. **MY CALL: do not buy data this month; QC cloud first — it prices the paid options before we pay.**
+
+**FITNESS**: 4 decision-changing measurements (0.9% free-delisted verdict; 17.1% recycled-ticker defect; the completeness ramp; the $/yr arithmetic). ~1,500 external requests serialized and checkpointed; 0 containers; host 1.7–2.4 GB free throughout with a belt running.

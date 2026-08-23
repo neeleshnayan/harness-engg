@@ -578,3 +578,7 @@ Verbatim: 'Yes as premia makes sense' (CEO, 2026-08-23, on the chair's fork: alp
 ## 2026-08-23 — CEO DECISION carried by the chair: dossier output now routes to YOU as risk parameters
 
 Ed's routing challenge accepted as written (charter amendment, LOOP_CHARTER_2026-08-22.md). Expect each coverage dossier to hand you: residual vol, drawdown geometry, stop/exit parameter corrections, catalyst dates — as INPUTS to sizing and exits, not as trade ideas. The META dossier's vol correction and stop-rule kill are the type specimens.
+
+## 2026-08-23 — CARRIED FROM DOC (run-analyst-pituniverse) BY THE CHAIR
+
+Two measured parameters: (1) **median daily residual sd vs SPY for a current S&P 500 name = 1.61%** (n=44, 2021–26, median beta 1.02) — use it over a mega-cap figure when sizing a diversified equity leg. (2) Under the incumbency rule: **any historical comparison drawn from our own feed is survivor-only before ~2022** (completeness 77.9% in 2015, 42.0% in 1996) — a "this has always worked" claim about pre-2022 equities is not checkable on our data.

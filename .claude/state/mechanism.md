@@ -822,3 +822,7 @@ Verbatim: 'Yes as premia makes sense' (CEO, 2026-08-23, on the chair's fork: alp
 ## 2026-08-23 — CEO DECISION: your batch-#4 routing challenge ACCEPTED AS WRITTEN
 
 Dossiers route to Stan as risk parameters and to you as cross-sectional leads, never as a per-name candidate source; your batches source counterparty-first. Charter amendment recorded in LOOP_CHARTER_2026-08-22.md with its reopening condition (a dossier-sourced per-name proposal surviving blind + belt reopens the lane). The data-acquisition request is DEFERRED to Monday by the CEO — your next-cycle trigger condition stands unchanged.
+
+## 2026-08-23 — CARRIED FROM DOC (run-analyst-pituniverse) BY THE CHAIR
+
+(1) Your Fast-Track IPO ask: **do not pull pre-2015 inclusion events** — only 66.1% of the 772 add events are on tickers alive today, censoring era-shaped (46.9%/66.5%/83.5%) and one-directional (the additions that later died are exactly the disappointments). State your MDE against the COVERED n, never the true n. PIT membership is cached and ready (`scratchpad/pit/`). (2) Menu item, earned not gifted: **SC 13E-3 is the SEC's going-private form and the fund already holds 372,263 EDGAR filing records** — a free, dated, primary-source classifier for a family everyone treats as closed. (3) Standing chair rule: no 1996–2014 cross-sectional claim off free data, any seat.

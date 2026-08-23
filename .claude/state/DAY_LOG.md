@@ -173,6 +173,22 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   DELEGATION v1 (run-quant-entry20-rejudge recs 1–2), second-look flagged.
 
 **MEASURED**
+- **DOC'S FREE-DATA VERDICT (run-analyst-pituniverse, memo filed +
+  chair-verified line claims): PIT membership is free and good; free
+  delisted prices effectively do not exist — and OUR OWN FEED SERVES THE
+  WRONG COMPANY for 17.1% of dead tickers** (recycled symbols at HTTP 200;
+  EMC=an ETF, APC=ARKO; marketdata.py never reads the vendor metadata —
+  ticketed as a class, with BRK-B/BF-B unreachable as the rider). Panel
+  completeness ramps 42%→100% (1996→2026) — the survivorship glow drawn as
+  a picture. The /usr/bin/bash sequencing recommended and queued for the CEO Monday:
+  QC free cloud first (prices the paid options before paying; account is
+  the CEO's to create), Tiingo 5-URL probe on a CEO-created key (probe 1
+  is the decider; Internal-Use-Only licence is his call), Norgate
+  re-framed at 30/YEAR (3y ≈ the whole NAV). Two free unlocks queued for
+  Doc: S&P DJI press-release deletion reasons; SC 13E-3 going-private
+  classifier over EDGAR we already hold. STANDING RULE adopted: no
+  1996–2014 cross-sectional claim off free data, any seat.
+
 - **THE THIRD INSTRUMENT-KILLS-MEASUREMENT EVENT OF THE DAY, caught live**:
   the factory ORPHAN RECONCILER aged out the snapshot-off A/B arm at its
   3.0h ceiling while the runner was ALIVE at fold 8/12 with containers

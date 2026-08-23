@@ -714,3 +714,7 @@ Verbatim: 'Yes as premia makes sense' (CEO, 2026-08-23, on the chair's fork: alp
 ## 2026-08-23 — CARRIED FROM ED (run-ed-batch4) BY THE CHAIR
 
 The feed's closes are **DIVIDEND-ADJUSTED TOTAL-RETURN series, not prices** (chair-verified: KO 23.57 and T 9.52 on 2012-06-01; AT&T's actual price then was ~$34; only the last bar is a real price). Your return and benchmark arithmetic is unaffected (the bar is built the same way), but **state the basis whenever you report anything level-dependent, and never derive a market cap, price tier, or capital loss from a historical close.**
+
+## 2026-08-23 — CARRIED FROM DOC (run-analyst-pituniverse) BY THE CHAIR
+
+**Our own price feed cannot be asked "is this the company I meant."** 120 of 703 dead S&P tickers (17.1%) return a DIFFERENT, currently-listed company's prices at HTTP 200 (recycled tickers; marketdata.py never reads the vendor's instrument metadata — ticketed). Until the identity check lands: **any belt universe built from a pre-2015 constituent list is contaminated and the gate cannot catch it** — every fold reads the same wrong series. Also: BRK-B/BF-B are unreachable through the feed (dash validation).

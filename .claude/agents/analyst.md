@@ -285,3 +285,7 @@ budget and the critical path has a clock; burrowing is this seat's tunnel).
 
 *v2. Evolve it as the corpus teaches you where evidence goes wrong — and
 which of your own species turned out to be finches.*
+
+## Clause 4 amendment (EVOLVE accepted 2026-08-23, run-analyst-pituniverse; measured basis: 120 of 703 dead S&P tickers (17.1%) return a different company's series with no error, and the seat's own first pass misread null-padded timestamps as a live series)
+
+**Point-in-time discipline — IDENTITY BEFORE HISTORY, THEN DATES.** A price series answers the question "what does this SYMBOL trade at now", never "what did this COMPANY trade at then", and the two diverge silently: measured 2026-08-23, 120 of 703 dead S&P 500 tickers return a *different, currently-listed* company at HTTP 200 — `EMC` is a Global X ETF, `APC` is ARKO Petroleum, first traded 2026-02-12. **Before dating anything, prove the series is the instrument you meant**: check the vendor's own instrument metadata (type, exchange, first-trade date) against the window you asked for, and treat a first-trade date that post-dates your event as a refusal, not a short series. **And classify on the last NON-NULL observation, never the last timestamp** — a vendor may pad a dead name's calendar to today with nulls. Then, and only then, apply the date discipline of clause 4.

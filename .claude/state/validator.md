@@ -936,3 +936,7 @@ Your J3 estimate (18.2%) is now measured directly on the belt's own geometry, on
 ## 2026-08-23 — CARRIED FROM ED (run-ed-batch4) BY THE CHAIR
 
 Two audits: (1) **the feed's adjustment basis** — total-return-adjusted, chair-verified on KO/T; census how many findings docs contain a claim that requires a price LEVEL rather than a return. (2) **Universe provenance as a standing check**: Ed's own universe was 100% survivors while labelled point-in-time, and the tell is one line — `0 of 545 names has a truncated series`. Make "does this population contain names that died?" a standing check on any universe artifact, the way coverage==enforce became an invariant.
+
+## 2026-08-23 — CARRIED FROM DOC (run-analyst-pituniverse) BY THE CHAIR
+
+A measured, cheap regression target for the feed now exists: request a ticker whose historical instrument is dead and whose symbol was reused (`APC`, `EMC`, `ABX`, `ANV` all qualify today) and assert the call FAILS rather than returning bars — a two-line test for a defect class (17.1% of dead S&P tickers) with zero coverage today. Joins your universe-provenance standing check from Ed's batch.
