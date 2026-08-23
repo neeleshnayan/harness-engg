@@ -2410,14 +2410,15 @@ def _curve(charts: dict, chart: str, series: str) -> tuple[list[float], list[str
         if not isinstance(pt, (list, tuple)) or len(pt) < 2:
             continue
         # Both or neither: appending the value first and letting the date
-        # conversion raise would leave the two lists a different length, and
+        # conversion fail would leave the two lists a different length, and
         # the downsampler drops dates entirely when they fall out of step —
         # so one unconvertible timestamp would silently cost every date.
         try:
             value = float(pt[-1])
-            date = datetime.fromtimestamp(
-                float(pt[0]), tz=timezone.utc).date().isoformat()
-        except (ValueError, TypeError, OSError, OverflowError):
+        except (ValueError, TypeError):
+            continue
+        date = _iso_or_none(pt[0])
+        if date is None:
             continue
         values.append(value)
         dates.append(date)
@@ -2557,9 +2558,13 @@ def gross_exposure(charts: Any) -> dict[str, Any]:
 def _iso_or_none(stamp: Any) -> Optional[str]:
     """A LEAN chart timestamp as an ISO date, or absent if it will not convert.
 
-    The same conversion ``_curve`` makes, kept separate because this one labels
-    a single reported instant rather than a series: an unconvertible stamp must
-    cost the LABEL, never the measurement it labels.
+    THE ONE PLACE THIS CONVERSION LIVES. ``_curve`` had its own copy inside a
+    combined try/except; two copies of "how a LEAN timestamp becomes a date" is
+    the same defect class as two copies of a constant. The callers differ only
+    in what an absence COSTS — ``_curve`` drops the whole point, because a
+    values list and a dates list of different lengths silently mis-pairs
+    downstream; ``gross_exposure`` drops only the LABEL, because the instant a
+    maximum fell on is not the maximum.
     """
     try:
         return datetime.fromtimestamp(

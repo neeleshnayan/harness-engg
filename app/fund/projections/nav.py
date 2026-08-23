@@ -134,8 +134,9 @@ class NavService:
         is NEVER the source of truth here: a live-equity read is non-deterministic
         and would make struck NAV non-reproducible. Broker equity is surfaced
         separately as a reconciliation/risk signal (broker-vs-book delta), not by
-        overwriting the ledger. See GET /fund/venue/account and the reconciliation
-        task in GEMINI.md.
+        overwriting the ledger. See GET /fund/venue/account and
+        GET /fund/venue/reconcile — which is the endpoint the task this docstring
+        used to point at (GEMINI.md, 2026-08-13) asked for, and which shipped.
 
         ``stale_ok`` (2026-08-20, builder audit H2): the RISK MONITOR's mode.
         In strict mode an unpriceable holding raises — correct for the NAV
