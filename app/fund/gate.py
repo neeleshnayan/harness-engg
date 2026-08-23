@@ -628,14 +628,30 @@ GATE_VERSION = "v4.3"
 #:      identically, spread < 1e-6, where v5r1 spread them by an order of
 #:      magnitude). Closing the selection-noise half needs per-fold premia
 #:      consistency, which is note 1's belt change, not a gate change.
-#:   3. **NOTHING ELSE IS BENCHMARK-RELATIVE FOR A PREMIA CLAIM.** Enumerated
-#:      rather than gestured at, because "the rest of the gauntlet stands
-#:      beside it" was the sentence the adversary struck: with
-#:      ``must_beat_benchmark`` replaced, the criterion below is the ONLY
-#:      benchmark-relative test a premia candidate faces. PSR, breakeven,
-#:      orders, capacity, fold count, retention share and the holdout are all
-#:      absolute or self-consistency checks. That is why the inequality itself
-#:      has to be right, and it is why an unreadable cash rate fails closed.
+#:   3. **THE BENCHMARK-RELATIVE CLASS IS TWO CRITERIA WIDE — COUNTED, NOT
+#:      ASSERTED.** Enumerated because "the rest of the gauntlet stands beside
+#:      it" was the sentence the adversary struck, and a replacement sentence
+#:      guessing "one" would have been the same error with a smaller number.
+#:
+#:      Method (scratchpad/d29/classcount.py): judge one candidate against a
+#:      far WORSE bar and a far BETTER one, everything else held identical, and
+#:      count the criteria whose verdict moves. Control: the ALPHA bar must show
+#:      exactly one, ``must_beat_benchmark`` — it does, and the first run of
+#:      that script showed ZERO because the fixture pinned
+#:      ``benchmark_return_pct``, so the number below is the one taken after the
+#:      control came alive.
+#:
+#:      For a premia claim: **2** — the excess-Sharpe inequality AND
+#:      ``premia_require_drawdown_not_worse``, which compares the strategy's
+#:      hole with the BAR'S hole and is a benchmark-relative test that is easy
+#:      to overlook because its name does not say "benchmark". A third,
+#:      ``premia_require_majority_window_coverage``, depends on the bar's DATES
+#:      without comparing performance. PSR, breakeven, orders, capacity, fold
+#:      count, retention share and the holdout are absolute or self-consistency
+#:      checks: 0 of them moved.
+#:
+#:      That is why the inequality has to be right, and why an unreadable cash
+#:      rate fails closed.
 #:   4. **The claim type is SUBMITTER-DECLARED.** A submitter picks which bar
 #:      it is judged against. That is the constitution's design, and it is also
 #:      an obvious loosening vector, so every premia verdict records
