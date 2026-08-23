@@ -458,6 +458,40 @@ def test_the_capture_checks_the_engines_volatility_rule_still_holds():
     assert other["engine_volatility_reproduction"]["reproduces"] is False
 
 
+@pytest.mark.parametrize("raw,expect", [
+    ("0.116", 11.6),        # what the engine actually writes today
+    ("11.600%", 11.6),      # the shape a blind x100 would report as 1160%
+    ("0.116%", 0.116),
+    (None, None), ("n/a", None), ("", None),
+])
+def test_the_engines_volatility_is_read_with_its_unit_not_assumed(raw, expect):
+    """The same statistics block writes "0.116" and "15.300%" side by side.
+
+    So the unit is read off the string. A blind multiply by 100 is the
+    unit-confusion shape, and it would be invisible in a field nobody
+    re-derives.
+    """
+    from app.fund.leanrunner import _annual_vol_pct
+    stats = dict(REAL_STATS)
+    if raw is None:
+        stats.pop("Annual Standard Deviation")
+    else:
+        stats["Annual Standard Deviation"] = raw
+    got = _annual_vol_pct(stats)
+    if expect is None:
+        assert got is None
+    else:
+        assert got == pytest.approx(expect)
+
+
+def test_the_robustness_block_carries_the_engines_volatility():
+    """It was in hand on every run and thrown away on every run."""
+    from app.fund.leanrunner import _robustness
+    got = _robustness(REAL_STATS, [], [], [])
+    assert got["engine_annual_vol_pct"] == pytest.approx(11.6)
+    assert got["psr_inputs"]["statistics"]["Sharpe Ratio"] == "1.666"
+
+
 def test_the_capture_counts_the_zero_return_days():
     """29.2% zeros on a real 1,998-observation series is the calendar clock."""
     dts = calendar_dates(10)

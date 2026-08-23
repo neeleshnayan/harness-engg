@@ -9,7 +9,7 @@ named incidents are in the docstrings. The two that matter most:
   * THE DISCARDED BENCHMARK LEG (measured on four stored candidates,
     2026-08-23): ``daily_returns["benchmark"]`` is the series the belt threw
     away, and judging off it FLIPS the premia answer on three of the four.
-    ``test_the_premia_leg_is_built_from_the_bar_the_gate_judges_by``.
+    ``test_premia_inputs.py`` guards it.
 """
 from __future__ import annotations
 
@@ -349,10 +349,10 @@ def test_the_VOLSCALE_archetype_fails_the_rf_stress_AND_THAT_IS_THE_FINDING():
 
     At the fund's own measured cash rate those moments do not describe a
     premium. Excess Sharpe at 4%: (15.39-4)/27 = 0.4219 for VOLSCALE against
-    (23.76-4)/44 = 0.4491 for holding. The crossing is at 2.06%/yr, and the
+    (23.76-4)/44 = 0.4491 for holding. The crossing is at 2.1%/yr, and the
     validator measured this fund's window paying 3.97% (BIL). A 61.4% META /
     38.6% cash portfolio — zero skill, one decision — reproduces VOLSCALE's
-    27% volatility at a HIGHER excess Sharpe.
+    27.0% volatility at a HIGHER excess Sharpe, 0.4491 against 0.4219.
 
     So this test does not assert that the criterion is right. It asserts what
     the criterion SAYS about the archetype the CEO's decision was taken on, so
@@ -372,7 +372,7 @@ def test_the_VOLSCALE_archetype_fails_the_rf_stress_AND_THAT_IS_THE_FINDING():
     assert p["sharpe_advantage"] > 0                  # premia at rf=0
     assert p["sharpe_advantage_at_stress"] < 0        # and not at 4%
     assert p["rf_sensitive"] is True
-    assert p["rf_breakeven_pct"] == pytest.approx(2.06, abs=0.25)
+    assert p["rf_breakeven_pct"] == pytest.approx(2.12, abs=0.02)
     assert out["passed"] is False
 
 
@@ -601,6 +601,28 @@ def test_a_premia_claim_whose_benchmark_leg_is_absent_fails():
     assert out["checks"]["premia"]["measurable"] is False
     assert any("only 2 of 20 names" in f for f in out["failures"])
     assert out["passed"] is False
+
+
+def test_a_malformed_stored_payload_fails_the_leg_and_never_raises():
+    """A gate must return a VERDICT, not a traceback.
+
+    ``_premia_leg`` reads a STORED payload — an older belt's, a JSON
+    round-trip, a truncated capture — and one claiming `measurable: True`
+    while carrying no drawdown would otherwise raise a TypeError inside
+    ``evaluate`` and take out the whole judgement rather than one criterion.
+    """
+    strat = series_with_moments(R400, 18.0, 12.0, seed=5)
+    res = make_result(strat, series_with_moments(R400, 9.0, 20.0, seed=6))
+    res["premia_inputs"]["benchmark"]["max_drawdown_pct"] = None
+    res["premia_inputs"]["strategy"]["ann_vol_pct"] = None
+    out = judge(res, claim_type="premia")
+    assert out["checks"]["premia"]["measurable"] is False
+    assert "ann_vol_pct" in out["checks"]["premia"]["reason"]
+    assert "max_drawdown_pct" in out["checks"]["premia"]["reason"]
+    assert out["passed"] is False
+    # And the rest of the gauntlet still ran: this failed ONE criterion.
+    assert out["gate_version"] == "v5r1-premia"
+    assert out["checks"]["psr_pct"] == 92.0
 
 
 def test_a_flat_strategy_is_unmeasurable_not_a_zero_sharpe():

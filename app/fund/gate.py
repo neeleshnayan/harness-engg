@@ -856,7 +856,22 @@ def _premia_leg(result: dict[str, Any], pc: dict[str, Any]
             f"claim is 'better risk-adjusted return than holding the asset', "
             f"and an unmeasured comparison establishes neither side"]
 
-    s, b = p["strategy"], p["benchmark"]
+    s, b = p.get("strategy") or {}, p.get("benchmark") or {}
+    # A GATE MUST RETURN A VERDICT, NEVER RAISE. `premia_inputs` always writes
+    # these four beside `measurable: True`, but this function reads a STORED
+    # payload — one that may have been written by an older belt, round-tripped
+    # through JSON, or truncated — and a TypeError inside `evaluate` would take
+    # out the whole judgement rather than fail one criterion. A payload that
+    # claims to be measurable and is not is reported as unmeasurable.
+    needed = ("ann_vol_pct", "max_drawdown_pct", "total_return_pct", "stdev")
+    absent = [k for k in needed
+              if s.get(k) is None or b.get(k) is None]
+    if absent:
+        out["reason"] = (f"the stored premia inputs claim to be measurable but "
+                         f"carry no {', '.join(absent)}")
+        return out, [
+            f"the premia comparison could not be measured: {out['reason']} — "
+            f"a payload that cannot state both legs has not compared them"]
     failures: list[str] = []
     cov = p.get("coverage") or {}
     common = int(cov.get("common_days") or 0)
@@ -898,6 +913,9 @@ def _premia_leg(result: dict[str, Any], pc: dict[str, Any]
     s1 = st.sharpe_at_rf(s, rf_stress)
     b1 = st.sharpe_at_rf(b, rf_stress)
     if s0 is None or b0 is None or s1 is None or b1 is None:
+        # `measurable` means the comparison WAS measured, so it goes back to
+        # False here rather than staying True beside a reason saying it was not.
+        out["measurable"] = False
         out["reason"] = "a Sharpe could not be computed for one of the legs"
         failures.append(
             "the risk-adjusted comparison could not be computed — one leg has "
@@ -920,8 +938,8 @@ def _premia_leg(result: dict[str, Any], pc: dict[str, Any]
         #
         # and the annual rate is (1 + c*)**K - 1. Undefined when the two legs
         # have the same dispersion, because then the difference does not move
-        # with rf at all — reported as None with a note rather than as a
-        # number, since "no crossing" and "crosses at zero" are opposite facts.
+        # with rf at all — reported as None rather than as a number, since
+        # "there is no crossing" and "it crosses at zero" are opposite facts.
         "rf_breakeven_pct": _rf_breakeven_pct(s, b),
     })
     # rf_sensitive names the SHAPE the constitution warns about, so it is set

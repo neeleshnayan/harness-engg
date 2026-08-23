@@ -347,8 +347,9 @@ def observations_per_year(dates: Sequence[str], n_obs: int) -> dict[str, Any]:
     The consequence is not academic. LEAN's own ``Annual Standard Deviation``
     statistic is reproducible, on all four, as the standard deviation of that
     CALENDAR series times sqrt(252) — so the engine's published volatility is
-    understated by sqrt(365/252) = 1.204, a 17% error in the flattering
-    direction. Reproduce: candidate 144387901688 stores ``Annual Standard
+    understated by sqrt(365/252) = 1.204 — measured 1.203, 1.203, 1.203 and
+    1.208 on the four, since the real calendar-to-trading ratio moves with the
+    window's holidays — a 17% error in the flattering direction. Reproduce: candidate 144387901688 stores ``Annual Standard
     Deviation: 0.116``; the calendar series gives sd*sqrt(252) = 0.11627
     (population) or 0.11634 (sample) and the trading-day subset gives 0.14043.
     The engine reports three decimals, so which of the two conventions it uses

@@ -1559,7 +1559,7 @@ _PSR_IDENTIFYING_STATISTICS = (
     # Benchmark-relative, and therefore the only trace in the block of what the
     # engine thought the benchmark was doing. The engine publishes no
     # "Benchmark Sharpe Ratio" key — verified against a real 27-key block
-    # (candidate 144387901688) — so these four are the identification.
+    # (candidate 144387901688) — so these FIVE are the identification.
     "Beta",
     "Alpha",
     "Information Ratio",
@@ -1645,8 +1645,10 @@ def psr_inputs(stats: dict, daily: Optional[dict[str, Any]] = None
         "reproduces": (None if published is None or recomputed is None
                        else abs(published - recomputed) < 5e-4),
         "note": ("the engine's annualisation multiplies a CALENDAR-day series "
-                 "by sqrt(252); the trading-day truth is larger by "
-                 "sqrt(365/252) = 1.204"),
+                 "by sqrt(252); the trading-day truth is larger by roughly "
+                 "sqrt(365/252) = 1.204 — measured 1.203 to 1.208 across the "
+                 "four stored candidates, since the real calendar-to-trading "
+                 "ratio varies with the window's holidays"),
     }
     return out
 
@@ -1802,6 +1804,25 @@ def premia_inputs(result: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+def _annual_vol_pct(stats: dict) -> Optional[float]:
+    """LEAN's ``Annual Standard Deviation`` as a PERCENTAGE, unit-checked.
+
+    The engine writes this one bare (a fraction) while writing ``Drawdown`` and
+    ``Compounding Annual Return`` with a "%" in the same block, so the unit has
+    to be read off the string rather than assumed. Returns None when it is
+    absent or unparseable — an unreadable volatility is not a zero one.
+    """
+    raw = stats.get("Annual Standard Deviation")
+    if raw is None:
+        return None
+    text = str(raw).strip()
+    try:
+        value = float(text.replace("%", "").replace(",", ""))
+    except ValueError:
+        return None
+    return value if "%" in text else value * 100.0
+
+
 def _robustness(stats: dict, equity: list[float], dates: list[str],
                 orders: list[dict],
                 daily: Optional[dict[str, Any]] = None) -> dict[str, Any]:
@@ -1847,8 +1868,14 @@ def _robustness(stats: dict, equity: list[float], dates: list[str],
         # so a reader who wants one number has one; the raw string is what
         # identifies the formula. See ``psr_inputs`` for the measured reason
         # this is not the trading-day volatility.
-        "engine_annual_vol_pct": (None if _num("Annual Standard Deviation") is None
-                                  else _num("Annual Standard Deviation") * 100.0),
+        #
+        # SCALED ONLY WHERE THE ENGINE WROTE A FRACTION. Every real block seen
+        # writes it bare — "0.116" on candidate 144387901688 — while sibling
+        # statistics in the SAME block carry a "%" ("15.300%", "36.994%"). A
+        # blind x100 would turn a future "11.600%" into 1160%, which is the
+        # unit-confusion shape and would be invisible in a payload nobody
+        # re-derives.
+        "engine_annual_vol_pct": _annual_vol_pct(stats),
         "periods": _periods(equity, dates),
         # CAPTURE ONLY — no criterion reads this. The gate's most binding
         # criterion judges a statistic nobody has identified; this is the
