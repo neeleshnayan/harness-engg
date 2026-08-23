@@ -449,6 +449,16 @@ def leg_moments(returns: Sequence[float], dates: Sequence[str]) -> dict[str, Any
         return out
     mu, sd = mean_std(r)
     k = float(clock["obs_per_year"])
+    # A CONSTANT SERIES DOES NOT HAVE A TINY VOLATILITY, IT HAS NONE.
+    # `sum((x - mu)**2)` over 100 copies of 0.001 is not exactly zero in
+    # binary floating point — the mean lands at 0.0010000000000000005 — so a
+    # bare `sd > 0` accepts a dispersion of 1e-19 and hands back a Sharpe of
+    # order 1e16. Found while writing the test that asserts a flat leg is
+    # unmeasurable; it passed as measurable. The floor is relative to the mean
+    # because that is the scale the cancellation happens on, with an absolute
+    # backstop for a series centred on zero.
+    if sd <= max(1e-12, abs(mu) * 1e-9):
+        sd = 0.0
     dd = max_drawdown(r)
     total = 1.0
     for x in r:

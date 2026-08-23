@@ -766,6 +766,32 @@ def volatility_check(result: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _rf_breakeven_pct(s: dict[str, Any], b: dict[str, Any]
+                      ) -> Optional[float]:
+    """The annual risk-free rate at which the two legs' Sharpes cross.
+
+    Returns None when the legs have equal dispersion (the difference does not
+    move with rf, so there is no crossing) or when the implied per-observation
+    rate is not a rate a portfolio could earn — a crossing at -300%/yr is
+    arithmetic, not information.
+    """
+    sd_s, sd_b = s.get("stdev"), b.get("stdev")
+    mu_s, mu_b = s.get("mean"), b.get("mean")
+    k = s.get("obs_per_year")
+    if None in (sd_s, sd_b, mu_s, mu_b, k) or not k:
+        return None
+    if abs(float(sd_b) - float(sd_s)) < 1e-15:
+        return None
+    c = (float(mu_s) * float(sd_b) - float(mu_b) * float(sd_s)) / (
+        float(sd_b) - float(sd_s))
+    if c <= -1.0:
+        return None
+    try:
+        return round(((1.0 + c) ** float(k) - 1.0) * 100.0, 4)
+    except OverflowError:
+        return None
+
+
 def _premia_leg(result: dict[str, Any], pc: dict[str, Any]
                 ) -> tuple[dict[str, Any], list[str]]:
     """The premia inequality: is this better RISK-ADJUSTED than holding the bar?
@@ -886,6 +912,17 @@ def _premia_leg(result: dict[str, Any], pc: dict[str, Any]
         "sharpe_strategy_at_stress": round(s1, 5),
         "sharpe_benchmark_at_stress": round(b1, 5),
         "sharpe_advantage_at_stress": round(adv1, 5),
+        # THE RATE AT WHICH THE PREMIUM VANISHES, so the verdict answers "how
+        # close was this" instead of only "yes or no". The Sharpe difference is
+        # affine in the per-observation constant, so its root is exact:
+        #
+        #     c* = (mu_s*sd_b - mu_b*sd_s) / (sd_b - sd_s)
+        #
+        # and the annual rate is (1 + c*)**K - 1. Undefined when the two legs
+        # have the same dispersion, because then the difference does not move
+        # with rf at all — reported as None with a note rather than as a
+        # number, since "no crossing" and "crosses at zero" are opposite facts.
+        "rf_breakeven_pct": _rf_breakeven_pct(s, b),
     })
     # rf_sensitive names the SHAPE the constitution warns about, so it is set
     # only where that shape is what happened: the advantage exists at rf=0 and
@@ -905,7 +942,11 @@ def _premia_leg(result: dict[str, Any], pc: dict[str, Any]
             f"{out['benchmark_ann_vol_pct']:.1f}%, so what looks like a premium "
             f"is consistent with cash earning the risk-free rate. This fund has "
             f"NO risk-free series (H1 open), so a premium that exists only "
-            f"under the assumption most flattering to it is not established")
+            f"under the assumption most flattering to it is not established"
+            + ("" if out.get("rf_breakeven_pct") is None else
+               f". The premium vanishes above a "
+               f"{out['rf_breakeven_pct']:.2f}%/yr cash rate; this fund's own "
+               f"window paid 3.97% (BIL)"))
 
     # (4)
     dd_ok = float(s["max_drawdown_pct"]) <= float(b["max_drawdown_pct"])
