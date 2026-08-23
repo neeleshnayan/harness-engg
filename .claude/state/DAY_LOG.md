@@ -173,6 +173,23 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   DELEGATION v1 (run-quant-entry20-rejudge recs 1–2), second-look flagged.
 
 **MEASURED**
+- **THE FUND'S FIRST FULL GATE PASS (~18:1xZ): candidate ,
+  announcement_premium, gate v4.3, PASSED TRUE, FAILURES EMPTY** — the
+  full 10bps cost grid measured at last (the criterion that killed every
+  prior attempt), 9/9 folds, 8 retained, median retention 0.9419, holdout
+  1.33, PSR 80.37. **AND THE HANG IS PINNED: ZERO timeouts in 66+
+  containers on live fetches vs 14/66 under the snapshot at identical
+  spec — the bar snapshot layer is the cause.** Spine stays snapshot-off
+  until the fix lands (correctness over the 14× speedup); the
+  orphan-reconciler ceiling (which aged the LIVE row out mid-run — the
+  runner's final write correctly superseded it) must fix first. Caveats
+  carried in the record: survivor_only benchmark (names_judged 0), fold
+  margin zero with two warm-up-dead denominator folds, alpha reading
+  statistically weak — the CEO's PREMIA ruling is where it's judged, after
+  D29 merges. Censored row 997187b267d3 stays fenced, never tabled beside
+  this one. Run , second-look flagged; CEO pushed
+  on mobile.
+
 - **THE VENDOR PROBES RAN LIVE WITH CEO-CREATED KEYS (~17:0xZ) AND THE
   HEAD-TO-HEAD IS DECIDED: TIINGO WORKS, FMP FREE DOES NOT.** Tiingo:
   probe 1 (the recycled-ticker decider) FAILED as Doc predicted it might —
