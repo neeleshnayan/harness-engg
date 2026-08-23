@@ -40,6 +40,19 @@ at ~00:05Z ("you too rest post closing these 5 items; will see you on
 Monday"). The five fan-out items all resolved; the floor rests until Monday.
 
 **DECIDED**
+- **THE JUNIOR-DEV FAN-OUT TRIAL v1 (CEO proposal, ~20:0xZ): the builder
+  may fan mechanical breadth to Sonnet 5 juniors** — test authorship from
+  spec, fixtures, mutation-harness assembly, probe drafts against fixed
+  contracts; NEVER design, money-adjacent logic, the premise fold, the
+  mutation verdicts, the late read-through, or the report. Discipline
+  inherited from Ed's v1.1 + the quant split (foreground, ≤3 juniors,
+  depth 1, ledger mandatory, failed drafts rewritten never debugged).
+  Falsifiers at birth: two consecutive net-negative dispatches revert
+  (the quant split's own trigger); any junior defect surviving into a
+  bundle reverts immediately; host falsifiers inherit. Grace prices at
+  n=3. First live use: the next fresh builder dispatch (D32/D31 in flight
+  stay clean). Versioned in the builder seat file; Agent tool granted.
+
 - **THE DELEGATION v2 (CEO, verbatim, ~18:4xZ): the chair is unhobbled** —
   decide-and-execute across the R&D/operational lane as neelesh-via-cto
   with second-look flags; THE FLOOR stays his and self-widening is
