@@ -123,6 +123,34 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   is fired and discharged by this work — the register cannot record
   either; recorded here, and the evaluability ticket (a26debb9 family)
   remains the owner.
+- **THE JOINT-POWER MEASUREMENT LANDED - THE CEO'S INSTINCT MEASURED
+  AND SUBSTANTIALLY VINDICATED.** The gate's most binding criterion
+  (min_psr_pct) judges an UNIDENTIFIED statistic: LEAN's PSR target is
+  provably not the documented zero - the effective bar is ~Sharpe 1.4,
+  and gate power at SR=1.0 is unknown by 15x (24.7% vs 1.6%). Zero
+  passes in 42 = a COIN FLIP under the calibrated reading - the record
+  points at THE MACHINE CAN BARELY SAY YES. The 12x vol lever (the gate
+  prefers levered mediocre); the realistic null passes 34% (D without a
+  named null is not a number - S4 challenge accepted); the single
+  holdout vetoes passed 12-fold walk-forwards (SOLE killer of 11.6% of
+  SR-2.0). THE PREMIA GAP CONFIRMED: 0/2 archetypes certifiable BY
+  CONSTRUCTION (gate has zero vol statistics) -> the CEO's conditional
+  pre-approval FIRED: D23 (premia gate v5r1 + PSR-input capture + vol
+  field) IN BUILD via kill->repair->blind. Quant queued for the META
+  positive-control belt run + PSR identification on Entry-20 return.
+  Two CEO threshold decisions on the desk (holdout veto; D-null).
+- **ADVERSARY ON D22 SPINE: repair-list KILL** - (a) the pre-guard
+  refusal CERTIFIED can-only-refuse (11 paths); hygiene UNBREAKABLE
+  (154 combos + the event-type structural proof); (b) fail-open killed
+  x3 (phantom disclosure key; the 1,000-edge LIMIT as a silent
+  off-switch, executed; validate-stripped/store-raw); AND the routing
+  contract half-shipped (would have 422d 16/17 of today's runs across
+  8 seats - caught the day before it happened). D24 repair round IN
+  FLIGHT (probes as acceptance tests; routing gated behind a version
+  flag until the chair lands the seat-protocol companion). The
+  unguarded-supersessions governance gap -> CEO desk.
+- **THE DEEP PRICE PULL COMPLETED** (367 event-panel tickers, 2004-2026;
+  422s only on pre-IPO windows of recent names - honest absences).
 - **THE META DOSSIER v1 DELIVERED - THE PILOT PROVED THE INSTRUMENT.**
   Full structural read of an uncovered name in ~4 minutes of fetching.
   HEADLINE: the buyback is OFF (three /usr/bin/bash quarters vs 0bn/yr; verbatim

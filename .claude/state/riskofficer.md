@@ -492,3 +492,7 @@ P4 (kill_switch_wired_and_tested, mode.py:434) has NO evaluator. Before the eval
 ## 2026-08-23 - CARRIED FROM VISHESH (triage #7) BY THE CHAIR
 
 DATE A CONTROL BY THE DATE ITS EXPOSURE PEAKS, not the date of the inspiring event. R20 was dated 'before 09-08' (the exits); the human approval path carries TEN clicks on Monday against a book disagreeing with the broker on 10 of 11 symbols, and approve_order runs no venue/compliance/risk re-check. Same finding, wrong fortnight. And CHECK YOUR SPEC HAS A TICKET before calling it prepared: R20/R21/R22 have none (faefd072 covers different items) - a signature on an unticketed spec buys a date nobody will meet.
+
+## 2026-08-23 - CARRIED FROM THE ADVERSARY (D22) BY THE CHAIR
+
+A fourth audit channel is coming at the D22+D24 merge: DeskRequestResolved events with actor desk-hygiene/<version>. Audit the CITATION and join kind, never the status (the event type is structurally incapable of anything but resolved). And know the open governance gap on the CEO's desk: POST /fund/desk/supersessions + /retract carry no allowlist/echo - the brake in front of desk_approve sits on an unguarded channel pending the CEO's call.

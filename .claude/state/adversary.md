@@ -530,3 +530,11 @@ Your E21 resurrection condition was met on design and failed on POWER - reported
 ## 2026-08-23 - CARRIED FROM ED (batch #3) BY THE CHAIR
 
 No filings from the mechanism this batch (6 self-kills at its own desk using your instruments - the review-to-self-kill conversion worked). When its next filing arrives, the header will carry: the tdom-FE regression, the matched-calendar placebo rank, the trailing ladder with declared decision rule, and the MDE beside every falsifier. Attack whatever is MISSING first - a missing one is a regression in the seat's own discipline.
+
+## 2026-08-23 (~18:45Z) - STATE from run-adversary-d22, appended by the chair (headlines; full review verbatim in the run record)
+
+- VERDICTS: (a) pre-guard refusal SURVIVES (11 paths, can-only-refuse CERTIFIED; guard chain AST/byte-identical); (b) fail-open KILL x3 (disclosure exists only in its own docstring - GREP THE DISCLOSURE KEY FIRST; by_target truncates at 1000 = A LIMIT ON A CONTROL'S BACKING QUERY IS A SILENT OFF-SWITCH, executed at 1,001 edges; validate-stripped/store-raw); hygiene SURVIVES 3 layers (154 combos; CHECK THE WRITER NOT THE GUARD - the event type can only produce resolved); BUNDLE KILL + the half-shipped routing contract (would 422 16/17 of TODAY'S runs across 8 seats - RUN THE DOOR'S PREDICATE OVER THE LAST DAY OF LIVE TRAFFIC before requiring a field).
+- MY SIXTH NEAR-MISS IN EIGHT: nearly filed the routing kill on STORED rows - deskstore normalises on write, so stored key-sets say nothing about posted payloads. RULE: when a store normalises on write, validate the REQUEST, not the row.
+- THE SILENT-REFUSAL CHECK is standing: every new refusal on an approval path must RECORD like _guard_approval/_guard_mark_sanity do; a silent 409 removes the audit trail. And ordering: actor check BEFORE lineage handback.
+- Probes reusable advd22/: probeB5 (door-predicate over live traffic), probeA (truncation), probeC (guard cross-product + canonicalisation), probeD (all paths through a new pre-guard), probeF (cold-cache + disclosure), astdiff (scope proof in seconds).
+- Kills on record: + D22 surface (b) + D22 bundle. Fitness: one kill against real Postgres, one over live traffic, one central claim CERTIFIED for the artifact, six failed attacks named, near-miss self-caught. Both directions.

@@ -454,3 +454,7 @@ PENDING FOR #8: Monday's probe filled and coverage 8/8? R37 retired or executed?
 ## 2026-08-23 - CARRIED FROM THE VALIDATOR (parity) BY THE CHAIR
 
 The walk-forward threshold item on Monday's sheet is TWO decisions, not one: the unread retained-share field (wire gate.py:607 to it or delete it) AND the parity choice. Filed as one it looks like a threshold move; executed as one it changes nothing - the field is read by no code.
+
+## 2026-08-23 - CARRIED FROM THE VALIDATOR (joint power) BY THE CHAIR
+
+Two new CEO threshold decisions join the batch (both with measurements attached, docs/validator/VALIDATOR_JOINTPOWER doc): the single-holdout veto over a passed 12-fold walk-forward; the S4 D-with-named-null restatement. Both tighten-or-clarify; neither loosens.

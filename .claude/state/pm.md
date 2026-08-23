@@ -550,3 +550,7 @@ Three of the four incumbents fail Ed's mechanism axis, for your re-underwriting:
 1. **Do NOT apply the panel's +6% post-earnings vol elevation as a name-agnostic stop parameter** - on META it measures 1.040 vs a 1.146 baseline (wrong sign; panel value outside the CI). Any earnings-spanning hold gets its own per-name vol ratio before a stop is widened.
 2. If META ever reaches the book: size off ~30%/yr IDIOSYNCRATIC vol, not beta; fractional shares make any price positionable at our NAV (the whole-share constraint is invented - leanrunner.py:139-141).
 3. For the incumbency rule: a dossier now costs minutes per name and answers would-this-be-entered-today with dated scoreable structure - ask for one on any incumbent you re-underwrite.
+
+## 2026-08-23 - CARRIED FROM THE VALIDATOR (joint power) BY THE CHAIR
+
+S4's D>=0.75 IS NOT A BAR UNTIL IT NAMES ITS NULL (challenge accepted, with the CEO): measured D = 2.1-2.7 against a zero-alpha beta-1 index-hugger (which the gate passes 34% of the time) vs 19-75 against a driftless walk. Write the null into the stage gate; prefer the market-shaped one.

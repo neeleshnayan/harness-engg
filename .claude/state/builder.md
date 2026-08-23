@@ -609,3 +609,7 @@ When a spec hands you a HARD acceptance criterion with a universal quantifier ("
 *Measured basis*: D20 — the second worktree confirmed the 73-hold plan identity AND falsified a claim already written into a shipped comment (v4.2's `max_folds=6` ceiling was never reached: max five folds over 597 measured plans). Cost: five seconds to create, two minutes to run.
 
 **Chair note at resolve**: EVOLVE ACCEPTED (measure the old code, not your memory of it - basis: the second-worktree cross-check that falsified your own shipped comment). Routed to the adversary blind. THE CLEANUP is the next slot under this seat's name, no exceptions.
+
+## 2026-08-23 - CARRIED FROM THE VALIDATOR + ADVERSARY BY THE CHAIR
+
+From the joint-power run: two small captures with large consequences are IN D23's brief (LEAN PSR inputs; realised vol in checks). From the D22 review, three standing rules: (1) when you make a field REQUIRED at a door, run the door's predicate over the LAST DAY of live traffic before bundling, and name the companion change outside your write scope; (2) a LIMIT on a control's backing query is a silent off-switch - the caller must distinguish truncated from complete; (3) every new refusal on an approval path RECORDS like the ones already there.

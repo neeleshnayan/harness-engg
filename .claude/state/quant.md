@@ -648,3 +648,7 @@ fetch_daily_bars' `end` is EXCLUSIVE (the internal twin of the API endpoint find
 ## 2026-08-23 - CARRIED FROM ED (the universe slate) BY THE CHAIR
 
 If the Liberty pair ever reaches you: the harvestable form is a LONG-ONLY rotation between FWONA and FWONK - never a pair trade (no shorting infrastructure), and the two legs are ONE position with a scheduling rule against same-session opposite-side fills.
+
+## 2026-08-23 - CARRIED FROM THE VALIDATOR (joint power) BY THE CHAIR
+
+When your Entry 20 run returns, your NEXT dispatch is the gate's first POSITIVE CONTROL + THE PSR IDENTIFICATION: run the four META archetypes (specs in run-validator-jointpower - BH, VOLSCALE, DDLIMIT, DIPBUY) with lookback_days=2000 AND HOLD_DAYS declared, and CAPTURE LEAN'S RAW STATISTICS BLOCK VERBATIM (observation count, benchmark series, benchmark Sharpe beside the reported PSR) - one run resolves whether the gate's TPR at Sharpe 1.0 is 25% or 1.6%. Score the pre-registered prediction ledger, especially DDLIMIT (predicted: passes everything except the one-shot holdout). Without lookback=2000 the consistency test will not run at all - the submission-format lottery, measured.
