@@ -523,3 +523,24 @@ actor} - the request-closing path exists (API card).
 ## 2026-08-23 — THE INSTRUMENT SHELF (resolve-pipeline amendment, under Delegation v2)
 
 The CEO asked whether seats log reusable skills. The honest audit: judgement-skills yes (EVOLVE into seat files — the card, the census, CALL-vs-MODEL); tool-skills NO — instruments lived in the session scratchpad, ephemeral. Fixed: `ClarkHarness/scripts/instruments/` + INSTRUMENTS.md, 25 promoted with one-line contracts. **NEW RESOLVE STEP: any instrument a seat names reusable in its STATE gets promoted to the shelf at resolve, with an index line.** An instrument on the shelf is a skill the firm keeps; one in a scratchpad is a memory one seat had. Secrets check performed at promotion (keys live in env only).
+
+## THE CHAIR'S EFFICIENCY REVIEW (standing practice, CEO instruction 2026-08-23, verbatim: "I want you to periodically think through on what makes our team more efficient since you are the one belting everyone")
+
+Cadence: at every day-log close, and immediately whenever a friction pattern reaches n≥2. Each review names LEVERS WITH MEASURED EFFECTS (Grace's bar applies to the chair too — a framework instead of a number is worth nothing). Admissible findings feed the Selection Loop when it exists; process changes apply same-day under v2 with the change named here.
+
+### Review #1 — 2026-08-23 (the five-builder, first-gate-pass day)
+
+**What measurably made us faster:**
+1. **Review-derived briefs.** Premise survival is now n=2 (D24, D29) against EIGHT premise failures in nine plan/ticket-derived briefs. LEVER: write briefs from measured reviews; run every tool a brief names before filing it (adopted). Effect: D29's premise fold took minutes; D23 lost time to a phantom source.
+2. **The reviewer's probes as acceptance tests + constant worktree paths.** Made the D22→D24 and D23→D29 repair loops nearly mechanical — the re-blind on D24 cleared FIRST TRY. Effect: repair rounds now ~3-5h shoulder-to-shoulder vs the multi-day early loops.
+3. **Batching the adversary.** Two artifacts for 242k tokens — near the cost of one. Standing: never send the adversary one thing when two are ready.
+4. **Self-fanout with foreground plumbing.** Ed: 3 workers ≈ one batch's cost, one memo-reshaping mid-run catch (the survivor-universe-as-PIT catch could NOT have been briefed in advance). Effect measured, n=3 catches across 3 outings.
+5. **The weight-class + lockfile discipline.** Five agents at cap, RAM dipped to 0.39 GB, ZERO host collapses (vs the 2026-08-22 zero-byte disaster). suite_when_free.sh turned lock-waiting from a seat idling into a free background poll.
+
+**What measurably burned clock (ranked by minutes lost):**
+1. **INSTRUMENT ASSUMPTIONS — the #1 time-killer, four instances today**: the 900s censor (210 container-min + a fenced verdict), the 3h orphan reconciler (nearly lost a 5.3h run), dotenv suite poisoning (109 false reds → two full re-runs + diagnosis ≈ 45 min), the snapshot hang itself (a 5.3h diagnostic run to isolate). STANDING PRIORITY CONFIRMED: fix-the-instrument-first is not hygiene, it is the largest wall-clock lever the firm has.
+2. **The chair as serial resolver.** ~9 resolve passes today at 10-20 min each. Remedies now live: routing fields + serves_requests (hygiene auto-closes), v2 (fewer desk round-trips), the instrument shelf (no re-derivation). Watch: does resolve time per dispatch FALL next session; if not, the next lever is a resolve-helper script (one command: file run + append STATE + carry BINDS from a structured report).
+3. **Unrecorded serialization waits.** Two of D28's five heavy runs waited on sibling locks; D29's suite polled 28 min then timed out. Nothing records this wall-clock (Grace bind filed). LEVER when measured: stagger heavy phases at dispatch time, not at lock time.
+4. **Backtick/quoting failures in chair shellwork** — three incidents (heredoc mangling, day-log backtick eating), each ~5 min + a repair commit. RULE: markdown with backticks goes through Write/Edit or a file-append script, NEVER through bash -c python strings.
+
+**The structural read**: the funnel's cost has inverted — generation and review are now cheap and sharp (10-of-10 self-kills at zero container cost); the expensive tail is INSTRUMENTS and the CHAIR'S OWN SERIAL WORK. The team gets faster from here by making the chair's resolve mechanical and the instruments trustworthy, not by making the seats smarter — they are already outrunning the harness.
