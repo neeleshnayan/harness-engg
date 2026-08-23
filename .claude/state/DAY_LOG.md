@@ -123,6 +123,23 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   is fired and discharged by this work — the register cannot record
   either; recorded here, and the evaluability ticket (a26debb9 family)
   remains the owner.
+- **THE DESK CLEANUP EXECUTED (CEO: first cleanup my desk)**: closing
+  sweep in two passes, 128 -> 76 (69 recs closed with citations, 2
+  false positives self-caught and repaired by refiling the clean
+  six-decision surface as run-triage7-decisions). R37 carries a
+  SUPERSEDED-PENDING chip with lineage + revival branch - the manual
+  form of the supersession mechanism whose build (762d28c9/26533b0f/
+  cec27460) takes the NEXT builder slot.
+- **THREE ROUTING DECISIONS (CEO, same sitting)**: (1) agents never
+  reach the CEO directly; the desk is the medium; a DELEGATION REGISTER
+  v1 designed and ticketed (4c9317ad, loosening -> adversary blind
+  before ratification). (2) COO memos go to the CEO DIRECTLY with the
+  chair in CC - publish-first, chair verifies in parallel, never in the
+  reading path (kills the triple-processing: COO -> chair -> CEO). (3)
+  SEAT-TO-SEAT IN-TRAYS: any seat may post a task to another seat's
+  in-tray; the chair BLESSES at dispatch (drains the in-tray into the
+  brief, strikes what it disagrees with - the BINDS pattern for tasks).
+  All three fold into the desk-family build spec.
 - **THE EPISODE STORE ticketed (92f98106) + CEO parameters same sitting**:
   seat memories persist to Postgres as append-only EPISODES (never
   deleted, void-swept, market-tagged); hot files become OPERATING
