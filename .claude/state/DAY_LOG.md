@@ -91,6 +91,37 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
 - The CEO's parting instructions from the night stand otherwise; G1 (live
   account) starts Monday.
 
+**MEASURED**
+- **THE ENTRY-20 RE-JUDGE IS IN AND IT IS FENCED, NOT FAILED** (quant #4,
+  `run-quant-entry20-rejudge`, candidate `997187b267d3`, gate v4.3, zero
+  algorithm lines changed). It cleared 8 of 9 criteria INCLUDING the new
+  twelve-fold walk-forward (9 measurable of 12, 8 retained, median
+  retention 0.9419) — and the single failure is our containers: the 5 and
+  10 bps grid points hung at the 900s ceiling, collapsing the tested cost
+  range to 3 bps. **14 of 66 containers censored (4.5%→21.2% in a day;
+  nothing between 82.5s and 900.3s); 3 of 13 sweep winners were decided by
+  which container survived; fold 10's retention margin (0.036) sits inside
+  the perturbation → SELECTED-FROM-CENSORED-GRID, fenced.** Retro-audit:
+  the v4.1 pass was ALSO censored (1 of 22) and clean only by luck — the
+  quant corrected its own 2026-08-22 "no timeouts" STATE by querying
+  Postgres. Three hang hypotheses killed (concurrency, spine, bulk load);
+  the discriminating experiment is `FUND_BAR_SNAPSHOT=0` A/B (chair,
+  queued behind the live builders — one heavy job at a time; deadline
+  08-25 has room). Two more instrument defects: the ratchet never checks
+  declared WARM-UP against the reach (folds 1–2 began with 0 of 170 names
+  live, counter read 0 — absence-as-zero in the field built to report it),
+  and the sweep summary silently drops censored points (13 of 52 vanished,
+  folds into `de31b31e`). Honest numbers: like-for-like excess +21.945pp
+  (not +33.797), active breakeven 13.83 bps/side, vol ratio 0.656, active
+  t=0.597 — still indistinguishable from zero. Ed's prediction ledger
+  scored 6/9 direction, 2/9 magnitude — both accurate ones predicted the
+  INSTRUMENT. The vol-ratio label question (0.962/1.0011/0.656, only one
+  breaches Ed's falsifier — the premia→alpha re-declaration rests on it)
+  is routed to mechanism+adversary and interacts with the CEO's rf-stress
+  decision. **The convergent path: hang A/B → ONE clean re-run, submitted
+  as claim_type=premia post-D23-merge, serving the v4.3 re-judge AND the
+  premia certification in a single run.**
+
 **BUILT**
 - **BUILDER D23 delivered and chair-reviewed — GATE v5r1-premia: the premia
   sleeve's first criterion since 2026-08-19** (branch
@@ -98,7 +129,11 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   verdicts byte-identical over 62 cases; targeted 1942 passed, +73
   collected exactly, mutation 33/33; FULL SUITE OWED under the chair's RAM
   floor — the builder waited 25 min on the belt and correctly declined).
-  Run `run-builder-d23`, 7 recs. **THE HEADLINE FOR THE CEO: Entry 20
+  Run `run-builder-d23`, 7 recs. ADDENDUM, self-discharged after the belt
+  cleared: **full suite 3488 green on the branch AND 3488 green on the
+  MERGED tree; merge gate FAIL-by-routing (1 sensitive: gate.py, 0
+  forbidden) — the correct verdict; count reconciles three ways.** The
+  suite-owed caveat is closed. **THE HEADLINE FOR THE CEO: Entry 20
   clears the ENTIRE premia bar (Sharpe 2.305 vs 1.286, +0.923 at rf=4%,
   dd 15.26% vs 23.88%) and fails on ONE pre-existing sentence — the cost
   grid stops at 5 bps, floor is 10. One grid point from the firm's first

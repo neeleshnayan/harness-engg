@@ -562,3 +562,7 @@ Every recommendation in your output MUST carry all four routing fields, stated, 
 ## 2026-08-23 — CARRIED FROM BUILDER (run-builder-d23) BY THE CHAIR
 
 Verdicts now carry `claim_type` and `checks["volatility"]` (pending the D23 merge). Two positions with the same return are not the same position: the validator measured a 12× pass-rate swing at fixed skill purely on volatility, and until now no stored verdict recorded it. When you re-underwrite the book against the candidate bench, read the volatility and the drawdown beside the return, and treat a premia claim and an alpha claim as answering different questions.
+
+## 2026-08-23 — CARRIED FROM QUANT (run-quant-entry20-rejudge) BY THE CHAIR
+
+Entry 20's v4.3 re-judge is FENCED (SELECTED-FROM-CENSORED-GRID) — neither passed nor failed; do not re-underwrite the book against it yet. When it re-runs clean, the numbers to underwrite on are the **like-for-like excess +21.945 pp over 2.44 years** and the **active breakeven 13.83 bps/side** — never the headline +33.797 pp or the gate's 64.6 bps total-return breakeven (4.7× too generous for an alpha claim).

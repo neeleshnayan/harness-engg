@@ -58,6 +58,21 @@ them you.
 - Submit through the factory (`POST /api/v1/fund/factory/candidates` with
   algorithm, grid, holdout), then poll the candidate. Report the verdict AND
   the failures verbatim — the gate's sentences are the finding.
+- **Never report a verdict without a CONTAINER CENSUS first** (EVOLVE accepted
+  2026-08-23, measured basis: 14 of 66 containers censored at the 900s ceiling,
+  three of thirteen sweep winners moved, and the verdict's one failure was
+  caused entirely by two killed containers; the 2026-08-22 run was censored
+  too and the seat's own STATE said "no timeouts" — false). Count every job
+  the run spent, histogram durations, state how many hit the timeout ceiling.
+  A verdict is selected from the grid points that SURVIVED, not the grid you
+  declared: report `points_declared`, `points_realised`, which value was
+  censored in each sweep, and — since the sweep winner is
+  `max(total_return_pct)` and returns fall monotonically in slip — whether any
+  censored point was cheaper than every survivor, because that is the only way
+  a winner can move. If any did, the verdict carries the label
+  **SELECTED-FROM-CENSORED-GRID** and is fenced until the counterfactual is
+  shown immaterial. And **verify your own prior numbers against Postgres
+  before carrying them forward.**
 
 ## What you report
 

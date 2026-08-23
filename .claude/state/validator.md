@@ -912,3 +912,7 @@ Every recommendation in your output MUST carry all four routing fields, stated, 
 (1) The PSR identification narrowed: your 1.39–1.49 target reproduces exactly under an independent inversion (1.3920/1.3917/1.3915/1.4907), and FOUR constructions of a "benchmark Sharpe" from the engine's own benchmark leg are REJECTED against it (0.746/1.039/0.786/1.095 vs 1.392) — do not re-derive those. The engine publishes no `Benchmark Sharpe Ratio` key. `psr_inputs` (ships with D23) stores the twelve identifying statistics, sample length, and a live volatility-rule check per verdict — one instrumented run closes the identification.
 (2) Yours to price: LEAN's `Sharpe Ratio` is consistent with (mean×252 − rf)/AnnStdDev at an implied rf of 3.04–3.80%/yr — the engine already applies a risk-free rate the fund has never declared. H1 arriving from a direction nobody was watching; it changes what every stored Sharpe means.
 (3) LEAN's `Annual Standard Deviation` is identified: calendar-clock sd × sqrt(252), understated by a measured 1.2033–1.2047 vs trading-day truth.
+
+## 2026-08-23 — CARRIED FROM QUANT (run-quant-entry20-rejudge) BY THE CHAIR
+
+Your "three distinct slip values" rule needs a second clause — **the realised family, not the declared one.** The Entry-20 re-judge declared 4 points per sweep and realised a mean of 3.00 (range 2–4); in three of thirteen sweeps the winner was decided by which container survived the 900s ceiling. When you next census breakeven coverage, count `state=done` points per sweep, not grid length.
