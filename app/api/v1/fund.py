@@ -1407,6 +1407,12 @@ class CandidateRequest(BaseModel):
     #: Observations that prompted this hypothesis. Recorded now because the
     #: link exists only at the moment someone decides to test something.
     observation_ids: Optional[List[str]] = None
+    #: WHICH BAR: `alpha` (beats the benchmark after costs) or `premia` (better
+    #: risk-adjusted return than holding the asset). Optional and defaulting to
+    #: `alpha`, so every existing submitter is unchanged. Without this the
+    #: premia bar would exist and have no way to be asked for — a criterion
+    #: nothing can select is the unwired-control shape.
+    claim_type: Optional[str] = None
 
 
 @router.post("/fund/factory/candidates")
@@ -1423,7 +1429,8 @@ def factory_submit(req: CandidateRequest):
         raise HTTPException(status_code=503, detail="the factory needs FUND_STORE=postgres")
     from app.fund.leanrunner import LeanError
     try:
-        return f.submit(req.algorithm, req.grid, req.holdout, req.observation_ids)
+        return f.submit(req.algorithm, req.grid, req.holdout,
+                        req.observation_ids, req.claim_type)
     except LeanError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -3415,10 +3422,30 @@ def lean_gate_sweep(sweep_id: str):
 
 
 @router.post("/fund/lean/gate/judge/{job_id}")
-def lean_gate_judge(job_id: str, sweep_id: str = Query(...)):
-    """Apply the bar to a finished verification run plus its sweep."""
+def lean_gate_judge(job_id: str, sweep_id: str = Query(...),
+                    claim_type: Optional[str] = Query(None)):
+    """Apply the bar to a finished verification run plus its sweep.
+
+    ``claim_type`` selects WHICH bar, exactly as the factory path does. It was
+    missing until 2026-08-23 and the adversary named the consequence: a premia
+    candidate re-judged here silently reverted to the alpha bar — the one
+    criterion the premia claim exists to replace — and came back stamped with
+    the alpha version, so the stored verdict did not even record that the wrong
+    bar had been applied.
+
+    An unrecognised type is REFUSED here rather than judged, in both directions:
+    the gate's own answer to an unknown type is to apply the alpha bar and fail,
+    which is safe but silent, and a caller who typed `premium` should be told so
+    rather than handed a verdict against a bar it did not ask for. The
+    vocabulary is read from ``factory.check_claim_type``, which reads
+    ``gate.CLAIM_TYPES`` — one definition, not three.
+    """
+    from app.fund.factory import check_claim_type
     from app.fund.gate import evaluate
     from app.fund.leanrunner import LeanError
+    claim = check_claim_type(claim_type)
+    if not claim["known"]:
+        raise HTTPException(status_code=400, detail=claim["reason"])
     try:
         job = _lean().job(job_id)
         sweep = _lean().sweep(sweep_id)
@@ -3431,7 +3458,8 @@ def lean_gate_judge(job_id: str, sweep_id: str = Query(...)):
         "parameters": job.get("parameters"),
         **evaluate(job.get("result") or {},
                    sweep.get("holdout_result"),
-                   sweep.get("summary")),
+                   sweep.get("summary"),
+                   claim_type=claim["claim_type"]),
     }
 
 

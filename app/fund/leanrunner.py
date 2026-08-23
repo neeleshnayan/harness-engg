@@ -1099,6 +1099,9 @@ class LeanRunner:
                         self._add_benchmark(job["result"], self._source_or_none(job))
                         self._add_cost_disclosure(job)
                         self._add_capacity(job["result"])
+                        # LAST of the enrichers, because it reads what
+                        # `_add_benchmark` decided: which series is the bar.
+                        self._add_premia_inputs(job["result"])
                     # Published LAST, deliberately. `state` is the signal every
                     # caller polls on, so marking the job done before enrichment
                     # finishes exposes a half-built result: the gate, arriving
@@ -1243,6 +1246,13 @@ class LeanRunner:
                         "possible in a single-name bar, but the name itself "
                         "was picked from a universe screened TODAY"),
                 }
+                # WHICH SERIES THE HEADLINE BENCHMARK NUMBER CAME FROM, stated
+                # rather than inferred. On this branch the engine's own curve
+                # is kept, so `daily_returns["benchmark"]` and
+                # `benchmark_return_pct` describe the SAME bar. On the
+                # recompute branch below they do not, and nothing said so —
+                # see `premia_inputs`.
+                result["benchmark_series_source"] = "engine_single_name"
                 return
             logger.info("discarding engine benchmark (%d points, %d distinct, "
                         "%d symbols traded): %s", len(engine_curve),
@@ -1419,6 +1429,24 @@ class LeanRunner:
                 "universe it chose from — the algorithm declares no UNIVERSE, "
                 "so the bar excludes names the rule never bought")
         result["benchmark_source"] = "fund bars"
+        # The engine's series was DISCARDED above and this one installed in its
+        # place — so from here on `benchmark_return_pct` and
+        # `daily_returns["benchmark"]` are two different bars. Marked, and the
+        # size of the disagreement is measured in `premia_inputs`.
+        result["benchmark_series_source"] = "recomputed_basket"
+
+    @staticmethod
+    def _add_premia_inputs(result: dict[str, Any]) -> None:
+        """Both legs' moments, on ONE clock, against the bar the gate judges by.
+
+        The cash leg's fetcher is passed EXPLICITLY rather than defaulted inside
+        ``premia_inputs``, so that a caller which has no feed gets a stated
+        absence instead of a network call it did not ask for — and so that the
+        one production wiring of the rf source is visible at the belt's own call
+        site rather than buried in a default argument.
+        """
+        result["premia_inputs"] = premia_inputs(result,
+                                                rf_bars=_default_rf_bars)
 
     # --- results -------------------------------------------------------------
 
@@ -1500,14 +1528,768 @@ class LeanRunner:
             # comparison should be impossible to skip.
             "benchmark_curve": bench,
             "benchmark_return_pct": _total_return(bench),
+            # WHAT THE BOOK ACTUALLY WEIGHED, from the engine's own chart. The
+            # premia bar refuses a levered book because a backtest lends for
+            # free (adversary D29, G1), and it can only refuse what it can see.
+            # Read here rather than downstream because `charts` is discarded
+            # four lines below — the same reason `daily_returns` is computed
+            # here and not from the downsampled curve.
+            "exposure": gross_exposure(charts),
             "orders": _orders(best),
-            "robustness": _robustness(stats, equity, dates, _orders(best)),
+            # `daily` is handed in UNDOWNSAMPLED and before the thinning above,
+            # because the PSR capture needs the sample length the engine
+            # actually scored — `equity` here is already 400 points.
+            "robustness": _robustness(stats, equity, dates, _orders(best), daily),
             "raw_files": sorted(p.name for p in res_dir.glob("*")),
         }
 
 
+#: Every statistic in LEAN's block that could identify the formula behind the
+#: number the gate's most binding criterion reads. Captured verbatim as the
+#: engine wrote them (strings included) — a parsed float loses the "%" that
+#: says which scale the engine was on, and this list exists precisely because
+#: nobody could tell what scale ``Probabilistic Sharpe Ratio`` was on.
+#:
+#: THE MEASURED REASON (validator run-validator-jointpower, 2026-08-23,
+#: docs/validator/VALIDATOR_JOINTPOWER_2026-08-23.md): ``min_psr_pct`` reads
+#: this number verbatim, our own module's PSR describes a target-0 luck filter,
+#: and the two disagree by 15x on the gate's true-positive rate at Sharpe 1.0
+#: (24.7% documented vs 1.6% calibrated). Independently reproduced here on the
+#: four stored candidates that carry analytics, by inverting the shipped form:
+#: the implied target Sharpe is 1.3920 / 1.3917 / 1.3915 / 1.4907 annualised at
+#: sqrt(252) — NOT zero, stable within a benchmark and window, and moving when
+#: the window moves. Four constructions of a "benchmark Sharpe" from the
+#: engine's own benchmark leg were tested against those figures and all four
+#: were rejected (0.746 / 1.039 / 0.786 / 1.095 against a target of 1.392), so
+#: the SOURCE of the target is still unidentified and only a run that captures
+#: these fields can close it.
+_PSR_IDENTIFYING_STATISTICS = (
+    "Probabilistic Sharpe Ratio",
+    "Sharpe Ratio",
+    "Sortino Ratio",
+    "Annual Standard Deviation",
+    "Annual Variance",
+    "Compounding Annual Return",
+    "Net Profit",
+    # Benchmark-relative, and therefore the only trace in the block of what the
+    # engine thought the benchmark was doing. The engine publishes no
+    # "Benchmark Sharpe Ratio" key — verified against a real 27-key block
+    # (candidate 144387901688) — so these FIVE are the identification.
+    "Beta",
+    "Alpha",
+    "Information Ratio",
+    "Tracking Error",
+    "Treynor Ratio",
+)
+
+
+def psr_inputs(stats: dict, daily: Optional[dict[str, Any]] = None
+               ) -> dict[str, Any]:
+    """Everything that could identify the formula behind the reported PSR.
+
+    Capture only: NO criterion reads any of this, and adding one would be a
+    threshold change. What it buys is that the next reader can answer "against
+    what target?" from a stored verdict instead of from a new belt run.
+
+    Three things travel together and they answer different halves of the
+    question:
+
+      * ``statistics`` — the engine's own numbers, verbatim, unparsed.
+      * ``observations`` — how long the series the engine scored actually was.
+        PSR's z-statistic scales with sqrt(n-1), so a PSR without an n is not
+        interpretable at all, and the belt has never stored one.
+      * ``engine_volatility_reproduction`` — whether the engine's published
+        ``Annual Standard Deviation`` is still the calendar-clock standard
+        deviation times sqrt(252). It was on all four stored candidates
+        (0.11627 computed against 0.116 published); if a future engine build
+        changes that, this is the field that says so instead of a silent
+        17% shift in a statistic nobody re-derives.
+    """
+    out: dict[str, Any] = {
+        "statistics": {k: stats.get(k) for k in _PSR_IDENTIFYING_STATISTICS
+                       if k in stats},
+        "statistics_missing": [k for k in _PSR_IDENTIFYING_STATISTICS
+                               if k not in stats],
+        "benchmark_sharpe_published": (
+            # Named as an ABSENCE rather than left out. The whole PSR question
+            # is "against which benchmark Sharpe", and the honest answer today
+            # is that the engine does not publish one.
+            stats.get("Benchmark Sharpe Ratio")),
+        "benchmark_sharpe_note": (
+            None if "Benchmark Sharpe Ratio" in stats else
+            "the engine's statistics block publishes NO benchmark Sharpe; the "
+            "PSR's target is therefore not readable from the run and has to be "
+            "inverted out of the reported PSR"),
+    }
+    series = (daily or {}).get("strategy") if isinstance(daily, dict) else None
+    dates = (daily or {}).get("dates") if isinstance(daily, dict) else None
+    if not isinstance(series, list) or not series:
+        out["observations"] = {
+            "n": None,
+            "note": ("no undownsampled daily series accompanied this result, so "
+                     "the sample length behind the PSR is UNKNOWN — absent, not "
+                     "zero"),
+        }
+        return out
+    from app.fund import statistics as _stats
+    clock = _stats.observations_per_year(dates or [], len(series))
+    out["observations"] = {
+        "n": len(series),
+        "first": clock.get("first"),
+        "last": clock.get("last"),
+        "obs_per_year": (None if not clock.get("usable")
+                         else round(float(clock["obs_per_year"]), 2)),
+        "zero_return_days": sum(1 for x in series if x == 0.0),
+        "clock_note": (None if clock.get("usable") else clock.get("reason")),
+    }
+    # ONE unit reader, shared with `_robustness`. Two copies of "is this a
+    # fraction or a percentage" is the two-copies-of-one-belief defect, and the
+    # failure would be a `reproduces: False` that means nothing more than the
+    # engine changed its formatting.
+    published = _annual_vol_fraction(stats)
+    _, sd = _stats.mean_std(series)
+    recomputed = sd * math.sqrt(252.0) if sd else None
+    out["engine_volatility_reproduction"] = {
+        "published_annual_standard_deviation": published,
+        "series_stdev_times_sqrt_252": (None if recomputed is None
+                                        else round(recomputed, 5)),
+        # The rule holds when the two agree to the three decimals the engine
+        # prints. Stated as a comparison rather than asserted as a fact,
+        # because this is the check, not the claim.
+        "reproduces": (None if published is None or recomputed is None
+                       else abs(published - recomputed) < 5e-4),
+        "note": ("the engine's annualisation multiplies a CALENDAR-day series "
+                 "by sqrt(252); the trading-day truth is larger by roughly "
+                 "sqrt(365.25/252) = 1.2039 — measured 1.2033 to 1.2047 "
+                 "across the four stored candidates, since the real "
+                 "calendar-to-trading ratio varies with the window's "
+                 "holidays"),
+    }
+    return out
+
+
+def _returns_from_curve(curve: Any, dates: Any) -> dict[str, float]:
+    """Date -> simple return, from a level series. Breaks the chain on a bad level.
+
+    Same rule as ``_daily_returns``: a non-positive or non-finite level ends the
+    chain instead of dividing, so one bad bar cannot emit an infinity.
+    """
+    out: dict[str, float] = {}
+    if not isinstance(curve, list) or not isinstance(dates, list):
+        return out
+    if len(curve) != len(dates) or len(curve) < 2:
+        return out
+    prev: Optional[float] = None
+    for level, d in zip(curve, dates):
+        ok = isinstance(level, (int, float)) and math.isfinite(level) and level > 0
+        if ok and prev is not None and prev > 0:
+            out[str(d)[:10]] = level / prev - 1.0
+        prev = float(level) if ok else None
+    return out
+
+
+#: The cash leg is fetched with a PAD on BOTH ends, for two different measured
+#: reasons, and the pad cannot widen what is reported because the rf series is
+#: intersected with the strategy's own dates before anything is computed.
+#:
+#:   * AT THE END, because the feed's window is EXCLUSIVE there. Measured
+#:     2026-08-23: ``fetch_daily_bars("BIL", start="2026-08-01",
+#:     end="2026-08-21")`` returns 14 bars ending **2026-08-20**. Without a pad
+#:     the last session of every candidate's window would silently drop out of
+#:     the comparison.
+#:   * AT THE START, because a return is keyed on its LATER date. The first
+#:     date of a window has no return unless the price series reaches one
+#:     session behind it.
+#:
+#: Seven CALENDAR days covers the longest ordinary US market closure — a
+#: Thursday holiday plus the Friday and the weekend is four consecutive closed
+#: days, so the gap between two sessions reaches five — and nothing depends on
+#: the exact figure: a pad that is too short shows up as ``rf_dropped_days``,
+#: never as a silently shorter window.
+RF_FETCH_PAD_DAYS = 7
+
+
+def _round_or_none(value: Any, places: int) -> Optional[float]:
+    """Round for storage, keeping an ABSENCE absent. ``round(None)`` raises and
+    ``round(x or 0)`` would turn an unreadable figure into a zero, which is the
+    one thing this codebase does not do."""
+    return None if value is None else round(float(value), places)
+
+
+def _shift_date(iso: str, days: int) -> str:
+    """ISO date shifted by whole calendar days. Returns the input if unparseable."""
+    from datetime import date as _date, timedelta as _timedelta
+    try:
+        return (_date.fromisoformat(str(iso)[:10])
+                + _timedelta(days=days)).isoformat()
+    except ValueError:
+        return str(iso)[:10]
+
+
+#: How far the SESSION CALENDAR may fall short of either end of the strategy's
+#: span — or gap in the middle of it — and still be said to COVER it, in
+#: calendar days.
+#:
+#: THE MEASURED BASIS, and it is the same fact ``RF_FETCH_PAD_DAYS`` is sized
+#: from rather than a second guess at it: the longest run of consecutive CLOSED
+#: days on a US equity calendar is four (a Thursday holiday, the Friday and the
+#: weekend), so two consecutive SESSIONS can be five calendar days apart. The
+#: strategy's own first and last dates come from LEAN's equity curve, which
+#: emits a point every CALENDAR day, so either end can legitimately land on a
+#: day the market was shut. Five is therefore the largest gap a fully-covering
+#: session series can show at an end; anything beyond it is missing data, not a
+#: weekend. (``RF_FETCH_PAD_DAYS`` is seven — the same five with two days of
+#: slack, because a pad that is too short is visible as `rf_dropped_days` while
+#: a tolerance that is too long is not visible at all.)
+SESSION_SPAN_TOLERANCE_DAYS = 5
+
+
+def _days_between(first: str, last: str) -> Optional[int]:
+    """Whole calendar days from ``first`` to ``last``, or absent if unparseable.
+
+    Absent, never zero: a date this cannot read must not be reported as a
+    perfect fit, which is exactly what a ``0`` would mean to the caller.
+    """
+    from datetime import date as _date
+    try:
+        return (_date.fromisoformat(str(last)[:10])
+                - _date.fromisoformat(str(first)[:10])).days
+    except (ValueError, TypeError):
+        return None
+
+
+def _session_span(session_days: list[str], first: str, last: str
+                  ) -> dict[str, Any]:
+    """Does the session calendar actually COVER the strategy's whole span?
+
+    Written for ground G2 of the D29 blind review: the session denominator is
+    the union of the bar's dates and the cash leg's, and both are fetched
+    through the same function — so a vendor tail-lag truncates them TOGETHER,
+    the union collapses onto the shared window, and the majority test compares a
+    window with itself. Measured on the reviewer's own characteriser
+    (``scratchpad/adv29/probeF.py``): with the bar and the cash leg both cut at
+    15.6% of the run, the test read 214 of 214 and PASSED.
+
+    THE CHECK IS ON THE UNION, NOT ON THE CASH LEG ALONE, and that is a
+    deliberate departure from the review's wording — stated here rather than
+    quietly. "The cash leg spans the run" would ALSO refuse the case where the
+    bar is complete and only the cash leg is short, where the bar is a perfectly
+    truthful session calendar and the comparison already fails on `common_days`
+    anyway; measured, that wording turns an existing invariant
+    (`test_a_cash_series_that_stops_early_drops_days_and_SAYS_SO`: a short cash
+    leg must make the majority test HARDER, not easier) into a fallback to the
+    CALENDAR basis, which is the very weekends-versus-sessions comparison v5r2
+    removed. The union form refuses exactly the correlated-truncation case the
+    kill describes and nothing else.
+
+    AND IT CHECKS FOR A HOLE, which neither wording covers: a vendor outage over
+    the same middle stretch of BOTH legs reaches the run's first and last dates
+    while covering none of its centre, and the union would then undercount the
+    denominator exactly where the comparison is thinnest. The largest gap
+    BETWEEN consecutive session dates is therefore checked with the same
+    tolerance as the two ends. (A bar cut at the END beside a cash leg starting
+    LATE is the shape one reaches for first and it cannot arrive here: with no
+    overlap the two legs share no common window and `premia_inputs` refuses
+    earlier — verified, not assumed.)
+
+    Reports the gaps in days rather than a bare boolean, because the interesting
+    question when this fires is *by how much* — a two-day lag and a five-year
+    truncation are the same `False`.
+    """
+    out: dict[str, Any] = {
+        "vouched": False,
+        "strategy_first": first, "strategy_last": last,
+        "session_first": None, "session_last": None,
+        "head_shortfall_days": None, "tail_shortfall_days": None,
+        "largest_internal_gap_days": None,
+        "tolerance_days": SESSION_SPAN_TOLERANCE_DAYS,
+        "basis": "the union of the bar's dates and the cash leg's",
+        "reason": None,
+    }
+    if not session_days:
+        out["reason"] = ("no session calendar was readable, so nothing vouches "
+                         "for how many sessions this run contained")
+        return out
+    out["session_first"], out["session_last"] = session_days[0], session_days[-1]
+    head = _days_between(first, session_days[0])
+    tail = _days_between(session_days[-1], last)
+    gaps = [_days_between(a, b)
+            for a, b in zip(session_days, session_days[1:])]
+    if head is None or tail is None or any(g is None for g in gaps):
+        out["reason"] = ("the strategy's span or the session dates could not be "
+                         "read as dates, so their coverage is unknown")
+        return out
+    head, tail = max(head, 0), max(tail, 0)
+    biggest = max(gaps) if gaps else 0
+    out["head_shortfall_days"] = head
+    out["tail_shortfall_days"] = tail
+    out["largest_internal_gap_days"] = biggest
+    worst = max(head, tail, biggest)
+    if worst > SESSION_SPAN_TOLERANCE_DAYS:
+        out["reason"] = (
+            f"the session calendar {session_days[0]}..{session_days[-1]} does "
+            f"not cover the strategy's span {first}..{last}: {head} day(s) "
+            f"missing at the start, {tail} at the end and a largest internal "
+            f"gap of {biggest}, past the {SESSION_SPAN_TOLERANCE_DAYS}-day "
+            f"tolerance a closed market can explain — so it cannot say how many "
+            f"sessions the run contained")
+        return out
+    out["vouched"] = True
+    return out
+
+
+def _default_rf_bars(symbol: str, start: str, end: str) -> Any:
+    """The fund's own feed. Kept as a NAMED function, not a lambda, so a caller
+    can substitute it and a test can assert which one ran.
+
+    IT DOES NOT CONSULT THE BAR SNAPSHOT, and that is deliberate — the first
+    version did, and `test_the_consult_sites_are_exactly_the_two_belt_side_ones`
+    caught it within the hour. A candidate's snapshot pins the legs the
+    ALGORITHM declares; the cash instrument is never one of them, so the consult
+    would MISS on every candidate that ever ran, and a recorded miss is what
+    makes `uniform_data_path` False. That is the `_add_capacity` defect
+    (leanrunner, 2026-08-22: a 120-day request against legs pinned at 700/900/
+    2000, guaranteed to miss, marking every candidate's data path non-uniform)
+    arriving a second time on a different symbol. A consult site that can never
+    hit is worse than none.
+
+    THE HONEST CONSEQUENCE, and it is reported rather than hidden: the cash leg
+    is NOT pinned to the candidate's snapshot, so it is fetched live and its
+    vendor is whatever `fetch_daily_bars` resolves for a start+end window
+    (Yahoo, measured 2026-08-23). `rf.pinned` is therefore False on every run
+    today, and `rf.source` names the vendor. Pinning it properly means adding
+    the cash symbol to the snapshot the belt takes, which is a belt change and
+    is not in this diff.
+    """
+    from app.fund.marketdata import fetch_daily_bars
+    return fetch_daily_bars(symbol, start=start, end=end)
+
+
+def rf_series(symbol: str, first: str, last: str,
+              fetcher: Any = None) -> tuple[dict[str, float], dict[str, Any]]:
+    """The REALISED cash return per observation over a window, from the feed.
+
+    Returns ``(date -> return, meta)``. ``meta["measurable"]`` is False with a
+    stated reason whenever the series cannot be read — never an assumed zero and
+    never an assumed constant, because assuming either is exactly the defect the
+    constitution's excess-returns amendment (2026-08-21) was written against:
+    *"under rf=0 with free leverage, T-bill carry impersonates edge."*
+
+    The returns are keyed on their LATER date and derived by the same function
+    that derives the benchmark leg (``_returns_from_curve``), so the cash leg,
+    the strategy leg and the bar all span the same session-to-session intervals.
+    """
+    meta: dict[str, Any] = {
+        "symbol": symbol,
+        "measurable": False,
+        "reason": None,
+        # STATED, not detected. The first version wrote
+        # `bool(getattr(bars, "taken_at", None))` — and `SnapshotLeg` has no
+        # `taken_at` (it lives on `BarSnapshot`), so the field could never have
+        # been True. A flag that can only report one value is not a measurement;
+        # it is a decoration that a reader will eventually believe. The cash leg
+        # is not pinned today, for the reason in `_default_rf_bars`, and this
+        # says so in every stored payload until that changes.
+        "pinned": False,
+        "pinned_note": ("the cash leg is fetched live, not served from the "
+                        "candidate's bar snapshot — the snapshot pins the "
+                        "algorithm's declared legs and the cash symbol is never "
+                        "one of them"),
+        "source": None,
+        # TWO WINDOWS, because they are two different facts and conflating them
+        # would make a reader think the feed was asked a question it was not.
+        # `span_requested` is what the run is ABOUT; `fetch_window` is what the
+        # feed was asked FOR, padded at both ends for the reasons in
+        # RF_FETCH_PAD_DAYS.
+        "span_requested": {"first": first, "last": last},
+        "fetch_window": None,
+    }
+    if fetcher is None:
+        meta["reason"] = (
+            f"no risk-free source was supplied for this run, so the cash return "
+            f"over its window is UNKNOWN — a premia claim is measured over "
+            f"EXCESS returns (constitution, 2026-08-21), and an unknown cash "
+            f"rate is not a zero one")
+        return {}, meta
+    start = _shift_date(first, -RF_FETCH_PAD_DAYS)
+    end = _shift_date(last, RF_FETCH_PAD_DAYS)
+    meta["fetch_window"] = {"first": start, "last": end}
+    try:
+        bars = fetcher(symbol, start, end)
+    except Exception as e:  # noqa: BLE001
+        meta["reason"] = (f"the cash series {symbol} could not be fetched over "
+                          f"{start}..{end}: {e}")
+        return {}, meta
+    if bars is None:
+        meta["reason"] = (f"the feed returned no cash series for {symbol} over "
+                          f"{start}..{end}")
+        return {}, meta
+    meta["source"] = getattr(bars, "source", None) or "unknown"
+    rmap = _returns_from_curve(list(getattr(bars, "closes", None) or []),
+                               [str(d)[:10] for d in
+                                (getattr(bars, "dates", None) or [])])
+    if len(rmap) < 2:
+        meta["reason"] = (f"the cash series {symbol} yielded {len(rmap)} usable "
+                          f"return(s) over {start}..{end}")
+        return {}, meta
+    meta["measurable"] = True
+    return rmap, meta
+
+
+def premia_inputs(result: dict[str, Any], rf_bars: Any = None,
+                  rf_symbol: Optional[str] = None) -> dict[str, Any]:
+    """The two legs a premia claim is judged on, measured the SAME way.
+
+    THE DEFECT THIS EXISTS TO CLOSE, and it is measured, not argued. The
+    payload already carries an aligned daily pair in ``daily_returns`` — and
+    its BENCHMARK leg is the series ``_add_benchmark`` DISCARDED. On the three
+    stored ``monthend_rebalance_flow`` candidates the discarded engine leg
+    compounds to +110.9% while the bar the gate's own ``must_beat_benchmark``
+    criterion uses returned +41.55%; on ``announcement_premium`` it is +19.8%
+    against +84.78%. Judging a Sharpe comparison off the wrong leg FLIPS the
+    premia answer on three of those four: the monthend runs read 0.662 against
+    a benchmark 0.898 (fail) on the discarded leg and 0.681 against 0.574
+    (pass) on the real one.
+
+    So the benchmark leg here is derived from ``benchmark_curve`` /
+    ``benchmark_dates`` — the same numbers ``benchmark_return_pct`` is computed
+    from, and the derivation reproduces it to 0.002pp on all four stored
+    candidates (41.552 vs 41.55; 84.782 vs 84.78). Where the engine's own curve
+    was KEPT (a single-name strategy), the two legs are the same series and
+    ``daily_returns`` is used directly.
+
+    THE SECOND DEFECT THIS CLOSES, added 2026-08-23 after the adversary's blind
+    KILL of v5r1 (docs/reviews/ADVERSARY_D23_D24_2026-08-23.md). v5r1 judged the
+    inequality at an ASSUMED risk-free rate of 0% and stressed it at a CONSTANT
+    4.0%. The constant was rounded up from BIL's 3.97%/yr on ONE window and the
+    belt does not run on that window; on three of the four windows the belt
+    actually uses, the stress was SOFTER than the cash the window paid, which is
+    the one condition under which a cash tilt survives it. Eleven of sixteen
+    zero-skill cash/beta blends PASSED while their true excess-Sharpe advantage
+    was between −0.0004 and +0.03.
+
+    THE PER-WINDOW RATES ARE A TABLE IN ``gate.PREMIA_VERSION``'s note and are
+    deliberately NOT restated here. Two copies of one measurement is how a
+    comment stops describing the thing it names (D19: a gate shipped with the
+    same arm at "5 folds / 4.17%" in one docstring and "6 folds / 5.17%" in
+    another, both true of something and only one true of what shipped).
+
+    So this function now carries the REALISED cash series over the candidate's
+    own window — ``strategy_excess`` and ``benchmark_excess``, both legs net of
+    the SAME per-observation cash return, read from the fund's own feed — and
+    reports ``excess_measurable: False`` with a reason when no rf series covers
+    the window. Absence is never zero, and a premia claim whose cash rate is
+    unknown is NOT MEASURABLE rather than passed.
+
+    THREE PROPERTIES, each of which is a way the comparison could lie:
+
+      * ONE WINDOW. All three legs — strategy, bar and cash — are cut to the
+        dates they share, and the window is reported. ``must_beat_benchmark``
+        compares two totals measured over DIFFERENT windows — on candidate
+        144387901688 the strategy runs to 2026-08-21 and its bar stops at
+        2026-08-04 — and that is a pre-existing defect this function declines to
+        inherit. What the cash leg's own alignment costs is reported as
+        ``coverage.rf_dropped_days`` rather than absorbed silently.
+      * ONE CLOCK. The intersection is a SESSION calendar — the benchmark's
+        dates, narrowed by the cash series' — so the weekend zeros LEAN pads
+        the equity curve with drop out of every leg. The annualisation factor
+        is then derived from the surviving dates
+        (``statistics.observations_per_year``), never assumed.
+      * ONE METHOD. Volatility, drawdown and total return come from the same
+        function for both legs. Reading the strategy's drawdown off the engine
+        and the benchmark's off a series is two measurements pretending to be
+        a comparison.
+
+    Returns ``measurable: False`` with a reason whenever either leg is absent.
+    A premia claim that cannot be measured has not been established.
+
+    THE THIRD DEFECT THIS CLOSES, added 2026-08-23 after the adversary's blind
+    KILL of v5r2 (docs/reviews/ADVERSARY_D29_2026-08-23.md, ground G1).
+    Subtracting a realised cash rate closes the carry channel only for a book
+    whose GROSS EXPOSURE is at most 100%. A backtest lends for free, so above
+    that the borrow is a gift that grows with the cash weight, and the payload
+    said nothing about leverage at all. ``max_gross_exposure`` and
+    ``gross_measurable`` are carried here from the engine's own exposure chart
+    (``gross_exposure``), and the gate refuses what it cannot measure.
+
+    THREE MEASURABILITY FLAGS, deliberately, because they answer different
+    questions and only two of them are read by a criterion.
+    ``measurable`` is the RAW pair — it gates ``gate.volatility_check``, which
+    is capture only, and its meaning is unchanged from schema 1.
+    ``excess_measurable`` is the pair the premia CRITERION is judged on, and it
+    is False whenever the cash leg could not be read. ``gross_measurable`` says
+    whether the book's leverage is known, and it is INDEPENDENT of both: a run
+    can have a perfect excess pair and an unreadable exposure chart, and that
+    run's premia claim is not measurable even though its Sharpe is. Collapsing
+    any two of them would have made one outage delete another capture.
+    """
+    from app.fund import statistics as _stats
+
+    out: dict[str, Any] = {"measurable": False, "excess_measurable": False,
+                           "gross_measurable": False, "schema": 3}
+    # THE BOOK'S LEVERAGE, carried into the premia payload BEFORE any of the
+    # early returns below. A payload that says nothing about gross exposure is
+    # the payload the D29 kill was written about, and a reader should get the
+    # answer — including "unknown, and here is why" — from every one of them,
+    # not only from the ones that got as far as computing a Sharpe.
+    ex = result.get("exposure")
+    ex = ex if isinstance(ex, dict) else {
+        "measurable": False, "max_gross": None,
+        "reason": ("this result carries no exposure capture at all — it was "
+                   "measured by a belt older than the one that reads the "
+                   "engine's exposure chart")}
+    out["exposure"] = ex
+    out["gross_measurable"] = bool(ex.get("measurable")
+                                   and ex.get("max_gross") is not None)
+    out["max_gross_exposure"] = (float(ex["max_gross"])
+                                 if out["gross_measurable"] else None)
+    daily = result.get("daily_returns")
+    if not isinstance(daily, dict) or not daily.get("present"):
+        out["reason"] = (
+            "no undownsampled daily series on this result, so neither leg can "
+            "be measured — absent, not zero"
+            + (f" ({daily.get('reason')})" if isinstance(daily, dict)
+               and daily.get("reason") else ""))
+        return out
+
+    s_dates = [str(d)[:10] for d in (daily.get("dates") or [])]
+    s_rets = list(daily.get("strategy") or [])
+    if len(s_dates) != len(s_rets) or len(s_rets) < 2:
+        out["reason"] = ("the strategy leg and its dates are not the same "
+                         "length, so the pair cannot be placed on a clock")
+        return out
+    smap = dict(zip(s_dates, s_rets))
+
+    source = result.get("benchmark_series_source")
+    bmap: dict[str, float] = {}
+    if source == "recomputed_basket":
+        bmap = _returns_from_curve(result.get("benchmark_curve"),
+                                   result.get("benchmark_dates"))
+    elif source == "engine_single_name":
+        b_rets = list(daily.get("benchmark") or [])
+        if daily.get("benchmark_present") and len(b_rets) == len(s_dates):
+            bmap = dict(zip(s_dates, b_rets))
+    out["benchmark_leg_source"] = source
+    if not bmap:
+        out["reason"] = (
+            f"no benchmark leg could be built (series source "
+            f"{source!r}) — a premia claim is a comparison, and there is "
+            f"nothing here to compare against"
+            + (f": {result['benchmark_unavailable']}"
+               if result.get("benchmark_unavailable") else ""))
+        return out
+
+    pair_days = sorted(set(smap) & set(bmap))
+    if len(pair_days) < 2:
+        out["reason"] = (f"the two legs share {len(pair_days)} date(s); there is "
+                         f"no common window to measure either of them on")
+        return out
+
+    # --- the cash leg -----------------------------------------------------
+    # READ OVER THE CANDIDATE'S OWN WINDOW, never a fixed one: a rate fitted on
+    # one window is a threshold that silently changes meaning with every
+    # backtest date (the adversary's rule, D23 review).
+    #
+    # And specifically over the STRATEGY'S SPAN, not the strategy-and-bar
+    # intersection. Fetching over the intersection looked equivalent and is not:
+    # when the BAR is the short leg — the Entry 20 truncation, 11.85pp — the
+    # cash leg would be cut to match it, and then neither series could say how
+    # many sessions the strategy's run actually contained. The coverage
+    # denominator below depends on exactly that, and a denominator that shrinks
+    # with the leg it is measuring is a majority test that gets EASIER the more
+    # is missing.
+    if rf_symbol is None:
+        from app.fund.gate import PREMIA_CRITERIA as _PC
+        rf_symbol = str(_PC["premia_rf_symbol"])
+    rfmap, rf_meta = rf_series(rf_symbol, s_dates[0], s_dates[-1],
+                               fetcher=rf_bars)
+    out["rf"] = rf_meta
+
+    # ONE WINDOW for everything the criterion reads. When the cash leg is
+    # readable the window is the three-way intersection; when it is not, the
+    # raw pair is still captured on its own window so the volatility fields
+    # survive an rf outage, and `excess_measurable` stays False.
+    common = sorted(set(pair_days) & set(rfmap)) if rfmap else pair_days
+    if len(common) < 2:
+        rf_meta["measurable"] = False
+        rf_meta["reason"] = (
+            f"the cash series {rf_symbol} shares {len(common)} date(s) with the "
+            f"strategy/bar window {pair_days[0]}..{pair_days[-1]} — there is no "
+            f"window on which an excess return could be formed")
+        common, rfmap = pair_days, {}
+    strat = _stats.leg_moments([smap[d] for d in common], common)
+    bench = _stats.leg_moments([bmap[d] for d in common], common)
+
+    # THE HONEST DENOMINATOR for "did this comparison cover the run".
+    #
+    # v5r1 divided TRADING days by CALENDAR days: LEAN emits one equity point
+    # per calendar day, so `strategy_days` counts weekends the market was shut
+    # and the fraction sat at 0.67-0.69 on all 15 real specimens — roughly
+    # 252/365 — leaving ~19pp of slack in a majority test and telling a reader
+    # nothing about whether anything was actually missing.
+    #
+    # The session calendar is the UNION of the bar's dates and the cash series'
+    # dates over the strategy's own span: if the bar was truncated, the cash
+    # leg — fetched over the strategy's span, above — still supplies those
+    # sessions.
+    #
+    # v5r2 SAID THE UNION "CAN ONLY MOVE THE COUNT TOWARD THE TRUTH" AND THAT
+    # WAS FALSE. Both legs come through `fetch_daily_bars`, so they are not two
+    # independent witnesses: one vendor tail-lag truncates them TOGETHER and the
+    # union collapses onto the shared window, at which point the majority test
+    # compares a window with itself. Measured, 15.6% coverage read as 214 of 214
+    # and PASSED. So the union is now CHECKED for coverage before it is
+    # believed — `_session_span`, whose docstring carries the shapes.
+    #
+    # WITH NO CASH LEG THERE IS NO SESSION COUNT, and this is not a detail. The
+    # bar alone is exactly the leg that gets truncated, so deriving the
+    # denominator from it lets a truncation shrink its own test: a bar covering
+    # 180 of 600 sessions would report 180 of 180 and clear a strict majority.
+    # That defect was written here, and an EXISTING coverage test caught it. So
+    # the count is reported only when the cash leg vouches for the span, and the
+    # gate's fallback is the CALENDAR figure, which is larger and therefore
+    # stricter.
+    #
+    # AND VOUCHING IS A SPAN, NOT A PRESENCE — this is the D29 kill's second
+    # ground (G2) and it is the same defect one level up. The bar and the cash
+    # leg BOTH come through `fetch_daily_bars`, so one vendor tail-lag truncates
+    # them together; the union then degenerates to common/common and 15.6%
+    # coverage read as a strict majority and PASSED, where v5r1 refused. "The
+    # cash leg exists" is not "the cash leg covers the run". So the count is
+    # reported only when the cash series actually REACHES both ends of the
+    # strategy's own span, and when it does not the gate falls back to the
+    # CALENDAR figure, which is larger and therefore stricter.
+    union = sorted(d for d in (set(bmap) | set(rfmap))
+                   if s_dates[0] <= d <= s_dates[-1]) if rfmap else []
+    span = _session_span(union, s_dates[0], s_dates[-1])
+    sessions = (len(union) or None) if span["vouched"] else None
+    coverage: dict[str, Any] = {
+        "common_days": len(common),
+        "strategy_days": len(s_dates),
+        "fraction": round(len(common) / len(s_dates), 4),
+        "strategy_sessions": sessions,
+        "session_fraction": (None if not sessions
+                             else round(len(common) / sessions, 4)),
+        "session_basis": ("benchmark+cash" if sessions else None),
+        "session_span": span,
+        "rf_dropped_days": len(pair_days) - len(common),
+        "note": ("`fraction` divides sessions by CALENDAR days and is kept only "
+                 "so the two are comparable; `session_fraction` is the one the "
+                 "majority test reads, and it is absent — never assumed — when "
+                 "no cash leg vouched for the session calendar"),
+    }
+    out.update({
+        "measurable": bool(strat.get("measurable") and bench.get("measurable")),
+        "strategy": strat,
+        "benchmark": bench,
+        "window": {"first": common[0], "last": common[-1], "n": len(common)},
+        # HOW MUCH of the strategy's own record the comparison covers. A
+        # comparison over a third of the run is not a comparison over the run,
+        # and the gate refuses below a majority for the same reason
+        # `_add_benchmark` refuses a basket built from a minority of its legs.
+        "coverage": coverage,
+    })
+    if not out["measurable"]:
+        out["reason"] = (strat.get("reason") or bench.get("reason")
+                         or "one leg carried no usable dispersion")
+
+    # --- the EXCESS pair, which is what the criterion is judged on ---------
+    if rfmap and out["measurable"]:
+        rf_leg = _stats.leg_moments([rfmap[d] for d in common], common)
+        s_ex = _stats.leg_moments([smap[d] - rfmap[d] for d in common], common)
+        b_ex = _stats.leg_moments([bmap[d] - rfmap[d] for d in common], common)
+        out["strategy_excess"] = s_ex
+        out["benchmark_excess"] = b_ex
+        out["excess_measurable"] = bool(s_ex.get("measurable")
+                                        and b_ex.get("measurable"))
+        rf_meta.update({
+            "window": {"first": common[0], "last": common[-1],
+                       "n": len(common)},
+            # The cash return the window ACTUALLY paid, compounded and
+            # annualised on the same clock as the legs it is subtracted from.
+            # This is the number v5r1 assumed at 4.0 and the belt's windows
+            # disagreed with.
+            #
+            # ROUNDED like every other reported figure in this payload. Reading
+            # the raw float back gave `4.5000000000020135` for a series built to
+            # pay exactly 4.5%, which is a fact about binary compounding and not
+            # about the cash rate — and a stored record should not carry the
+            # arithmetic's residue as though it were precision.
+            "realised_annual_pct": _round_or_none(rf_leg.get("ann_return_pct"), 4),
+            "realised_total_pct": _round_or_none(rf_leg.get("total_return_pct"), 4),
+            "obs_per_year": _round_or_none(rf_leg.get("obs_per_year"), 2),
+            "basis": "realised_series",
+        })
+    elif rfmap:
+        # ON ITS OWN KEY, not on `rf["reason"]`. The cash leg WAS readable here;
+        # what failed is the raw pair. Overwriting the rf block's reason would
+        # make a stored payload say the cash series was the problem when it was
+        # not — a diagnosis that names the wrong cause sends the next reader to
+        # the wrong place.
+        out["excess_absent_reason"] = (
+            "the raw pair was not measurable, so no excess pair was formed")
+    out.setdefault("strategy_excess", None)
+    out.setdefault("benchmark_excess", None)
+
+    # THE DISAGREEMENT, measured on every run rather than rediscovered. When
+    # the engine's leg was discarded, `daily_returns["benchmark"]` still holds
+    # it — so the payload contains two benchmarks and, until this field, said
+    # nothing about it.
+    engine_leg = list(daily.get("benchmark") or [])
+    if daily.get("benchmark_present") and len(engine_leg) == len(s_dates):
+        total = 1.0
+        for x in engine_leg:
+            total *= (1.0 + x)
+        engine_total = (total - 1.0) * 100.0
+        headline = result.get("benchmark_return_pct")
+        out["daily_returns_benchmark_leg"] = {
+            "compounded_total_pct": round(engine_total, 3),
+            "headline_benchmark_return_pct": headline,
+            "agrees_with_headline": (
+                None if headline is None
+                else abs(engine_total - float(headline)) <= 0.05),
+            "note": ("`daily_returns[\"benchmark\"]` is the series the engine "
+                     "emitted; where the belt replaced it with a recomputed "
+                     "basket these two are DIFFERENT bars, and only the "
+                     "headline one is what the gate's benchmark criterion "
+                     "reads"),
+        }
+    return out
+
+
+def _annual_vol_fraction(stats: dict) -> Optional[float]:
+    """LEAN's ``Annual Standard Deviation`` as a FRACTION, unit-checked.
+
+    The engine writes this one bare (0.116) while writing ``Drawdown`` and
+    ``Compounding Annual Return`` with a "%" in the same block, so the unit has
+    to be read off the string rather than assumed. Returns None when it is
+    absent or unparseable — an unreadable volatility is not a zero one.
+
+    The fraction is the base and the percentage is derived from it, rather than
+    the other way round: reading 0.116, scaling to 11.6 and dividing back gives
+    0.11600000000000002, and a stored payload should not carry a float artefact
+    of the order in which two callers happened to want the number.
+    """
+    raw = stats.get("Annual Standard Deviation")
+    if raw is None:
+        return None
+    text = str(raw).strip()
+    try:
+        value = float(text.replace("%", "").replace(",", ""))
+    except ValueError:
+        return None
+    return value / 100.0 if "%" in text else value
+
+
+def _annual_vol_pct(stats: dict) -> Optional[float]:
+    """The same figure as a percentage. One law, expressed once."""
+    fraction = _annual_vol_fraction(stats)
+    return None if fraction is None else fraction * 100.0
+
+
 def _robustness(stats: dict, equity: list[float], dates: list[str],
-                orders: list[dict]) -> dict[str, Any]:
+                orders: list[dict],
+                daily: Optional[dict[str, Any]] = None) -> dict[str, Any]:
     """Can this result be believed? Measured, never assumed.
 
     A backtest reports its return with the same confidence whether it rests on
@@ -1545,7 +2327,24 @@ def _robustness(stats: dict, equity: list[float], dates: list[str],
         # _cost_disclosure), because a warning that fires on every single run
         # is one an operator learns to scroll past.
         "turnover_pct": _num("Portfolio Turnover"),
+        # The engine's OWN annualised volatility, which the belt has always had
+        # in hand and always thrown away. Parsed beside the raw capture below
+        # so a reader who wants one number has one; the raw string is what
+        # identifies the formula. See ``psr_inputs`` for the measured reason
+        # this is not the trading-day volatility.
+        #
+        # SCALED ONLY WHERE THE ENGINE WROTE A FRACTION. Every real block seen
+        # writes it bare — "0.116" on candidate 144387901688 — while sibling
+        # statistics in the SAME block carry a "%" ("15.300%", "36.994%"). A
+        # blind x100 would turn a future "11.600%" into 1160%, which is the
+        # unit-confusion shape and would be invisible in a payload nobody
+        # re-derives.
+        "engine_annual_vol_pct": _annual_vol_pct(stats),
         "periods": _periods(equity, dates),
+        # CAPTURE ONLY — no criterion reads this. The gate's most binding
+        # criterion judges a statistic nobody has identified; this is the
+        # evidence that identifies it, carried on every future verdict.
+        "psr_inputs": psr_inputs(stats, daily),
     }
     return out
 
@@ -1616,18 +2415,167 @@ def _curve(charts: dict, chart: str, series: str) -> tuple[list[float], list[str
         if not isinstance(pt, (list, tuple)) or len(pt) < 2:
             continue
         # Both or neither: appending the value first and letting the date
-        # conversion raise would leave the two lists a different length, and
+        # conversion fail would leave the two lists a different length, and
         # the downsampler drops dates entirely when they fall out of step —
         # so one unconvertible timestamp would silently cost every date.
         try:
             value = float(pt[-1])
-            date = datetime.fromtimestamp(
-                float(pt[0]), tz=timezone.utc).date().isoformat()
-        except (ValueError, TypeError, OSError, OverflowError):
+        except (ValueError, TypeError):
+            continue
+        date = _iso_or_none(pt[0])
+        if date is None:
             continue
         values.append(value)
         dates.append(date)
     return values, dates
+
+
+#: LEAN's own exposure chart, and the two series suffixes it writes per
+#: security type ("Base - Long Ratio", "Base - Short Ratio"; a futures leg would
+#: add "Future - Long Ratio"). Named constants rather than inline strings
+#: because the reader below FAILS CLOSED on a series it cannot classify, and a
+#: reader that fails closed must say exactly what it was looking for.
+EXPOSURE_CHART = "Exposure"
+LONG_RATIO_SUFFIX = "Long Ratio"
+SHORT_RATIO_SUFFIX = "Short Ratio"
+
+
+def gross_exposure(charts: Any) -> dict[str, Any]:
+    """MAX GROSS EXPOSURE over the run, read from the engine's own chart.
+
+    THE DEFECT THIS EXISTS TO CLOSE (adversary D29, blind, 2026-08-23 —
+    docs/reviews/ADVERSARY_D29_2026-08-23.md, ground G1). LEAN's default
+    brokerage charges NO margin interest (``NullMarginInterestRateModel``), so a
+    levered book's excess return in a backtest is ``sum(w_i r_i) - rf`` and not
+    ``sum(w_i (r_i - rf))``: the borrow is free. Subtracting a realised cash
+    return therefore closes the carry channel only for gross <= 100%, and above
+    it the gift GROWS with the cash weight. Executed on the fund's own pinned
+    feed, a 1.25x book of 25% SPY and 75% BIL scored +0.153..+0.239 against SPY
+    on all four belt windows where the financed answer is 0.0000, and a 3.0x
+    version scored +2.49..+3.92. The premia payload carried no gross-exposure
+    field at all, so a reader could not see the borrow.
+
+    So the belt now MEASURES gross, and the gate refuses a premia claim it
+    cannot measure. The engine publishes exactly what is needed: an ``Exposure``
+    chart carrying a long-ratio and a short-ratio series per security type,
+    sampled once per day, each value a fraction of portfolio value.
+
+    WHY THE SUM IS TAKEN PER TIMESTAMP. ``max(long) + max(short)`` is an upper
+    bound, not a measurement — the two maxima can fall on different days.
+    Gross is a property of one instant, so the series are joined on their own
+    timestamps and the maximum is taken over the joined totals.
+
+    ABSOLUTE VALUES. The short ratio is written as a MAGNITUDE on every run this
+    fund has (108 of 108 with a non-empty statistics block, measured
+    2026-08-23 by scratchpad/d32/census_exposure2.py), but a sign convention is
+    a vendor's to change and ``abs`` is right under both.
+
+    FAIL CLOSED ON A SERIES THIS CANNOT CLASSIFY. If a future engine adds a
+    third series to this chart — a net ratio, say — summing it would either
+    double-count or miss, and both are silent. An unclassified series makes the
+    reading UNMEASURABLE with the offending names in the reason. Measured cost
+    today: zero, because the only two series names across all 108 runs are the
+    long and short ratios.
+
+    Returns a block that always states ``measurable``; ``max_gross`` is absent,
+    never zero, when it could not be read. Absence is never zero, and for this
+    field zero would be the single most permissive answer available.
+    """
+    out: dict[str, Any] = {
+        "measurable": False,
+        "max_gross": None,
+        "max_long": None,
+        "max_short": None,
+        "max_gross_on": None,
+        "observations": 0,
+        "series": [],
+        "unclassified_series": [],
+        "source": f"lean chart {EXPOSURE_CHART!r}",
+        "reason": None,
+    }
+    if not isinstance(charts, dict):
+        out["reason"] = ("this result carries no charts block, so the engine's "
+                         "exposure series could not be read")
+        return out
+    chart = charts.get(EXPOSURE_CHART)
+    if not isinstance(chart, dict):
+        out["reason"] = (
+            f"this run has no {EXPOSURE_CHART!r} chart, so the book's gross "
+            f"exposure is UNKNOWN — the charts present are "
+            f"{', '.join(sorted(str(k) for k in charts)) or '(none)'}")
+        return out
+    series = chart.get("series") or chart.get("Series") or {}
+    if not isinstance(series, dict) or not series:
+        out["reason"] = (f"the {EXPOSURE_CHART!r} chart carries no series, so "
+                         f"the book's gross exposure is UNKNOWN")
+        return out
+    out["series"] = sorted(str(k) for k in series)
+    longs: dict[Any, float] = {}
+    shorts: dict[Any, float] = {}
+    unclassified: list[str] = []
+    for name, block in series.items():
+        label = str(name)
+        if label.endswith(LONG_RATIO_SUFFIX):
+            bucket = longs
+        elif label.endswith(SHORT_RATIO_SUFFIX):
+            bucket = shorts
+        else:
+            unclassified.append(label)
+            continue
+        for pt in ((block or {}).get("values")
+                   or (block or {}).get("Values") or []):
+            if not isinstance(pt, (list, tuple)) or len(pt) < 2:
+                continue
+            try:
+                value = abs(float(pt[-1]))
+            except (ValueError, TypeError):
+                continue
+            bucket[pt[0]] = bucket.get(pt[0], 0.0) + value
+    if unclassified:
+        out["unclassified_series"] = sorted(unclassified)
+        out["reason"] = (
+            f"the {EXPOSURE_CHART!r} chart carries series this reader cannot "
+            f"classify as long or short ({', '.join(sorted(unclassified))}); "
+            f"summing an unknown series would either double-count the book or "
+            f"miss part of it, and both are silent")
+        return out
+    stamps = sorted(set(longs) | set(shorts))
+    if not stamps:
+        out["reason"] = (f"the {EXPOSURE_CHART!r} chart's series carry no "
+                         f"readable values")
+        return out
+    best_ts, best = None, None
+    for ts in stamps:
+        total = longs.get(ts, 0.0) + shorts.get(ts, 0.0)
+        if best is None or total > best:
+            best, best_ts = total, ts
+    out.update({
+        "measurable": True,
+        "max_gross": round(float(best), 6),
+        "max_long": round(max(longs.values()), 6) if longs else 0.0,
+        "max_short": round(max(shorts.values()), 6) if shorts else 0.0,
+        "max_gross_on": _iso_or_none(best_ts),
+        "observations": len(stamps),
+    })
+    return out
+
+
+def _iso_or_none(stamp: Any) -> Optional[str]:
+    """A LEAN chart timestamp as an ISO date, or absent if it will not convert.
+
+    THE ONE PLACE THIS CONVERSION LIVES. ``_curve`` had its own copy inside a
+    combined try/except; two copies of "how a LEAN timestamp becomes a date" is
+    the same defect class as two copies of a constant. The callers differ only
+    in what an absence COSTS — ``_curve`` drops the whole point, because a
+    values list and a dates list of different lengths silently mis-pairs
+    downstream; ``gross_exposure`` drops only the LABEL, because the instant a
+    maximum fell on is not the maximum.
+    """
+    try:
+        return datetime.fromtimestamp(
+            float(stamp), tz=timezone.utc).date().isoformat()
+    except (ValueError, TypeError, OSError, OverflowError):
+        return None
 
 
 def _daily_returns(equity: list[float], dates: list[str],

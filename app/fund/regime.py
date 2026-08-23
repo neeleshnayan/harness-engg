@@ -120,10 +120,6 @@ def _cached(key: str, produce: Callable[[], Any], ttl: float = _CACHE_TTL_SECOND
     return val
 
 
-def clear_cache() -> None:
-    _cache.clear()
-
-
 def mahalanobis_series(returns: np.ndarray, min_history: int = 250) -> tuple[list[float], int]:
     """Turbulence d_t for each row, using the trailing history before it.
 
