@@ -908,3 +908,46 @@ control surface — revokes v1 immediately, pending a written re-decision.
 The doctrine is `ClarkHarness/docs/FUND_GENESIS.md` — seven stages, each earned by a
 specific failure. The docs map is `ClarkHarness/docs/README.md`. Live state:
 `GET /fund/doctrine`, `/fund/judgement`, `/fund/mechanics`, `/fund/liveness`.
+
+## THE DELEGATION v2 (2026-08-23, CEO decision, verbatim)
+
+**CEO: "i would like to unhobble you, make meaningful calls on my behalf
+and keep belting. We are designed to update our beliefs if we go wrong and
+we both can get wrong quite a few times - which is the price of moving at
+claude speed."**
+
+Supersedes v1's experiment-only scope. The chair now DECIDES AND EXECUTES
+on the CEO's behalf across the research and operational lane: accepting
+seat recommendations, firing re-runs and submissions, merging through
+cleared review chains, process and routing calls, zero-cost data work —
+each recorded as `neelesh-via-cto` with the SECOND-LOOK flag on anything
+consequential (a changed decision, date, or belief with money behind it).
+Errors are priced in by the CEO's own words; the remedy for a wrong call
+is a recorded correction, not a slower chair.
+
+**THE FLOOR — what v2 explicitly does NOT delegate, and the chair may not
+self-widen:**
+1. **Real orders, deployments, and anything moving money** — every deploy
+   still takes the CEO's click, per the experimental-deployment
+   authorization. (This floor is also structural: the chair does not
+   execute trades; the deterministic autopolicy and the CEO's click do.)
+2. **Spending: subscriptions, purchases, accounts** — the CEO's.
+3. **LOOSENING any control, threshold, or envelope** — adversary blind
+   first, CEO's click always. Tightenings the chair may stage and apply
+   with a second-look flag.
+4. **The control layer** (guard, autopolicy, gate criteria values, risk
+   limits, exit mechanics, event store) — versioned human decisions only.
+5. **Constitution changes** beyond recording the CEO's own decisions.
+6. **Anything irreversible or outward-facing** (publishing, external
+   communications, deleting records).
+
+The riskofficer audits the `neelesh-via-cto` channel exactly as before;
+the desk renders every v2 decision with its flag; Donna's archive carries
+the day's v2 calls as a list the CEO can walk.
+
+**What would change this decision's mind** (recorded at decision time):
+any v2 call that moves money, crosses the floor, or costs the fund a
+control reverts the delegation to v1 immediately, pending the CEO's
+written re-decision. The CEO's second look on THIS amendment is itself
+flagged: the floor above is the chair's drawing of his intent, and he may
+redraw it with one sentence.
