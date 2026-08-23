@@ -123,6 +123,22 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   is fired and discharged by this work — the register cannot record
   either; recorded here, and the evaluability ticket (a26debb9 family)
   remains the owner.
+- **THE KNOWLEDGE GRAPH v1 IS LIVE AND MERGED** (D21, merge 4151aa1: 0
+  sensitive, 0 forbidden, 1944 green on the merged tree, mutation 33/33).
+  41 hypotheses + 37 verdicts backfilled, the six fenced measurements
+  sealed by a Postgres TRIGGER (not convention); fence scope CONFIRMED
+  narrow by the chair (the 31 other pre-instrument rows counted but
+  never value-compared - reopens if predictions ever attach to them).
+  FIRST INSIGHTS: top-3 kill causes = 52 of 86 (psr floor, cost
+  robustness, benchmark) - all three earn card items; three
+  null_random survivors all passed only gate v1 (instrument named per
+  survivor, by design). THREE DEFECTS FOUND: the cross-builder suite
+  RACE measured (serialization is a CORRECTNESS requirement now, in
+  both briefs); fund_agent_runs has no hypothesis key (92/92 verdicts
+  unlinkable); container cost attributable 16/41 only. Ed consults
+  report.py ledger before any family count. v1.1 (evidence commons,
+  coverage map) ticketed 0cc1ac9f. THE CLEANUP: eighth deferral - takes
+  the next builder slot after D20, non-negotiable.
 - **ADVERSARY ON P1/P2: KILL / KILL - both on falsifiers the proposals
   themselves wrote, at zero container cost, with every headline number
   reproduced EXACTLY (identification failures, not competence).** P1: the

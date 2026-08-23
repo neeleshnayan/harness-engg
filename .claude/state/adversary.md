@@ -504,3 +504,7 @@ including three I expected to land.
 - LIVE FACTS: `/fund/marketdata/bars` returns `{symbol,source,closes,dates,start,end}`; BIL exists from 2007-05-30 (a pre-2007 request returns an error, not zero); AGG from 2003-09-29; EDV 2008-01-29.
 - Kills on record: gate v5 r1-r4, VRP/XYLD, SRPT, insider-screen headline, builder D11, ENTRY-20 premia label, ENTRY-20 challenge, COO filing-rule remedy, builder D17 items 3+6, ENTRY-21 alpha claim, breakeven-floor challenge, builder D19 item 2, **ED-BATCH2 P1, ED-BATCH2 P2**.
 - Fitness: two kills, each demonstrated by executed measurement and each matching a falsifier the proposal itself wrote; five failed attacks named across the two artifacts; exact reproduction of every headline attacked. Both directions.
+
+## 2026-08-23 - CARRIED FROM BUILDER D21 (the knowledge graph) BY THE CHAIR
+
+The graph is live (scripts/kg/report.py). The three kill causes that account for 52 of 86 in firm history: psr_below_floor (21), cost_robustness_unmeasured (19), benchmark_not_beaten (12). Attack new proposals on those first - and read `report.py cheap`'s cost column as 'measured on N of M kills', never as a small number (an instrument of unknown cost ranks LAST among equals, by design).

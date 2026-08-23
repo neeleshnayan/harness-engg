@@ -301,3 +301,7 @@ before your next run.
 ## 2026-08-23 - CARRIED FROM BUILDER D19 BY THE CHAIR
 
 Same lesson as carried to Stan, from your own D1: a measured bias whose correction has no executable path yields a LABEL, not a fix - the as-of register cannot build a point-in-time population (one snapshot, CS+ADRC only, delisted names priceless). Your -6.90pp magnitude was NOT applied anywhere (your own caveat: estimate on another window; direction travels, magnitude does not). Relevant to your meter: the builder measured delisted BARS as available free on the Alpaca key (19,190 inactive assets) - off the critical path, priced honestly as such.
+
+## 2026-08-23 - CARRIED FROM BUILDER D21 (the knowledge graph) BY THE CHAIR
+
+Container cost per kill is now queryable BUT attributable for only 16 of 41 candidates - 20 share a concurrent-sibling window (worst: one 25,043s window shared NINE ways - a naive sum overstates ~an order of magnitude) and 5 predate the jobs table. Any cost-per-finding figure on belt containers must carry that denominator. The fix is a candidate key on fund_lean_jobs (quant write path) - ask for it if you want the number trustworthy.

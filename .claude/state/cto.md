@@ -483,3 +483,7 @@ lessons had no expiry. Three rules, binding on the chair at every resolve:
 
 The experience layer inherits all three at birth: an episode stores its
 evidence pointer, not just its moral.
+
+## 2026-08-23 - TWO-BUILDERS RULE, THE SECOND REASON (from D21, measured)
+
+Suite serialization between concurrent builders is a CORRECTNESS requirement, not only RAM: krypton_fund_test is ONE shared database, ten test modules TRUNCATE tables in it, and test_factory.py writes from background threads - D21 measured another process's row stamped inside its own run window, three consecutive runs, three different failures. BOTH builder briefs must carry this reason from now on; a bundle whose suite went green may still have been measured under contention. Also standing: any test module reading a WHOLE shared table gets its own database, reason in the docstring.
