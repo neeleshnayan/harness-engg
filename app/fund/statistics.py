@@ -333,6 +333,169 @@ def selection_penalty(observed_sharpe: float, n_trials: int, n_obs: int) -> dict
     }
 
 
+def observations_per_year(dates: Sequence[str], n_obs: int) -> dict[str, Any]:
+    """How many observations a year this series actually carries, from its OWN dates.
+
+    NOT a constant, and that is the whole point. The reflex is 252, and on this
+    fund's engine output the reflex is WRONG: LEAN emits an equity point for
+    every CALENDAR day, so the return series carries a run of zeros across every
+    weekend. Measured on the four stored candidates that carry analytics
+    (2026-08-23): 584 zeros in 1,998 observations and 170 in 907 — 29.2% and
+    18.7% — and the spacing works out at 365.4 and 365.7 observations a year,
+    not 252.
+
+    The consequence is not academic. LEAN's own ``Annual Standard Deviation``
+    statistic is reproducible, on all four, as the standard deviation of that
+    CALENDAR series times sqrt(252) — so the engine's published volatility is
+    understated by sqrt(365/252) = 1.204, a 17% error in the flattering
+    direction. Reproduce: candidate 144387901688 stores ``Annual Standard
+    Deviation: 0.116``; the calendar series gives sd*sqrt(252) = 0.11627
+    (population) or 0.11634 (sample) and the trading-day subset gives 0.14043.
+    The engine reports three decimals, so which of the two conventions it uses
+    is NOT identified by this evidence — the clock is, and the clock is the
+    17%.
+
+    Deriving the factor from the dates is self-correcting: a mean scales with K
+    and a standard deviation with sqrt(K), so a Sharpe computed with the
+    series' OWN K lands on the same number whichever clock the engine used.
+    Verified on the same four candidates — strategy annualised volatility
+    12.026% on the calendar clock and 12.021% on the trading-day subset.
+
+    Returns ``usable: False`` with a reason rather than a fallback constant. An
+    unreadable clock is an absence, and 252 is not the honest guess.
+    """
+    n = int(n_obs or 0)
+    if n < 2 or len(dates or []) != n:
+        return {"usable": False, "obs_per_year": None,
+                "reason": f"{n} observation(s) against {len(dates or [])} date(s) "
+                          f"— a series and its clock must be the same length"}
+    from datetime import date as _date
+    try:
+        first = _date.fromisoformat(str(dates[0])[:10])
+        last = _date.fromisoformat(str(dates[-1])[:10])
+    except ValueError:
+        return {"usable": False, "obs_per_year": None,
+                "reason": "the series' dates could not be parsed, so its spacing "
+                          "is unknown — reported absent rather than assumed"}
+    span_days = (last - first).days
+    if span_days <= 0:
+        return {"usable": False, "obs_per_year": None,
+                "reason": f"the series spans {span_days} day(s), so no annual "
+                          f"rate can be derived from it"}
+    # n returns are differenced across n-1 intervals BETWEEN dates[0] and
+    # dates[-1]; the observation before dates[0] has no date here. Using n
+    # would overstate the rate by 1/(n-1), which is 0.07% at n=1374 and 4% at
+    # n=25 — small, and there is no reason to carry an error we can avoid.
+    return {"usable": True,
+            "obs_per_year": (n - 1) / (span_days / 365.25),
+            "n_obs": n, "span_days": span_days,
+            "first": str(dates[0])[:10], "last": str(dates[-1])[:10]}
+
+
+def max_drawdown(returns: Sequence[float]) -> float | None:
+    """Deepest peak-to-trough fall of the compounded path, as a POSITIVE fraction.
+
+    Computed from the return series rather than read off the engine, because the
+    only comparison that means anything is one where both legs were measured the
+    same way over the same window. LEAN's ``Drawdown`` statistic exists for the
+    strategy and has no twin for a benchmark the engine discarded.
+    """
+    r = _clean(returns)
+    if not r:
+        return None
+    level = 1.0
+    peak = 1.0
+    worst = 0.0
+    for x in r:
+        level *= (1.0 + x)
+        if level > peak:
+            peak = level
+        if peak > 0:
+            worst = max(worst, 1.0 - level / peak)
+    return worst
+
+
+def leg_moments(returns: Sequence[float], dates: Sequence[str]) -> dict[str, Any]:
+    """The sufficient statistics for judging one return leg, and nothing more.
+
+    Six numbers — n, the clock, the mean, the spread, the worst fall and the
+    compounded total — are everything the premia criterion needs, and a Sharpe
+    at ANY risk-free rate is recoverable from them exactly (see
+    ``sharpe_at_rf``). Storing these instead of the series keeps the belt's
+    payload small and, more importantly, makes it impossible for the gate to
+    compute a volatility that disagrees with the one the belt reported: there
+    is one measurement, carried, not two measurements that must be kept in step.
+
+    ``measurable: False`` with a reason whenever the clock or the spread cannot
+    be read. A leg that cannot be measured is not a leg that scored zero.
+    """
+    r = _clean(returns)
+    clock = observations_per_year(dates, len(r))
+    out: dict[str, Any] = {
+        "n": len(r),
+        "obs_per_year": clock.get("obs_per_year"),
+        "clock": clock,
+        "measurable": False,
+        "mean": None, "stdev": None,
+        "ann_return_pct": None, "ann_vol_pct": None,
+        "max_drawdown_pct": None, "total_return_pct": None,
+    }
+    if len(r) < 2:
+        out["reason"] = (f"{len(r)} usable observation(s) — nothing to measure, "
+                         f"which is not the same as a flat leg")
+        return out
+    if not clock.get("usable"):
+        out["reason"] = clock.get("reason")
+        return out
+    mu, sd = mean_std(r)
+    k = float(clock["obs_per_year"])
+    dd = max_drawdown(r)
+    total = 1.0
+    for x in r:
+        total *= (1.0 + x)
+    out.update({
+        "measurable": sd > 0,
+        "mean": mu, "stdev": sd,
+        # Compounded, so it is the same quantity LEAN's Compounding Annual
+        # Return reports (verified: 7.502% stored vs 7.51% recomputed on
+        # candidate a663a592ff1d, 36.994% vs 37.02% on 144387901688).
+        "ann_return_pct": ((1.0 + mu) ** k - 1.0) * 100.0,
+        "ann_vol_pct": sd * math.sqrt(k) * 100.0,
+        "max_drawdown_pct": None if dd is None else dd * 100.0,
+        "total_return_pct": (total - 1.0) * 100.0,
+    })
+    if sd <= 0:
+        out["reason"] = ("the leg has zero dispersion, so no Sharpe exists for "
+                         "it — a constant return is not a risk-adjusted one")
+    return out
+
+
+def sharpe_at_rf(moments: dict[str, Any], rf_pct: float = 0.0) -> float | None:
+    """Annualised Sharpe of one leg, excess of a risk-free rate, from its moments.
+
+    The rate arrives as an ANNUAL percentage and is converted to the leg's own
+    observation frequency by compounding, ``(1+rf)**(1/K) - 1`` — not by
+    dividing by 252, which would be a different rate on a calendar clock.
+
+    Subtracting a constant leaves the standard deviation untouched, so the
+    Sharpe is exactly linear in that per-observation constant. That is the
+    property the premia criterion's rf-stress test rests on: the DIFFERENCE
+    between two legs' Sharpes is linear in rf, so checking it at two endpoints
+    checks it over the whole interval between them.
+
+    Returns None rather than a number when the leg was not measurable.
+    """
+    if not moments or not moments.get("measurable"):
+        return None
+    k = moments.get("obs_per_year")
+    sd = moments.get("stdev")
+    mu = moments.get("mean")
+    if not k or not sd or sd <= 0 or mu is None:
+        return None
+    rf_per_obs = (1.0 + float(rf_pct) / 100.0) ** (1.0 / float(k)) - 1.0
+    return (mu - rf_per_obs) / sd * math.sqrt(float(k))
+
+
 def assess_series(returns: Sequence[float], periods_per_year: int = 252,
                   n_trials: int = 1) -> dict[str, Any]:
     """The whole statistical picture for one return series.
