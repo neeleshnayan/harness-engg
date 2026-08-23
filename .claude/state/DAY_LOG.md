@@ -40,6 +40,17 @@ at ~00:05Z ("you too rest post closing these 5 items; will see you on
 Monday"). The five fan-out items all resolved; the floor rests until Monday.
 
 **DECIDED**
+- **CLOSURE BECOMES A FOLD, NOT A CHAIR ACT (CEO, verbatim: items feel
+  open despite being closed; postgres is the right way rather than manual
+  sweeps).** Filed as the D34 addendum (4a4f6b0d): a one-time
+  deterministic HYGIENE BACKFILL joining historical closures to open rows
+  (exact-id joins auto-close with citations under the D22 hygiene
+  charter; fuzzy matches emit chair proposals, never auto-apply) + JOIN
+  WIDENING so future filings move rows on the next fold with no sweep.
+  Immediate precise pass: tonight'''s D31-served requests resolved with
+  citations (DESK REDESIGNED, GREETINGS). D34 batch now five items;
+  dispatches when D32 lands (factory.py overlap sequencing).
+
 - **THE ILLUMINATION PRINCIPLE (CEO, verbatim: he will not be hunting JSON
   and codefiles, so the UI must illuminate beneath the surface).** Five
   clauses now in theme.ts where every KP brief reads: provenance one click
