@@ -123,6 +123,12 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   is fired and discharged by this work — the register cannot record
   either; recorded here, and the evaluability ticket (a26debb9 family)
   remains the owner.
+- **THE META DOSSIER v1 ticketed as the coverage pilot** (CEO: 'pick a
+  simple one say meta and build a deep understanding of it'). Learning
+  goal explicit: prove the dossier INSTRUMENT (alpha = bonus). Bars from
+  IPO verified (3,585 sessions); META absent from the filings corpus ->
+  targeted single-CIK pull is part of the build. Fires as Doc's next
+  dispatch on return from the 8-K panel.
 - **THE COVERAGE MODEL CHARTERED (CEO pivot, ratified): 'make money
   somehow' is measured-dead; the new posture is a TIGHT UNIVERSE
   (10-20 names, CEO selects Monday) with a measured DOSSIER per name
