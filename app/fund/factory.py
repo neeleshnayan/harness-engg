@@ -112,6 +112,20 @@ CREATE INDEX IF NOT EXISTS fund_candidates_algo_idx
 -- named absence rather than as an empty panel; a pruned payload writes a
 -- tombstone into the column instead of returning to NULL.
 ALTER TABLE fund_candidates ADD COLUMN IF NOT EXISTS analytics JSONB;
+
+-- WHICH BAR this candidate asked to be judged against. Added 2026-08-23 with
+-- gate v5r1: the fund declared two claim types on 2026-08-19 and the gate has
+-- only ever known one, so every row before this one was judged as `alpha`
+-- whether or not that was the claim being made.
+--
+-- DEFAULT 'alpha' rather than NULL, and this is deliberate rather than lazy.
+-- Every existing row WAS judged by the alpha bar — that is a fact about what
+-- happened, not a guess — so the default states the historical truth instead
+-- of leaving an absence that a later reader would have to resolve. A NULL here
+-- would be the honest choice only if the old judgement were unknown, and it is
+-- not: gate.py had exactly one bar.
+ALTER TABLE fund_candidates
+    ADD COLUMN IF NOT EXISTS claim_type TEXT NOT NULL DEFAULT 'alpha';
 """
 
 
@@ -286,6 +300,32 @@ def _reach_report(algorithm: str, history: dict[str, Any],
     return {"folds_before_data_path_reach": len(short)}
 
 
+def check_claim_type(claim_type: Any) -> dict[str, Any]:
+    """Which bar this submission is asking for, and whether the gate knows it.
+
+    Reads the vocabulary from ``gate.CLAIM_TYPES`` rather than restating it. The
+    belt and the gate disagreeing about what a claim type is would be the
+    two-copies-of-one-belief defect at the level of which criterion applies —
+    and the failure would be silent, because the gate's own answer to an
+    unrecognised type is to judge it as alpha.
+
+    Returns a verdict rather than raising, in the same shape as
+    ``check_cost_grid``; ``submit`` refuses.
+    """
+    from app.fund.gate import CLAIM_TYPE_DEFAULT, CLAIM_TYPES
+    declared = CLAIM_TYPE_DEFAULT if claim_type is None else str(claim_type)
+    if declared in CLAIM_TYPES:
+        return {"known": True, "claim_type": declared, "reason": None}
+    return {
+        "known": False,
+        "claim_type": declared,
+        "reason": (f"unknown claim type {declared!r} — a candidate is judged as "
+                   f"{' or '.join(CLAIM_TYPES)}. Refused here rather than at "
+                   f"the gate, which would spend the engine budget first and "
+                   f"then fail it for the declaration"),
+    }
+
+
 def check_cost_grid(grid: Any,
                     criteria: Optional[dict[str, Any]] = None) -> dict[str, Any]:
     """Can this grid answer the cost question the gate is going to ask it?
@@ -373,7 +413,8 @@ class CandidateFactory:
 
     def submit(self, algorithm: str, grid: dict[str, list[str]],
                holdout: Optional[dict[str, str]] = None,
-               observation_ids: Optional[list[str]] = None) -> dict[str, Any]:
+               observation_ids: Optional[list[str]] = None,
+               claim_type: Optional[str] = None) -> dict[str, Any]:
         """Start a candidate down the belt. Returns immediately with an id.
 
         ``observation_ids`` records WHAT PROMPTED this — the filing sentences a
@@ -381,6 +422,14 @@ class CandidateFactory:
         can come from anywhere, but the link cannot be reconstructed later: it
         exists only at the moment someone decides to test something, and
         without it no report can ever say which kinds of reading pay.
+
+        ``claim_type`` is WHICH BAR the submitter is asking for — ``alpha``
+        (beats the benchmark after costs) or ``premia`` (better risk-adjusted
+        return than holding the asset). It defaults to ``alpha``, so every
+        existing caller is unchanged, and it is REFUSED at submission when it
+        is neither: the gate fails an unrecognised claim type, and finding that
+        out after twenty minutes of containers is the expensive way to learn
+        you typed the word wrong. Same reason the cost grid is checked here.
         """
         self._lean().get_algorithm(algorithm)      # fail fast on a typo
         # Fail fast on a grid that cannot answer the bar, for the same reason
@@ -390,15 +439,20 @@ class CandidateFactory:
         if not grid_check["adequate"]:
             from app.fund.leanrunner import LeanError
             raise LeanError(grid_check["reason"])
+        claim = check_claim_type(claim_type)
+        if not claim["known"]:
+            from app.fund.leanrunner import LeanError
+            raise LeanError(claim["reason"])
         candidate_id = uuid.uuid4().hex[:12]
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     "INSERT INTO fund_candidates "
-                    "(candidate_id, algorithm, grid, holdout, state) "
-                    "VALUES (%s, %s, %s, %s, 'running')",
+                    "(candidate_id, algorithm, grid, holdout, state, claim_type) "
+                    "VALUES (%s, %s, %s, %s, 'running', %s)",
                     (candidate_id, algorithm, json.dumps(grid),
-                     json.dumps(holdout) if holdout else None))
+                     json.dumps(holdout) if holdout else None,
+                     claim["claim_type"]))
             conn.commit()
         linked = 0
         if observation_ids:
@@ -411,9 +465,11 @@ class CandidateFactory:
                 # worth running either way; what is lost is the ability to ask
                 # later which observations led here.
                 logger.warning("could not link sources for %s: %s", candidate_id, e)
-        threading.Thread(target=self._run, args=(candidate_id, algorithm, grid,
-                                                 holdout), daemon=True).start()
+        threading.Thread(target=self._run,
+                         args=(candidate_id, algorithm, grid, holdout,
+                               claim["claim_type"]), daemon=True).start()
         return {"candidate_id": candidate_id, "state": "running",
+                "claim_type": claim["claim_type"],
                 "sources_linked": linked}
 
     def _snapshot(self, candidate_id: str, algorithm: str, runner: Any):
@@ -492,7 +548,8 @@ class CandidateFactory:
         return snap
 
     def _run(self, candidate_id: str, algorithm: str,
-             grid: dict[str, list[str]], holdout: Optional[dict[str, str]]) -> None:
+             grid: dict[str, list[str]], holdout: Optional[dict[str, str]],
+             claim_type: Optional[str] = None) -> None:
         from app.fund import barcache
         from app.fund.gate import evaluate
         runner = self._lean()
@@ -503,11 +560,12 @@ class CandidateFactory:
         # series per symbol, so they cannot disagree about what the data was.
         with barcache.activate(snap):
             return self._run_pinned(candidate_id, algorithm, grid, holdout,
-                                    runner, snap)
+                                    runner, snap, claim_type)
 
     def _run_pinned(self, candidate_id: str, algorithm: str,
                     grid: dict[str, list[str]], holdout: Optional[dict[str, str]],
-                    runner: Any, snap: Any) -> None:
+                    runner: Any, snap: Any,
+                    claim_type: Optional[str] = None) -> None:
         from app.fund.gate import evaluate
         try:
             sub = runner.submit_sweep(algorithm, grid, holdout)
@@ -544,10 +602,15 @@ class CandidateFactory:
             # coin flip cleared it half the time.
             walk, walk_note = self._walkforward(algorithm, grid, holdout)
 
+            # The bar the submitter asked for, carried from `submit` rather
+            # than re-read from the row: the row is the record, the argument is
+            # the instruction, and a re-read would let a mid-run UPDATE change
+            # which bar a running candidate is judged against.
             verdict = evaluate(job.get("result") or {},
                                sweep.get("holdout_result"),
                                sweep.get("summary"),
-                               walkforward=walk)
+                               walkforward=walk,
+                               claim_type=claim_type)
             # Captured in the SAME statement as the verdict, deliberately. A
             # second pass could re-read a job or re-run a fold, and a verdict
             # whose evidence disagrees with it is worse than one with no
@@ -895,7 +958,7 @@ class CandidateFactory:
                 cur.execute(
                     "SELECT candidate_id, algorithm, grid, holdout, state, passed, "
                     "       failures, winner, error, started_at, finished_at, "
-                    "       verdict, analytics "
+                    "       verdict, analytics, claim_type "
                     f"FROM fund_candidates {where}", params)
                 rows = cur.fetchall()
         out = []
@@ -931,6 +994,11 @@ class CandidateFactory:
                 "finished_at": r[10].isoformat() if r[10] else None,
                 "verdict": v or None,
                 "gate_version": v.get("gate_version") if isinstance(v, dict) else None,
+                # WHICH BAR was asked for. Hoisted for the same reason
+                # `gate_version` is: a reader comparing two candidates needs to
+                # know they were judged against different criteria without
+                # opening the verdict.
+                "claim_type": r[13],
                 "walkforward": {
                     "folds_measurable": checks.get("walkforward_folds_measurable"),
                     "folds_retained": checks.get("walkforward_folds_retained"),
