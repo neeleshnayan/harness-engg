@@ -40,6 +40,17 @@ at ~00:05Z ("you too rest post closing these 5 items; will see you on
 Monday"). The five fan-out items all resolved; the floor rests until Monday.
 
 **DECIDED**
+- **ED'S ROUTING CHALLENGE ACCEPTED AS WRITTEN (CEO, options card,
+  ~16:15Z)**: dossier output routes to Stan as risk parameters and to Ed
+  as cross-sectional leads — never as a per-name candidate source; Ed
+  sources counterparty-first. Charter amendment appended to
+  LOOP_CHARTER_2026-08-22.md with its reopening condition (a
+  dossier-sourced per-name proposal surviving blind + belt reopens the
+  lane). **THE DATA BUY IS DEFERRED — CEO verbatim: "Let me think, remind
+  me on this on Monday."** Options priced and on the desk: Norgate
+  Platinum $630/yr (delisted to 1950 + PIT constituents to 1990,
+  chair-recommended), Sharadar (~$500-600, fundamentals bundled, 2014+
+  only), QuantConnect (LEAN-native, quote needed), defer. REMIND MONDAY.
 - **ENTRY 20 IS A PREMIA CLAIM (CEO, verbatim: "Yes as premia makes
   sense", ~15:45Z, on the chair's fork).** The alpha reading is
   statistically indistinguishable from zero (active t=0.597); the premia

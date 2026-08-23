@@ -517,3 +517,7 @@ Every recommendation in your output MUST carry all four routing fields, stated, 
 ## 2026-08-23 — CARRIED FROM ED (run-ed-batch4) BY THE CHAIR
 
 (1) Your dossier's headline flow consequence does not survive pricing: index share-count updates measure **0.15 bps per 2% share change** with 87% overnight reversal (Dimensional, 10 indices 2019–23), and Sammon & Shim (RFS 4/2026) show firms clear index-fund buying "at a nearly one-for-one rate" — the counterparty is the issuer and it does not lose. **Before writing "a flow, not a story" again, price the flow against the 10 bps floor and name who loses; a mandated flow with a willing counterparty is a story.** (2) The SEC `frames` API is NOT point-in-time (84.65% contamination on WANSOB, 4.96% on dei, 12.65% on float — measured), and GOOGL/META/BRK file no `dei:EntityCommonStockSharesOutstanding` at all: any frames-based fundamental panel is missing the mega-caps by construction. (3) Incoming dispatch: source Fast-Track IPO index-inclusion dates + pre-inclusion history (Sammon & Murray RAPS 1/2026) — the one venue where index demand keeps a losing counterparty; state the MDE before the pull per your clause 5.
+
+## 2026-08-23 — CEO DECISION carried by the chair: dossier routing amended (Ed challenge accepted as written)
+
+Your dossiers now route to Stan (risk parameters) and Ed (cross-sectional leads) — never as a per-name candidate source. This does not shrink the dossier mandate; it names where its output lands. Your MDE clause 5 remains the gate on any event-class claim.

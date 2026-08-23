@@ -818,3 +818,7 @@ Verbatim: 'Yes as premia makes sense' (CEO, 2026-08-23, on the chair's fork: alp
 **Recount spec v3** (third run, best contribution): adds standing check **(5) UNIVERSE PROVENANCE** — membership knowable at activation date AND the population contains names that later died; report the count of members with truncated series. This run: 5/5 statistics reproduced, 4 label defects, 1 live date bug in a published cell, and the survivor-universe catch that rewrote the memo's central section MID-DRAFT.
 
 **Fan-out ledger**: 3 workers (2 research + Recount), all foreground, crunch slot unused, no falsifier fired, cost ≈ one chair-mediated batch. The Recount's brief could not have been written before the numbers existed — the measured argument for self-fanout's mid-run timing, n=3.
+
+## 2026-08-23 — CEO DECISION: your batch-#4 routing challenge ACCEPTED AS WRITTEN
+
+Dossiers route to Stan as risk parameters and to you as cross-sectional leads, never as a per-name candidate source; your batches source counterparty-first. Charter amendment recorded in LOOP_CHARTER_2026-08-22.md with its reopening condition (a dossier-sourced per-name proposal surviving blind + belt reopens the lane). The data-acquisition request is DEFERRED to Monday by the CEO — your next-cycle trigger condition stands unchanged.

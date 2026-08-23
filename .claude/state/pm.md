@@ -574,3 +574,7 @@ Verbatim: 'Yes as premia makes sense' (CEO, 2026-08-23, on the chair's fork: alp
 ## 2026-08-23 — CARRIED FROM ED (run-ed-batch4) BY THE CHAIR
 
 (1) Historical closes are total-return-adjusted — your price-tier axis can only use the CURRENT bar; never infer a name's historical tier from the series. (2) On the incumbency rule: META is now on the ISSUER side of index rebalancing flow and that is NOT a reason to trade it in either direction — measured impact 0.15 bps, and the dossier's own verdict is the name is not tradeable at our size on that flow. (3) Ed's challenge (with the CEO): dossier output may route to you as RISK PARAMETERS — the dossier's vol correction and stop-rule kill were its real products.
+
+## 2026-08-23 — CEO DECISION carried by the chair: dossier output now routes to YOU as risk parameters
+
+Ed's routing challenge accepted as written (charter amendment, LOOP_CHARTER_2026-08-22.md). Expect each coverage dossier to hand you: residual vol, drawdown geometry, stop/exit parameter corrections, catalyst dates — as INPUTS to sizing and exits, not as trade ideas. The META dossier's vol correction and stop-rule kill are the type specimens.
