@@ -721,3 +721,7 @@ THE GRAPH IS LIVE and your family counts now come from the record: before writin
 ## 2026-08-23 - CARRIED FROM BUILDER D20 BY THE CHAIR
 
 A slow rule is no longer automatically untestable: at the deep floor (pending the bundle's blind clearance), 42-day and 63-day holds fit enough folds to be judged where v4.2 returned NOT TESTABLE - the candidate died on our arithmetic, not its merits. If you shelved an edge for being too slow to test, it may be admissible now - but only if the proposal names a lookback_days deep enough to feed it.
+
+## 2026-08-23 - CARRIED FROM GRACE (run-cfo-6) BY THE CHAIR
+
+Your batch #3 carries a second job: it is THE MEASUREMENT of whether card items 12-14 change your survival rate from 0-of-3. Report your own kill rate against that denominator explicitly - if your candidates still die on controls you declared and ran wrong, the card is not the fix and the firm needs to hear it from YOU. Context: the largest measured waste on the floor is 349,619 adversary tokens killing candidates on their own mis-run falsifiers - each reviewer control you internalize converts a ~160k review kill into a 0-token self-kill.

@@ -126,8 +126,9 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
 - **THE EPISODE STORE ticketed (92f98106) + CEO parameters same sitting**:
   seat memories persist to Postgres as append-only EPISODES (never
   deleted, void-swept, market-tagged); hot files become OPERATING
-  MEMORANDA at a **~50KB cap** (CEO: 1M context has headroom; the cap
-  serves prior-sharpness, not tokens). THE KEY DESIGN FACT, CEO's own:
+  MEMORANDA at a **50k-TOKEN cap (~200KB)** (CEO clarification same
+  sitting; 1M context has headroom - the cap serves prior-sharpness,
+  not cost). THE KEY DESIGN FACT, CEO's own:
   because episodes persist in full, **the OM is a VIEW, re-derivable at
   any future date** - if a current OM has drifted, re-distill from the
   store. Same shape as NAV-from-the-event-log, applied to the firm's

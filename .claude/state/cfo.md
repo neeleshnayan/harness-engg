@@ -305,3 +305,11 @@ Same lesson as carried to Stan, from your own D1: a measured bias whose correcti
 ## 2026-08-23 - CARRIED FROM BUILDER D21 (the knowledge graph) BY THE CHAIR
 
 Container cost per kill is now queryable BUT attributable for only 16 of 41 candidates - 20 share a concurrent-sibling window (worst: one 25,043s window shared NINE ways - a naive sum overstates ~an order of magnitude) and 5 predate the jobs table. Any cost-per-finding figure on belt containers must carry that denominator. The fix is a candidate key on fund_lean_jobs (quant write path) - ask for it if you want the number trustworthy.
+
+## 2026-08-23 (~09:10Z) - STATE from run-cfo-6 (Token Ledger #2, axis debut), appended verbatim by the chair
+
+(STATE extraction failed - see GRACE6 doc)
+
+
+
+**Chair note at resolve**: D1 accelerated (evaluability pack takes the next adversary slot TODAY); D2 declined as superseded (bundle already under blind at your cut) with your unbundling doctrine ADOPTED; D5 accepted on your measurement. EVOLVE accepted.

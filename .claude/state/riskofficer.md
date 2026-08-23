@@ -484,3 +484,7 @@ When you audit an alarm, ask WHO CAN PRODUCE IT before you ask what it says: boo
 ## 2026-08-23 (~00:50Z) — CARRIED FROM THE VALIDATOR (census batch) BY THE CHAIR
 
 Two register triggers on RISK LIMITS have FIRED and /fund/judgement reports due_for_review:[] (min_effective_bets "grows past two names"; max_component_vol_pct "gains a third name" — the book went 2→4 names 2026-08-21). Both limits are ADVISORY — no pre-trade check, halt or throttle reads either. When you audit the limits, check the trigger against the WORLD, never against the register's own fired field.
+
+## 2026-08-23 - CARRIED FROM GRACE (run-cfo-6) BY THE CHAIR
+
+P4 (kill_switch_wired_and_tested, mode.py:434) has NO evaluator. Before the evaluability build lands: state in your lane WHAT A MACHINE COULD READ to prove the kill switch is wired - the call-graph assertion and the test name. If you cannot name one, say so - then P4 belongs in the human-attestation class with P2 and the build must not pretend otherwise. Rides in your next brief.

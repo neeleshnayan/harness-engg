@@ -450,3 +450,7 @@ for DATE-based work it is far cheaper than bulk-ZIP extraction.
 ## 2026-08-23 - CARRIED FROM ED (batch #2) BY THE CHAIR
 
 When dating any Treasury event study, SPLIT AT 2014 - the mid-month window was alive 2003-13 (auction concession) and is dead 2014-26 (concession compressed; month-end index flow persists; window migrated one day earlier). A full-sample Treasury calendar number mixes two mechanisms. Also: Ed's asks for your next shelf are on the desk queue (CPI/NFP calendar 1994+; the comment-letter pile; E21's natural-experiment check).
+
+## 2026-08-23 - CARRIED FROM GRACE (run-cfo-6) BY THE CHAIR
+
+Context on sequencing: Grace ranked your shelf v2 as held-until-consumed-report; the chair notes Ed HAD filed per-lead consumed/rejected on v1 (batch #2) before her cut, so your v2 run - on exactly the leads Ed requisitioned - satisfies her own release condition. Her general rule stands and is worth keeping: never generate supply against inventory nobody has drawn down; your shelf's consumed/rejected table is what proves drawdown.
