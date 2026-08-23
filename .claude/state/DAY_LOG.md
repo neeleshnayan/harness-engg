@@ -123,6 +123,19 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   is fired and discharged by this work — the register cannot record
   either; recorded here, and the evaluability ticket (a26debb9 family)
   remains the owner.
+- **THE IMMEDIATE GOAL REGISTERED (CEO, ratified 'works?'): STEP 1 - one
+  decent strategy on META, end-to-end, SURVIVING the machinery (survival
+  earned, never engineered - instrument changes pre-registered, adversary
+  blind on loosenings, an honest zero kept if that is the answer). STEP
+  2 - improve it: capital deployed most effectively for META (Stan's
+  sizing/expectancy lane, graph-scored, loop-time measured). STEP 3 -
+  expand scope on Ed's proposals + CEO selection.** The named fork: a
+  decent META strategy is likely PREMIA-shaped and the gate only speaks
+  alpha - the v5 premia gate becomes step 1's critical path if the
+  joint-power run confirms; conditional pre-approval requested from the
+  CEO (stage v5 through the kill->repair->blind loop on confirmation).
+  Deployment clicks remain the CEO's (the delegation covers experiments,
+  not orders).
 - **THE EXPERIMENT DELEGATION v1 (CEO, verbatim: 'dont be blocked by me
   on experiments; approve on my behalf...')**: the chair approves
   EXPERIMENTS (research/measurement/data/belt lane - blast radius is
