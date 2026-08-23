@@ -401,6 +401,21 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   premia certification in a single run.**
 
 **BUILT**
+- **DURABILITY, CLOSED (CEO: postgres as durable store? + manual-mode
+  retry).** The honest audit found the gap: everything lived on ONE disk —
+  270 unpushed ClarkHarness commits, firm repo never pushed to the vault,
+  no PG backup. All three closed within the hour: firm repo PUSHED to
+  vault (new branch master); ClarkHarness PUSHED after merging ABHISHEK'''S
+  two thesis promotions (found on the remote; merged never rebased; one
+  positional conflict in fund.py resolved keeping both sides; his 17
+  thesis tests green); **193MB gzip-verified pg_dump** of the full fund DB
+  (events, episodes, runs, candidates, quotes) to backups/. Episode store
+  re-ingested to 475 sections. THE OM COMPACTOR built and dry-run-proven
+  (archival never summarization; byte-verified against the store; its own
+  first refusal caught the author'''s hash bug — measured effect 70-95%
+  smaller OMs; applies in the dispatch gap). Standing habit: pg_dump +
+  push at every day-log close.
+
 - **THE TWO-BLINDSPOT MITIGATION (CEO: honest discussion -> mitigate and
   close before Monday). Both dispatched within the hour.** (1) D35, the
   EXECUTION-REALITY INSTRUMENT, Monday-critical 13:30Z deadline: NBBO
