@@ -461,3 +461,25 @@ Before any batch of order approvals touching a drift-list symbol, STATE THE PATH
 1. **CAPTURE THE NBBO AT EACH SUBMIT, ON THE DAY** — nothing archives quotes; without them the pre-registration's π denominator is unrecoverable. The fund's quote endpoint has no bid/ask; capture via the Alpaca data API at click time (a small script run beside the click sheet — prepare before open).
 2. R1 leads the gate items: re-judge-or-void 144387901688 by 08-25 (never table old and new rows side by side).
 3. The register work honors the standing order: evaluability (UNCHECKED rendering) FIRST, then world-reading hooks (the _wired pattern), then governance entries. Two fired-but-silent triggers noted (book 2→4 names).
+
+## 2026-08-23 — LESSON HYGIENE (CEO instruction: ‘we have to be cautious about what we learn; cause decisions made from poor learnings are more dangerous’)
+
+A wrong lesson is worse than no lesson — it wears the authority of
+experience, and BINDS amplifies it into other seats’ priors. The front door
+is guarded (verification, the EVOLVE bar, placebos); the back door was not:
+lessons had no expiry. Three rules, binding on the chair at every resolve:
+
+1. **A lesson cites its measurement or names its n.** ‘n=1’ written beside
+   a lesson is honest; a generalization from one run presented as a law is
+   the defect. (The quant hybrid-split reversal was n=1 twice — and said so
+   both times; that is the standard.)
+2. **Lessons are provisional like decisions.** When a measurement is
+   voided, re-baselined, or fenced, the chair SWEEPS the lessons derived
+   from it in the same pass — the Entry-20-void pattern, promoted from
+   diligence to duty. A voided measurement with surviving dependent lessons
+   is contamination the clean-field rule already forbids in numbers.
+3. **A lesson that changes what a seat DOES carries what would change its
+   mind**, exactly as decisions do since 08-21. One line at carry time.
+
+The experience layer inherits all three at birth: an episode stores its
+evidence pointer, not just its moral.
