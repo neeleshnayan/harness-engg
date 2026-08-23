@@ -1232,7 +1232,7 @@ class LeanRunner:
                     "as_of": (result.get("equity_dates") or [None])[0],
                     "basis": "engine_single_name",
                     "population": sorted(traded_syms),
-                    "wanted": len(traded_syms),
+                    "wanted_count": len(traded_syms),
                     "usable": True,
                     "listing_asof_applied": False,
                     "survivorship_corrected": False,
@@ -1757,24 +1757,18 @@ def _usable(curve: list[float]) -> bool:
 def _population_report(wanted: list[str], as_of: str) -> dict[str, Any]:
     """The benchmark's population label. Never absent, never assumed clean.
 
-    Wraps ``asof.read_population`` so that an install with no Postgres still
-    gets a bar AND still gets told what the bar's population is not. The
-    degradation is DOWNWARD only: a register nobody could read reports
-    membership UNKNOWN and the bar keeps its survivor-only label; it never
-    reports "no correction needed", which is the shape this payload exists to
-    make impossible.
+    A one-line seam, kept for two reasons: the suite monkeypatches it so a unit
+    test never reaches Postgres, and the import stays lazy so an install with
+    no psycopg still enriches a benchmark.
+
+    It carries no try/except of its own. ``read_population`` already degrades
+    every failed read DOWNWARD to "unknown" — a register nobody could read
+    reports membership UNKNOWN and the bar keeps its survivor-only label — so
+    a second guard here would be a branch nothing can reach, and an unreachable
+    branch cannot be shown to work.
     """
-    from app.fund.asof import population_report, read_population
-    try:
-        return read_population(wanted, as_of)
-    except Exception as e:  # noqa: BLE001
-        logger.info("as-of register unavailable for benchmark population: %s", e)
-        return population_report(
-            wanted, as_of, listed=None, priced_delisted=None,
-            read_error=(f"the as-of register is unreachable "
-                        f"({type(e).__name__}) — membership is UNKNOWN for "
-                        f"{as_of}, so this bar is the universe as it is "
-                        f"screened TODAY and carries the survivor bias whole"))
+    from app.fund.asof import read_population
+    return read_population(wanted, as_of)
 
 
 def _declared_universe(code: Optional[str]) -> list[str]:

@@ -117,8 +117,9 @@ def _benchmark_population_register_absent(monkeypatch):
     process is the developer's live one. Two problems, and the second is the
     real one: the read is I/O in a pure unit test, and a benchmark test's
     outcome would then depend on which snapshots someone happened to capture.
-    A future capture at a date a fixture uses would fail six truncation tests
-    for a reason that has nothing to do with truncation.
+    A future capture at a date a fixture uses would fail the seven
+    ``_add_benchmark`` call sites in tests/test_benchmark_truncation.py for a
+    reason that has nothing to do with truncation.
 
     So the default is "no register", which is the honest state of this fund on
     every date but one, and tests that care pass a ``population=`` report in.

@@ -84,8 +84,10 @@ CREATE INDEX IF NOT EXISTS fund_delisted_when_idx
 #: in the kill direction.
 SURVIVORSHIP_MEASUREMENT = "docs/SURVIVORSHIP_2026-08-17.md"
 
-#: Named once and used by both readers below, so the class method and the
-#: SELECT-only path cannot drift into asking two different questions.
+#: The gate between "we know who died" and "we can put them in a benchmark".
+#: A name in ``fund_delisted`` with no bars is one we can count and cannot
+#: include: an equal-weight bar needs a return series, and inventing one is the
+#: fabrication this module's docstring forbids.
 _PRICED_DELISTED_SQL = (
     "SELECT DISTINCT d.ticker FROM fund_delisted d "
     "WHERE EXISTS (SELECT 1 FROM fund_bars b WHERE b.symbol = d.ticker)")
@@ -194,7 +196,7 @@ def population_report(wanted: list[str], as_of: str,
     tmap = {str(k).strip().upper(): v for k, v in (types or {}).items()}
     out: dict[str, Any] = {
         "as_of": as_of,
-        "wanted": len(names),
+        "wanted_count": len(names),
         "snapshots_available": snaps,
         "survivorship_corrected": False,
         "survivorship_measurement": SURVIVORSHIP_MEASUREMENT,
@@ -224,7 +226,7 @@ def population_report(wanted: list[str], as_of: str,
         for s in names:
             if s in listed:
                 kept.append(s)
-            elif tmap.get(s) in covered and covered:
+            elif tmap.get(s) in covered:
                 dropped.append(s)
             else:
                 # Absent from a snapshot that does not cover this name's type
@@ -236,7 +238,7 @@ def population_report(wanted: list[str], as_of: str,
         out.update({
             "population": kept,
             "usable": bool(kept),
-            "listing_asof_applied": bool(dropped) or bool(covered),
+            "listing_asof_applied": bool(covered),
             "point_in_time": False,
             "basis": "listing_asof" if covered else "survivor_only",
             "excluded_not_listed": dropped,
@@ -421,23 +423,6 @@ class AsOfUniverse:
         return out
 
     # --- reads --------------------------------------------------------------
-
-    def priced_delisted(self, tickers: Optional[list[str]] = None) -> set[str]:
-        """Delisted names this fund can actually put a price on.
-
-        The gate between "we know who died" and "we can put them in a
-        benchmark". A name in ``fund_delisted`` with no bars is a name we can
-        count and cannot include: adding it to an equal-weight bar would need a
-        return series nobody holds, and assuming one is exactly the fabrication
-        this module's docstring forbids.
-        """
-        sql = (_PRICED_DELISTED_SQL + " AND d.ticker = ANY(%s)") if tickers \
-            else _PRICED_DELISTED_SQL
-        params: tuple = ([t.strip().upper() for t in tickers],) if tickers else ()
-        with self._connect() as conn:
-            with conn.cursor() as cur:
-                cur.execute(sql, params)
-                return {r[0] for r in cur.fetchall()}
 
     def membership(self, as_of: str) -> Optional[set[str]]:
         """Tickers listed on that date, or None if never captured.

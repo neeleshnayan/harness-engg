@@ -63,7 +63,13 @@ from app.fund.walkforward import (  # noqa: E402
 #: the second copy of `CRITERIA["min_decisions_per_test_leg"]`.
 DECISIONS_PER_TEST_LEG = decisions_per_test_leg()
 
-#: Sessions of history the fund actually holds (bars start 2024-02-26).
+#: Sessions this audit models. 630 was 'the history the fund holds' when the
+#: figures in docs/GATE_CALIBRATION_2026-08-18.md were taken, and it is kept
+#: so those numbers stay reproducible. It is NO LONGER the fund's history:
+#: WALKFORWARD_HISTORY_FLOOR moved to the feed's measured start 2026-08-23,
+#: and the depth any candidate gets is now per candidate
+#: (factory.effective_history_floor). ``--history`` sweeps 630/1260/2520/
+#: 5040 sessions; there is no flag for a single other value.
 SESSIONS = 630
 TRAIN_DAYS = 252
 #: A 21-day hold needs a 21*4 = 84-day test leg under v3's fold geometry.

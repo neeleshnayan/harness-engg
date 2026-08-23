@@ -777,8 +777,8 @@ def registry() -> list[Judgement]:
                 "per candidate at HISTORY_FLOOR_RATCHET unless that "
                 "candidate's own declared lookback_days proves its containers "
                 "can be fed deeper, because the bars endpoint caps "
-                "lookback_days at 2000 and ten of sixteen algorithms declare "
-                "700.",
+                "lookback_days at 2000 while eleven of the sixteen "
+                "algorithms declare 700 (three declare 900, two 2000).",
             falsified_by="The value itself is a fact about the data and is "
                          "falsified only by re-measuring the feed. The RATCHET "
                          "beside it is a judgement and is falsified by the "

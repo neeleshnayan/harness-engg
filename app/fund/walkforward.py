@@ -235,9 +235,7 @@ def window_for_strategy(end: str, hold_days: int, min_folds: int,
         "test_days": test_days,
         "hold_days": hold_days,
         "decisions_per_test_leg": decisions,
-        "train_days": train_days,
         "enough": len(w) >= min_folds,
-        "min_folds": min_folds,
         "note": (f"{len(w)} fold(s) fit; a {hold_days}-day hold needs a "
                  f"{test_days}-day test leg to make "
                  f"{decisions} decisions, and the available history "

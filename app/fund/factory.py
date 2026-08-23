@@ -54,8 +54,9 @@ WALKFORWARD_HISTORY_FLOOR = os.getenv("FUND_HISTORY_FLOOR", "1993-01-29")
 #: forward past this date, which is the floor this fund enforced before v4.3.
 #:
 #: Written because the honest per-candidate floor is LATER than the old constant
-#: for most algorithms, not earlier. Ten of the sixteen algorithms in this repo
-#: fetch ``lookback_days=700``, and the bars endpoint caps that parameter at
+#: for most algorithms, not earlier. COUNTED, not eyeballed: of the sixteen
+#: algorithms in this repo, ELEVEN fetch ``lookback_days=700``, three fetch 900
+#: and two fetch 2000 — and the bars endpoint caps that parameter at
 #: 2000 (fund.py, ``Query(180, gt=1, le=2000)``) — so a 700-day container cannot
 #: see before roughly today minus 700 days whatever the fold plan asks for.
 #: Enforcing that as a floor would take the available span for a 21-day hold
@@ -143,10 +144,12 @@ def effective_history_floor(code: Optional[str] = None,
         truncation detector (``_add_benchmark``, ``benchmark_truncated``),
         which reports a short leg rather than quietly cutting the bar to it.
 
-    The effective floor is the LATEST of the legs that bind, ratcheted so it can
-    never sit later than ``HISTORY_FLOOR_RATCHET`` — see that constant for the
-    measured reason, which is that enforcing the data path would return NOT
-    TESTABLE for every 21-day hold in this repo.
+    THE RATCHET CAPS THE DATA PATH, NOT THE FEED. A data-path reach later than
+    ``HISTORY_FLOOR_RATCHET`` is recorded and refused — see that constant for
+    the measured reason, which is that enforcing it would return NOT TESTABLE
+    for every 21-day hold in this repo. A CONFIGURED floor later than the
+    ratchet is a different thing entirely and wins over everything: no
+    container can serve a bar that does not exist.
     """
     from datetime import date as _date
 

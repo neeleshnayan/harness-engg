@@ -127,21 +127,34 @@ def folds_required(wf: Any, criteria: Optional[dict[str, Any]] = None
     win a majority of that small subset".
 
     MEASURED on this machine 2026-08-23, driving the real ``retention()`` over
-    the real fold plans on the fund's own SPY calendar, 3,000 draws per arm:
+    the real fold plans on the fund's own SPY calendar, 3,000 draws per arm,
+    21-day hold. The first two rows are the configurations the belt ACTUALLY
+    produces before and after the pair (the belt iterates to a fixed point, so
+    the deep floor plans six folds and requires five):
 
         arm                                    folds  need   FP    power@1.0
         today, floor 2024-02-26                  4      4   3.03%    21.8%
-        floor 1993-01-29, fixed 4                5      4   5.80%    35.3%
-        floor 1993-01-29, SCALED                 5      5   4.17%    29.6%
+        deep floor, SCALED  (what ships)         6      5   5.17%    33.3%
+        deep floor, fixed 4 (b alone)            6      4   6.87%    36.8%
         5y all-history, fixed 4                 12      4  11.30%    50.9%
         5y all-history, SCALED                  12      9   2.90%    40.7%
 
-    So the register's 2.9% and 12.5% both reproduce, the floor flip ALONE is a
-    confirmed loosening even under the shipped geometry, and the scaling puts
-    the false-positive rate back at or under the 30-month level while KEEPING
-    most of the power the extra history bought. That last column is the reason
-    this is not merely a tightening: 40.7% power at 2.9% FP strictly dominates
-    21.8% power at 3.03%.
+    Both of the register's figures reproduce, and the floor flip ALONE is a
+    confirmed loosening even under the shipped generator.
+
+    WHAT THE SCALING DOES AND DOES NOT DO, because the difference matters. At
+    six folds it removes 1.70pp of the 3.84pp the flip added — not all of it.
+    The residual is the strict-majority rule, whose strictness OSCILLATES WITH
+    PARITY: 3-of-4 is 31.2% under noise and 3-of-5 is 50.0%, so an odd fold
+    count is a looser bar than the even one below it at every scale. Moving
+    that means changing ``min_walkforward_folds_retained_share`` or replacing
+    the majority with a binomial test at a declared alpha; both are THRESHOLD
+    changes and belong to a human.
+
+    Where the scaling clearly wins is depth: at twelve folds it returns the
+    false-positive rate to 2.90% — under today's 3.03% — while power goes
+    21.8% -> 40.7%. That row strictly dominates today and is what the pair buys
+    once the containers' data path can feed a deeper window.
 
     THE RULE. The anchor is whatever ``min_walkforward_folds`` currently says,
     over the span THAT MANY folds occupy for this strategy's own clock
@@ -159,8 +172,8 @@ def folds_required(wf: Any, criteria: Optional[dict[str, Any]] = None
     VERIFIED BEHAVIOUR-IDENTICAL AT 30 MONTHS: at the 2024-02-26 floor the
     requirement is 4 for holds 1, 2, 3, 5, 10, 21, 42 and 63 — every case the
     shipped generator produces. It rises only where the covered window genuinely
-    exceeds what four folds need (to 5 at holds 21 and 42 once the floor moves,
-    to 9 at twelve folds).
+    exceeds what four folds need: to 5 once a candidate's window deepens past
+    1.125x the anchor span, and to 9 at twelve folds.
     """
     c = {**CRITERIA, **(criteria or {})}
     anchor = int(c.get("min_walkforward_folds") or 0)
@@ -400,8 +413,8 @@ def fmt_bps(x: float) -> str:
 #:
 #:     arm                                folds  need    FP    power@Sharpe 1.0
 #:     today, floor 2024-02-26              4      4    3.03%       21.8%
-#:     floor 1993-01-29, fixed 4            5      4    5.80%       35.3%
-#:     floor 1993-01-29, scaled             5      5    4.17%       29.6%
+#:     deep floor, SCALED (what ships)      6      5    5.17%       33.3%
+#:     deep floor, fixed 4 ((b) alone)      6      4    6.87%       36.8%
 #:     5y all-history, fixed 4             12      4   11.30%       50.9%
 #:     5y all-history, scaled              12      9    2.90%       40.7%
 #:
@@ -410,8 +423,9 @@ def fmt_bps(x: float) -> str:
 #: than the register's — the register modelled a use-all-history geometry this
 #: belt does not run, and the loosening is real without it.
 #:
-#: WHAT v4.3 DOES NOT FIX, stated so the pass is not over-read. The scaled arm
-#: at five folds sits at 4.17% against today's 3.03%, and the residual is NOT
+#: WHAT v4.3 DOES NOT FIX, stated so the pass is not over-read. The shipped
+#: deep-floor arm sits at 5.17% against today's 3.03% — the scaling removes
+#: 1.70pp of the 3.84pp the flip added, not all of it — and the residual is NOT
 #: the fold count: it is the strict-majority rule, whose strictness OSCILLATES
 #: WITH PARITY. Three of four is 31.2% under noise; three of five is 50.0%. So
 #: an odd fold count is a looser bar than the even one below it, at every scale.

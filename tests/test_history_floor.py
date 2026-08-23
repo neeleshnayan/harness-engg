@@ -13,10 +13,11 @@ on 2026-08-23 make the naive flip harmful:
     1993-01-29 and UUP from 2007-03-01 — fourteen years apart (TLT 2002-07-30,
     IBB 2001-02-12, GLD 2004-11-18, DBA 2007-01-05). A single global floor is
     right for one symbol and wrong for the rest.
-  * THE CONTAINERS CANNOT REACH 1993. Ten of the sixteen algorithms in this
-    repo fetch ``lookback_days=700``, the deepest declares 2000, and the bars
-    endpoint caps the parameter at 2000. So a fold planned in 1993 would be fed
-    nothing, and one planned in 2023 is fed partially.
+  * THE CONTAINERS CANNOT REACH 1993. Counted, not eyeballed: of the sixteen
+    algorithms in this repo ELEVEN fetch ``lookback_days=700``, three fetch
+    900 and two fetch 2000 — and the bars endpoint caps the parameter at 2000.
+    So a fold planned in 1993 would be fed nothing, and one planned in 2023 is
+    fed partially.
 
 Enforcing the container reach as a floor would take a 21-day hold's span from
 850 days to 700 — two folds against a requirement of four — and return NOT
@@ -56,7 +57,7 @@ def test_the_configured_floor_is_the_feeds_measured_start():
 
 
 def test_a_shallow_container_cannot_shorten_the_window():
-    """The majority case: ten of sixteen algorithms declare 700 days.
+    """The majority case: eleven of the sixteen algorithms declare 700 days.
 
     Their reach is LATER than the floor this fund already enforces. A floor may
     deepen a window and never shorten one, so the ratchet holds and the reach
