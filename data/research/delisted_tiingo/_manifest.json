@@ -1,0 +1,750 @@
+{
+ "AET": {
+  "bars": 7286,
+  "first": "1990-01-02",
+  "last": "2018-11-28",
+  "status": "OK"
+ },
+ "AGN": {
+  "bars": 7648,
+  "first": "1990-01-02",
+  "last": "2020-05-08",
+  "status": "OK"
+ },
+ "BCR": {
+  "bars": 7056,
+  "first": "1990-01-02",
+  "last": "2017-12-29",
+  "status": "OK"
+ },
+ "CA": {
+  "bars": 673,
+  "first": "2023-12-14",
+  "last": "2026-08-21",
+  "status": "OK"
+ },
+ "CAG": {
+  "bars": 9227,
+  "first": "1990-01-02",
+  "last": "2026-08-21",
+  "status": "OK"
+ },
+ "COV": {
+  "bars": 1924,
+  "first": "2007-06-14",
+  "last": "2015-02-03",
+  "status": "OK"
+ },
+ "CPB": {
+  "bars": 9227,
+  "first": "1990-01-02",
+  "last": "2026-08-21",
+  "status": "OK"
+ },
+ "EMN": {
+  "bars": 8227,
+  "first": "1993-12-14",
+  "last": "2026-08-21",
+  "status": "OK"
+ },
+ "GAS": {
+  "bars": 6679,
+  "first": "1990-01-02",
+  "last": "2016-07-01",
+  "status": "OK"
+ },
+ "HES": {
+  "bars": 8952,
+  "first": "1990-01-02",
+  "last": "2025-07-18",
+  "status": "OK"
+ },
+ "HNZ": {
+  "bars": 3209,
+  "first": "2001-01-02",
+  "last": "2013-10-17",
+  "status": "OK"
+ },
+ "HPC": {
+  "bars": 481,
+  "first": "2006-12-28",
+  "last": "2008-11-24",
+  "status": "OK"
+ },
+ "IPG": {
+  "bars": 9044,
+  "first": "1990-01-02",
+  "last": "2025-11-26",
+  "status": "OK"
+ },
+ "K": {
+  "bars": 9054,
+  "first": "1990-01-02",
+  "last": "2025-12-11",
+  "status": "OK"
+ },
+ "MER": {
+  "bars": 506,
+  "first": "2006-12-28",
+  "last": "2008-12-31",
+  "status": "OK"
+ },
+ "MRO": {
+  "bars": 8792,
+  "first": "1990-01-02",
+  "last": "2024-11-22",
+  "status": "OK"
+ },
+ "MWV": {
+  "bars": 6426,
+  "first": "1990-01-02",
+  "last": "2015-07-01",
+  "status": "OK"
+ },
+ "PX": {
+  "bars": 6644,
+  "first": "1992-06-17",
+  "last": "2018-10-30",
+  "status": "OK"
+ },
+ "ROH": {
+  "bars": 568,
+  "first": "2006-12-28",
+  "last": "2009-04-01",
+  "status": "OK"
+ },
+ "RTN": {
+  "bars": 7624,
+  "first": "1990-01-02",
+  "last": "2020-04-03",
+  "status": "OK"
+ },
+ "SIAL": {
+  "bars": 6466,
+  "first": "1990-03-26",
+  "last": "2015-11-18",
+  "status": "OK"
+ },
+ "STI": {
+  "bars": 640,
+  "first": "2024-02-02",
+  "last": "2026-08-21",
+  "status": "OK"
+ },
+ "STJ": {
+  "bars": 6816,
+  "first": "1990-01-02",
+  "last": "2017-01-18",
+  "status": "OK"
+ },
+ "TWX": {
+  "bars": 6611,
+  "first": "1992-03-19",
+  "last": "2018-06-15",
+  "status": "OK"
+ },
+ "WBA": {
+  "bars": 8981,
+  "first": "1990-01-02",
+  "last": "2025-08-28",
+  "status": "OK"
+ },
+ "EMC": {
+  "bars": 821,
+  "first": "2023-05-15",
+  "last": "2026-08-21",
+  "status": "OK"
+ },
+ "APC": {
+  "bars": 132,
+  "first": "2026-02-12",
+  "last": "2026-08-21",
+  "status": "OK"
+ },
+ "SWY": {
+  "bars": 6247,
+  "first": "1990-04-26",
+  "last": "2015-02-09",
+  "status": "OK"
+ },
+ "KSU": {
+  "bars": 8051,
+  "first": "1990-01-02",
+  "last": "2021-12-13",
+  "status": "OK"
+ },
+ "XLNX": {
+  "bars": 7978,
+  "first": "1990-06-18",
+  "last": "2022-02-14",
+  "status": "OK"
+ },
+ "CTXS": {
+  "bars": 6756,
+  "first": "1995-12-08",
+  "last": "2022-11-02",
+  "status": "OK"
+ },
+ "LLTC": {
+  "bars": 304,
+  "first": "2016-01-04",
+  "last": "2017-03-20",
+  "status": "OK"
+ },
+ "MXIM": {
+  "bars": 7922,
+  "first": "1990-03-26",
+  "last": "2021-09-01",
+  "status": "OK"
+ },
+ "TIF": {
+  "bars": 7817,
+  "first": "1990-01-02",
+  "last": "2021-01-08",
+  "status": "OK"
+ },
+ "BRCM": {
+  "bars": 26,
+  "first": "2016-01-04",
+  "last": "2016-02-09",
+  "status": "OK"
+ },
+ "HOT": {
+  "bars": 190,
+  "first": "2016-01-04",
+  "last": "2016-10-03",
+  "status": "OK"
+ },
+ "FRX": {
+  "bars": 6174,
+  "first": "1990-01-02",
+  "last": "2014-07-01",
+  "status": "OK"
+ },
+ "AYE": {
+  "bars": 1241,
+  "first": "2006-12-28",
+  "last": "2011-11-30",
+  "status": "OK"
+ },
+ "PBG": {
+  "bars": 2556,
+  "first": "2001-01-02",
+  "last": "2011-03-07",
+  "status": "OK"
+ },
+ "COL": {
+  "bars": 4390,
+  "first": "2001-06-15",
+  "last": "2018-11-26",
+  "status": "OK"
+ },
+ "FDO": {
+  "bars": 6433,
+  "first": "1990-01-02",
+  "last": "2015-07-13",
+  "status": "OK"
+ },
+ "XL": {
+  "bars": 6842,
+  "first": "1991-07-19",
+  "last": "2018-09-13",
+  "status": "OK"
+ },
+ "BJS": {
+  "bars": 1098,
+  "first": "2006-12-28",
+  "last": "2011-05-09",
+  "status": "OK"
+ },
+ "MON": {
+  "bars": 450,
+  "first": "2021-03-16",
+  "last": "2022-12-23",
+  "status": "OK"
+ },
+ "RAI": {
+  "bars": 4585,
+  "first": "1999-06-01",
+  "last": "2017-08-17",
+  "status": "OK"
+ },
+ "MHS": {
+  "bars": 1580,
+  "first": "2006-12-28",
+  "last": "2013-04-10",
+  "status": "OK"
+ },
+ "ESRX": {
+  "bars": 6685,
+  "first": "1992-06-09",
+  "last": "2018-12-20",
+  "status": "OK"
+ },
+ "ETFC": {
+  "bars": 6074,
+  "first": "1996-08-16",
+  "last": "2020-10-02",
+  "status": "OK"
+ },
+ "MYL": {
+  "bars": 7782,
+  "first": "1990-01-02",
+  "last": "2020-11-19",
+  "status": "OK"
+ },
+ "HSP": {
+  "bars": 2855,
+  "first": "2004-05-03",
+  "last": "2015-09-02",
+  "status": "OK"
+ },
+ "SOV": {
+  "bars": 525,
+  "first": "2006-12-28",
+  "last": "2009-01-29",
+  "status": "OK"
+ },
+ "LLL": {
+  "bars": 5313,
+  "first": "1998-05-19",
+  "last": "2019-06-28",
+  "status": "OK"
+ },
+ "CVH": {
+  "bars": 1713,
+  "first": "2006-12-28",
+  "last": "2013-10-17",
+  "status": "OK"
+ },
+ "VIAB": {
+  "bars": 3524,
+  "first": "2005-12-05",
+  "last": "2019-12-04",
+  "status": "OK"
+ },
+ "WFM": {
+  "bars": 6450,
+  "first": "1992-01-23",
+  "last": "2017-08-29",
+  "status": "OK"
+ },
+ "HAR": {
+  "bars": 299,
+  "first": "2016-01-04",
+  "last": "2017-03-10",
+  "status": "OK"
+ },
+ "BRL": {
+  "bars": 500,
+  "first": "2006-12-28",
+  "last": "2008-12-22",
+  "status": "OK"
+ },
+ "JNPR": {
+  "bars": 6545,
+  "first": "1999-06-25",
+  "last": "2025-07-02",
+  "status": "OK"
+ },
+ "CELG": {
+  "bars": 7475,
+  "first": "1990-03-26",
+  "last": "2019-11-22",
+  "status": "OK"
+ },
+ "SE": {
+  "bars": 2220,
+  "first": "2017-10-20",
+  "last": "2026-08-21",
+  "status": "OK"
+ },
+ "VAR": {
+  "bars": 7884,
+  "first": "1990-01-02",
+  "last": "2021-04-16",
+  "status": "OK"
+ },
+ "HCBK": {
+  "bars": 4104,
+  "first": "1999-07-13",
+  "last": "2015-10-30",
+  "status": "OK"
+ },
+ "TEG": {
+  "bars": 6424,
+  "first": "1990-01-02",
+  "last": "2015-06-29",
+  "status": "OK"
+ },
+ "PCP": {
+  "bars": 25,
+  "first": "2016-01-04",
+  "last": "2016-02-08",
+  "status": "OK"
+ },
+ "DFS": {
+  "bars": 4511,
+  "first": "2007-06-14",
+  "last": "2025-05-16",
+  "status": "OK"
+ },
+ "GGP": {
+  "bars": 6395,
+  "first": "1993-04-08",
+  "last": "2018-08-28",
+  "status": "OK"
+ },
+ "ANDV": {
+  "bars": 7244,
+  "first": "1990-01-02",
+  "last": "2018-09-28",
+  "status": "OK"
+ },
+ "NBL": {
+  "bars": 7752,
+  "first": "1990-01-02",
+  "last": "2020-10-06",
+  "status": "OK"
+ },
+ "NYX": {
+  "status": "UNKNOWN-EMPTY-200",
+  "note": "empty 200 - absence is UNKNOWN, never zero (probe-5 lesson)"
+ },
+ "TIE": {
+  "bars": 1516,
+  "first": "2006-12-28",
+  "last": "2013-01-07",
+  "status": "OK"
+ },
+ "POM": {
+  "bars": 219,
+  "first": "2025-10-08",
+  "last": "2026-08-21",
+  "status": "OK"
+ },
+ "TSS": {
+  "bars": 7486,
+  "first": "1990-01-02",
+  "last": "2019-09-17",
+  "status": "OK"
+ },
+ "LO": {
+  "bars": 3362,
+  "first": "2002-02-01",
+  "last": "2015-06-22",
+  "status": "OK"
+ },
+ "SNI": {
+  "bars": 2458,
+  "first": "2008-06-12",
+  "last": "2018-03-16",
+  "status": "OK"
+ },
+ "PXD": {
+  "bars": 6728,
+  "first": "1997-08-08",
+  "last": "2024-05-03",
+  "status": "OK"
+ },
+ "PBCT": {
+  "bars": 8070,
+  "first": "1990-03-26",
+  "last": "2022-04-04",
+  "status": "OK"
+ },
+ "MFE": {
+  "bars": 1050,
+  "first": "2006-12-28",
+  "last": "2011-03-01",
+  "status": "OK"
+ },
+ "FLIR": {
+  "bars": 7026,
+  "first": "1993-06-22",
+  "last": "2021-05-14",
+  "status": "OK"
+ },
+ "SCG": {
+  "bars": 7307,
+  "first": "1990-01-02",
+  "last": "2018-12-31",
+  "status": "OK"
+ },
+ "TWC": {
+  "bars": 2328,
+  "first": "2007-03-01",
+  "last": "2016-05-26",
+  "status": "OK"
+ },
+ "RHT": {
+  "bars": 5008,
+  "first": "1999-08-11",
+  "last": "2019-07-08",
+  "status": "OK"
+ },
+ "CFN": {
+  "bars": 1401,
+  "first": "2009-08-21",
+  "last": "2015-03-17",
+  "status": "OK"
+ },
+ "ARG": {
+  "bars": 6656,
+  "first": "1990-01-02",
+  "last": "2016-05-31",
+  "status": "OK"
+ },
+ "MJN": {
+  "bars": 2119,
+  "first": "2009-02-11",
+  "last": "2017-07-14",
+  "status": "OK"
+ },
+ "CERN": {
+  "bars": 8133,
+  "first": "1990-03-26",
+  "last": "2022-09-08",
+  "status": "OK"
+ },
+ "KMX": {
+  "bars": 7433,
+  "first": "1997-02-04",
+  "last": "2026-08-21",
+  "status": "OK"
+ },
+ "CVC": {
+  "bars": 106,
+  "first": "2016-01-04",
+  "last": "2016-06-21",
+  "status": "OK"
+ },
+ "NFX": {
+  "bars": 34,
+  "first": "2026-07-07",
+  "last": "2026-08-21",
+  "status": "OK"
+ },
+ "ALXN": {
+  "bars": 6395,
+  "first": "1996-02-28",
+  "last": "2021-07-28",
+  "status": "OK"
+ },
+ "KRFT": {
+  "bars": 707,
+  "first": "2012-09-17",
+  "last": "2015-07-10",
+  "status": "OK"
+ },
+ "PETM": {
+  "bars": 5448,
+  "first": "1993-07-23",
+  "last": "2015-03-11",
+  "status": "OK"
+ },
+ "NLSN": {
+  "bars": 2947,
+  "first": "2011-01-27",
+  "last": "2022-10-11",
+  "status": "OK"
+ },
+ "MHK": {
+  "bars": 8658,
+  "first": "1992-04-01",
+  "last": "2026-08-21",
+  "status": "OK"
+ },
+ "GMCR": {
+  "bars": 3807,
+  "first": "2001-01-12",
+  "last": "2016-03-04",
+  "status": "OK"
+ },
+ "DISCK": {
+  "bars": 3439,
+  "first": "2008-09-18",
+  "last": "2022-09-16",
+  "status": "OK"
+ },
+ "LVLT": {
+  "bars": 4932,
+  "first": "1998-03-31",
+  "last": "2017-11-01",
+  "status": "OK"
+ },
+ "BXLT": {
+  "bars": 242,
+  "first": "2015-06-30",
+  "last": "2016-06-16",
+  "status": "OK"
+ },
+ "CPGX": {
+  "bars": 254,
+  "first": "2015-07-01",
+  "last": "2016-07-01",
+  "status": "OK"
+ },
+ "WRK": {
+  "bars": 1,
+  "first": "2024-07-05",
+  "last": "2024-07-05",
+  "status": "OK"
+ },
+ "ATVI": {
+  "bars": 7547,
+  "first": "1993-10-25",
+  "last": "2023-10-13",
+  "status": "OK"
+ },
+ "CMCSK": {
+  "bars": 6488,
+  "first": "1990-03-26",
+  "last": "2015-12-21",
+  "status": "OK"
+ },
+ "CSRA": {
+  "bars": 8,
+  "first": "2026-08-12",
+  "last": "2026-08-21",
+  "status": "OK"
+ },
+ "CXO": {
+  "bars": 3388,
+  "first": "2007-08-03",
+  "last": "2021-01-15",
+  "status": "OK"
+ },
+ "HOLX": {
+  "bars": 9074,
+  "first": "1990-03-26",
+  "last": "2026-04-07",
+  "status": "OK"
+ },
+ "LKQ": {
+  "bars": 5757,
+  "first": "2003-10-03",
+  "last": "2026-08-21",
+  "status": "OK"
+ },
+ "EVHC": {
+  "bars": 1343,
+  "first": "2013-08-14",
+  "last": "2018-12-14",
+  "status": "OK"
+ },
+ "DISH": {
+  "bars": 7184,
+  "first": "1995-06-21",
+  "last": "2024-01-09",
+  "status": "OK"
+ },
+ "INFO": {
+  "bars": 467,
+  "first": "2024-10-10",
+  "last": "2026-08-21",
+  "status": "OK"
+ },
+ "DRE": {
+  "bars": 8253,
+  "first": "1990-01-02",
+  "last": "2022-10-03",
+  "status": "OK"
+ },
+ "ABMD": {
+  "bars": 8311,
+  "first": "1990-01-02",
+  "last": "2023-01-03",
+  "status": "OK"
+ },
+ "TWTR": {
+  "bars": 2260,
+  "first": "2013-11-07",
+  "last": "2022-10-28",
+  "status": "OK"
+ },
+ "WCG": {
+  "bars": 3918,
+  "first": "2004-07-01",
+  "last": "2020-01-23",
+  "status": "OK"
+ },
+ "LW": {
+  "bars": 2457,
+  "first": "2016-11-10",
+  "last": "2026-08-21",
+  "status": "OK"
+ },
+ "MKTX": {
+  "bars": 5482,
+  "first": "2004-11-05",
+  "last": "2026-08-21",
+  "status": "OK"
+ },
+ "PAYC": {
+  "bars": 3107,
+  "first": "2014-04-15",
+  "last": "2026-08-21",
+  "status": "OK"
+ },
+ "CTLT": {
+  "bars": 2615,
+  "first": "2014-07-31",
+  "last": "2024-12-18",
+  "status": "OK"
+ },
+ "POOL": {
+  "bars": 7764,
+  "first": "1995-10-13",
+  "last": "2026-08-21",
+  "status": "OK"
+ },
+ "ENPH": {
+  "bars": 3619,
+  "first": "2012-03-30",
+  "last": "2026-08-21",
+  "status": "OK"
+ },
+ "CZR": {
+  "bars": 2997,
+  "first": "2014-09-22",
+  "last": "2026-08-21",
+  "status": "OK"
+ },
+ "MTCH": {
+  "bars": 2703,
+  "first": "2015-11-19",
+  "last": "2026-08-21",
+  "status": "OK"
+ },
+ "CTRA": {
+  "bars": 9126,
+  "first": "1990-02-08",
+  "last": "2026-05-06",
+  "status": "OK"
+ },
+ "EPAM": {
+  "bars": 3655,
+  "first": "2012-02-08",
+  "last": "2026-08-21",
+  "status": "OK"
+ },
+ "PARA": {
+  "bars": 1387,
+  "first": "2021-02-12",
+  "last": "2026-08-21",
+  "status": "OK"
+ },
+ "MOH": {
+  "bars": 5822,
+  "first": "2003-07-02",
+  "last": "2026-08-21",
+  "status": "OK"
+ },
+ "DAY": {
+  "bars": 1954,
+  "first": "2018-04-26",
+  "last": "2026-02-03",
+  "status": "OK"
+ }
+}
