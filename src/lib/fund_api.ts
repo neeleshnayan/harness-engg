@@ -863,6 +863,13 @@ export interface DeskRecommendation {
   next_actor_basis?: string | null;
   /** The same, as a sentence. */
   next_actor_why?: string | null;
+  /** The routing rules the SPINE stamped on this row when it filed it
+   *  (`desk.route_at_birth`). Its presence is the fund's own record that the
+   *  row went through routing; its ABSENCE means no routing version was
+   *  recorded, which a row filed before routing v1 and a row that stated no
+   *  usable next actor share. Measured 2026-08-23: 16 of 232 rows in the feed
+   *  carry it. Never read as a verdict — see `routingFootprint`. */
+  routing_rules_version?: string | null;
 }
 
 /** The COO triage counter: how many items on the CEO's desk are waiting on HIM.
@@ -932,6 +939,32 @@ export interface DeskLoad {
   /** True past the CEO's registered trigger. A SIGNAL for the CTO to dispatch
    *  the COO — it fires nothing by itself. */
   coo_triage_due: boolean;
+  /** Asks the CEO has already approved that the chair has not yet fired.
+   *
+   *  DELIBERATELY OUTSIDE `total`, and the spine lists it in
+   *  `excluded_from_total` so the exclusion is a stated fact rather than an
+   *  arithmetic one: he decided these already, so counting them as awaiting
+   *  him would re-charge him for a click he has made. Measured 2026-08-23: 65,
+   *  oldest 55.4h. */
+  requests_approved_undispatched?: number;
+  /** Which components the spine left OUT of `total`, by name. */
+  excluded_from_total?: string[];
+  /** The chair's own backlog, with its join coverage attached. `upper_bound`
+   *  is true whenever the age is a floor — measured 2026-08-23, 14 of 24
+   *  dispatch events carry no `request_id`, so the oldest undispatched ask
+   *  cannot be dated exactly. */
+  chair_backlog?: {
+    requests_approved_undispatched: number;
+    oldest_hours: number | null;
+    oldest_request_id: string | null;
+    upper_bound: boolean;
+    dispatch_link_coverage?: {
+      dispatch_events: number; linkable: number;
+      unlinkable_no_request_id: number; orphan_request_id: number;
+      complete: boolean;
+    };
+    note: string;
+  };
   note: string;
 }
 
@@ -1077,6 +1110,13 @@ export interface DeskView {
     reasoning?: string | null;
     /** The chatter thread this run belongs to — one id replays the chain. */
     trace_id?: string | null;
+    /** The run record's free-form block, stored verbatim by the flight
+     *  recorder. Typed as unknown on purpose: it is a seat's own JSON, its
+     *  keys vary run to run (43 distinct keys across 50 runs, measured
+     *  2026-08-23), and a typed shape here would be a promise the store does
+     *  not keep. The one key the desk reads is `serves_requests`, and it is
+     *  read through `lineage.servesRequests()`, which validates it. */
+    meta?: unknown;
     recommendations: DeskRecommendation[];
   }[];
   /** Every recommendation awaiting a decision, seat attribution attached. */
@@ -1958,6 +1998,27 @@ export interface DeskSupersessionEdge {
   confirmed_at?: string | null;
 }
 
+/**
+ * `GET /fund/desk/supersessions` — the edge page, with its own cap disclosed.
+ *
+ * `count` is the number of edges RETURNED and `total` is how many exist; the
+ * D22 review's rule, verbatim, is that *a LIMIT on a control's backing query is
+ * a silent off-switch — the caller must distinguish truncated from complete*.
+ * Verified against the running spine 2026-08-23: every field below was on the
+ * wire (`limit: 1000`, `total: 0`, `truncated: false`).
+ */
+export interface DeskSupersessionPage {
+  edges: DeskSupersessionEdge[];
+  count: number;
+  /** How many edges the store holds, counted independently of the page. */
+  total: number;
+  shown: number;
+  truncated: boolean;
+  limit: number;
+  modes: string[];
+  unapprovable_modes: string[];
+}
+
 export interface DeskMatrixCell {
   count: number;
   /** How many rows the payload actually carries. A CAP, never a count — the
@@ -2093,6 +2154,10 @@ export interface CeoDeskView {
   readable: {
     recommendations: boolean; supersessions: boolean;
     intray: boolean; risk: boolean;
+    /** Added by the spine after this block was first typed; verified on the
+     *  wire 2026-08-23. Optional so a client is not obliged to read an outage
+     *  into a spine that predates it. */
+    pending_orders?: boolean;
   };
 }
 
@@ -2806,10 +2871,8 @@ export const fundApiClient = {
 
   /** Live supersession edges. `unapprovable_modes` comes from the spine so the
    *  UI's disabled state and the server's refusal read one list. */
-  getDeskSupersessions: async (includeRetracted = false): Promise<{
-    edges: DeskSupersessionEdge[]; count: number;
-    modes: string[]; unapprovable_modes: string[];
-  }> => (await fundApi.get(`${P}/desk/supersessions`,
+  getDeskSupersessions: async (includeRetracted = false):
+    Promise<DeskSupersessionPage> => (await fundApi.get(`${P}/desk/supersessions`,
     { params: { include_retracted: includeRetracted } })).data,
 };
 
