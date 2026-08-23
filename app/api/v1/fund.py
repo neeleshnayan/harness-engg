@@ -614,6 +614,107 @@ def get_transaction_costs(limit: int = Query(500, ge=1, le=5000)):
     }
 
 
+#: The execution-quote store, built once per process. A module-level cache like
+#: the desk engine's, but its own variable rather than a fourth branch in
+#: ``_engine_store``'s name->cache mapping, which is additive by construction.
+_execquotes_cache = None
+
+
+def _execution_quotes():
+    """The quote store, or None off Postgres.
+
+    None means "this process has no quote store", which the endpoint reports as
+    an absence. It is not the same as a store with no rows, and the endpoint
+    keeps those two answers apart.
+    """
+    global _execquotes_cache
+    from app.fund.events import store_backend
+    if store_backend() != "postgres":
+        return None
+    if _execquotes_cache is None:
+        from app.fund.executionquality import QuoteStore
+        _execquotes_cache = QuoteStore()
+    return _execquotes_cache
+
+
+@router.get("/fund/execution/quality")
+def get_execution_quality(limit: int = Query(500, ge=1, le=5000)):
+    """What the quoted market looked like when the fund traded.
+
+    ``/fund/tca`` answers "what did the fill cost against the price we struck".
+    This answers the question a broker, a venue and a regulator all answer the
+    same way — "what did it cost against the MIDPOINT of the quoted market" —
+    and it is the P5 precondition's own number. See
+    ``app/fund/executionquality.py`` for why they are different measurements.
+
+    READ-ONLY AND OFFLINE. It serves what the capture service already stored
+    plus a fold of the event log; it issues no DDL, calls no vendor, and never
+    quotes anything itself. A quote arrives here only because
+    ``scripts/execution/nbbo_capture.py`` or ``scripts/execution/retro_spread.py
+    --store`` put it there.
+
+    THREE ABSENCES, KEPT APART, because collapsing any two of them is how a
+    fund learns nothing from a table of zeros:
+
+      * no Postgres in this process  -> ``readable: false``, rows null;
+      * Postgres but no such table   -> ``readable: false`` with the reason
+        naming the capture script, because "never captured here" and "captured
+        nothing" are different facts;
+      * table present, nothing in it -> ``readable: true`` with
+        ``coverage.measured = 0`` against a real ``fill_events_total``. THAT
+        zero is a measurement, and on 2026-08-23 it was the true state of the
+        fund: thirty four fill events, none of them ever quoted.
+    """
+    from app.fund.executionquality import (MARK_BASIS, SchemaAbsent,
+                                           coverage, fill_legs,
+                                           fold_order_lifecycles,
+                                           retro_mark_rows,
+                                           summarise_mark_rows,
+                                           summarise_quote_rows)
+    # The whole log, not a page: coverage is a claim about EVERY fill, and a
+    # denominator that quietly became "the newest page" is a silent off-switch.
+    events = _store.stream(limit=100_000)
+    legs = fill_legs(fold_order_lifecycles(events))
+    mark_rows = retro_mark_rows(events)
+
+    store = _execution_quotes()
+    rows: list | None = None
+    truncated = False
+    total: int | None = None
+    unreadable: str | None = None
+    if store is None:
+        unreadable = "this process is not on Postgres; there is no quote store"
+    else:
+        try:
+            rows, truncated = store.rows(limit=limit)
+            total = store.count()
+        except SchemaAbsent as e:
+            unreadable = str(e)
+        except Exception as e:  # noqa: BLE001 - an unreachable store is an absence
+            unreadable = f"the quote store could not be read: {e}"
+
+    return {
+        "readable": rows is not None,
+        "reason": unreadable,
+        "rows": rows,
+        "shown": len(rows) if rows is not None else None,
+        "total": total,
+        "truncated": truncated,
+        "limit": limit,
+        "summary": summarise_quote_rows(rows) if rows is not None else None,
+        "coverage": coverage(legs, rows),
+        # THE MARK TABLE IS SERVED BESIDE THE QUOTE TABLE AND NEVER INSIDE IT.
+        # It is implementation shortfall against the fund's own struck mark,
+        # not an effective spread, and it is computed here rather than stored
+        # so that no reader can pick it up believing a quote was behind it.
+        "retro_mark_basis": {
+            "basis": MARK_BASIS,
+            "summary": summarise_mark_rows(mark_rows),
+            "rows": mark_rows,
+        },
+    }
+
+
 @router.get("/fund/session")
 def get_market_session():
     """The venue's session — state, phase, and the countdown to the next change.
