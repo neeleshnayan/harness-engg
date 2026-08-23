@@ -519,3 +519,7 @@ held), and the stale R37 review request resolved at the same sitting.
 Also learned: POST /fund/desk/requests/{id}/resolve takes {resolution,
 actor} - the request-closing path exists (API card).
 
+
+## 2026-08-23 — THE INSTRUMENT SHELF (resolve-pipeline amendment, under Delegation v2)
+
+The CEO asked whether seats log reusable skills. The honest audit: judgement-skills yes (EVOLVE into seat files — the card, the census, CALL-vs-MODEL); tool-skills NO — instruments lived in the session scratchpad, ephemeral. Fixed: `ClarkHarness/scripts/instruments/` + INSTRUMENTS.md, 25 promoted with one-line contracts. **NEW RESOLVE STEP: any instrument a seat names reusable in its STATE gets promoted to the shelf at resolve, with an index line.** An instrument on the shelf is a skill the firm keeps; one in a scratchpad is a memory one seat had. Secrets check performed at promotion (keys live in env only).
