@@ -173,7 +173,7 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   DELEGATION v1 (run-quant-entry20-rejudge recs 1–2), second-look flagged.
 
 **MEASURED**
-- **THE FUND'S FIRST FULL GATE PASS (~18:1xZ): candidate ,
+- **THE FUND'S FIRST FULL GATE PASS (~18:1xZ): candidate `9b767717ff08`,
   announcement_premium, gate v4.3, PASSED TRUE, FAILURES EMPTY** — the
   full 10bps cost grid measured at last (the criterion that killed every
   prior attempt), 9/9 folds, 8 retained, median retention 0.9419, holdout
@@ -187,7 +187,7 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   margin zero with two warm-up-dead denominator folds, alpha reading
   statistically weak — the CEO's PREMIA ruling is where it's judged, after
   D29 merges. Censored row 997187b267d3 stays fenced, never tabled beside
-  this one. Run , second-look flagged; CEO pushed
+  this one. Run `run-cto-ab-snapshot-off`, second-look flagged; CEO pushed
   on mobile.
 
 - **THE VENDOR PROBES RAN LIVE WITH CEO-CREATED KEYS (~17:0xZ) AND THE
