@@ -515,7 +515,7 @@ class KnowledgeGraph:
                 "it as one is how a shared window becomes six full bills")
         reasons = _clean_reasons(kill_reasons)
         head = reasons[0] if reasons else None
-        conflict = ("ON CONFLICT (dedupe_key) DO NOTHING"
+        conflict = ("ON CONFLICT (dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING"
                     if on_conflict == "ignore" and dedupe_key else "")
         with self._connect() as conn:
             with conn.cursor() as cur:
@@ -552,7 +552,7 @@ class KnowledgeGraph:
                  on_conflict: str = "raise") -> dict[str, Any]:
         if kind not in EDGE_KINDS:
             raise ValueError(f"kind must be one of {EDGE_KINDS}, got {kind!r}")
-        conflict = ("ON CONFLICT (dedupe_key) DO NOTHING"
+        conflict = ("ON CONFLICT (dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING"
                     if on_conflict == "ignore" and dedupe_key else "")
         with self._connect() as conn:
             with conn.cursor() as cur:
@@ -726,8 +726,21 @@ class KnowledgeGraph:
                     slot["citations"].append(o["cited_run"])
 
         judged_ids = {o["hypothesis_id"] for o in live}
-        survivors = [h["id"] for h in hyps
-                     if h["id"] in judged_ids and h["id"] not in killed_ids]
+        # A SURVIVOR CARRIES THE INSTRUMENT THAT PASSED IT, always. Three
+        # `null_random_smallcap` variants survive in the live graph and all
+        # three passed gate v1 — the bar that random strategies cleared about
+        # half the time, which is why v2 exists. A bare id list would put
+        # "3 survived" in a brief with no way to see that.
+        survivors = [
+            {"hypothesis_id": h["id"],
+             "passed_by": sorted({o["killing_instrument"] or "UNRECORDED"
+                                  for o in live
+                                  if o["hypothesis_id"] == h["id"]
+                                  and o["verdict"] in SURVIVE_VERDICTS}),
+             "cited_runs": sorted({o["cited_run"] for o in live
+                                   if o["hypothesis_id"] == h["id"]})}
+            for h in hyps
+            if h["id"] in judged_ids and h["id"] not in killed_ids]
         unjudged = [h["id"] for h in hyps if h["id"] not in judged_ids]
         voided_only = sorted({o["hypothesis_id"] for o in voided}
                              & set(unjudged))
@@ -960,8 +973,8 @@ class KnowledgeGraph:
                     f"{attributed} of {attributed + slot['cost_absent']} kills "
                     f"carry an attributable container cost"
                     + ("" if not slot["cost_absent"] else
-                       f"; {slot['cost_absent']} report ABSENT (shared window, "
-                       f"no stored containers, or never measured)")),
+                       f"; {slot['cost_absent']} ABSENT (shared window, no "
+                       f"stored containers, or never measured)")),
             })
         out_causes.sort(key=lambda d: (-d["n"], d["slug"]))
 
