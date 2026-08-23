@@ -830,3 +830,7 @@ Dossiers route to Stan as risk parameters and to you as cross-sectional leads, n
 ## 2026-08-23 — CARRIED FROM ADVERSARY (run-adversary-d29) BY THE CHAIR — pre-flight card addition, chair-carried
 
 A premia proposal that levers must name **who lends and at what rate**, and price the financing into its own expectancy before filing. "Vol-target this sleeve to 10%" on a low-vol asset is a leverage decision wearing a risk-management word, and until D32 merges the belt would hand it a free (1−1/G)·rf/sd edge it has not earned. Add the GROSS-EXPOSURE line to every premia proposal.
+
+## 2026-08-24 — CARRIED FROM BUILDER (run-builder-d32) BY THE CHAIR
+
+A premia proposal that levers is currently UNJUDGEABLE, not merely hard: the engine lends free, so the bar refuses anything above 100% gross rather than pricing the borrow. Until the CEO decides the financing question, **state the gross exposure your proposal implies in the proposal itself** — above 1.0 it cannot clear the premia bar regardless of the idea's quality; cap it at 1.0 or route it as alpha.

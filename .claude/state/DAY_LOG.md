@@ -379,6 +379,27 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   premia certification in a single run.**
 
 **BUILT**
+- **D32 DELIVERED (sixth loop): all four D29 clearing conditions closed.**
+  Gate v5r3: the belt now reads the engine'''s own Exposure chart (108/108
+  runs carry it; the belt was discarding it), premia refuses above 1.0x
+  gross fail-closed, the session denominator must be vouched for
+  (union+gap — a NAMED departure from the review'''s wording, disclosed for
+  direct attack), the two falsified docstrings corrected, the invariance
+  test crosses w=1.0 on an engine-faithful fixture. Certified rf work
+  PROVEN untouched (28-cell leaf diff, 0 changes). Mutation 31/31; merged
+  tree 3901+1 with the three-way count reconciling across the whole stack
+  (156 = 73+48+35). Consequence stated: every STORED candidate refuses
+  premia until re-run (0/55 carry exposure) — the fix, not a defect;
+  Entry 20'''s fresh run captures it by design. Two root docs deleted
+  (GEMINI.md the judgement call — chair approved: stale in every claim,
+  contradicts the constitution). **Adversary re-blind DISPATCHED on the
+  D23+D29+D32 bundle.** On SURVIVES: merge whole → spine restart → Entry
+  20 fresh premia run. NEW CEO DECISION filed: refuse levered books (as
+  shipped) vs price financing in the engine (a WIDENING — admits
+  vol-scaled books, the sleeve'''s own archetype; blind-first then his
+  click). The intraday sampling blind spot queued to the validator, named
+  at birth.
+
 - **D31 MERGED AND LIVE (KP ff to 98fb9c8f + chair reorder 43e2f7dc): the
   desk redesigned.** One number + one steering sentence + five count-first
   lanes + seven-stage inline lineage; the matrix in the ROOM, team-first

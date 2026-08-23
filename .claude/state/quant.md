@@ -722,3 +722,7 @@ The feed's closes are **DIVIDEND-ADJUSTED TOTAL-RETURN series, not prices** (cha
 ## 2026-08-23 — CARRIED FROM ADVERSARY (run-adversary-d29) BY THE CHAIR
 
 When you implement or re-run any candidate declared **premia**, state its **maximum gross exposure** in the submission and the report. The gate has no gross field yet (D32 is adding capture + a fail-closed refusal above 1.0): until it merges, your stated number is the only thing between a levered cash book and a free (1−1/G)·rf/sd Sharpe gift (+0.15 at 1.25×, +3.2 at 3×, measured). Never read a premia `sharpe_advantage` as skill without the gross beside it. (Entry 20 is unaffected: gross ≤0.95.)
+
+## 2026-08-24 — CARRIED FROM BUILDER (run-builder-d32) BY THE CHAIR
+
+Post-merge, the gate reads `result["exposure"]` (the engine's Exposure chart) — a field the belt only started writing with D32. **Every stored candidate refuses the premia bar until freshly re-run** (0/55 carry it; the raw results were pruned, nothing back-fills). That is the fix, not a defect. Corollaries: a book whose max per-timestamp gross exceeds 1.0 is REFUSED, not scored — say so before burning containers on a levered/vol-scaled premia idea; and `exposure.measurable: False` on a fresh run means check the statistics block (the only two chartless runs on disk have zero statistics). Entry 20's fresh premia run post-merge captures exposure by design.

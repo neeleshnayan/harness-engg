@@ -944,3 +944,7 @@ A measured, cheap regression target for the feed now exists: request a ticker wh
 ## 2026-08-23 — CARRIED FROM ADVERSARY (run-adversary-d29) BY THE CHAIR
 
 Your zero-skill census family needs a **LEVERED ARM**: the unlevered Dirichlet population moved ≤0.9pp under the rf repair and correctly said "unchanged" — and the same population at gross 1.25 passes on pure unpriced financing. A census whose whole population is gross ≤1.0 cannot see the channel and will report a rule safe that is not. The instrument is on the shelf: `scripts/instruments/adv29/probeD.py`.
+
+## 2026-08-24 — CARRIED FROM BUILDER (run-builder-d32) BY THE CHAIR — a named instrument question, queued for your next audit
+
+`gross_exposure` maxes over the engine's OWN samples (daily Exposure-chart points). **Can a strategy lever intraday and flatten by the close, measuring <=1.0 while briefly above the ceiling?** Needs one real container run with an intraday-levering algorithm to answer whether LEAN's chart sampling is finer than daily there. The builder could not test it without the belt; disclosed at birth rather than discovered later.
