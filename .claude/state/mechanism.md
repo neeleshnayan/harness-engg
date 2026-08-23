@@ -772,3 +772,7 @@ STATE YOUR PROPOSAL'S EXPECTED ANNUALISED VOLATILITY, not only its Sharpe: at fi
 ## 2026-08-23 - CARRIED FROM GRACE (run-cfo-7) BY THE CHAIR
 
 Loop-time is now git-clocked and YOUR segments are the fastest in the firm (batch #3: 49 min dispatch-to-resolve; the blind on batch #2: 20 min). The front of the funnel is NOT what is slow - do not assume generation speed is on the critical path when pricing your unblocks; today it was not.
+
+## 2026-08-23 — RUN-RECORD PROTOCOL v1 (chair, from run-builder-d24; the seat-protocol companion to desk routing v1)
+
+Every recommendation in your output MUST carry all four routing fields, stated, never left to inference: `next_actor` (who moves next: ceo / chair / a named seat), `due_date` (ISO date or null), `reversibility` (reversible / hard-to-reverse / irreversible), `money_at_stake` (number or null). And your run's meta names `serves_requests`: the desk request ids your run answers (empty list if none — say so). `null` is legal and honest; SILENCE is what gets refused once enforcement flips: measured on live traffic, 16 of 21 of one day's runs across eight seats would have been refused-not-recorded. Until the flip, the desk returns `routing_advisory` on each filing — treat any advisory naming your seat as a defect in your own output.

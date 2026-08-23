@@ -496,3 +496,11 @@ DATE A CONTROL BY THE DATE ITS EXPOSURE PEAKS, not the date of the inspiring eve
 ## 2026-08-23 - CARRIED FROM THE ADVERSARY (D22) BY THE CHAIR
 
 A fourth audit channel is coming at the D22+D24 merge: DeskRequestResolved events with actor desk-hygiene/<version>. Audit the CITATION and join kind, never the status (the event type is structurally incapable of anything but resolved). And know the open governance gap on the CEO's desk: POST /fund/desk/supersessions + /retract carry no allowlist/echo - the brake in front of desk_approve sits on an unguarded channel pending the CEO's call.
+
+## 2026-08-23 — CARRIED FROM BUILDER (run-builder-d24) BY THE CHAIR
+
+A supersession refusal now appends `ApprovalRefused` with `guard: "supersession_v1"` on `desk_request` / `desk_run` aggregates (lands with the D22+D24 merge): add it to your refusal audit as a DISTINCT channel. And treat `supersession_readable: false` on a `DeskRequestApproved` payload as an approval taken while a control was down — that is the field to count when you next audit the fail-open. Disclosed knock-on to check: `_refuse_if_superseded` is a new producer of `ApprovalRefused`, and `mode._controls_have_fired` (prod precondition 1) is satisfied by that event type appearing at all.
+
+## 2026-08-23 — RUN-RECORD PROTOCOL v1 (chair, from run-builder-d24; the seat-protocol companion to desk routing v1)
+
+Every recommendation in your output MUST carry all four routing fields, stated, never left to inference: `next_actor` (who moves next: ceo / chair / a named seat), `due_date` (ISO date or null), `reversibility` (reversible / hard-to-reverse / irreversible), `money_at_stake` (number or null). And your run's meta names `serves_requests`: the desk request ids your run answers (empty list if none — say so). `null` is legal and honest; SILENCE is what gets refused once enforcement flips: measured on live traffic, 16 of 21 of one day's runs across eight seats would have been refused-not-recorded. Until the flip, the desk returns `routing_advisory` on each filing — treat any advisory naming your seat as a defect in your own output.

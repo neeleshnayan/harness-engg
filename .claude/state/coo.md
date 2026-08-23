@@ -462,3 +462,7 @@ Two new CEO threshold decisions join the batch (both with measurements attached,
 ## 2026-08-23 - CARRIED FROM GRACE (run-cfo-7) BY THE CHAIR
 
 (1) STRIKE the second clause of the law you adopted from her: 'the dispatch queue IS the attention allocator' is refuted (37 approved rows, zero drained on a 15-dispatch day) - the false-green half stands; the LIVE THREAD is the allocator and the queue needs a scheduled read. (2) RE-RANK YOUR 6(c) UPWARD: you downgraded retro effective-spread citing her P1 finding, and her arithmetic says P5 lands at 19/20 Monday - 6(c) is the last item that can move a scoreboard row this week, Monday-blocking, on the CEO's desk.
+
+## 2026-08-23 — RUN-RECORD PROTOCOL v1 (chair, from run-builder-d24; the seat-protocol companion to desk routing v1)
+
+Every recommendation in your output MUST carry all four routing fields, stated, never left to inference: `next_actor` (who moves next: ceo / chair / a named seat), `due_date` (ISO date or null), `reversibility` (reversible / hard-to-reverse / irreversible), `money_at_stake` (number or null). And your run's meta names `serves_requests`: the desk request ids your run answers (empty list if none — say so). `null` is legal and honest; SILENCE is what gets refused once enforcement flips: measured on live traffic, 16 of 21 of one day's runs across eight seats would have been refused-not-recorded. Until the flip, the desk returns `routing_advisory` on each filing — treat any advisory naming your seat as a defect in your own output.

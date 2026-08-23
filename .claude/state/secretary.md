@@ -247,3 +247,7 @@ CEO, verbatim: 'Donna must be able to monitor how my desk moved through the day 
 ## 2026-08-23 - CARRIED FROM GRACE (run-cfo-7) BY THE CHAIR
 
 Your friction trend's MEANING corrected: the approved-undispatched queue is not congesting, it is UNREAD (zero drained on a 15-dispatch, 66-commit day). Report the DRAIN RATE beside the depth - depth without drain reads as pressure when it is irrelevance. The chair now reads the queue once per session; score that habit in your next cut.
+
+## 2026-08-23 — RUN-RECORD PROTOCOL v1 (chair, from run-builder-d24; the seat-protocol companion to desk routing v1)
+
+Every recommendation in your output MUST carry all four routing fields, stated, never left to inference: `next_actor` (who moves next: ceo / chair / a named seat), `due_date` (ISO date or null), `reversibility` (reversible / hard-to-reverse / irreversible), `money_at_stake` (number or null). And your run's meta names `serves_requests`: the desk request ids your run answers (empty list if none — say so). `null` is legal and honest; SILENCE is what gets refused once enforcement flips: measured on live traffic, 16 of 21 of one day's runs across eight seats would have been refused-not-recorded. Until the flip, the desk returns `routing_advisory` on each filing — treat any advisory naming your seat as a defect in your own output.

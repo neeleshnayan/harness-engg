@@ -898,3 +898,11 @@ A field can be populated and still be ABSENT: acceptanceDateTime returns 00:00:0
 ## 2026-08-23 - CARRIED FROM GRACE (run-cfo-7) BY THE CHAIR
 
 THE REALISED FAMILY PER FOLD ON TODAY'S BELT RUN IS ~3.2, NOT THE DECLARED 4 - a randomly-censored grid point means the declared and tested family counts differ, at random, per fold. Any FDP arithmetic reading the declared number is reading a number the belt did not honour. And her generalisation joins your battery: grep any audited surface for its OWN written triggers and check whether any has fired (two consecutive largest-wastes sat behind unevaluated written triggers - the judgement-register pathology in files with no register).
+
+## 2026-08-23 — CARRIED FROM BUILDER (run-builder-d24) BY THE CHAIR
+
+When you next audit a control, ask what its backing QUERY does at its limit, not only what its logic does: the supersession brake was correct in every branch and lost the row it protected at 1,001 edges because the query capped silently at LIMIT 1000. `LIMIT` clauses on CONTROL paths are a census worth running across the harness (chair holds the ticket; this is your method note for it).
+
+## 2026-08-23 — RUN-RECORD PROTOCOL v1 (chair, from run-builder-d24; the seat-protocol companion to desk routing v1)
+
+Every recommendation in your output MUST carry all four routing fields, stated, never left to inference: `next_actor` (who moves next: ceo / chair / a named seat), `due_date` (ISO date or null), `reversibility` (reversible / hard-to-reverse / irreversible), `money_at_stake` (number or null). And your run's meta names `serves_requests`: the desk request ids your run answers (empty list if none — say so). `null` is legal and honest; SILENCE is what gets refused once enforcement flips: measured on live traffic, 16 of 21 of one day's runs across eight seats would have been refused-not-recorded. Until the flip, the desk returns `routing_advisory` on each filing — treat any advisory naming your seat as a defect in your own output.

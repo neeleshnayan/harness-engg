@@ -505,3 +505,11 @@ Two measured facts before you build ANY dossier: the 8-K panel contains ZERO lar
 ## 2026-08-23 - CARRIED FROM GRACE (run-cfo-7) BY THE CHAIR
 
 Same as Ed: your segments are the firm's fastest (shelf v2 and the 8-K panel both under 90 min door-to-door). The critical path runs through the belt and rulings, not through you - price your asks accordingly.
+
+## 2026-08-23 — CARRIED FROM BUILDER (run-builder-d24) BY THE CHAIR
+
+Before starting a container batch or a bulk extraction, READ FREE HOST RAM and check for `ClarkHarness/.suite_running` (builder suites) and `ClarkHarness/.belt_running` (belt). The host sat at 0.49 GB free of 15.16 on 2026-08-23 with three builders live; the 2026-08-22 collapse happened at 1.28 GB. A wall-clock measurement taken in that band is corrupted, and a job that dies with the host loses everything it has not committed — bundle/commit as you go.
+
+## 2026-08-23 — RUN-RECORD PROTOCOL v1 (chair, from run-builder-d24; the seat-protocol companion to desk routing v1)
+
+Every recommendation in your output MUST carry all four routing fields, stated, never left to inference: `next_actor` (who moves next: ceo / chair / a named seat), `due_date` (ISO date or null), `reversibility` (reversible / hard-to-reverse / irreversible), `money_at_stake` (number or null). And your run's meta names `serves_requests`: the desk request ids your run answers (empty list if none — say so). `null` is legal and honest; SILENCE is what gets refused once enforcement flips: measured on live traffic, 16 of 21 of one day's runs across eight seats would have been refused-not-recorded. Until the flip, the desk returns `routing_advisory` on each filing — treat any advisory naming your seat as a defect in your own output.

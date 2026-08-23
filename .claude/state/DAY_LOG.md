@@ -92,6 +92,24 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   account) starts Monday.
 
 **BUILT**
+- **BUILDER D24 delivered and chair-reviewed — all six D22-kill repairs
+  shipped, probe-verified with the adversary's own instruments re-run
+  byte-unchanged** (branch `builder/d24-desk-repairs` inside the D22
+  worktree, bundle `d22-d24-clarkharness.bundle` head `3ac7275` base
+  `9e2df81`, D22+D24 merge whole; suite 2088→2125 +37 exactly, mutation
+  27/27, fitness +1080/−61). Routing v1 ships DARK behind
+  `DESK_ROUTING_ENFORCE=False`; the chair landed the seat-protocol
+  companion same-pass (run-record protocol v1 broadcast to all ten filing
+  seats), so the flip is now one dated line after merge + one dogfood
+  filing. Run `run-builder-d24`, 6 recs (unguarded supersessions POST
+  stays the CEO's; a TIGHTENING challenge on the four-builder cap).
+  **Awaiting the adversary re-blind — held until a heavy slot frees.**
+- **HOST AT THE WALL, acted on**: free RAM 0.49→0.72 GB (builder-measured),
+  1.09 GB (chair re-measured) vs the 1.28 GB 2026-08-22 collapse line, with
+  three builders + the belt live. All three in-flight builders messaged:
+  commit WIP now, `.suite_running` lockfile at ClarkHarness root mandatory
+  before any full suite, no suite under 1.5 GB free (report it OWED).
+  D24 declined its own second suite at 0.72 GB — the right trade.
 - **BUILDER D19 delivered, routed to the adversary blind — NOT merged**
   (`builder/d19-benchmark-gate` off `536b427`, tip `18a3d67`, +1739/−39,
   suite 1939 passed, mutation 25/25). The benchmark is now LABELLED, not
