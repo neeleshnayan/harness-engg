@@ -57,6 +57,19 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
   do not enter a blind envelope.
 
 **BUILT**
+- **Adversary batch 4 returned and resolved (~06:2xZ): KILL / SURVIVES /
+  KILL(remedy) / KILL(as filed).** Precondition pack v1 killed on the P4
+  leg (a static check for a runtime fact passes on code that never runs —
+  7-shape probe; judgement._wired already answers it correctly); pack v2
+  re-specced per the adversary's own conditions and back in the blind
+  queue. PDT retirement SURVIVES on verified regulatory facts — AB4-2 on
+  the CEO's desk, his click. COO filing remedy re-killed on a fresh sample
+  (29% false-approval rate, reproducing 27%). Cash-carry credit killed as
+  repair-only: zero-skill cash mixes flip to 6-of-6 passing at 700d,
+  Dirichlet false-pass +14pp — clearance conditions (credit-series pin +
+  paired margin table) folded into D36's brief MID-FLIGHT by SendMessage.
+  Verdict doc: docs/reviews/ADVERSARY_BATCH4_2026-08-24.md. All four desk
+  items dispositioned; adversary EVOLVE (re-review check) applied.
 - **The adversary blind backlog CLEARED in one batch**: the batch-by-seat
   drain found FOUR approved undispatched blind reviews — a26debb9 (G5-2
   precondition evaluators), b6f4a407 (PDT retirement), 1c53589f (COO filing

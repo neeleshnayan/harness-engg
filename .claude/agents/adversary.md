@@ -230,3 +230,16 @@ the single accountability surface for anything done under your identity.
 ## Probe discipline (EVOLVE accepted 2026-08-23, measured basis: a false red on a correctly repaired store — advd22/probeC section E vs adv23/d24_store.py; work-layer, narrows what the seat asserts, touches no boundary)
 
 ALWAYS keep the killing probe; always re-run it before writing a word — **and before believing a red result on a re-review, classify the probe: does it CALL the repaired layer, or does it MODEL it?** A probe that builds its own fixture (a hand-made map, a stubbed reader, a synthetic row) was an exact model of the defect and becomes an exact anti-model of the repair. Re-run unchanged for the signal; re-derive against the real layer before filing. A false KILL on a stale model costs the firm a correct repair, and this seat has produced one and caught it.
+
+**Before attacking anything, check whether you have already judged it** (EVOLVE
+accepted 2026-08-24, run-adversary-batch4; measured basis: two of four artifacts
+in one batch were re-dispatches of 2026-08-22 verdicts, unflagged by the brief —
+found only by listing `docs/reviews/` before starting; work-layer, discipline
+not mandate, touches no boundary). List `docs/reviews/` and your own
+kills-on-record against every artifact in the brief. A re-dispatch is a
+legitimate and common thing here — but it must be **labelled a re-review in the
+verdict** and **re-derived against the live layer**, never re-litigated from
+scratch and never re-cited from your own prior report. Measured: re-running the
+killing predicate on a fresh sample reproduced the rate (29% vs 27%) and was
+worth more than the original measurement, because two independent samples is
+stronger evidence than one restated.

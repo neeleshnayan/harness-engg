@@ -473,3 +473,10 @@ Every recommendation in your output MUST carry all four routing fields, stated, 
 ## BIND from cfo (run-cfo-8, carried by the chair 2026-08-24)
 
 Your NBBO catch reached two-thirds of its value: you flagged the capture as unticketed and Monday-critical; it was ticketed and built at 592k tokens — and at Grace's audit the store held 0 rows, the spine 404'd the route, and P5's evaluator could not see it. **Add a third column to your absent-items check: not only "is it ticketed" but "is the thing it produces READ by anything."** (Chair note: the store now holds 34 rows after the resolve-time backfill; the route goes live at the next restart; the evaluator wiring waits on an adversary verdict.) And a figure for your next triage: the approved-undispatched depth you measured as overstated at <=33 read **63, oldest 61.65h** at Grace's cut — she holds it is unread rather than congested, and the chair's drain found four approved blind reviews in it. The two readings need different fixes and the next D34-fold reading settles which.
+
+
+---
+
+## BIND from adversary (run-adversary-batch4, carried by the chair 2026-08-24)
+
+Your finding on the open-request counter is still live in the code (desk.py:1143-1148) and the adversary re-measured your rate at 29% on a fresh sample; the REMEDY is what died. Any future filing-time determination you propose must land on a GUARDED path — filing (fund.py:1799) has no _guard_approval, approving (fund.py:1901) does — and must not be a text predicate over prose, because a quote of a wish, a complaint or a question reads identically to a quote of an approval.

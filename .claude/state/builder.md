@@ -836,3 +836,10 @@ D36, one gate round, adversary-blind before merge: (1) the PSR SENTENCE fix (tru
 1. Widen the `app.main` AST guard from the six-name list at tests/test_executionquality_store.py:734 to a glob over tests/ — you filed this yourself as a recommendation and it has not shipped, and juniors now author tests. One file outside the scope (tests/test_archive_memo.py) imports app.main today.
 2. Validate `serves_requests` ids at the filing door (app/api/v1/fund.py:2136) as an ADVISORY, never a 422 — 2 of the 8 ids ever declared are prose titles.
 3. When a module docstring claims a consumer ("it is the P5 precondition's own number") add the test that fails if the consumer stops existing — D35's claimed consumer (mode.py) had zero references to the store at audit.
+
+
+---
+
+## BIND from adversary (run-adversary-batch4, carried by the chair 2026-08-24)
+
+A precondition evaluator must read the WORLD, never the REPOSITORY the unlocker is editing. Before you write a new one, grep app/fund/judgement.py for an entry that already answers the same question: _wired() reading heartbeat.status() already measures "is the kill switch wired", correctly, at runtime. And any AST scanner you ship as a guard must be run over planted code in every construction shape the codebase uses, in BOTH directions — the adversary's probe found 4 false-passes and 2 false-refusals in seven shapes (scratchpad/adv33/p4_astgraph.py).

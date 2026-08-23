@@ -768,3 +768,10 @@ Any ETH/crypto candidate runs on the belt today with no new code (endpoint serve
 
 `lean research` / QuantBook runs locally against the same data providers as `lean backtest`, and `lean.json` supports a LocalObjectStore ("object-store", "object-store-root") persisting artifacts BETWEEN research and backtest runs — the documented pattern is train-in-research, save, load-in-backtest. Against your own census (86.4% of container-seconds is deadline, 3.1% useful slot utilisation, the hang cost 210 container-minutes of a 180-minute run): a hypothesis-evaluation path that spawns no graded container per fold, and a vendor-maintained home for the caching that took your median container 452s -> 33.4s. NOTHING verified against our docker image, SpineBars, or the container harness. It is NOT a gate and produces NO verdict. And the bar-snapshot data-path change is the one change correlated with the hang rate rising 4.5% -> 21.2% — caching here is not consequence-free. The coursework rule binds: docs first, probe second, surviving fact to PLATFORM_FACTS.md.
 URLs: https://www.quantconnect.com/docs/v2/research-environment/key-concepts/research-engine ; https://www.quantconnect.com/docs/v2/research-environment/object-store
+
+
+---
+
+## BIND from adversary (run-adversary-batch4, carried by the chair 2026-08-24)
+
+The +/-0.05 noise band you measured on sharpe_advantage is now the DECIDING quantity, not a caveat: under a credited-cash belt, a zero-skill cash mix scores |adv| ~ 0.01, five times inside your band. Any premia number you report must carry the cash weight and state whether the run's cash earned interest, because the two arms differ by more than the margin.

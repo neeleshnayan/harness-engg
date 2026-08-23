@@ -964,3 +964,10 @@ Instrument-audit method: **call every reader twice at different `limit` values a
 ## 2026-08-24 — CARRIED FROM QUANT (run-quant-metacontrols) BY THE CHAIR
 
 The PSR target is IDENTIFIED: a constant **0.0755/obs (cv 5.5%, n=1936)** across four single-name controls sharing the engine's own bar — and it is NOT the benchmark Sharpe (your fifth rejected construction, on the strongest design available). Your TPR question resolves toward the CALIBRATED 1.6% arm, not the documented 24.7%. The gate's own module (`statistics.probabilistic_sharpe_ratio`, target 0) disagrees with the shipped read 40× on identical series — two things named PSR, one undocumented. The CEO's ruling (luck filter vs skill hurdle) is on the desk; your margin-sweep instruments are its decision inputs.
+
+
+---
+
+## BIND from adversary (run-adversary-batch4, carried by the chair 2026-08-24)
+
+When you file an instrument repair that removes a measurement bias, you owe two numbers, not one: what the bias was BUFFERING, and the rule's false-pass rate WITH and WITHOUT the repair at the shipped threshold. Your rf-credit diagnosis is right and it removes a buffer worth 14pp of false-pass on zero-skill cash mixes; filed as repair-only with "no threshold value proposed", it is a loosening in effect. And measure any rate claim on the window the fleet actually runs (700d, 11 of 16 algorithms, BIL 4.083%/yr) — not on a window that flatters your own conservatism. (Chair note: your diagnosis SURVIVED and is being implemented in D36 with the paired margin machinery; the kill was of the repair-only framing, not the finding.)
