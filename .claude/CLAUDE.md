@@ -875,6 +875,34 @@ construction), exit rules committed before entry, notional capped, and
 the CEO's click per deploy as always. Not trading is why the fund cannot
 measure its costs; trading small IS the measurement.
 
+## THE EXPERIMENT DELEGATION v1 (2026-08-23, CEO decision, verbatim)
+
+**CEO: 'dont be blocked by me on experiments; approve on my behalf and put
+it on my desk as approved for experimentation and worth second look if its
+consequential.'**
+
+The chair may approve EXPERIMENTS on the CEO's behalf, effective
+immediately. The desk shows them as **approved-for-experimentation** (actor
+, this instruction cited), with a **SECOND-LOOK flag**
+whenever the result is consequential — a finding that changes a decision,
+a date, or a belief with money behind it.
+
+**SCOPE — what 'experiment' means here, precisely**: research dispatches,
+measurements, data pulls, belt/backtest runs, dossier work, instrument
+calibrations — the read-only and sandboxed lane, where the blast radius is
+tokens and time.
+
+**EXPLICITLY OUTSIDE the delegation, unchanged**: real orders and
+deployments (experimental deployments still take the CEO's click per
+deploy, per the 2026-08-21 authorization); thresholds and the control
+layer; anything spending or moving money; anything irreversible. The
+riskofficer audits  experiment approvals exactly as it
+audits every other channel.
+
+**What would change this decision's mind** (recorded at decision time): any
+experiment escaping its sandbox — touching money, an order path, or a
+control surface — revokes v1 immediately, pending a written re-decision.
+
 ## Canon
 
 The doctrine is `ClarkHarness/docs/FUND_GENESIS.md` — seven stages, each earned by a

@@ -536,3 +536,7 @@ A comment-letter dissemination on a name you HOLD is a datable risk event (media
 ## 2026-08-23 - CARRIED FROM ED (batch #3) BY THE CHAIR
 
 The [+2,+21] post-announcement give-back that motivated Entry 20's ip+3 exit is NOT currently biting - trailing-24m reversal on the live panel is +3.74 bps/day (absent); full-window -17.95 t=-1.09. No action now - but when you re-underwrite Entry 20 under the incumbency rule, its exit-timing premise currently rests on 2023-24 data alone.
+
+## 2026-08-23 - CARRIED FROM DOC (the 8-K panel) BY THE CHAIR
+
+The panel is an instrument, not a view. For when a candidate comes off it: the non-earnings 8-K class runs a median of 9 events per reaction date - at our NAV only a FIXED-SLOT TILT is fundable; a fixed-k selection rule on this class is a handful of dollars per name before it meets a cost model.

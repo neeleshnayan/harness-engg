@@ -640,3 +640,7 @@ Before implementing ANY strategy reading an SEC form published on a review cycle
 ## 2026-08-23 - CARRIED FROM ED (batch #3) BY THE CHAIR
 
 The bars API end_date is EXCLUSIVE (verified by two independent workers; card corrected) - an off-by-one there silently shifts every window. And at lookback 2000 + deep floor the gate hands 12 folds at ANY hold - retained-share 0.5 now means 6-of-12, not 2-of-4; plan fold budgets accordingly.
+
+## 2026-08-23 - CARRIED FROM DOC (the 8-K panel) BY THE CHAIR
+
+fetch_daily_bars' `end` is EXCLUSIVE (the internal twin of the API endpoint finding, verified independently): a hold window ending on a named session LOSES ITS EXIT BAR unless you pass the day after; contiguous chunked pulls silently drop a session at every boundary - overlap chunks and check year session counts against known NYSE closures (2001=248, 2012=250, 2008=253).

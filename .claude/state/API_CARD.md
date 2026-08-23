@@ -119,3 +119,4 @@ Base URL: `http://127.0.0.1:8090/api/v1`
    series is true daily. Check bar spacing before trusting depth.
 
 - **CORRECTION 2026-08-23 (Ed batch #3, two-worker verification): `GET /fund/marketdata/bars` `end_date` is EXCLUSIVE** - request 2026-08-21 to receive bars through 2026-08-20. Any prior note implying inclusive is wrong. Also: BIL's last bar lags one session; statsmodels is absent from the venv.
+- **ADDENDUM (Doc, 8-K panel run): the INTERNAL `fetch_daily_bars` `end` is also EXCLUSIVE** (verified: end=2010-12-31 returns last bar 2010-12-30). Chunked pulls must overlap windows; verify year session counts against known NYSE closures (2001=248, 2012=250, 2008=253).

@@ -881,3 +881,7 @@ The gate's calibration instrument was measuring a gate the fund does not run (nu
 ## 2026-08-23 - CARRIED FROM DOC (shelf v2) BY THE CHAIR
 
 Two instruments for your battery: (1) THE UNREACHABLE-BAR AUDIT - for every pre-registered revival/kill condition in the record, compute the SE the stated design delivers and report which conditions could not be met at any effect size the artifact itself claims (E21's failed this; it was written by the rigour seat). (2) THE KNOWN-LOOK-AHEAD CALIBRATION - the comment-letter event set now exists on the correct date AND a date a median 57 days early; running any design on both directly measures how much a known look-ahead inflates a t-stat on our universe - a number the whole event-study battery assumes rather than knows.
+
+## 2026-08-23 - CARRIED FROM DOC (the 8-K panel) BY THE CHAIR
+
+A field can be populated and still be ABSENT: acceptanceDateTime returns 00:00:00 for 2,499 pre-2003 EDGAR filings; naive reading grants a full trading day of look-ahead. SECOND instance this week of absence wearing a value's clothes (first: UPLOAD filingDate as authoring date). **Battery addition: when auditing any dated instrument, histogram the TIME component by year, not just the null rate.**

@@ -123,6 +123,24 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   is fired and discharged by this work — the register cannot record
   either; recorded here, and the evaluability ticket (a26debb9 family)
   remains the owner.
+- **THE EXPERIMENT DELEGATION v1 (CEO, verbatim: 'dont be blocked by me
+  on experiments; approve on my behalf...')**: the chair approves
+  EXPERIMENTS (research/measurement/data/belt lane - blast radius is
+  tokens and time) as neelesh-via-cto, desk shows
+  approved-for-experimentation, SECOND-LOOK flag on consequential
+  results. Outside the grant, unchanged: orders/deploys (click per
+  deploy stands), thresholds, control layer, money. Riskofficer audits
+  the channel. Revocation trigger: any experiment escaping its sandbox.
+  Constitution amended (dated section). First acts under it: the deep
+  price pull (367 tickers, running) and the day's standing experiment
+  flow.
+- **8-K PANEL RESOLVED + THE DEEP PRICE PULL RUNNING** (Doc delivered
+  6.4x the ask - 79,559 events to 1994, look-ahead-free sessions, 36/36
+  validated; three design-changing facts: two disjoint universes, 24
+  FPI never-filers in the baseline, the 2016 disclosure-regime break;
+  the midnight-placeholder trap self-caught). Panel COMMITTED; six
+  binding constraints carried to Ed; Doc rolled directly into THE META
+  DOSSIER v1.
 - **THE MACHINERY'S POSITIVE CONTROL commissioned (CEO: 'if our
   machinery fails to produce decent strategies then its the machinery
   that needs tuning... no strategy will survive a machinery that kills
