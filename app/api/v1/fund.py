@@ -1407,6 +1407,12 @@ class CandidateRequest(BaseModel):
     #: Observations that prompted this hypothesis. Recorded now because the
     #: link exists only at the moment someone decides to test something.
     observation_ids: Optional[List[str]] = None
+    #: WHICH BAR: `alpha` (beats the benchmark after costs) or `premia` (better
+    #: risk-adjusted return than holding the asset). Optional and defaulting to
+    #: `alpha`, so every existing submitter is unchanged. Without this the
+    #: premia bar would exist and have no way to be asked for — a criterion
+    #: nothing can select is the unwired-control shape.
+    claim_type: Optional[str] = None
 
 
 @router.post("/fund/factory/candidates")
@@ -1423,7 +1429,8 @@ def factory_submit(req: CandidateRequest):
         raise HTTPException(status_code=503, detail="the factory needs FUND_STORE=postgres")
     from app.fund.leanrunner import LeanError
     try:
-        return f.submit(req.algorithm, req.grid, req.holdout, req.observation_ids)
+        return f.submit(req.algorithm, req.grid, req.holdout,
+                        req.observation_ids, req.claim_type)
     except LeanError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
