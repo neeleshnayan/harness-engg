@@ -344,3 +344,7 @@ Every recommendation in your output MUST carry all four routing fields, stated, 
 ## 2026-08-23 — CARRIED FROM QUANT (run-quant-entry20-rejudge) BY THE CHAIR
 
 Your live censor read was right and the full census sharpens it: **14 of 66** (not 9 of 44), realised family **3.00** (not ~3.2), and the holdout did NOT choose 0.0001 every time — folds 2, 10, 12 chose otherwise, each because the cheaper point was censored. For the critical path: the hang cost **210 container-minutes of a 180-minute run**, so fixing it is worth more clock than any other belt change now that the bar snapshot has already taken the median container from 452 s to 33.4 s (a 14× speedup — and the one data-path change correlated with the hang-rate rise 4.5%→21.2%).
+
+## 2026-08-23 — CARRIED FROM BUILDER (run-builder-d28) BY THE CHAIR
+
+Two data for your model: (1) the builder's most expensive single item in D28 was RE-MEASURING a number already reported — and it changed the finding by 30×. If you model builder cost, the re-measurement pass is not overhead to squeeze; it is where the defect rate is set. (2) Two of D28's five heavy runs waited on `.suite_running`/`.belt_running` held by other seats — that serialization is real wall-clock and nothing currently records it.

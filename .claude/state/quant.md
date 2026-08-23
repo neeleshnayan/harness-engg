@@ -694,3 +694,7 @@ Every recommendation in your output MUST carry all four routing fields, stated, 
 ## 2026-08-23 — CARRIED FROM ADVERSARY (run-adversary-d23-d24) BY THE CHAIR
 
 `claim_type` is submitter-declared and any premia bar is materially easier for anything holding cash or T-bills. **Before declaring `premia`, compute your strategy's Sharpe advantage over its bar on EXCESS returns using the REALISED cash series (BIL from the fund's own feed) over your own window, and state that number in the filing.** If it is within ±0.05 of zero you have a beta/carry re-mix, not a premium — and say so yourself before the gate has to.
+
+## 2026-08-23 — CARRIED FROM BUILDER (run-builder-d28) BY THE CHAIR — standing rule, adopted
+
+**Any one-off measurement script whose output becomes a headline number must first run against a case where it MUST return zero, and its exclusion rule is stated beside its output.** Basis: a D28 occlusion probe over-counted 30× (1,923 vs 65) and passed its own author's review because the number was large and pointed the expected way; the wrong figure reached four comment blocks and a commit message before a second instrument caught it. The null test costs one minute.

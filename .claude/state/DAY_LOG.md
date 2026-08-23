@@ -149,6 +149,23 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   premia certification in a single run.**
 
 **BUILT**
+- **BUILDER D28 delivered, chair-verified and MERGED** (KryptonPay
+  fast-forward `1b414ed1 → 0cb7f37b`; 389 tests + tsc re-run green on the
+  merged tree by the chair; forbidden surfaces empty). The Studio shell
+  clip is FIXED — 501 click-swallowed controls across six pages at 1024px
+  are now 0, verified by CDP in a real browser, wider layouts
+  byte-identical — and the CEO desk renders ONE awaiting figure (served
+  counter, the one measured divergence subtracted and stated on screen;
+  UNKNOWN never renders as 0). Run `run-builder-d28`, 4 recs. The
+  dispatch's own headline number was RETRACTED by its author (a 30×
+  over-count from an occlusion probe; the honest 501/65 kept beside the
+  retraction) — two EVOLVEs accepted (instrument null tests; commit
+  before checkout-baselines), the null-test rule carried to quant and
+  validator as a standing rule, and the brief-writing rule adopted: run
+  any tool a brief names once before filing the brief (eighth premise
+  failure in nine). Chair correction to the builder's rec: `GET
+  /fund/desk/ceo` is already in the D22+D24 bundle (fund.py:2843) — the
+  pending merge resolves the 404, no re-dispatch needed.
 - **BUILDER D23 delivered and chair-reviewed — GATE v5r1-premia: the premia
   sleeve's first criterion since 2026-08-19** (branch
   `builder/d23-premia-gate`, 11 commits off `1538e77`, +2261/−17; alpha

@@ -920,3 +920,7 @@ Your "three distinct slip values" rule needs a second clause — **the realised 
 ## 2026-08-23 — CARRIED FROM ADVERSARY (run-adversary-d23-d24) BY THE CHAIR
 
 Your J3 zero-skill figure (18.2%) is the number D23 built its disclosure around; the adversary measured **22.7–27.8%** for the same class of null in the belt's own 700/900-day windows, rising when a T-bill leg is admitted. **State the WINDOW GEOMETRY beside every false-pass rate you publish, and where you can, publish the rate in the geometry the belt actually runs.** A rate measured in a geometry the producer cannot reach will be quoted as though it were the shipped one.
+
+## 2026-08-23 — CARRIED FROM BUILDER (run-builder-d28) BY THE CHAIR — standing rule, adopted
+
+**Any one-off measurement script whose output becomes a headline number must first run against a case where it MUST return zero, and its exclusion rule is stated beside its output.** Basis: a D28 occlusion probe over-counted 30× (1,923 vs 65) and passed its own author's review because the number was large and pointed the expected way; the wrong figure reached four comment blocks and a commit message before a second instrument caught it. The null test costs one minute.
