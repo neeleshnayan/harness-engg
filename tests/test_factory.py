@@ -473,3 +473,18 @@ def test_the_belt_plans_the_fold_count_the_gate_will_require(lookback, monkeypat
         "the belt shipped a plan too small for the bar it will be judged by")
     assert runner.sweeps_requested == len(planned), (
         "the belt did not actually run the folds it planned")
+
+    # FOLDS THE CONTAINERS CANNOT FULLY FEED, counted rather than discovered
+    # later. Recomputed here from the payload's own evidence so the field
+    # cannot pass by being a constant: a reader of a starved verdict must be
+    # able to tell "the strategy had nothing to say" from "we asked the engine
+    # a question its data path could not answer".
+    reach = out["history_floor"]["data_path"]
+    expected = len([f for f in planned if f["train_start"] < reach])
+    assert out["folds_before_data_path_reach"] == expected
+    if lookback == 700:
+        # The live reading, and it was true BEFORE this change with nothing
+        # saying so: half the plan begins before a 700-day container's reach.
+        assert expected == 2, planned
+    else:
+        assert expected == 0, "a 2000-day container should feed its own window"
