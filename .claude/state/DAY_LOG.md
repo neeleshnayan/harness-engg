@@ -173,6 +173,24 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   DELEGATION v1 (run-quant-entry20-rejudge recs 1–2), second-look flagged.
 
 **MEASURED**
+- **THE VENDOR PROBES RAN LIVE WITH CEO-CREATED KEYS (~17:0xZ) AND THE
+  HEAD-TO-HEAD IS DECIDED: TIINGO WORKS, FMP FREE DOES NOT.** Tiingo:
+  probe 1 (the recycled-ticker decider) FAILED as Doc predicted it might —
+  APC/EMC return empty (the API keys to the CURRENT instrument) — but
+  probe 3 PASSED beautifully (CELG: 38 bars ending 2019-11-22 at 108.24, a
+  name Yahoo 404s; TWX metadata exact 1992→2018-06-15), and probe 5
+  exposed a SILENT-EMPTY-200 absence mode (never read empty as none-
+  existed). Net: non-recycled dead names serve real terminal history →
+  **the 125-name USABLE backfill is RUNNING detached** (74s throttle,
+  <50/hr, checkpointed, empty-200 recorded UNKNOWN; output
+  data/research/delisted_tiingo/; ~2.6h; monitor armed). FMP: v3 API is
+  legacy-gated for new accounts; the stable API returns 402 PREMIUM on
+  every probe name'''s prices — delisted price history is paywalled on
+  free; only the delisted-companies LIST works. One useful FMP crumb: its
+  free profile endpoint exposes ipoDate (APC→ARKO 2026-02-12, EMC→the
+  ETF) — a free cross-check input for the feed-identity guard ticket.
+  Keys live only in scratchpad env vars, never committed.
+
 - **DOC'S FREE-DATA VERDICT (run-analyst-pituniverse, memo filed +
   chair-verified line claims): PIT membership is free and good; free
   delisted prices effectively do not exist — and OUR OWN FEED SERVES THE
