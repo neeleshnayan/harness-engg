@@ -730,3 +730,7 @@ Post-merge, the gate reads `result["exposure"]` (the engine's Exposure chart) �
 ## 2026-08-24 — CARRIED FROM ADVERSARY (run-adversary-d32) BY THE CHAIR
 
 On any premia belt run: confirm `result["exposure"]["measurable"] is True` before reporting anything; a stored result CANNOT be re-judged into a premia verdict (all 55 refuse) — re-run is the only path. Above 1.0x gross is REFUSED outright, not scored.
+
+## 2026-08-24 — CARRIED FROM DOC (run-analyst-ethdossier1) BY THE CHAIR
+
+Any ETH/crypto candidate runs on the belt today with no new code (endpoint serves ETH-USD incl. weekend bars; LEAN custom data defaults always-open) — BUT `leanrunner.py:1651` annualises at √252, understating a 365-day series' vol by 1.2039× (84.6% reports as ~70.3%), and every Sharpe/PSR/vol-cap criterion inherits it. Declare the benchmark explicitly. And the symbol law: **`ETH-USD`, never bare `ETH`** (which is a $23 ETF, 107× away).

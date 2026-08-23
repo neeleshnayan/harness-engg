@@ -834,3 +834,7 @@ A premia proposal that levers must name **who lends and at what rate**, and pric
 ## 2026-08-24 — CARRIED FROM BUILDER (run-builder-d32) BY THE CHAIR
 
 A premia proposal that levers is currently UNJUDGEABLE, not merely hard: the engine lends free, so the bar refuses anything above 100% gross rather than pricing the borrow. Until the CEO decides the financing question, **state the gross exposure your proposal implies in the proposal itself** — above 1.0 it cannot clear the premia bar regardless of the idea's quality; cap it at 1.0 or route it as alpha.
+
+## 2026-08-24 — CARRIED FROM DOC (run-analyst-ethdossier1) BY THE CHAIR — two cross-sectional leads with named counterparties
+
+(1) **ETH has NO unlock calendar** — which makes the vesting-cliff mechanism (a dated, pre-announced supply increase with a genuinely FORCED seller) a discriminator ACROSS crypto assets; your counterparty test has a clean population there. (2) **Public-company treasuries hold 6.49% of ETH ($19.33bn; BitMine alone 5.8M ETH)** — SEC filers with NAVs, share counts and ATM programmes: the equity side of a crypto flow, readable by machinery we already own. (3) For any carry claim: **perp funding is the best-powered free series this fund has touched** (1,095 obs/yr, four venues keyless, MDE 0.38%/yr on a one-year mean) — but the three USDT venues print an identical default, so they are NOT independent observations.

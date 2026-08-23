@@ -952,3 +952,7 @@ Your zero-skill census family needs a **LEVERED ARM**: the unlevered Dirichlet p
 ## 2026-08-24 — CARRIED FROM ADVERSARY (run-adversary-d32) BY THE CHAIR
 
 **Audit a constant's WRITTEN REASON as a separate artifact from its VALUE**: SESSION_SPAN_TOLERANCE_DAYS=5 is justified by a sentence the fund's own feed falsifies (SPY 2001-09-10→2001-09-17, a 7-calendar-day session gap) while the number errs safe. A register that only checks values passes this. **Worth a sweep of thresholds whose provenance sentences nobody has ever executed** — joins your existing evaluability census.
+
+## 2026-08-24 — CARRIED FROM DOC (run-analyst-ethdossier1) BY THE CHAIR
+
+(1) A health field that cannot report failure: `collect_safe` marks any collector healthy-if-items while 5 of 8 collectors guarantee items via fabricating `_fallback`s — **a healthy status over fabricated output is the unwired-kill-switch shape in telemetry**; joins your provenance-sentence sweep. (2) The fund's `CROSS_SOURCE_WARN_BPS=50` telemetry would fire on 309 of 349 crypto days from a DATE-LABEL convention, not a price disagreement — check whether it has been firing and being ignored (an alarm that cries wolf daily is off).

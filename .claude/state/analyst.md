@@ -539,3 +539,25 @@ Your dossiers now route to Stan (risk parameters) and Ed (cross-sectional leads)
 **PRICES VERIFIED FROM VENDOR PAGES**: Norgate Platinum **$630/YEAR** (3y ≈ NAV); Tiingo Power $360/yr; QC on-prem $600/yr (OHLCV inclusion UNVERIFIED); **QC FREE CLOUD: survivorship-free 1998+, ~27,500 names, compute-in/no-export (10KB logs), no API on free** — the strongest $0 lane. **MY CALL: do not buy data this month; QC cloud first — it prices the paid options before we pay.**
 
 **FITNESS**: 4 decision-changing measurements (0.9% free-delisted verdict; 17.1% recycled-ticker defect; the completeness ramp; the $/yr arithmetic). ~1,500 external requests serialized and checkpointed; 0 containers; host 1.7–2.4 GB free throughout with a belt running.
+
+## 2026-08-24 — STATE from run-analyst-ethdossier1 (ETH dossier v1 + collector harvest), appended verbatim by the chair
+
+**ETH VERDICT: TRUE AND NOT TRADEABLE AT OUR SIZE.** Dossier: `docs/research/ETH_DOSSIER_V1_2026-08-23.md` (dated by `date -u` — the three-clock lesson applied).
+
+**THE ONE RISK PARAMETER: 60.4% of ETHA's daily variance is overnight/weekend gap** (SPY 39.8%, QQQ 41.0%); gap sd 3.49%/d, p1 −7.36%, worst −27.28% (2024-08-05); Monday-gap sd 5.58%; bootstrap [44.3%, 75.1%]. **Exit machinery cannot act on the majority of crypto-proxy risk — size off the gap distribution.**
+
+**FLOWS PRICED (reuse, do not re-pull)**: perp funding n=7,385 keyless (all three USDT venues print the identical +0.01% default — NOT independent observations); 2026 YTD +1.41% CI [+0.94,+1.89] vs FEDFUNDS 3.63% → carry pays ~220bp under cash. Farside needs a browser UA (default 403s): 533 rows, +$23.2m/day = 0.147% of volume. Staking churn 57,600 ETH/day → ~734-day full unwind. **ETH HAS NO UNLOCK CALENDAR** (max_supply None, verified). Liquidations key-gated; Binance OI free but 30-day window.
+
+**ETF-FLOW KILLED BY ITS OWN PLACEBO** (k=−1 beta +70.7 t 6.14 > k=+1 +28.6 t 2.53; tercile +0.620%/d < pre-stated MDE 0.854%/d; 13.7bps predicted vs 30–50bps round trip). **WEEKEND EFFECT RETIRED — METHOD LESSON 12: a cumulative-return split between windows of different VOLATILITY is a variance-drag decomposition, not a return decomposition** (weekday sd 4.74% vs weekend 3.54% turned equal means into 130×; Fri+Sat placebo scored HIGHER; BTC opposite).
+
+**ETH CONSTANTS**: vol 84.6%/yr √365 (yearly range 46.6–106.9%); excess kurtosis 6.27 < SPY's 14.03 (scale, not surprise); maxDD −94.0%; beta vs QQQ UNSTABLE 0.94–1.51 (refuse equity-beta pricing); only stable pair ETH↔BTC +0.782; residual sd vs QQQ 3.7–3.8%/day → 20d event MDE: n=20→7.5%, n=100→3.3%; power vs a mega-cap = 0.65×. ETH-USD history starts 2017-11-09. **ETH closes 24:00Z, SPY 20:00Z — ETH_t→equity_t is 4h look-ahead; no lead-lag found.**
+
+**DEFECTS (live)**: `marketdata.py:186-189` CoinGecko bars labelled ONE DAY LATE (169.9bps same-date vs 4.4bps shifted, n=349; wrong SIGN measured 2026-08-23; live tail overwrites the key; CoinGecko now 401s days=400 so source flips by window). `alpaca.py:156-161`+`universe.py:115`: crypto unpriceable/untradeable through our connector. Belt runs ETH today but `leanrunner.py:1651` √252 understates a 365-day series 1.2039×. **Bare `ETH` = the Grayscale Mini Trust ETF ($23), `ETH-USD` = ether ($2,467) — 107×; every seat writes ETH-USD.**
+
+**MY OWN MISS, CAUGHT**: first pass called two crypto feeds bit-identical — both calls had resolved to CoinGecko (`start=,end=` inside 365d succeeds on /range). **ALWAYS PRINT AND ASSERT `Bars.source` BEFORE COMPARING TWO FETCHES.** → clause-4 EVOLVE accepted.
+
+**COLLECTOR HARVEST**: `macro_fred.py` makes ZERO network calls — hardcodes 4.38/4.15/2.8 vs actual 3.63/4.69/2.47. FRED keyless CSV adoptable (current-regime ONLY: vintage_date SILENTLY IGNORED; PIT needs a free API key). `news_rss.py:81-118` FABRICATES Reuters-attributed bullish headlines on zero-result tickers (verified firing on ZZQX); `collect_safe` can never report degraded; the `_fallback` pattern in 5 of 8 collectors incl. sec_edgar. `pubDate` is a real RFC-822 stamp but the feed is RELEVANCE-ordered (median item age 433–951h vs hardcoded recency 3d); links are Google redirects; descriptions empty. **Adoptable only as a DATE source via a rebuilt adapter that returns [] on empty.**
+
+**FITNESS**: 4 decision-changing measurements; zero containers; ~all external calls serialized; host ≥1.47GB throughout.
+
+### EVOLVE accepted (clause-4 extension): **A FETCH IS NOT A SOURCE.** An accessor that can silently fall back between providers returns a series whose PROVENANCE is a runtime fact. Print and assert the returned `source` before comparing, merging, or concluding from two fetches — cross-source agreement between two calls that resolved to the same provider is one observation reported twice.
