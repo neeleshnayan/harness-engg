@@ -675,3 +675,14 @@ the out-of-sample-era check that killed Entry 21). Read the amended section
 in your seat file before your next batch. The rest of the ‘Idea Garden’
 pitch (mutation engine on winners, autonomous daily librarian) was killed
 on the validator’s family-wise numbers and the no-cadence rule.
+
+## 2026-08-23 (Sunday) — SELF-FANOUT EXPERIMENT AUTHORIZED (CEO, carried by the chair)
+
+Self-fanout is your DEFAULT MODE for the experiment (CEO refinement:
+a marked flag would rebuild the bottleneck) — every dispatch, you fire
+your own workshop workers mid-run — spawn, read, redirect within one run. Read the new experiment
+block in your seat file before using it: caps unchanged (2R+1C+1G, depth 1,
+nothing writes lean_workspace/**), the FAN-OUT LEDGER is mandatory in your
+memo, and four falsifiers revert the privilege. Success = a measured
+mid-run catch that batch-shaped flow would have missed. The chair monitors
+every subtree at resolve.

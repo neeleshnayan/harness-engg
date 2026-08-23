@@ -76,6 +76,18 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   in the record. The drill set gets scheduled this week at $0 risk.
   Would change its mind: any drill-satisfied control later failing to
   fire on a real incident — that voids the drill's credit and reopens P1.
+- **THE SELF-FANOUT EXPERIMENT (CEO: "Lets try this experiment where ed
+  can self fanout; lets see how it goes and you monitor it"; refined:
+  "Next brief imo defeats the purpose of optimising the search and creates
+  bottleneck; we can have Ed as exception if the experiment survives").**
+  Self-fanout is Ed's DEFAULT MODE for the experiment — every dispatch, no
+  per-run marking. Ignition stays human (one key-turn authorizes a
+  subtree); caps and boundaries unchanged (2R+1C+1G, depth 1, nothing
+  writes lean_workspace/**); FAN-OUT LEDGER mandatory in every memo; four
+  falsifiers written at birth (boundary breach; attributable RAM collapse;
+  ~2× cost without proportional surviving-output gain; unreconstructable
+  ledger — any one reverts to chair-mediated). Survival versions it into
+  Ed's STANDING exception, his seat alone. Versioned in mechanism.md.
 - The CEO's parting instructions from the night stand otherwise; G1 (live
   account) starts Monday.
 
