@@ -60,6 +60,7 @@ class ThesisGeneratorService:
         actor: str = "operator",
         target_exposure_pct: float = 5.0,
         horizon: str = "3-6 months",
+        backtest: Optional[dict[str, Any]] = None,
     ) -> dict[str, Any]:
         """Creates a formal event-sourced Thesis and initial Memo in the fund spine."""
         top_theme_names = [t.title for t in result.top_themes[:3]]
@@ -76,6 +77,8 @@ class ThesisGeneratorService:
             "invalidation_conditions": [inv.condition for inv in result.invalidation_conditions],
             "target_exposure_pct": target_exposure_pct,
             "review_cadence": "monthly",
+            "direction": result.direction.value,
+            "backtest": backtest,
         }
 
         created_thesis = self._thesis_service.create(thesis_body, actor=actor)

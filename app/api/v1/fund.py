@@ -99,12 +99,14 @@ from app.schemas.fund import (
     ThesisUpdateRequest,
     ThesisGenerateRequest,
     ThesisPromoteRequest,
+    ThesisRecommendationRequest,
     StrategyOptimizeRequest,
     StrategyMemberRequest,
     StrategyMemberWeightsRequest,
     StrategyComposeWeightsRequest,
 )
 from app.fund.thesis_generator.service import ThesisGeneratorService
+from app.fund.recommendation import RecommendationError, build_thesis_trade_recommendation
 
 from app.fund.optimization import optimize_portfolio, optimize_return_streams
 
@@ -3755,6 +3757,7 @@ def promote_generated_thesis(req: ThesisPromoteRequest):
             actor=req.actor,
             target_exposure_pct=req.target_exposure_pct,
             horizon=req.horizon,
+            backtest=req.backtest,
         )
     except Exception as e:
         raise HTTPException(status_code=422, detail=str(e))
@@ -3768,6 +3771,46 @@ def get_thesis_sources_status():
         return {"sources": [s.model_dump() for s in statuses]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/fund/theses/{thesis_id}/recommendation")
+def recommend_thesis_trade(thesis_id: str, req: ThesisRecommendationRequest):
+    """Consume a thesis plus its backtest into a sized trade recommendation.
+
+    This is the missing hand-off between research and the approval desk.  It
+    never executes: the default response is read-only, and an explicitly
+    requested proposal is still passed through the normal risk gate and waits
+    for a human approval.
+    """
+    try:
+        thesis = _theses.get(thesis_id)
+    except ThesisError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    # Validate the stored research before touching a price source.  A missing
+    # backtest is a clear 422, not an incidental market-data outage.
+    try:
+        build_thesis_trade_recommendation(thesis_id, thesis, mark=1.0, nav_usd=1.0)
+    except RecommendationError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    symbol = str(thesis["assets"][0]).upper()
+    try:
+        price = float(_connector.price(symbol))
+        nav = float(_nav.compute().total_nav_usd)
+    except Exception as e:  # price and NAV are prerequisites for sizing
+        raise HTTPException(status_code=503, detail=f"cannot size recommendation: {e}")
+    try:
+        recommendation = build_thesis_trade_recommendation(thesis_id, thesis, mark=price, nav_usd=nav)
+    except RecommendationError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    if not req.create_proposal:
+        return {"recommendation": recommendation, "proposal": None}
+
+    order = Order(venue="paper", symbol=recommendation["symbol"],
+                  side=Side(recommendation["side"]), qty=recommendation["qty"],
+                  thesis_id=thesis_id, rationale=recommendation["rationale"])
+    proposal = _pipeline.propose_order(order, actor=req.actor)
+    return {"recommendation": recommendation, "proposal": proposal}
 
 
 @router.post("/fund/theses")
@@ -3788,6 +3831,15 @@ def get_thesis(thesis_id: str):
         return _theses.get(thesis_id)
     except ThesisError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.delete("/fund/theses/{thesis_id}")
+def delete_thesis(thesis_id: str, req: ActorRequest):
+    """Archive an unused thesis from the Studio while retaining the audit log."""
+    try:
+        return _theses.archive(thesis_id, actor=req.actor)
+    except ThesisError as e:
+        raise HTTPException(status_code=409, detail=str(e))
 
 
 @router.post("/fund/theses/{thesis_id}")

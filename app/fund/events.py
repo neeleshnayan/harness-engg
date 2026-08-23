@@ -111,6 +111,7 @@ class EventType(str, Enum):
     THESIS_CREATED = "ThesisCreated"
     THESIS_UPDATED = "ThesisUpdated"
     THESIS_STATUS_CHANGED = "ThesisStatusChanged"
+    THESIS_ARCHIVED = "ThesisArchived"
 
     # Investment memo — the written case Clark drafts against a thesis and a
     # human signs off on. Rendered at the approval card. Auditable like the rest.
