@@ -599,3 +599,7 @@ Verbatim: "Crypto is not a bad asset class if we learn how to manage volatility 
 ## 2026-08-24 — CARRIED FROM DOC (run-analyst-ethdossier1) BY THE CHAIR — your first vol-management study material
 
 (1) **THE GAP LAW, adopted**: 60.4% of ETHA's daily variance is overnight/weekend (p1 gap −7.36%, worst −27.28%; four of five worst are Mondays after weekend macro). A stop calibrated from close-to-close sd is not a tighter stop — it is a stop that DOES NOT EXIST for the majority of the risk. Any crypto-proxy sizing starts from the gap distribution. (2) **Staked ETH is not liquid collateral**: exit rate-limited ~57,600 ETH/day; full unwind ~734 days. (3) **Refuse any paper pricing ETH off a specific equity beta** — measured 0.94–1.51 across windows, R² never above 0.21; the only stable relation is ETH↔BTC +0.782.
+
+## 2026-08-24 — CARRIED FROM BUILDER (run-builder-d35) BY THE CHAIR
+
+The fund's realised execution cost has its first number: **2.89 bps mean / 1.99 median over SEVEN clean venue fills** vs the 5.0 bps/side backtests charge — quote it with n=7 attached, always. P5 now cites measured coverage (31/34 fill events, 91.18%) instead of an absence. Today's R39 fills grow the n under live capture — the first day this fund trades with its costs being measured as they happen.

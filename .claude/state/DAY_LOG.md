@@ -40,6 +40,19 @@ at ~00:05Z ("you too rest post closing these 5 items; will see you on
 Monday"). The five fan-out items all resolved; the floor rests until Monday.
 
 **DECIDED**
+- **THE COURSEWORK RULE (CEO insight: the LinkedIn-courses analogy — we
+  keep paying discovery price for web-sourceable commodity knowledge).**
+  Three fixes: (1) builder and quant GAIN WEB ACCESS — the two most
+  scar-generating seats had none, so probe-first was their only path to
+  platform facts; (2) DOCS FIRST, PROBE SECOND for platform behavior (the
+  doc is the hypothesis, the probe verifies — docs lie too); (3)
+  PLATFORM_FACTS.md seeded on the shelf with 20+ commodity facts we paid
+  scar-price for (LEAN'''s free lending, the SIP delay, CoinGecko'''s
+  midnight stamp, pg rtrim, the Windows clobber...), each with source +
+  verification. The boundary stays sharp: OUR code/feed/fills remain
+  discovery — the scar files are the moat; the course covers the
+  commodity layer under it.
+
 - **ETH AS COVERAGE PILOT #2 + VOL MANAGEMENT AS STAN'''S CORE COMPETENCY
   (CEO).** Doc dispatched (ETH Dossier v1 under the amended routing —
   understanding/risk-params/leads, never candidates — batched with the

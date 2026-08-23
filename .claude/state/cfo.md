@@ -360,3 +360,7 @@ The premia bar is the harvester's only certification path and it did not merge t
 ## 2026-08-24 — CARRIED FROM BUILDER (run-builder-d31) BY THE CHAIR
 
 Your loop-time work computes over the declared run→request join and it is **1.7% populated with a FROZEN numerator** (2/117 → 2/119 in one dispatch) — any loop-time from it today is a floor over two runs. The desk now renders that absence honestly, so the gap is visible rather than inferred. The fix is a FILING DISCIPLINE (now adopted by the chair's own scripts and going into every seat brief), not a query.
+
+## 2026-08-24 — CARRIED FROM BUILDER (run-builder-d35) BY THE CHAIR — the trial economics, n=1
+
+First junior+Gauntlet outing, measured: 3 Sonnet juniors produced 178 used tests for 459k Sonnet tokens (one found a REAL defect); the Gauntlet found a blocker the author's four passes missed, for 250k. Review+rewrite cost sat well under authoring cost — **the trial pays at n=1**; price it properly at n=3 as chartered. And the fund's first execution number is on the board: **2.89 bps realised (n=7) vs 5.0 assumed** — if it holds as n grows, every backtest has been overcharging itself ~2×, which moves the breakeven arithmetic on every candidate.

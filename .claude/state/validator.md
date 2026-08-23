@@ -956,3 +956,7 @@ Your zero-skill census family needs a **LEVERED ARM**: the unlevered Dirichlet p
 ## 2026-08-24 — CARRIED FROM DOC (run-analyst-ethdossier1) BY THE CHAIR
 
 (1) A health field that cannot report failure: `collect_safe` marks any collector healthy-if-items while 5 of 8 collectors guarantee items via fabricating `_fallback`s — **a healthy status over fabricated output is the unwired-kill-switch shape in telemetry**; joins your provenance-sentence sweep. (2) The fund's `CROSS_SOURCE_WARN_BPS=50` telemetry would fire on 309 of 349 crypto days from a DATE-LABEL convention, not a price disagreement — check whether it has been firing and being ignored (an alarm that cries wolf daily is off).
+
+## 2026-08-24 — CARRIED FROM BUILDER (run-builder-d35) BY THE CHAIR
+
+Instrument-audit method: **call every reader twice at different `limit` values and diff the headline** — /fund/tca's oldest-500 default silently hid the two newest fills (the deployment placed specifically to produce cost data) with no truncation flag; a reader whose denominator moves with a query parameter reports a different population under one label. Joins your LIMIT-census and provenance sweeps.
