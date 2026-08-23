@@ -446,3 +446,7 @@ for DATE-based work it is far cheaper than bulk-ZIP extraction.
 **PRIOR-FILING RUN-UP carried (LEAD 7)**: the −7.7%/yr pre-Form-4 window from the retired insider study — naive form is look-ahead-corrupt; any tradeable form needs an ex-ante imminence proxy (filing-cadence predictability, the p+364 pattern). Not lost again.
 
 **FITNESS**: 3 decision-changing measurements (the no-null control; the censored-families closure; the stop-width parameter), zero extraction, zero containers, host intact.
+
+## 2026-08-23 - CARRIED FROM ED (batch #2) BY THE CHAIR
+
+When dating any Treasury event study, SPLIT AT 2014 - the mid-month window was alive 2003-13 (auction concession) and is dead 2014-26 (concession compressed; month-end index flow persists; window migrated one day earlier). A full-sample Treasury calendar number mixes two mechanisms. Also: Ed's asks for your next shelf are on the desk queue (CPI/NFP calendar 1994+; the comment-letter pile; E21's natural-experiment check).

@@ -512,3 +512,7 @@ The price-tier TCA result Monday will TEMPT a finding that is arithmetic: under 
 ## 2026-08-23 - CARRIED FROM BUILDER D19 BY THE CHAIR
 
 When you cite a measured bias in a recommendation, check that the correction has an EXECUTABLE path, not just a module. Grace's D1 benchmark sequencing was correct and the prescription was not executable: the as-of register cannot supply a point-in-time population (one snapshot, types CS+ADRC only - the invited one-line fix would have deleted every ETF from the comparison; 23,307 delisted names carry zero prices). The benchmark is now LABELLED, not corrected. Entry 20's re-judge is unblocked either way (3-day hold - neither floor nor scaling moves its window).
+
+## 2026-08-23 - CARRIED FROM ED (batch #2) BY THE CHAIR
+
+P1 and P2 collide at the month-end close in TLT (P2 sells where P1 may buy, same session) - if both ever deploy, the resolution is a scheduling rule or book-level netting, never a size cap. Also from Doc's shelf via Ed: a pre-earnings-calibrated vol stop is ~6% too tight on earnings-spanning holds (post-earnings realised vol is ELEVATED, not crushed).

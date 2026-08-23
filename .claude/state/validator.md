@@ -851,3 +851,7 @@ Your 2.9%->12.5% figure reproduces (3.03%/11.30%) but its MODEL does not match t
 ## 2026-08-23 - CARRIED FROM THE ADVERSARY (D19 review) BY THE CHAIR
 
 scripts/null_audit.py:132-143 reads WALKFORWARD_HISTORY_FLOOR raw while the belt (under any merged form of D19) reads factory.effective_history_floor. Before your next gate-calibration measurement, NAME which floor your harness used and check it against what the belt planned - otherwise the instrument that calibrates the gate's false-pass rate stops running the gate's geometry.
+
+## 2026-08-23 - CARRIED FROM ED (batch #2) BY THE CHAIR
+
+The +80.7 -> +39.56 non-reproduction is a live instance of desk-study numbers with no surviving script (cycle-1 Entry 11; correction section now on the doc). When auditing any desk figure that feeds a status - Entry 11's deferral rested partly on cycle-1 numbers - ask for the script, or treat the number as unverified until recomputed.

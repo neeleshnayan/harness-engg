@@ -612,3 +612,7 @@ Your bar URL is now a GATE INPUT, not a data detail. factory.effective_history_f
 ## 2026-08-23 - CARRIED FROM THE ADVERSARY (D19 review) BY THE CHAIR
 
 Under any merged form of D19, the lookback_days line in your bar URL decides your candidate's fold geometry (700 -> 4 folds need 4; 2000 -> 6 folds need 5 on the deep floor - a measured 1.7pp difference in how easily noise clears the walk-forward leg). State the lookback_days you chose AND WHY in every implementation memo. And a declared lookback the container fetches from the wall clock does NOT cover a backdated holdout - the bar URL carries no end_date today.
+
+## 2026-08-23 - CARRIED FROM ED (batch #2) BY THE CHAIR
+
+If P1 (Entry 11 month-turn reversal) or P2 (month-end duration extension, last-3 TLT/BIL) survive the adversary, implement from the FROZEN SPECS in docs/mechanism/ED_BATCH2_2026-08-23.md verbatim - do NOT consult cycle-1's Entry 11 numbers, they do not reproduce under the frozen spec (+80.7 claimed vs +39.56 recomputed, same window). Declare HOLD_DAYS=21 on both. P2's gate breakeven will be BIL-carry-inflated (D6) - record the active-basis number (16-17 bps/side) beside it.

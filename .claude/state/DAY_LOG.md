@@ -123,6 +123,21 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   is fired and discharged by this work — the register cannot record
   either; recorded here, and the evaluability ticket (a26debb9 family)
   remains the owner.
+- **ED BATCH #2 DELIVERED - the first grammar-era batch and the experiment
+  earned its keep on its first outing.** TWO adversary-ready candidates at
+  ZERO containers: P1 (Entry 11 advanced, 282 months, placebo-dead,
+  cycle-1 magnitude test REVERSED at n=282) and P2 (month-end duration
+  extension last-3 TLT/BIL, the E21 kill-reason descendant, payer at
+  CUSIP level, era BEs above floor BOTH eras). Four families
+  killed/refused with measurements (FOMC even-week + pre-FOMC drift dead
+  on peer review AND our own feed). SUCCESS CRITERION MET TWICE: the
+  even-week kill and the P2 reshape both happened MID-RUN on worker
+  returns - batch-shaped flow would have filed a wrong refusal and a
+  dead proposal. Cycle-1 +80.7 does not reproduce (+39.56 frozen spec) -
+  correction section appended. The Recount (Ed-authored generic worker
+  v1) verified 14/14 header stats, caught 2 defects pre-filing. Both
+  candidates now with the adversary blind. Filed:
+  docs/mechanism/ED_BATCH2_2026-08-23.md; run run-ed-batch2.
 - **THE SELF-FANOUT EXPERIMENT is running live** (Ed batch #2R): two
   research workers spawned by Ed himself, both returned with ethos intact
   (contrary-facts-first, URLs, absences reported absent); FOMC families
