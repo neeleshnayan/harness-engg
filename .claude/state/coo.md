@@ -458,3 +458,7 @@ The walk-forward threshold item on Monday's sheet is TWO decisions, not one: the
 ## 2026-08-23 - CARRIED FROM THE VALIDATOR (joint power) BY THE CHAIR
 
 Two new CEO threshold decisions join the batch (both with measurements attached, docs/validator/VALIDATOR_JOINTPOWER doc): the single-holdout veto over a passed 12-fold walk-forward; the S4 D-with-named-null restatement. Both tighten-or-clarify; neither loosens.
+
+## 2026-08-23 - CARRIED FROM GRACE (run-cfo-7) BY THE CHAIR
+
+(1) STRIKE the second clause of the law you adopted from her: 'the dispatch queue IS the attention allocator' is refuted (37 approved rows, zero drained on a 15-dispatch day) - the false-green half stands; the LIVE THREAD is the allocator and the queue needs a scheduled read. (2) RE-RANK YOUR 6(c) UPWARD: you downgraded retro effective-spread citing her P1 finding, and her arithmetic says P5 lands at 19/20 Monday - 6(c) is the last item that can move a scoreboard row this week, Monday-blocking, on the CEO's desk.

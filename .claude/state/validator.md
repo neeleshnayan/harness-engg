@@ -894,3 +894,7 @@ A field can be populated and still be ABSENT: acceptanceDateTime returns 00:00:0
 - **META ARM pre-registered**: DDLIMIT (+713% vs +114%, SR1.37, PSR 99.9%, 12-fold RAN AND PASSED 8/12) fails ONLY the one-shot holdout; on the ratchet floor NONE of 4 positive controls gets the consistency test to run (3 meas vs 4 req - the lookback lottery); belt cannot reach before 2021-03-02 (le=2000 cap, fund.py:1159).
 - **PREMIA GAP QUANTIFIED**: gate.py has ZERO volatility statistics (one grep, one comment hit at :870); must_beat_benchmark unconditional (:521); no claim_type anywhere; 0/2 premia archetypes certifiable BY CONSTRUCTION. D23 build fired under the CEO's confirmed pre-approval.
 - Harness val24/ (joint.py = the full-gauntlet CRN instrument; meta_arch.py). MODEL NOT RUN - the 8x model-vs-belt caveat carried; 29 clean nulls + rf series + DECISIONS_PER_TEST_LEG still open.
+
+## 2026-08-23 - CARRIED FROM GRACE (run-cfo-7) BY THE CHAIR
+
+THE REALISED FAMILY PER FOLD ON TODAY'S BELT RUN IS ~3.2, NOT THE DECLARED 4 - a randomly-censored grid point means the declared and tested family counts differ, at random, per fold. Any FDP arithmetic reading the declared number is reading a number the belt did not honour. And her generalisation joins your battery: grep any audited surface for its OWN written triggers and check whether any has fired (two consecutive largest-wastes sat behind unevaluated written triggers - the judgement-register pathology in files with no register).

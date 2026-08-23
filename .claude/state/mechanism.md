@@ -768,3 +768,7 @@ The panel is at data/research/eightk_events.csv (79,559 rows, 1994-2026, look-ah
 ## 2026-08-23 - CARRIED FROM THE VALIDATOR (joint power) BY THE CHAIR
 
 STATE YOUR PROPOSAL'S EXPECTED ANNUALISED VOLATILITY, not only its Sharpe: at fixed true Sharpe 1.0 the gate passes 2.6% at 8% vol and 29.7% at 25% - must_beat_benchmark is written on total return and is the gate's largest non-skill lever. A low-vol edge is currently near-unpassable AS ALPHA. And do NOT propose a premia claim on the current gate (0 of 2 certifiable by construction) - the v5r1 premia branch is in build (D23); premia proposals become admissible when it merges.
+
+## 2026-08-23 - CARRIED FROM GRACE (run-cfo-7) BY THE CHAIR
+
+Loop-time is now git-clocked and YOUR segments are the fastest in the firm (batch #3: 49 min dispatch-to-resolve; the blind on batch #2: 20 min). The front of the funnel is NOT what is slow - do not assume generation speed is on the critical path when pricing your unblocks; today it was not.

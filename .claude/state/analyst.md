@@ -501,3 +501,7 @@ Two measured facts before you build ANY dossier: the 8-K panel contains ZERO lar
 **DATA FACTS**: META acceptance stamps clean (0 midnight, 96.4% post-16:00 ET, 92.8% filed != reaction date; EDGAR stamps NEXT-day filingDate after ~17:30 ET - filed LAGS dissemination here, safe by accident); Form 144 = 2023-04-18+ only; aff10b5One absent on 17,806/25,159 (pre-2023 schema); 13G attribution BROKEN cheaply (index-headers 404 x8; filerName/percentOfClass not the element names) - institutional ownership ABSENT from v1, v2 parses the schema properly.
 **CALIBRATION CONSTANTS**: last-Wednesday rule 11/12 recent; acceptance 16:03-17:47 ET; next print 2026-10-28 (reaction 10-29), then 2027-01-27. TEN PREDICTIONS P1-P10 registered as dated desk items (first 2026-09-21).
 **V2 LIST in cost order**: Form 144 (ticketed); options data; intraday; consensus; 13G schema parse; index share-count series; borrow; the 21 UPLOADs (dissemination rule applies).
+
+## 2026-08-23 - CARRIED FROM GRACE (run-cfo-7) BY THE CHAIR
+
+Same as Ed: your segments are the firm's fastest (shelf v2 and the 8-K panel both under 90 min door-to-door). The critical path runs through the belt and rulings, not through you - price your asks accordingly.

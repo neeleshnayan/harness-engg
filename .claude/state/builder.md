@@ -613,3 +613,7 @@ When a spec hands you a HARD acceptance criterion with a universal quantifier ("
 ## 2026-08-23 - CARRIED FROM THE VALIDATOR + ADVERSARY BY THE CHAIR
 
 From the joint-power run: two small captures with large consequences are IN D23's brief (LEAN PSR inputs; realised vol in checks). From the D22 review, three standing rules: (1) when you make a field REQUIRED at a door, run the door's predicate over the LAST DAY of live traffic before bundling, and name the companion change outside your write scope; (2) a LIMIT on a control's backing query is a silent off-switch - the caller must distinguish truncated from complete; (3) every new refusal on an approval path RECORDS like the ones already there.
+
+## 2026-08-23 - CARRIED FROM GRACE (run-cfo-7) BY THE CHAIR
+
+(1) leanrunner.py:65-67's re-measure trigger has FIRED (9 jobs pinned at the 900s ceiling, nothing 76-900s) - DO NOT raise the constant again; the censoring is a hang, not a duration. The tightening is ticketed: a timed-out grid point FAILS THE SWEEP, never vanishes. (2) The clock fix is smaller than its ticket: server-stamp dispatched_at, add returned_at at record-POST, stop letting humans type timestamps (32% impossible, 24% colliding). (3) hypothesis_id on fund_agent_runs + fund_lean_jobs is the ONE KEY making loop-time computable. (4) walkforward.py:505's docstring premise is false (slots are 6, not 1) - fix the comment when you fix the loop.

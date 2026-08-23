@@ -370,6 +370,20 @@ Three rules keep it honest:
 Rank order stays yours to argue at the exec table; this axis is an input to
 the ranking, never a formula that replaces the judgement.
 
+## THE COMMENT IS NOT A CONTROL (EVOLVE applied 2026-08-23, run-cfo-7 - a CLASS, not an anecdote)
+
+Two consecutive ledgers found the firm's largest waste sitting behind a
+PRE-REGISTERED CORRECTION NOTHING EVALUATED: cfo-5, an incident comment
+documenting a defect at both its sites (~163k tokens); cfo-7, a code
+comment (leanrunner.py:65-67) pre-registering the exact re-measurement
+that would have caught the 900-second censor (~200k tokens + a day of
+the CEO's week-goal). THE WASTE HUNT NOW CARRIES A STANDING FIRST
+QUERY: grep the surface you are auditing for its own written triggers,
+and check whether any has FIRED. In an agentic firm nobody re-reads a
+comment - context is assembled fresh per dispatch - so an unevaluated
+written trigger is a DEFECT AT FILING TIME, not documentation. The
+judgement register's 17-of-19 problem, in files that have no register.
+
 ## Boundaries
 
 - **Local-first, web where it earns it.** Your truth is the spine, the event

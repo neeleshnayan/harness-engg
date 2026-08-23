@@ -123,6 +123,27 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   is fired and discharged by this work — the register cannot record
   either; recorded here, and the evaluability ticket (a26debb9 family)
   remains the owner.
+- **GRACE'S LOOP-TIME MEMO (run-cfo-7): THE 900-SECOND CENSOR.** 9/44 of
+  the live belt run's containers pinned at the timeout wall, nothing
+  between 76s and 900s - 86.4% of container-seconds is deadline; the
+  hung grid point is nondeterministic and SILENTLY DROPPED from
+  selection -> **the Entry-20 verdict is FENCED until all 12 sweeps are
+  audited** (quant messaged mid-run; the SELECTED-FROM-CENSORED-GRID
+  label mandatory). The probe (3600s, one container) precedes D25
+  (which would have parallelised the defect and destroyed the symptom:
+  3.4x vs fix-first 4.7x). Her challenge ACCEPTED (a timed-out point
+  FAILS the sweep, never vanishes) + ticketed. ALSO: Monday lands P5
+  at 19/20 - the CEO's 6(c) ruling is Monday-blocking; the clock is
+  worse (32% impossible stamps; GIT is the firm's honest clock); the
+  192-215min ruling gap vs 0 where pre-committed -> the pre-commitment
+  shape on the CEO desk; quant at 1.6% of spend vs adversary 10:1;
+  her own queue-allocator law SELF-FALSIFIED and withdrawn (the live
+  thread allocates; the queue needs a scheduled read - chair adopts
+  once-per-session). Her 0k date moves to 09-04 unless 6(c) rules or
+  Monday yields 12+ countable legs. Loop target = A COUNT: one full
+  research loop, one session, git-clocked, by Fri 08-28 (<=6h
+  predicted). EVOLVE applied (the comment is not a control - now a
+  standing waste-hunt query).
 - **THE JOINT-POWER MEASUREMENT LANDED - THE CEO'S INSTINCT MEASURED
   AND SUBSTANTIALLY VINDICATED.** The gate's most binding criterion
   (min_psr_pct) judges an UNIDENTIFIED statistic: LEAN's PSR target is
