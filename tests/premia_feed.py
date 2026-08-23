@@ -58,12 +58,25 @@ def per_obs(annual_pct: float, obs_per_year: float) -> float:
 def cash_feed(annual_pct: float, obs_per_year: float = 261.0,
               symbol: str = "BIL", later_pct: Optional[float] = None,
               switch_on: Optional[str] = None,
-              calls: Optional[list] = None, short_by: int = 0) -> Any:
+              calls: Optional[list] = None, short_by: int = 0,
+              stop_after: Optional[str] = None,
+              start_from: Optional[str] = None,
+              skip: Optional[tuple] = None) -> Any:
     """A fetcher ``(symbol, start, end) -> FakeBars`` for a cash instrument.
 
     ``short_by`` truncates the series from the END by that many sessions, which
     is how a real feed behaves at the edge of its history and is what
     ``coverage.rf_dropped_days`` exists to report.
+
+    ``stop_after`` / ``start_from`` truncate on a DATE rather than a count, and
+    exist for the D29 ground-G2 shapes: the bar and the cash leg come through
+    the same fetcher, so a vendor's tail-lag cuts BOTH at the same date, and a
+    count-based cut cannot express "cut at exactly the day the bar was cut".
+    A date is also stable under the pad ``rf_series`` adds, where a count is not.
+
+    ``skip`` removes an inclusive DATE RANGE from the middle — a vendor outage.
+    Both legs missing the same middle stretch is the one shape that reaches both
+    ENDS of a run while covering none of its centre.
 
     ``later_pct`` + ``switch_on`` give a rate that steps on a DATE, so the
     series a caller gets for a padded window is the same series on the dates
@@ -78,6 +91,13 @@ def cash_feed(annual_pct: float, obs_per_year: float = 261.0,
         if sym != symbol:
             raise RuntimeError(f"no cash series for {sym}")
         dates = weekdays_between(start, end)
+        if start_from:
+            dates = [d for d in dates if d >= start_from]
+        if stop_after:
+            dates = [d for d in dates if d <= stop_after]
+        if skip:
+            lo, hi = skip
+            dates = [d for d in dates if not (lo <= d <= hi)]
         if short_by:
             dates = dates[:-short_by]
         level, closes = 100.0, []

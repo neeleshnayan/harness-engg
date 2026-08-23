@@ -897,3 +897,208 @@ def test_the_belt_and_the_gate_read_ONE_vocabulary():
     # And the gate itself refuses the same word.
     out = evaluate({}, None, None, claim_type="premia-ish")
     assert any("unrecognised claim type" in f for f in out["failures"])
+
+
+# --- the book's leverage (gate v5r3, the D29 kill's belt half) -------------
+#
+# THE INCIDENT: adversary D29, blind, 2026-08-23, ground G1
+# (docs/reviews/ADVERSARY_D29_2026-08-23.md). LEAN's default brokerage charges
+# no margin interest, so subtracting a realised cash rate closes the carry
+# channel only for gross <= 100%; above it the borrow is free and the gift
+# GROWS with the cash weight. A 1.25x book of 25% SPY and 75% BIL passed all
+# four belt windows at +0.153..+0.239 against a financed advantage of 0.0000.
+# The payload carried no exposure field at all, so no reader could see it.
+
+def real_exposure_chart() -> dict:
+    """A GENUINE LEAN exposure chart, trimmed to its first twelve points.
+
+    `tests/fixtures/lean_exposure_chart.json` is copied verbatim out of
+    `lean_workspace/results/008a35252790/AnnouncementPremium.json` (a real
+    AnnouncementPremium run) with every key, casing and value type preserved and
+    only the series truncated. The results directory is gitignored, so a test
+    cannot read the original — and a reader tested only against a hand-built
+    dict is tested against a model of the engine rather than against the engine.
+    """
+    import json
+    import pathlib
+    p = (pathlib.Path(__file__).parent / "fixtures"
+         / "lean_exposure_chart.json")
+    return json.loads(p.read_text(encoding="utf-8"))
+
+
+def chart(points_long, points_short=None, long_name="Base - Long Ratio",
+          short_name="Base - Short Ratio", extra=None) -> dict:
+    """An exposure chart from (timestamp, ratio) pairs, in LEAN's own shape."""
+    series = {long_name: {"values": [list(p) for p in points_long]}}
+    if points_short is not None:
+        series[short_name] = {"values": [list(p) for p in points_short]}
+    if extra:
+        series.update(extra)
+    return {"Exposure": {"series": series}}
+
+
+def test_the_reader_reads_a_REAL_LEAN_exposure_chart():
+    """Against genuine engine bytes, not against a model of them.
+
+    The maximum in the trimmed fixture is 0.9772 on the fourth point, and the
+    long ratio is neither monotone nor at either end of the series — so a reader
+    that took the first, the last, or a sorted extreme of the wrong series would
+    disagree.
+    """
+    from app.fund.leanrunner import gross_exposure
+    got = gross_exposure(real_exposure_chart())
+    assert got["measurable"] is True
+    assert got["max_gross"] == 0.9772
+    assert got["max_long"] == 0.9772
+    assert got["max_short"] == 0.0
+    assert got["observations"] == 12
+    assert got["max_gross_on"] == "2023-08-28"
+    assert got["unclassified_series"] == []
+    assert got["reason"] is None
+
+
+def test_gross_is_summed_PER_TIMESTAMP_not_max_long_plus_max_short():
+    """The two maxima can fall on different days, and then max+max is a fiction.
+
+    Long peaks at 0.9 on day 1 and short peaks at 0.9 on day 2, so the naive
+    upper bound is 1.8 and the book was never above 1.0. A gate that refused
+    this book would be refusing a number no instant of the run ever showed.
+    """
+    from app.fund.leanrunner import gross_exposure
+    got = gross_exposure(chart([[1, 0.9], [2, 0.1]], [[1, 0.1], [2, 0.9]]))
+    assert got["max_gross"] == 1.0
+    assert got["max_long"] == 0.9 and got["max_short"] == 0.9
+
+
+def test_a_short_ratio_written_NEGATIVE_still_counts_toward_gross():
+    """Measured: the short leg is a MAGNITUDE on all 108 runs this fund has.
+    A sign convention is a vendor's to change, and a signed short would
+    otherwise NET against the long leg and hide a market-neutral book's gross.
+    """
+    from app.fund.leanrunner import gross_exposure
+    got = gross_exposure(chart([[1, 1.0]], [[1, -1.0]]))
+    assert got["max_gross"] == 2.0
+
+
+def test_several_security_types_are_SUMMED_at_the_same_instant():
+    """LEAN writes one long/short pair per security type. A reader that took
+    only the equity pair would report a futures overlay as no exposure at all.
+    """
+    from app.fund.leanrunner import gross_exposure
+    got = gross_exposure(chart(
+        [[1, 0.6]], [[1, 0.0]],
+        extra={"Future - Long Ratio": {"values": [[1, 0.7]]},
+               "Future - Short Ratio": {"values": [[1, 0.2]]}}))
+    assert got["max_gross"] == pytest.approx(1.5)
+    assert sorted(got["series"]) == ["Base - Long Ratio", "Base - Short Ratio",
+                                     "Future - Long Ratio",
+                                     "Future - Short Ratio"]
+
+
+def test_a_series_the_reader_cannot_classify_makes_the_reading_UNMEASURABLE():
+    """FAIL CLOSED ON AN ENGINE CHANGE. If a future LEAN adds a net-ratio series
+    to this chart, summing it would double-count and skipping it would miss part
+    of the book — both silently. Measured cost of this rule today: zero, because
+    the only two series names across all 108 runs on disk are the long and short
+    ratios.
+    """
+    from app.fund.leanrunner import gross_exposure
+    got = gross_exposure(chart([[1, 0.5]], [[1, 0.0]],
+                               extra={"Base - Net Ratio":
+                                      {"values": [[1, 0.5]]}}))
+    assert got["measurable"] is False
+    assert got["max_gross"] is None
+    assert got["unclassified_series"] == ["Base - Net Ratio"]
+    assert "Base - Net Ratio" in got["reason"]
+
+
+@pytest.mark.parametrize("charts,fragment", [
+    ({}, "no 'Exposure' chart"),
+    ({"Strategy Equity": {}}, "Strategy Equity"),
+    ({"Exposure": {"series": {}}}, "carries no series"),
+    ({"Exposure": {"series": {"Base - Long Ratio": {"values": []}}}},
+     "no readable values"),
+    ({"Exposure": {"series": {"Base - Long Ratio":
+                              {"values": [[1, "x"], [2, None], "junk"]}}}},
+     "no readable values"),
+    (None, "no charts block"),
+    ("not a dict", "no charts block"),
+])
+def test_an_unreadable_exposure_chart_is_ABSENT_and_never_zero(charts,
+                                                               fragment):
+    """Absence is never zero, and here zero would be the single most permissive
+    answer available: an unlevered book passes the ceiling by definition.
+
+    The second case is the real one — `lean_workspace/results/2c0e0a65d6c0`
+    carries only a Strategy Equity chart. Both runs on disk without an exposure
+    chart also carry an EMPTY statistics block, so they fail everything else too.
+    """
+    from app.fund.leanrunner import gross_exposure
+    got = gross_exposure(charts)
+    assert got["measurable"] is False
+    assert got["max_gross"] is None
+    assert fragment in got["reason"]
+
+
+def test_an_unconvertible_timestamp_costs_the_LABEL_and_not_the_MEASUREMENT():
+    """The reported instant is a label; the gross is the criterion's input.
+    A date that will not convert must not delete the number it dates.
+    """
+    from app.fund.leanrunner import gross_exposure
+    got = gross_exposure(chart([[10 ** 18, 1.4]], [[10 ** 18, 0.0]]))
+    assert got["measurable"] is True
+    assert got["max_gross"] == 1.4
+    assert got["max_gross_on"] is None
+
+
+def test_the_BELTS_OWN_PARSER_captures_exposure_from_the_engines_charts(tmp_path):
+    """Through the real call site, not the helper.
+
+    D17's lesson: a helper can be flawless and uncalled. `_parse_results`
+    discards `charts` four lines after reading the curves, so a capture added
+    anywhere downstream would find nothing — and every test that called
+    `gross_exposure` directly would still pass.
+    """
+    import json
+    from app.fund.leanrunner import LeanRunner
+    doc = {"statistics": {"Net Profit": "10%"},
+           "charts": dict(real_exposure_chart())}
+    doc["charts"]["Strategy Equity"] = {
+        "series": {"Equity": {"values": [[1692936000, 100.0],
+                                         [1693022400, 101.0]]}}}
+    (tmp_path / "MyAlgorithm.json").write_text(json.dumps(doc),
+                                               encoding="utf-8")
+    got = LeanRunner._parse_results(tmp_path)
+    assert got is not None
+    assert got["exposure"]["measurable"] is True
+    assert got["exposure"]["max_gross"] == 0.9772
+
+
+def test_the_premia_payload_carries_the_gross_even_when_the_pair_is_ABSENT():
+    """Every payload answers the leverage question, including the ones that
+    never got as far as a Sharpe. A reader of a refused run should not have to
+    guess whether the borrow was the reason."""
+    got = premia_inputs({"daily_returns": {"present": False}},
+                        rf_bars=cash_feed(2.0))
+    assert got["measurable"] is False
+    assert got["gross_measurable"] is False
+    assert got["max_gross_exposure"] is None
+    assert "no exposure capture at all" in got["exposure"]["reason"]
+
+
+def test_a_stored_exposure_reading_is_carried_into_the_premia_payload():
+    """And it is carried as the ENGINE measured it, not re-derived."""
+    n = 40
+    dates = trading_dates(n)
+    strat = drifting(n, 0.0006, 0.01, seed=3)
+    bench = drifting(n, 0.0004, 0.01, seed=4)
+    res = {"daily_returns": {"present": True, "dates": dates,
+                             "strategy": strat, "benchmark": bench,
+                             "benchmark_present": True, "n": n},
+           "benchmark_curve": levels(bench),
+           "benchmark_dates": dates[:1] + dates,
+           "benchmark_series_source": "engine_single_name",
+           "exposure": {"measurable": True, "max_gross": 1.37}}
+    got = premia_inputs(res, rf_bars=cash_feed(2.0))
+    assert got["gross_measurable"] is True
+    assert got["max_gross_exposure"] == 1.37

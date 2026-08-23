@@ -1167,7 +1167,29 @@ def _premia_leg(result: dict[str, Any], pc: dict[str, Any]
             f"({total} calendar days in the run) — a comparison over a minority "
             f"of the run is not a comparison over the run")
 
+    # (2) THE INEQUALITY. Which pair of legs it runs on is the versioned choice
+    # `premia_rf_basis` names, and an unreadable cash rate FAILS CLOSED — it
+    # never silently becomes rf=0, which is the assumption most flattering to
+    # the cash-heavy mix the constitution's amendment was written against.
+    margin = float(pc["premia_min_sharpe_advantage"])
+    raw0 = st.sharpe_at_rf(s, 0.0)
+    raw_b0 = st.sharpe_at_rf(b, 0.0)
+    out["rf_breakeven_pct"] = _rf_breakeven_pct(s, b)
+    if raw0 is not None and raw_b0 is not None:
+        # CAPTURE, NOT A CRITERION. The gap between this and the excess
+        # advantage below IS the T-bill carry, and a reader who cannot see it
+        # cannot audit the criterion that removed it.
+        out.update({"sharpe_strategy_raw": round(raw0, 5),
+                    "sharpe_benchmark_raw": round(raw_b0, 5),
+                    "sharpe_advantage_raw": round(raw0 - raw_b0, 5)})
+
     # (1b) GROSS EXPOSURE, and this one REFUSES rather than scores.
+    #
+    # PLACED AFTER THE RAW CAPTURE AND BEFORE THE INEQUALITY, deliberately. A
+    # refused book still reports `sharpe_advantage_raw` — capture, never a
+    # criterion — but must NOT publish `sharpe_advantage`: a reader who found
+    # +2.49 sitting beside a refusal would quote it, and that figure is the
+    # engine's free borrow, not an edge.
     #
     # THE HOLE IT CLOSES (adversary D29, blind, 2026-08-23, ground G1). LEAN's
     # default brokerage charges no margin interest, so a levered backtest's
@@ -1229,22 +1251,6 @@ def _premia_leg(result: dict[str, Any], pc: dict[str, Any]
             f"(1 - 1/{gross:.4f}) x rf / sd. Judging it would certify financing "
             f"the account never paid")
         return out, failures
-
-    # (2) THE INEQUALITY. Which pair of legs it runs on is the versioned choice
-    # `premia_rf_basis` names, and an unreadable cash rate FAILS CLOSED — it
-    # never silently becomes rf=0, which is the assumption most flattering to
-    # the cash-heavy mix the constitution's amendment was written against.
-    margin = float(pc["premia_min_sharpe_advantage"])
-    raw0 = st.sharpe_at_rf(s, 0.0)
-    raw_b0 = st.sharpe_at_rf(b, 0.0)
-    out["rf_breakeven_pct"] = _rf_breakeven_pct(s, b)
-    if raw0 is not None and raw_b0 is not None:
-        # CAPTURE, NOT A CRITERION. The gap between this and the excess
-        # advantage below IS the T-bill carry, and a reader who cannot see it
-        # cannot audit the criterion that removed it.
-        out.update({"sharpe_strategy_raw": round(raw0, 5),
-                    "sharpe_benchmark_raw": round(raw_b0, 5),
-                    "sharpe_advantage_raw": round(raw0 - raw_b0, 5)})
 
     if basis == "realised_series":
         rf = p.get("rf") if isinstance(p.get("rf"), dict) else {}

@@ -28,7 +28,8 @@ import math
 
 import pytest
 
-from premia_feed import cash_feed, no_feed, per_obs
+from premia_feed import (cash_feed, no_feed, per_obs,
+                         weekdays_between)
 from app.fund import statistics as st
 from app.fund.gate import (CLAIM_TYPES, CRITERIA, GATE_VERSION,
                            GATE_VERSION_PREMIA, PREMIA_CRITERIA,
@@ -1205,3 +1206,365 @@ def test_the_volatility_field_does_not_change_any_alpha_verdict():
     assert lo["passed"] == hi["passed"]
     assert (lo["checks"]["volatility"]["strategy_ann_vol_pct"]
             != hi["checks"]["volatility"]["strategy_ann_vol_pct"])
+
+
+# --- LEVERAGE IS REFUSED (gate v5r3, the D29 kill) ------------------------
+#
+# THE INCIDENT: adversary D29, blind, 2026-08-23, ground G1
+# (docs/reviews/ADVERSARY_D29_2026-08-23.md). Subtracting a realised cash rate
+# closes the carry channel only for gross <= 100%. LEAN's default brokerage
+# charges no margin interest, so a levered book's excess is `sum(w r) - rf`
+# instead of `sum(w (r - rf))` — a free gift of (1 - 1/G)*rf/sd that GROWS with
+# the cash weight. Executed on the fund's own feed, a 1.25x book of 25% SPY and
+# 75% BIL cleared this bar on all four belt windows at +0.153..+0.239 with a
+# financing-charged advantage of 0.0000, and the degenerate 1.05x BIL book
+# scored +11.4..+18.1 at 0.01% drawdown. The largest GENUINE advantage this
+# fund has measured is +0.054.
+
+def unfinanced_lever(rule: list[float], leverage: float) -> list[float]:
+    """``leverage`` times a rule's returns, with NO financing charged.
+
+    THE ENGINE AS IT IS, not as it should be: `DefaultBrokerageModel` installs
+    `NullMarginInterestRateModel`, so a backtest that levers pays nothing for
+    the borrow. ``cash_mix`` above is the OTHER construction — it debits the
+    cash rate on the borrowed leg — and it is the reason the v5r2 invariance
+    sweep could not see this hole: charged financing makes the excess Sharpe
+    invariant at every weight, including weights past 1.0.
+    """
+    return [leverage * r for r in rule]
+
+
+def excess_advantage(res: dict) -> float:
+    """The advantage off the payload's own excess legs, computed here rather
+    than read from the verdict — the verdict REFUSES a levered book, and the
+    point of this helper is to show what it is refusing."""
+    p = res["premia_inputs"]
+    return (st.sharpe_at_rf(p["strategy_excess"], 0.0)
+            - st.sharpe_at_rf(p["benchmark_excess"], 0.0))
+
+
+def test_leverage_BREAKS_the_cash_weight_invariance_and_is_therefore_refused():
+    """THE WIDENED SWEEP: past w = 1.0, on an engine-faithful fixture.
+
+    `test_the_cash_weight_does_not_move_the_answer_at_all` sweeps 0.1..0.9 and
+    the answer is flat to 1e-6. The adversary's ground was that the sweep never
+    crosses 1.0 and that its fixture charges rf on the borrow the way the engine
+    does not — so the invariance it proves is a property of the FIXTURE above
+    gross 1.0, not of the world.
+
+    This test asserts both halves: on the unfinanced construction the excess
+    advantage RISES monotonically with leverage (so the hole is real and this
+    fixture can see it), and the gate REFUSES every book above the ceiling
+    rather than scoring the rise.
+    """
+    bench = series_with_moments(R600, 12.0, 20.0, seed=21)
+    rule = series_with_moments(R600, 18.0, 14.0, seed=22)
+    advs, measurable = {}, {}
+    for lev in (0.5, 1.0, 1.5, 2.0, 3.0):
+        res = make_result(unfinanced_lever(rule, lev), bench, gross=lev)
+        advs[lev] = excess_advantage(res)
+        leg = judge(res, claim_type="premia")["checks"]["premia"]
+        measurable[lev] = leg["measurable"]
+        if lev > 1.0:
+            assert leg["measurable"] is False, (lev, leg)
+            assert leg.get("sharpe_advantage") is None, (
+                "a refused book must not publish the number it was refused for")
+            assert "gross exposure" in leg["reason"], leg["reason"]
+            assert leg["gross_within_ceiling"] is False
+    # THE FIXTURE IS ENGINE-FAITHFUL: unfinanced leverage moves the answer.
+    ordered = [advs[k] for k in (0.5, 1.0, 1.5, 2.0, 3.0)]
+    assert ordered == sorted(ordered), advs
+    assert advs[3.0] - advs[1.0] > 0.05, advs
+    assert measurable == {0.5: True, 1.0: True, 1.5: False, 2.0: False,
+                          3.0: False}
+
+
+def test_the_SAME_sweep_with_financing_charged_stays_flat_past_1x():
+    """Why the v5r2 sweep could not see the hole, made explicit.
+
+    `cash_mix` at w > 1 borrows AT the cash rate, and then the excess Sharpe is
+    invariant across the whole sweep — 0.3, 1.0 and 2.0 score identically. That
+    is the arithmetic of a financed borrow and it is exactly what a backtest
+    does NOT do. Keeping this beside the test above is what stops someone
+    "simplifying" the two fixtures into one.
+    """
+    bench = series_with_moments(R600, 12.0, 20.0, seed=21)
+    rule = series_with_moments(R600, 18.0, 14.0, seed=22)
+    advs = [excess_advantage(make_result(cash_mix(rule, w, RF_TEST_PCT), bench,
+                                         gross=max(w, 1.0)))
+            for w in (0.3, 1.0, 2.0)]
+    assert max(advs) - min(advs) < 1e-6, advs
+
+
+def test_a_levered_book_that_would_otherwise_CLEAR_the_bar_is_refused():
+    """The kill's own shape: the refusal must bite on a WINNER, not only on a
+    loser. If this book ever passes again, the D29 hole is back."""
+    bench = series_with_moments(R600, 12.0, 20.0, seed=21)
+    rule = series_with_moments(R600, 18.0, 14.0, seed=22)
+    clean = judge(make_result(rule, bench, gross=1.0), claim_type="premia")
+    assert clean["passed"] is True, clean["failures"]
+
+    out = judge(make_result(unfinanced_lever(rule, 2.0), bench, gross=2.0),
+                claim_type="premia")
+    p = out["checks"]["premia"]
+    assert out["passed"] is False
+    assert p["measurable"] is False
+    assert p["max_gross_exposure"] == 2.0
+    assert p["max_gross_exposure_allowed"] == 1.0
+    fails = premia_failures(out)
+    assert len(fails) == 1, fails
+    assert "2.0000x gross exposure" in fails[0]
+    assert "charges no margin interest" in fails[0]
+
+
+def test_a_book_EXACTLY_at_the_ceiling_is_measured_and_judged():
+    """1.0 is inside the bar, not outside it. A fully-invested long-only book is
+    the ordinary case — 4 of the 108 runs on disk report exactly 1.0 — and a
+    `>=` here would refuse every one of them."""
+    bench = series_with_moments(R600, 12.0, 20.0, seed=21)
+    rule = series_with_moments(R600, 18.0, 14.0, seed=22)
+    out = judge(make_result(rule, bench, gross=1.0), claim_type="premia")
+    p = out["checks"]["premia"]
+    assert p["max_gross_exposure"] == 1.0
+    assert p["gross_within_ceiling"] is True
+    assert p["measurable"] is True
+    assert out["passed"] is True
+
+
+def test_a_book_a_HAIR_above_the_ceiling_is_refused():
+    """No epsilon, and the reason is measured rather than assumed: over all 108
+    LEAN runs on disk that produced a statistics block the maximum
+    per-timestamp gross is 1.0 on four runs and 0.9999 on most, and ZERO exceed
+    1.0. A tolerance would buy back no false refusals."""
+    bench = series_with_moments(R600, 12.0, 20.0, seed=21)
+    rule = series_with_moments(R600, 18.0, 14.0, seed=22)
+    out = judge(make_result(rule, bench, gross=1.0001), claim_type="premia")
+    assert out["checks"]["premia"]["measurable"] is False
+    assert "1.0001x gross exposure" in premia_failures(out)[0]
+
+
+def test_a_market_neutral_book_is_judged_on_GROSS_and_not_on_net():
+    """100% long against 100% short is zero NET and 2.0 GROSS, and it borrows
+    for exactly the same free ride. A ceiling read off net exposure would admit
+    the most levered book in the catalogue."""
+    bench = series_with_moments(R600, 12.0, 20.0, seed=21)
+    rule = series_with_moments(R600, 18.0, 14.0, seed=22)
+    out = judge(make_result(rule, bench, gross=2.0, short_ratio=1.0),
+                claim_type="premia")
+    p = out["checks"]["premia"]
+    assert p["exposure"]["max_long"] == 1.0
+    assert p["exposure"]["max_short"] == 1.0
+    assert p["max_gross_exposure"] == 2.0
+    assert p["measurable"] is False
+
+
+def test_an_ABSENT_exposure_reading_refuses_and_is_never_read_as_unlevered():
+    """Absence is never zero, and here it is never 1.0 either.
+
+    This is the case EVERY stored candidate is in today: of the 55 enriched job
+    results in the store, 0 carry an exposure block, because the belt discarded
+    `charts` before v5r3 read them. The honest answer is NOT MEASURABLE and a
+    re-run, not a charitable assumption about a book nobody looked at.
+    """
+    bench = series_with_moments(R600, 12.0, 20.0, seed=21)
+    rule = series_with_moments(R600, 18.0, 14.0, seed=22)
+    out = judge(make_result(rule, bench, gross=None), claim_type="premia")
+    p = out["checks"]["premia"]
+    assert p["measurable"] is False
+    assert p["max_gross_exposure"] is None
+    assert "gross_within_ceiling" not in p
+    fails = premia_failures(out)
+    assert len(fails) == 1, fails
+    assert "GROSS EXPOSURE is unknown" in fails[0]
+    assert "no exposure capture at all" in fails[0]
+    assert out["passed"] is False
+
+
+def test_the_gross_refusal_runs_BEFORE_the_inequality():
+    """Order matters for what a stored verdict SAYS. A levered book must not
+    publish a `sharpe_advantage` beside its refusal — a reader who saw +2.49
+    there would quote it, and that number is the gift, not an edge."""
+    bench = series_with_moments(R600, 12.0, 20.0, seed=21)
+    rule = series_with_moments(R600, 18.0, 14.0, seed=22)
+    p = judge(make_result(unfinanced_lever(rule, 3.0), bench, gross=3.0),
+              claim_type="premia")["checks"]["premia"]
+    for key in ("sharpe_advantage", "sharpe_strategy", "sharpe_benchmark",
+                "drawdown_not_worse"):
+        assert key not in p, key
+    # ...while the RAW capture, which is explicitly not a criterion, survives.
+    assert p["sharpe_advantage_raw"] is not None
+
+
+def test_moving_the_gross_CEILING_moves_the_verdict():
+    """The value is READ from the bar, not compiled in (D16: to prove a value is
+    read, MOVE it). One book, three ceilings, three answers."""
+    bench = series_with_moments(R600, 12.0, 20.0, seed=21)
+    rule = series_with_moments(R600, 18.0, 14.0, seed=22)
+    res = make_result(unfinanced_lever(rule, 1.5), bench, gross=1.5)
+
+    shipped = judge(res, claim_type="premia")["checks"]["premia"]
+    assert shipped["measurable"] is False
+    assert shipped["max_gross_exposure_allowed"] == 1.0
+
+    loosened = judge(res, claim_type="premia",
+                     premia_criteria={"premia_max_gross_exposure": 2.0}
+                     )["checks"]["premia"]
+    assert loosened["measurable"] is True
+    assert loosened["gross_within_ceiling"] is True
+    assert loosened["max_gross_exposure_allowed"] == 2.0
+
+    tightened = judge(make_result(rule, bench, gross=1.0), claim_type="premia",
+                      premia_criteria={"premia_max_gross_exposure": 0.9}
+                      )["checks"]["premia"]
+    assert tightened["measurable"] is False
+    assert "1.0000x gross exposure" in tightened["reason"]
+
+
+def test_an_ALPHA_verdict_does_not_read_the_exposure_capture_at_all():
+    """The gross ceiling is a premia criterion. An alpha claim on a payload with
+    no exposure reading must be judged exactly as before — the alpha bar has
+    never known about leverage and this version does not change that."""
+    strat = series_with_moments(R400, 18.0, 12.0, seed=5)
+    bench = series_with_moments(R400, 9.0, 20.0, seed=6)
+    without = judge(make_result(strat, bench, gross=None))
+    withx = judge(make_result(strat, bench, gross=3.0))
+    assert without["failures"] == withx["failures"]
+    assert without["passed"] == withx["passed"]
+    assert without["gate_version"] == "v4.3"
+    assert "premia" not in without["checks"]
+
+
+# --- the session denominator must be VOUCHED FOR (gate v5r3, ground G2) ----
+
+def truncated_bar(strategy, benchmark, keep, **kw):
+    """A result whose BAR stops after ``keep`` returns, the cash leg optionally
+    stopping on the same day — the correlated-truncation shape."""
+    n = len(strategy)
+    return make_result(strategy, benchmark,
+                       benchmark_curve=curve_from(benchmark)[:keep + 1],
+                       benchmark_dates=cdates(n)[:keep + 1], **kw)
+
+
+def test_a_bar_and_a_cash_leg_cut_TOGETHER_cannot_shrink_their_own_test():
+    """THE D29 KILL, GROUND G2, in one test.
+
+    Both legs come through `fetch_daily_bars`, so a vendor tail-lag truncates
+    them on the SAME day; the union of their dates then collapses onto the
+    shared window and the majority test compares a window with itself. The
+    reviewer measured 15.6% coverage reading as 214 of 214 and PASSING where
+    v5r1 refused.
+
+    Here 240 of 600 sessions survive. Believing the union would give 240 of 240
+    — a clean majority. The denominator falls back to the calendar count, which
+    is larger and therefore stricter, and the comparison is refused.
+    """
+    bench = series_with_moments(R600, 12.0, 20.0, seed=21)
+    strat = series_with_moments(R600, 18.0, 14.0, seed=22)
+    cut = R600[239]
+    res = truncated_bar(strat, bench, 240,
+                        rf_bars=feed(dates=R600, stop_after=cut))
+    cov = res["premia_inputs"]["coverage"]
+    span = cov["session_span"]
+    # The union really did collapse onto the shared window: it ends on the day
+    # both legs were cut, 360 sessions before the strategy's own last date.
+    assert span["session_last"] == cut
+    assert span["vouched"] is False
+    assert span["tail_shortfall_days"] > span["tolerance_days"]
+    assert cov["common_days"] == 240
+    assert cov["strategy_sessions"] is None
+    assert cov["session_basis"] is None
+
+    p = judge(res, claim_type="premia")["checks"]["premia"]
+    assert p["coverage_denominator"] == 600
+    assert p["coverage_denominator_basis"] == "calendar_days"
+    assert p["coverage_majority"] is False
+    assert any("share only 240 of the strategy's 600" in f
+               for f in premia_failures(judge(res, claim_type="premia")))
+
+
+def test_a_HOLE_in_the_middle_of_the_session_calendar_is_not_coverage():
+    """Reaching both ENDS is not covering the span.
+
+    A vendor outage over the same middle stretch of BOTH legs reaches the run's
+    first and last dates while covering none of its centre — and the union would
+    then undercount the denominator exactly where the comparison is thinnest.
+    Neither the review's wording nor an endpoint-only check catches this; the
+    largest gap between consecutive session dates does.
+
+    The two legs must OVERLAP or there is no common window at all, so a hole
+    cannot be built by cutting one leg's head and the other's tail — that shape
+    is refused earlier, for a different and equally correct reason. The shape
+    that reaches here is the shared outage.
+    """
+    bench = series_with_moments(R600, 12.0, 20.0, seed=21)
+    strat = series_with_moments(R600, 18.0, 14.0, seed=22)
+    outage = (R600[200], R600[400])
+    keep = [i for i, d in enumerate(cdates(600))
+            if not (outage[0] <= d <= outage[1])]
+    res = make_result(
+        strat, bench,
+        benchmark_curve=[curve_from(bench)[i] for i in keep],
+        benchmark_dates=[cdates(600)[i] for i in keep],
+        rf_bars=feed(dates=R600, skip=outage))
+    span = res["premia_inputs"]["coverage"]["session_span"]
+    assert span["head_shortfall_days"] <= span["tolerance_days"]
+    assert span["tail_shortfall_days"] <= span["tolerance_days"]
+    assert span["largest_internal_gap_days"] > span["tolerance_days"]
+    assert span["vouched"] is False
+    assert res["premia_inputs"]["coverage"]["strategy_sessions"] is None
+
+
+def test_a_TOLERABLE_vendor_lag_still_vouches_for_the_session_count():
+    """The other direction, and it is the one that matters for throughput.
+
+    Yahoo lags the strategy's own last session by a day or two (measured
+    2026-08-22). If that made every candidate fall back to the calendar
+    denominator, v5r3 would have quietly reinstated the weekends-versus-sessions
+    comparison v5r2 removed — a tightening bought by breaking the fix beneath it.
+    """
+    bench = series_with_moments(R600, 12.0, 20.0, seed=21)
+    strat = series_with_moments(R600, 18.0, 14.0, seed=22)
+    res = make_result(strat, bench, rf_bars=feed(dates=R600, short_by=2))
+    cov = res["premia_inputs"]["coverage"]
+    assert cov["session_span"]["vouched"] is True
+    assert cov["strategy_sessions"] == 600
+    assert cov["session_basis"] == "benchmark+cash"
+    assert judge(res, claim_type="premia")["passed"] is True
+
+
+def test_the_session_span_tolerance_is_FIVE_calendar_days_from_both_sides():
+    """Hardcoded here and traced to its written basis, per the D21 pair rule.
+
+    Five is the largest gap two consecutive US equity sessions can show: four
+    consecutive closed days (a Thursday holiday, the Friday and the weekend)
+    put five calendar days between them. A test parametrised by the constant
+    would move with it and pin nothing.
+    """
+    from app.fund import leanrunner
+    assert leanrunner.SESSION_SPAN_TOLERANCE_DAYS == 5
+    first, last = "2021-01-04", "2021-02-01"
+    days = weekdays_between(first, last)
+    # EXACTLY at the tolerance. Dropping Thursday and Friday leaves Wednesday
+    # 2021-01-13 next to Monday 2021-01-18: five calendar days, the widest gap a
+    # closed market can produce, and it must still vouch.
+    keep5 = [d for d in days if d not in ("2021-01-14", "2021-01-15")]
+    at = leanrunner._session_span(keep5, first, last)
+    assert at["largest_internal_gap_days"] == 5
+    assert at["vouched"] is True
+    # ONE DAY PAST IT. Dropping Wednesday as well leaves 01-12 next to 01-18.
+    keep6 = [d for d in days
+             if d not in ("2021-01-13", "2021-01-14", "2021-01-15")]
+    got = leanrunner._session_span(keep6, first, last)
+    assert got["largest_internal_gap_days"] == 6
+    assert got["vouched"] is False
+
+
+def test_a_session_calendar_with_unreadable_dates_is_UNVOUCHED_not_perfect():
+    """A date this cannot parse must not be reported as a zero shortfall, which
+    is what `int(...) or 0` would have made it."""
+    from app.fund import leanrunner
+    got = leanrunner._session_span(["2021-01-04", "not-a-date"],
+                                   "2021-01-04", "2021-01-05")
+    assert got["vouched"] is False
+    assert got["head_shortfall_days"] is None
+    assert "could not be read as dates" in got["reason"]
