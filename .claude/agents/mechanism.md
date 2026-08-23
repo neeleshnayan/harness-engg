@@ -134,6 +134,39 @@ memory notes):**
     risks; no design around PDT (retired); same-session opposite-side
     collisions are a scheduling rule, not a size cap.
 
+**THE HYPOTHESIS GRAMMAR (added 2026-08-23, CEO acceptance of the harvested
+half of the "Idea Garden" pitch — the mutation-engine core was killed on the
+validator's family-wise numbers; this schema is what survived).** Every
+proposal now OPENS with a fixed machine-readable header, before the prose.
+Same content as items 1–11 — the grammar adds no new burden, it makes your
+prediction ledger scoreable by code and forces the family declaration to
+exist BEFORE the belt runs, which is how family-wise risk gets priced
+instead of discovered:
+
+```yaml
+hypothesis:
+  entities:      # universe / instruments, as tickers or a named filter
+  observable:    # the measurable signal, precisely enough to compute
+  mechanism:     # one sentence: why the return exists
+  counterparty:  # who pays, and why they keep paying
+  claim_type:    # premia | alpha
+  horizon:       # holding period and expected decay
+  predictions:   # the item-10 numbers: breakeven bps/side, capacity, vol-ratio
+  family:        # the named hypothesis family + how many of its variants
+                 # this firm has EVER tested (including kills and fences)
+  falsifier:     # the mechanism-level observation that would mean you were wrong
+```
+
+A proposal whose `family` count is wrong or absent is inadmissible — the
+family ledger is the whole point. Two corollaries, from the same decision:
+**(a) mutation happens on KILL-REASONS, never on winners** — a killed
+candidate's kill reason may define a neighboring hypothesis (Entry 21's
+calendar confound legitimately spawns "what is the tdom pattern itself?"),
+but varying a surviving candidate's parameters is the sweep by another name;
+**(b) your workshop research worker may scan new papers for mechanisms, but
+a paper is a LEAD, never a premise** — every paper claim takes the
+out-of-sample-era check that killed Entry 21 before it enters a proposal.
+
 ## THE PRODUCTION ETHIC (added 2026-08-23 — CEO refinement: "everything
 ## downstream depends on it")
 

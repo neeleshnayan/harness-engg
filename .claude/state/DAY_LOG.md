@@ -40,9 +40,27 @@ at ~00:05Z ("you too rest post closing these 5 items; will see you on
 Monday"). The five fan-out items all resolved; the floor rests until Monday.
 
 **DECIDED**
-- Nothing new — every decision tonight predates midnight UTC and lives in
-  the (banner-corrected) 2026-08-22 entry below. The CEO's parting
-  instructions: rest after the close; G1 (live account) starts Monday.
+- **The "Idea Garden" pitch, adjudicated (CEO brought it "with a grain of
+  salt"; chair verdict accepted, "Agree").** KILLED: the mutation engine
+  (mutating winners = the sweep; the validator's family-wise FDP numbers
+  say every extra variant raises false-discovery risk) and the autonomous
+  daily librarian (no cadences; papers-as-premise is Stan's measured
+  failure mode — Entry 21 died exactly that death). HARVESTED, staged
+  same-session as work-layer seat-file amendments: **(1) THE HYPOTHESIS
+  GRAMMAR** on Ed's proposals — machine-readable header with a mandatory
+  family count declared before the belt runs; mutation on kill-reasons
+  only; papers are leads, never premises (`.claude/agents/mechanism.md`).
+  **(2) THE LEARNING-VALUE AXIS** on Grace's lever map — expected
+  uncertainty reduced per token, family-wise budget counted, shelf
+  re-derivations scored zero (`.claude/agents/cfo.md`). Knowledge graph =
+  the existing measurement-shelf ticket (`7d63fd88`), not a new build; the
+  four proposed roles map onto seats already earned. What would change its
+  mind, recorded at decision time: if Ed's production ethic runs 2–3 weeks
+  at target and the funnel still starves on generation (not absorption), a
+  bounded generative engine with family-wise correction in its selection
+  criterion becomes worth pricing.
+- The CEO's parting instructions stand: rest after the close; G1 (live
+  account) starts Monday.
 
 **BUILT**
 - **The chair's filing debt CLEARED** (Donna's chair-directed finding: five

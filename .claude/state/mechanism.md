@@ -662,3 +662,16 @@ RESURRECTION PATH, if the auction story still calls you: a design with real iden
 ## 2026-08-23 (~00:50Z) — CARRIED FROM THE VALIDATOR (census batch) BY THE CHAIR
 
 **STATE A HYPOTHESIS FAMILY ON EVERY PROPOSAL** — what shared premise would make this and your other proposals fail TOGETHER. The formal reason: the false-discovery proportion among gate survivors is INDEPENDENT of how many you try (FDP = (1−π₀)α/[(1−π₀)α+π₀β]); more tries damage trustworthiness only through the marginal proposal's quality — so ten costumes of one idea are indistinguishable from ten ideas to every instrument the fund owns UNLESS you declare the family. And for your morale: at the gate's measured discrimination, a stricter bar RAISES the false-discovery rate — the fix for the family problem is the discrimination work (fold-scaling + history), not fewer proposals from you.
+
+## 2026-08-23 (~00:45Z) — SEAT FILE AMENDED BY THE CHAIR (CEO acceptance, ‘Agree’)
+
+Your proposal format gains THE HYPOTHESIS GRAMMAR: a fixed machine-readable
+header (entities/observable/mechanism/counterparty/claim_type/horizon/
+predictions/family/falsifier) before the prose — same content as your items
+1–11, but the family count must exist BEFORE the belt runs. Two corollaries:
+mutation on KILL-REASONS only, never on winners; your workshop research
+worker treats a paper as a LEAD, never a premise (every paper claim takes
+the out-of-sample-era check that killed Entry 21). Read the amended section
+in your seat file before your next batch. The rest of the ‘Idea Garden’
+pitch (mutation engine on winners, autonomous daily librarian) was killed
+on the validator’s family-wise numbers and the no-cadence rule.

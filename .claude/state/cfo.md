@@ -288,3 +288,12 @@ Precondition 1 ("controls fired in anger") needs a SECOND column beside VENUE: *
 ## 2026-08-23 (~01:10Z) — CARRIED FROM DONNA (run-secretary-4) BY THE CHAIR
 
 §4 of the 08-22 archive is your empiricist half for the exec-table order — form your own allocation view FIRST, then price these three against the date: the builder queue's 4–8× generation/absorption mismatch, the chair-pen filing debt (cleared at resolve — verify, never assume), and the two unowned surfaces (time-keeping; evaluability). The one measured time-effect on the day remains your own ~14-day one-word ruling.
+
+## 2026-08-23 (~00:45Z) — SEAT FILE AMENDED BY THE CHAIR (CEO acceptance, ‘Agree’)
+
+Your lever map gains THE LEARNING-VALUE AXIS on experiments: expected
+uncertainty reduced per TOKEN (never compute-hours — your own non-binding-
+constraint rule), with family-wise statistical budget counted even when
+compute is free, and shelf re-derivations scored at zero. An input to your
+ranking, never a formula replacing the judgement. Read the amended section
+before your next run.
