@@ -123,6 +123,18 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   is fired and discharged by this work — the register cannot record
   either; recorded here, and the evaluability ticket (a26debb9 family)
   remains the owner.
+- **THE BUILDER CAP WIDENED 2 -> UP-TO-4 (CEO, verbatim: 'fanout
+  builders so we can get to the main stuff soon')**: pairwise-disjoint
+  write scopes mandatory, ALL suites serialized via the lockfile
+  protocol, falsifier UNCHANGED (any host RAM collapse or hung suite
+  reverts to two, pending a written reason). FOUR IN FLIGHT: D23
+  (premia gate; gate/leanrunner/statistics), D24 (desk repairs;
+  fund.py-desk + desk family), D27 (KG repairs + THE EPISODE STORE v1;
+  knowledge.py + new episodes module - the validator's three verified
+  KG defects incl. the DDL lock, plus the CEO's 50k-token-OM design's
+  storage half), D28 (KryptonPay only: the Studio shell clip fix at
+  <=1024px + one-fold-for-what-awaits-you). Plus the quant still
+  belting = 5 agents, at cap.
 - **GRACE'S LOOP-TIME MEMO (run-cfo-7): THE 900-SECOND CENSOR.** 9/44 of
   the live belt run's containers pinned at the timeout wall, nothing
   between 76s and 900s - 86.4% of container-seconds is deadline; the
