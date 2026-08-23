@@ -364,6 +364,34 @@ def test_no_cash_source_leaves_the_RAW_capture_intact_and_the_excess_absent():
     assert "not a zero one" in got["rf"]["reason"]
 
 
+@pytest.mark.parametrize("given,expect", [
+    (None, None), (0.0, 0.0), (0, 0.0), (4.5000000000020135, 4.5),
+    (-0.00004, -0.0), (260.76847437425505, 260.7685),
+])
+def test_rounding_for_storage_keeps_an_ABSENCE_absent(given, expect):
+    """A CONTRACT test, and it is labelled as one.
+
+    `_round_or_none` exists so a stored payload does not carry the residue of
+    binary compounding (`4.5000000000020135` for a series built to pay exactly
+    4.5%). Its guard branch — None stays None — CANNOT FIRE at either of
+    today's call sites: `leg_moments` only returns a null `ann_return_pct` on
+    the early paths, and the excess block is entered only when the window is
+    long enough and the clock readable, so neither can arise.
+
+    Mutation N44 (`round(float(value or 0))`) therefore survived every
+    behavioural test, and hand-derivation says it survived because it is
+    currently unreachable, not because the tests are thin. It is still worth
+    guarding directly: the helper's whole reason for existing is the next caller,
+    and `value or 0` would turn an unreadable rate into a 0.00% cash rate — the
+    single most flattering number available to a cash-heavy mix, which is the
+    defect this entire version exists to remove.
+    """
+    from app.fund.leanrunner import _round_or_none
+    got = _round_or_none(given, 4)
+    assert got == expect
+    assert (got is None) == (given is None)
+
+
 def test_the_stored_schema_says_2_so_a_v5r1_capture_is_distinguishable():
     got, _c, _s = _lean_shaped(500)
     assert got["schema"] == 2
