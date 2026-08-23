@@ -544,3 +544,9 @@ The panel is an instrument, not a view. For when a candidate comes off it: the n
 ## 2026-08-23 - CARRIED FROM ED (the universe slate) BY THE CHAIR
 
 Three of the four incumbents fail Ed's mechanism axis, for your re-underwriting: **DBA first on the rotation list** (no nameable payer; Sharpe +0.11 over 11y; one tick costs ~15% of a typical day's move); **TLT is a rates POSITION, never an edge source** (excess Sharpe -0.13 since 2016; its structural calendar measured flat across three mechanism batches); SPY keep as benchmark/hedge; DBC defensible as a control. Rotation recommendations remain yours to make and the CEO's to click.
+
+## 2026-08-23 - CARRIED FROM DOC (META dossier v1) BY THE CHAIR
+
+1. **Do NOT apply the panel's +6% post-earnings vol elevation as a name-agnostic stop parameter** - on META it measures 1.040 vs a 1.146 baseline (wrong sign; panel value outside the CI). Any earnings-spanning hold gets its own per-name vol ratio before a stop is widened.
+2. If META ever reaches the book: size off ~30%/yr IDIOSYNCRATIC vol, not beta; fractional shares make any price positionable at our NAV (the whole-share constraint is invented - leanrunner.py:139-141).
+3. For the incumbency rule: a dossier now costs minutes per name and answers would-this-be-entered-today with dated scoreable structure - ask for one on any incumbent you re-underwrite.

@@ -123,6 +123,23 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   is fired and discharged by this work — the register cannot record
   either; recorded here, and the evaluability ticket (a26debb9 family)
   remains the owner.
+- **THE META DOSSIER v1 DELIVERED - THE PILOT PROVED THE INSTRUMENT.**
+  Full structural read of an uncovered name in ~4 minutes of fetching.
+  HEADLINE: the buyback is OFF (three /usr/bin/bash quarters vs 0bn/yr; verbatim
+  + XBRL double-sourced), debt tripled, shares now GROWING - the index
+  must-trade flow FLIPPED SIGN, dated 2026-09-21; Zuckerberg silent 373
+  days (one session after the ATH; all four prior plans first-sold
+  +93..+125d). Contrary fact governs: the tape already took -1.28 sigma.
+  VERDICT: diagnosis, not a trade (/usr/bin/bash.72/event at 5% weight). THE
+  PROGRAM-LEVEL DISCOVERY: single-name power is the coverage model's
+  binding constraint (only 3 event classes reach usable n per name) ->
+  THE MDE RULE applied to the seat (computed BEFORE the test; decides
+  cross-section vs bin). The dossier CONTRADICTED its own seat's panel
+  vol lead on this name - per-name parameters, never universe averages:
+  the model earning its keep on run one. TEN dated predictions
+  registered as desk items (first scoring 2026-09-21) - the dossier
+  cannot grade itself. Form 144 follow-up ticketed
+  approved-for-experimentation. Two self-caught errors on the record.
 - **ED'S UNIVERSE SLATE FILED** (16 finalists / 6 all-UNTESTED families /
   3 mid-run verification reversals: EIX dropped on its own no-issuance
   plan; MSTR's payer re-identified from the dead ATM story to the live

@@ -191,6 +191,19 @@ a SCANNING INSTRUMENT with a memo mode, not a memo writer with a corpus:
    this one hides inside a field literally named filed — and it would
    waste a container and a review.
 
+5. **NO EVENT OR CALENDAR CLAIM LEAVES THIS SEAT WITHOUT ITS MDE,
+   COMPUTED BEFORE THE TEST.** State the residual daily sd, the
+   observation count available, and the effect size that would reach
+   |t|=2 at that n. Measured 2026-08-23 (META dossier v1): a mega-cap's
+   QQQ-residual daily sd is ~2.0%, so an opex-week effect of
+   -0.116%/day - placebo z -2.01, strengthening, entirely believable -
+   needs 1,184 observations (~19.7 years) to confirm. A single name
+   yields ~4 earnings and ~10 8-Ks a year, so most per-name event
+   classes are STRUCTURALLY UNMEASURABLE, not merely unmeasured. The
+   MDE decides whether a hook goes to the cross-section or to the bin;
+   computing it after the t-stat is how a seat spends a dispatch
+   confirming what it wanted.
+
 ## The sixty-second rule (CEO instruction, 2026-08-21)
 
 Your report BEGINS with a fenced section titled **TL;DR** — five lines
