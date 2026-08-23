@@ -509,6 +509,108 @@ def fmt_bps(x: float) -> str:
 #: touch it.
 GATE_VERSION = "v4.3"
 
+#: THE PREMIA BAR, versioned separately and on purpose.
+#:
+#: v5r1 (2026-08-23). The fund declared two claim types on 2026-08-19 and the
+#: gate has only ever known one of them. Constitution, Identity:
+#:
+#:   * **premia** — better risk-adjusted return than holding the asset. Does
+#:     NOT need to beat buy-and-hold, and must not be judged as if it should.
+#:     AMENDED 2026-08-21: "risk-adjusted" is measured over EXCESS returns —
+#:     above the risk-free rate, with financing charged on any leverage.
+#:   * **alpha** — beats the benchmark after costs. Judged by the full gate.
+#:
+#: MEASURED CONSEQUENCE OF THE GAP (validator, run-validator-jointpower,
+#: docs/validator/VALIDATOR_JOINTPOWER_2026-08-23.md): of four archetypes
+#: computed on real META bars, two are premia-shaped — VOLSCALE scores Sharpe
+#: 0.57 on 27% volatility against holding's 0.54 on 44% — and **0 of 2 are
+#: certifiable BY CONSTRUCTION**: `gate.py` contained zero volatility
+#: statistics, `must_beat_benchmark` was unconditional, and no claim-type field
+#: existed. The premia sleeve has had no criterion since 2026-08-19.
+#:
+#: WHY A SEPARATE DICT rather than more keys in ``CRITERIA``. ``CRITERIA`` is
+#: the alpha bar and v5r1 leaves it BYTE-IDENTICAL, which is the acceptance
+#: condition this version ships under. Adding premia keys to it would force
+#: them into ``CRITERIA_V1``/``_V2``/``_V3`` as well — the doctrine's stage-07
+#: check requires every preserved version to describe its bar completely — and
+#: any value invented there would be a fiction about what v1 asked for. A
+#: premia verdict records this dict beside the alpha one, so it still states
+#: its whole bar.
+#:
+#: WHAT v5r1 CHANGES: exactly one criterion, for exactly one declared claim
+#: type. ``must_beat_benchmark`` is replaced by the inequality below. PSR,
+#: breakeven, orders, capacity, folds, retention and the holdout apply to a
+#: premia claim unchanged.
+#:
+#: WHAT v5r1 EXPLICITLY DOES NOT FIX, stated so no pass is over-read:
+#:
+#:   1. **The fold and holdout legs still judge RAW return retention.** A
+#:      premia claim's consistency across folds is therefore not a premia
+#:      consistency — the fold legs run `enrich=False` and carry no benchmark
+#:      at all (leanrunner.py, the sweep-point path), so there is nothing to
+#:      compare against inside a fold. Closing it is a BELT change.
+#:   2. **rf = 0, and that is a hole the constitution names.** No risk-free
+#:      series exists anywhere in the gate path (validator H1, gate v5 round 5,
+#:      docs/GATE_V5_ROUND5_MEASURED_2026-08-21.md). The stress test below is
+#:      the fail-closed answer, not a substitute for the series.
+#:   3. **A single-window inequality is one draw.** The validator's J3
+#:      measurement: a zero-skill monthly-rebalanced equal-weight portfolio
+#:      clears a premia inequality in 18.2% of independent gate-length windows
+#:      (4 of 22), and two of its three conditions are nearly free. This
+#:      criterion is NOT sufficient on its own and is not claimed to be; what
+#:      makes it a bar is the rest of the gauntlet standing beside it.
+#:   4. **The claim type is SUBMITTER-DECLARED.** A submitter picks which bar
+#:      it is judged against. That is the constitution's design, and it is also
+#:      an obvious loosening vector, so every premia verdict records
+#:      `declared_by: "submitter"` for the audit that will eventually ask
+#:      whether candidates are shopping for the easier bar.
+PREMIA_VERSION = "v5r1"
+
+#: Derived, never restated. Two literals for one version is how the stamp on a
+#: stored verdict stops matching the bar that produced it.
+GATE_VERSION_PREMIA = f"{PREMIA_VERSION}-premia"
+
+#: The claim types this gate knows. Anything else is judged by the ALPHA bar
+#: AND fails: a typo must not be able to select a criterion by accident, in
+#: either direction.
+CLAIM_TYPES = ("alpha", "premia")
+CLAIM_TYPE_DEFAULT = "alpha"
+
+PREMIA_CRITERIA: dict[str, Any] = {
+    # NO MARGIN. A strict inequality and nothing added to it. The temptation is
+    # to require the advantage to exceed some number, and the validator swept
+    # exactly that in gate v5 round 5: margins of 1/2/3/5/8 %/yr gave
+    # discrimination 0.61/0.69/0.54/0.49/0.26 — no margin fixed it, and the
+    # round closed measured-NO rather than adopting one. Picking a margin here
+    # would be inventing a threshold the evidence does not support, and a
+    # threshold is a human's to move in either direction.
+    "premia_min_sharpe_advantage": 0.0,
+    # Better risk-adjusted return must not mean a bigger hole. A Sharpe
+    # advantage bought by fattening the left tail is the shape a Sharpe ratio
+    # is worst at seeing, and the drawdown is the cheapest independent check on
+    # it. Measured to bite: of the four stored candidates carrying analytics,
+    # 01b61967c933 has a +0.054 Sharpe advantage and a 28.67% drawdown against
+    # its bar's 28.42% — this condition is what fails it.
+    "premia_require_drawdown_not_worse": True,
+    # THE RISK-FREE STRESS, and the reason the constitution's own worked
+    # example cannot pass. Under rf=0 a cash-heavy mix scores a Sharpe on
+    # T-bill carry; the CEO's 2026-08-21 amendment exists because that was
+    # DEMONSTRATED to certify a zero-skill portfolio as premia.
+    #
+    # 4.0 is not a preference. It is the cash rate this fund's own window
+    # actually paid: the validator measured BIL at 3.97%/yr and SHV at 3.94%
+    # over the gate's window (gate v5 round 5, G1). Rounded to the nearest
+    # whole percent, and rounded UP, so the stress is not softer than the
+    # measurement.
+    "premia_rf_stress_pct": 4.0,
+    # A comparison over a minority of the run is not a comparison over the run.
+    # Not a new number: this is the same majority rule `_add_benchmark`
+    # already applies when it refuses a basket built from a minority of its
+    # legs. Compared with a STRICT majority, in the same shape as the
+    # walk-forward rule (`retained * 2 <= measurable` fails).
+    "premia_require_majority_window_coverage": True,
+}
+
 #: The bar. Deliberately data, not code branches: it can be printed, argued
 #: about on its own merits, and diffed when it changes.
 CRITERIA: dict[str, Any] = {
@@ -619,18 +721,229 @@ CRITERIA_V1: dict[str, Any] = {
 }
 
 
+def volatility_check(result: dict[str, Any]) -> dict[str, Any]:
+    """Realised annualised volatility of the strategy and of its bar.
+
+    CAPTURE ONLY — no criterion reads this, and wiring one to it would be a
+    threshold change. It exists because the validator measured a **12x
+    pass-rate swing at FIXED skill** (2.6% at 8% volatility rising to 29.7% at
+    25%), delivered entirely through ``must_beat_benchmark``, and observed that
+    no field anywhere recorded a candidate's volatility — so the lever was
+    invisible in every stored verdict. A number nobody can read is a lever
+    nobody can audit.
+
+    Reported ABSENT with a reason when the belt did not capture the premia
+    inputs, which is the case for every candidate judged before this version.
+    """
+    p = result.get("premia_inputs")
+    rb = result.get("robustness") or {}
+    engine = rb.get("engine_annual_vol_pct")
+    if not isinstance(p, dict) or not p.get("measurable"):
+        return {
+            "strategy_ann_vol_pct": None,
+            "benchmark_ann_vol_pct": None,
+            "engine_ann_vol_pct": engine,
+            "note": ("this run carries no measurable premia inputs, so neither "
+                     "leg's volatility could be computed — absent, not zero"
+                     + (f": {p.get('reason')}" if isinstance(p, dict)
+                        and p.get("reason") else "")),
+        }
+    s, b = p["strategy"], p["benchmark"]
+    return {
+        "strategy_ann_vol_pct": round(float(s["ann_vol_pct"]), 4),
+        "benchmark_ann_vol_pct": round(float(b["ann_vol_pct"]), 4),
+        # The engine's own figure, carried beside ours because they are NOT the
+        # same measurement and the difference is systematic: LEAN annualises a
+        # calendar-day series at sqrt(252), which understates by
+        # sqrt(365/252) = 1.204. Reproduced on all four stored candidates —
+        # see leanrunner.psr_inputs.
+        "engine_ann_vol_pct": engine,
+        "basis": ("both legs from the same daily returns over the window they "
+                  "share, annualised at the series' OWN observed frequency"),
+        "obs_per_year": (None if s.get("obs_per_year") is None
+                         else round(float(s["obs_per_year"]), 2)),
+        "window": p.get("window"),
+    }
+
+
+def _premia_leg(result: dict[str, Any], pc: dict[str, Any]
+                ) -> tuple[dict[str, Any], list[str]]:
+    """The premia inequality: is this better RISK-ADJUSTED than holding the bar?
+
+    THE FORMULATION, stated in full because it is the whole criterion and the
+    adversary should attack it as written:
+
+        A premia claim passes iff, on the window the strategy and its
+        benchmark SHARE,
+
+          (1) both legs are measurable and that window covers a STRICT
+              MAJORITY of the strategy's own observations;
+          (2) the strategy's annualised Sharpe on EXCESS returns exceeds the
+              benchmark's, at the assumed risk-free rate (0%); AND
+          (3) it still exceeds it at the stressed risk-free rate (4%); AND
+          (4) the strategy's maximum drawdown does not exceed the benchmark's.
+
+    WHY (2) AND (3) TOGETHER ARE A CLAIM ABOUT THE WHOLE INTERVAL, not two
+    spot checks. Subtracting a per-observation constant leaves a standard
+    deviation unchanged, so each leg's Sharpe is affine in that constant and
+    the DIFFERENCE between them is affine too, with slope
+    ``sqrt(K) * (1/sd_bench - 1/sd_strategy)``. An affine function that is
+    positive at both ends of an interval is positive throughout it. So (2)+(3)
+    is exactly "the advantage holds for every risk-free rate between 0% and
+    4%", checked in two evaluations.
+
+    AND THAT IS WHY THE STRESS IS UNCONDITIONAL. The brief this was built from
+    asked for the stress where the strategy's volatility is "materially below"
+    the benchmark's. It does not need the condition, and the condition would
+    have been an invented threshold: the slope above is negative EXACTLY when
+    ``sd_strategy < sd_bench``, so on any candidate whose volatility is at or
+    above its bar's, passing (2) implies passing (3) and the extra evaluation
+    cannot fail anything. Applying it to everything is equivalent on the
+    failing set and carries one fewer number nobody measured.
+
+    WHAT (3) IS FOR. The constitution's excess-returns amendment exists because
+    a zero-skill cash-heavy mix was DEMONSTRATED to certify as premia under
+    rf=0: T-bill carry impersonates edge. The fund still has no risk-free
+    series (H1), so the honest rule is not to assume one — it is to refuse any
+    premium that survives only at the assumption most flattering to it.
+    """
+    from app.fund import statistics as st
+
+    rf_assumed = 0.0
+    rf_stress = float(pc["premia_rf_stress_pct"])
+    out: dict[str, Any] = {
+        "declared_by": "submitter",
+        "rf_assumed_pct": rf_assumed,
+        "rf_stress_pct": rf_stress,
+        "rf_basis": ("ZERO — H1 open; a cash-heavy mix can impersonate edge "
+                     "until the rf series lands"),
+        "criteria": dict(pc),
+        "measurable": False,
+    }
+    p = result.get("premia_inputs")
+    if not isinstance(p, dict) or not p.get("measurable"):
+        reason = (p.get("reason") if isinstance(p, dict) else None) or (
+            "the belt captured no premia inputs for this run")
+        out["reason"] = reason
+        return out, [
+            f"the premia comparison could not be measured: {reason} — a premia "
+            f"claim is 'better risk-adjusted return than holding the asset', "
+            f"and an unmeasured comparison establishes neither side"]
+
+    s, b = p["strategy"], p["benchmark"]
+    failures: list[str] = []
+    cov = p.get("coverage") or {}
+    common = int(cov.get("common_days") or 0)
+    total = int(cov.get("strategy_days") or 0)
+    out.update({
+        "measurable": True,
+        "window": p.get("window"),
+        "coverage": cov,
+        "benchmark_leg_source": p.get("benchmark_leg_source"),
+        "strategy_ann_vol_pct": round(float(s["ann_vol_pct"]), 4),
+        "benchmark_ann_vol_pct": round(float(b["ann_vol_pct"]), 4),
+        "strategy_max_drawdown_pct": round(float(s["max_drawdown_pct"]), 4),
+        "benchmark_max_drawdown_pct": round(float(b["max_drawdown_pct"]), 4),
+        # Recorded, NOT enforced. A premia claim does not have to beat
+        # buy-and-hold — the constitution says so in as many words — but a
+        # reader should be able to see when it did, and on the common window
+        # rather than across the two different windows the alpha criterion
+        # compares.
+        "beats_benchmark_total_return":
+            float(s["total_return_pct"]) > float(b["total_return_pct"]),
+        "strategy_total_return_pct": round(float(s["total_return_pct"]), 4),
+        "benchmark_total_return_pct": round(float(b["total_return_pct"]), 4),
+    })
+
+    # (1) A strict majority of the strategy's own record, in integer
+    # arithmetic, for the same reason the walk-forward majority is: a float
+    # share compared with `<` is where the off-by-one lives.
+    coverage_ok = common * 2 > total if total else False
+    out["coverage_majority"] = coverage_ok
+    if pc.get("premia_require_majority_window_coverage") and not coverage_ok:
+        failures.append(
+            f"the strategy and its bar share only {common} of the strategy's "
+            f"{total} observations — a comparison over a minority of the run "
+            f"is not a comparison over the run")
+
+    # (2) and (3).
+    s0 = st.sharpe_at_rf(s, rf_assumed)
+    b0 = st.sharpe_at_rf(b, rf_assumed)
+    s1 = st.sharpe_at_rf(s, rf_stress)
+    b1 = st.sharpe_at_rf(b, rf_stress)
+    if s0 is None or b0 is None or s1 is None or b1 is None:
+        out["reason"] = "a Sharpe could not be computed for one of the legs"
+        failures.append(
+            "the risk-adjusted comparison could not be computed — one leg has "
+            "no usable dispersion, and a constant return is not a "
+            "risk-adjusted one")
+        return out, failures
+    margin = float(pc["premia_min_sharpe_advantage"])
+    adv0, adv1 = s0 - b0, s1 - b1
+    out.update({
+        "sharpe_strategy": round(s0, 5), "sharpe_benchmark": round(b0, 5),
+        "sharpe_advantage": round(adv0, 5),
+        "sharpe_strategy_at_stress": round(s1, 5),
+        "sharpe_benchmark_at_stress": round(b1, 5),
+        "sharpe_advantage_at_stress": round(adv1, 5),
+    })
+    # rf_sensitive names the SHAPE the constitution warns about, so it is set
+    # only where that shape is what happened: the advantage exists at rf=0 and
+    # is gone by the stressed rate. A candidate that had no advantage in the
+    # first place is not "rf sensitive", it simply had no premium.
+    out["rf_sensitive"] = bool(adv0 > margin and not adv1 > margin)
+    if not adv0 > margin:
+        failures.append(
+            f"risk-adjusted return {s0:.3f} against {b0:.3f} for simply "
+            f"holding the bar: no premium over owning the thing, and a premia "
+            f"claim is exactly the claim that there is one")
+    elif out["rf_sensitive"]:
+        failures.append(
+            f"the risk-adjusted advantage (+{adv0:.3f} at rf=0%) DISAPPEARS at "
+            f"rf={rf_stress:.1f}% ({adv1:+.3f}): the strategy runs at "
+            f"{out['strategy_ann_vol_pct']:.1f}% volatility against the bar's "
+            f"{out['benchmark_ann_vol_pct']:.1f}%, so what looks like a premium "
+            f"is consistent with cash earning the risk-free rate. This fund has "
+            f"NO risk-free series (H1 open), so a premium that exists only "
+            f"under the assumption most flattering to it is not established")
+
+    # (4)
+    dd_ok = float(s["max_drawdown_pct"]) <= float(b["max_drawdown_pct"])
+    out["drawdown_not_worse"] = dd_ok
+    if pc.get("premia_require_drawdown_not_worse") and not dd_ok:
+        failures.append(
+            f"kept a deeper hole than the thing it replaces: drawdown "
+            f"{out['strategy_max_drawdown_pct']:.1f}% against "
+            f"{out['benchmark_max_drawdown_pct']:.1f}% — better risk-adjusted "
+            f"return must not mean bigger drawdowns")
+    return out, failures
+
+
 def evaluate(result: dict[str, Any],
              holdout: Optional[dict[str, Any]] = None,
              sweep_summary: Optional[dict[str, Any]] = None,
              criteria: Optional[dict[str, Any]] = None,
-             walkforward: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+             walkforward: Optional[dict[str, Any]] = None,
+             claim_type: Optional[str] = None,
+             premia_criteria: Optional[dict[str, Any]] = None) -> dict[str, Any]:
     """Apply the bar. Returns failures in plain sentences, not a score.
 
     An input that is MISSING fails rather than passes. A candidate that was
     never held out has not survived a holdout, and treating absent evidence as
     satisfied evidence is how a factory quietly lowers its own bar.
+
+    ``claim_type`` selects WHICH bar, and defaults to ``alpha`` so every
+    existing caller, every stored candidate and every re-judgement is
+    byte-identical to v4.3. A ``premia`` claim swaps exactly one criterion —
+    see ``PREMIA_VERSION`` above for what that does and does not change. An
+    UNRECOGNISED claim type is judged by the alpha bar and fails: a typo must
+    not be able to select a criterion by accident.
     """
     c = {**CRITERIA, **(criteria or {})}
+    declared = CLAIM_TYPE_DEFAULT if claim_type is None else str(claim_type)
+    known = declared in CLAIM_TYPES
+    is_premia = declared == "premia"
+    pc = {**PREMIA_CRITERIA, **(premia_criteria or {})}
     rb = result.get("robustness") or {}
     failures: list[str] = []
     checks: dict[str, Any] = {}
@@ -703,7 +1016,26 @@ def evaluate(result: dict[str, Any],
                      "verdict cannot say which universe it was measured "
                      "against — unlabelled is not corrected"),
         }
-    if c["must_beat_benchmark"]:
+    # WHICH BAR. For an ALPHA claim this is unchanged from v4.3, down to the
+    # sentence. For a PREMIA claim `must_beat_benchmark` is REPLACED — the
+    # constitution says a premia claim "does NOT need to beat buy-and-hold, and
+    # must not be judged as if it should" — by the risk-adjusted inequality in
+    # `_premia_leg`. Nothing else in this function branches on claim type.
+    #
+    # `criteria` on a premia verdict still CONTAINS `must_beat_benchmark: True`
+    # — it is the alpha dict, preserved whole — so this flag says plainly
+    # whether it was applied. A criterion listed in a stored verdict and
+    # silently skipped is the write-only-column shape, and it would be read as
+    # "this candidate beat its benchmark" by anyone who did not know v5r1
+    # existed.
+    checks["must_beat_benchmark_applied"] = bool(
+        c["must_beat_benchmark"]) and not is_premia
+    if is_premia:
+        premia, premia_failures = _premia_leg(result, pc)
+        premia["replaces_criterion"] = "must_beat_benchmark"
+        checks["premia"] = premia
+        failures.extend(premia_failures)
+    elif c["must_beat_benchmark"]:
         if strat is None or bench is None:
             failures.append("no benchmark to compare against — 'better than "
                             "nothing' is not the question")
@@ -953,8 +1285,29 @@ def evaluate(result: dict[str, Any],
                     f"independent folds ({share:.0%}) — not a majority, which is "
                     f"consistent with a lucky window rather than an edge")
 
+    # THE CLAIM TYPE, recorded on every verdict including the alpha ones, so
+    # the record can be read without knowing which version introduced the
+    # field. Capture in `checks` rather than at the top level: the top-level
+    # shape of an alpha verdict is unchanged by this version.
+    checks["claim_type"] = declared
+    if not known:
+        # Fail closed, in BOTH directions: an unrecognised word is judged by
+        # the alpha bar (so it cannot pick up the premia criterion) and fails
+        # anyway (so it cannot quietly inherit the alpha one either).
+        checks["claim_type_recognised"] = False
+        failures.append(
+            f"unrecognised claim type {declared!r} — a candidate is judged as "
+            f"{' or '.join(CLAIM_TYPES)}, and a bar selected by a typo is not "
+            f"a bar. Judged against the alpha criteria here, and failed for "
+            f"the declaration rather than for the evidence")
+    # CAPTURE ONLY, both claim types: the volatility lever the validator
+    # measured at 12x, made visible. See `volatility_check`.
+    checks["volatility"] = volatility_check(result)
     return {
-        "gate_version": GATE_VERSION,
+        # A premia verdict is stamped with the premia bar's own version. An
+        # alpha verdict is stamped v4.3 and is byte-identical to v4.3 — the
+        # criteria dict, the failures and the version all unchanged.
+        "gate_version": GATE_VERSION_PREMIA if is_premia else GATE_VERSION,
         "passed": not failures,
         "failures": failures,
         "checks": checks,
