@@ -40,8 +40,14 @@ class MemStore:
         self.events = list(events or [])
 
     def append(self, e):
+        # aggregate_type/_id are captured because a refusal event's AGGREGATE
+        # is what decides which folds see it — the D17 lesson, and the reason
+        # the supersession refusal had to be checked against every fold that
+        # keys on it.
         self.events.append({"type": e.type.value, "payload": e.payload,
-                            "actor": e.actor})
+                            "actor": e.actor,
+                            "aggregate_type": e.aggregate_type,
+                            "aggregate_id": e.aggregate_id})
         return e
 
     def stream(self, since_seq=0, limit=100_000):
@@ -132,14 +138,14 @@ def test_a_filing_with_no_routing_is_refused_and_names_every_missing_field():
     All four errors at once, not one per round trip — a seat re-posting to
     discover the second missing field is a seat spending four calls on a form.
     """
-    errors = desk.validate_routing({"text": "x", "kind": "build"}, 0)
+    errors = desk.routing_errors({"text": "x", "kind": "build"}, 0)
     assert len(errors) == 1
     for field in desk.ROUTING_REQUIRED_FIELDS:
         assert field in errors[0]
     assert "recommendations[0]" in errors[0]
 
 
-def test_validate_routing_READS_the_required_set_rather_than_repeating_it(monkeypatch):
+def test_the_routing_rule_READS_the_required_set_rather_than_repeating_it(monkeypatch):
     """MOVE the value, do not match it (D16/D21 standard).
 
     Asserting `errors mention next_actor` cannot tell a read from a hardcoded
@@ -147,10 +153,10 @@ def test_validate_routing_READS_the_required_set_rather_than_repeating_it(monkey
     module has never seen, and the refusal must follow it.
     """
     monkeypatch.setattr(desk, "ROUTING_REQUIRED_FIELDS", ("blast_radius",))
-    errors = desk.validate_routing(dict(GOOD_REC), 0)
+    errors = desk.routing_errors(dict(GOOD_REC), 0)
     assert len(errors) == 1 and "blast_radius" in errors[0]
     # And the four real fields are now IRRELEVANT — proof nothing else pins them.
-    assert desk.validate_routing({"blast_radius": 1}, 0) == []
+    assert desk.routing_errors({"blast_radius": 1}, 0) == []
 
 
 def test_undecided_routes_to_the_chair_and_never_to_the_ceo():
@@ -172,14 +178,14 @@ def test_unknown_is_not_a_word_a_seat_may_file():
     back through the one word that was supposed to be unwritable.
     """
     assert "unknown" not in desk.FILEABLE_NEXT_ACTORS
-    errors = desk.validate_routing({**GOOD_REC, "next_actor": "unknown"}, 0)
+    errors = desk.routing_errors({**GOOD_REC, "next_actor": "unknown"}, 0)
     assert len(errors) == 1 and "unknown" in errors[0]
 
 
 @pytest.mark.parametrize("value", ["2026-8-1", "next Monday", "20260801", ""])
 def test_a_malformed_due_date_is_refused_not_nulled(value):
     """It used to sort lexicographically against real dates and lose the row."""
-    errors = desk.validate_routing({**GOOD_REC, "due_date": value}, 0)
+    errors = desk.routing_errors({**GOOD_REC, "due_date": value}, 0)
     assert len(errors) == 1 and "due_date" in errors[0]
 
 
@@ -189,16 +195,18 @@ def test_an_honest_absence_is_accepted_on_both_ranking_keys():
     The opposite failure is worse than the flood: a seat forced to state a
     dollar figure states one, and the desk then ranks on fabricated money.
     """
-    assert desk.validate_routing({**GOOD_REC, "due_date": None,
+    assert desk.routing_errors({**GOOD_REC, "due_date": None,
                                   "money_at_stake": None}, 0) == []
 
 
 @pytest.mark.parametrize("value", ["free", float("nan"), float("inf"), "12"])
 def test_money_at_stake_must_be_a_finite_number_or_null(value):
-    assert desk.validate_routing({**GOOD_REC, "money_at_stake": value}, 0)
+    assert desk.routing_errors({**GOOD_REC, "money_at_stake": value}, 0)
 
 
-def test_the_endpoint_refuses_an_unrouted_filing_with_422(monkeypatch):
+def test_the_endpoint_refuses_an_unrouted_filing_with_422_WHEN_ENFORCED(monkeypatch):
+    """The rule at full strength — behind the flag the chair flips."""
+    monkeypatch.setattr(desk, "DESK_ROUTING_ENFORCE", True)
     ds = FakeDeskStore()
     c = client(monkeypatch, MemStore(), deskstore=ds)
     r = c.post("/api/v1/fund/desk/runs",
@@ -208,7 +216,139 @@ def test_the_endpoint_refuses_an_unrouted_filing_with_422(monkeypatch):
     body = r.json()["detail"]
     assert body["routing_rules_version"] == desk.ROUTING_RULES_VERSION
     assert sorted(body["required"]) == sorted(desk.ROUTING_REQUIRED_FIELDS)
+    assert body["enforced"] is True
     assert ds._runs == [], "a refused filing must not be stored"
+
+
+# --------------------------------------------- the enforcement flag (D24) ---
+#
+# THE HALF-SHIPPED CONTRACT (adversary D22, ground 2 of the bundle kill). The
+# 422 was measured over the last day of live traffic and would have rejected
+# 16 of 17 runs across eight seats: the schema half of a contract whose other
+# half — the seat protocols that teach seats the four fields — is outside this
+# repo's write scope. Enforced alone it does not tighten routing; it stops the
+# record being written.
+
+def test_the_enforcement_flag_SHIPS_OFF_and_the_reason_is_on_the_record():
+    """Traceability half of the pin (D21 standard): the shipped value, and the
+    written basis it came from, checked separately from the behaviour.
+
+    Hardcoded True/False on purpose — a test that reads the constant it guards
+    moves with it and pins nothing.
+    """
+    import inspect
+    assert desk.DESK_ROUTING_ENFORCE is False
+    assert desk.ROUTING_ENFORCED_FROM_VERSION == 1
+    src = inspect.getsource(desk)
+    assert "16 of the 17 runs" in src, (
+        "the measured cost of flipping the flag must stay beside the flag")
+
+
+def test_with_the_flag_off_an_unrouted_filing_is_STORED_and_the_finding_returned(monkeypatch):
+    """Behavioural half: today's traffic is recorded, and told what it owes.
+
+    An advisory is not a shrug. The whole reason the flip is cheap later is
+    that the errors are computed and returned NOW, so nobody has to guess at
+    the cost of turning the rule on.
+    """
+    ds = FakeDeskStore()
+    c = client(monkeypatch, MemStore(), deskstore=ds)
+    r = c.post("/api/v1/fund/desk/runs",
+               json={"run_id": "r1", "seat": "pm", "task": "t", "output": "o",
+                     "recommendations": [{"kind": "build", "text": "x"}]})
+    assert r.status_code == 200
+    assert len(ds._runs) == 1, "an unenforced filing is recorded, not dropped"
+    adv = r.json()["routing_advisory"]
+    assert adv["enforced"] is False
+    assert len(adv["errors"]) == 1
+    for field in desk.ROUTING_REQUIRED_FIELDS:
+        assert field in adv["errors"][0]
+
+
+def test_a_compliant_filing_carries_no_advisory_at_all(monkeypatch):
+    """The advisory must not become furniture on every response — a warning
+    that is always there is a warning nobody reads."""
+    ds = FakeDeskStore()
+    c = client(monkeypatch, MemStore(), deskstore=ds)
+    r = c.post("/api/v1/fund/desk/runs",
+               json={"run_id": "r1", "seat": "pm", "task": "t", "output": "o",
+                     "recommendations": [dict(GOOD_REC)]})
+    assert r.status_code == 200
+    assert "routing_advisory" not in r.json()
+
+
+def test_a_run_may_OPT_IN_to_the_refusal_ahead_of_the_fleet(monkeypatch):
+    ds = FakeDeskStore()
+    c = client(monkeypatch, MemStore(), deskstore=ds)
+    r = c.post("/api/v1/fund/desk/runs",
+               json={"run_id": "r1", "seat": "pm", "task": "t", "output": "o",
+                     "routing_version": 1,
+                     "recommendations": [{"kind": "build", "text": "x"}]})
+    assert r.status_code == 422
+    assert r.json()["detail"]["enforced"] is True
+    assert ds._runs == []
+
+
+@pytest.mark.parametrize("declared,expect", [
+    (0, "stored"),          # a version below the threshold is not an opt-in
+    (None, "stored"),       # absent is absent
+    (1, "enforced"),        # the only shape that opts in
+    (True, "rejected"),     # StrictInt: a typo'd flag is not version 1
+    ("1", "rejected"),      # StrictInt: a quoted version is not a version
+    (0.9, "rejected"),      # StrictInt: and 0.9 is not a version either
+])
+def test_what_counts_as_a_version_DECLARATION_measured_at_the_door(
+        monkeypatch, declared, expect):
+    """The opt-in must not fire on a value nobody meant as a version — that
+    direction stops a run being recorded at all.
+
+    THE TYPE BOUNDARY IS PYDANTIC'S, AND IT HAD TO BE MADE STRICT TO BE ONE.
+    Measured on pydantic 2.13.4: a plain `Optional[int]` turns JSON `true`
+    into the integer 1 and the string `"1"` into 1 — both would have opted a
+    caller into a refusal it never asked for, and no handler-side type guard
+    can see it, because the coercion already happened upstream. `StrictInt`
+    is what makes the four rejections below true, and the `true` row is its
+    only witness. (I first wrote the handler's bool guard off as unreachable,
+    then measured that pydantic normalises `true` to a real `int` and the
+    guard could never have fired: the guard is gone and the model is strict.)
+    """
+    ds = FakeDeskStore()
+    c = client(monkeypatch, MemStore(), deskstore=ds)
+    r = c.post("/api/v1/fund/desk/runs",
+               json={"run_id": "r1", "seat": "pm", "task": "t", "output": "o",
+                     "routing_version": declared,
+                     "recommendations": [{"kind": "build", "text": "x"}]})
+    if expect == "stored":
+        assert r.status_code == 200 and len(ds._runs) == 1
+        assert r.json()["routing_advisory"]["enforced"] is False
+    elif expect == "enforced":
+        assert r.status_code == 422 and ds._runs == []
+        assert r.json()["detail"]["enforced"] is True
+    else:
+        assert r.status_code == 422 and ds._runs == []
+        # pydantic's shape, not the routing rule's: a list of field errors.
+        assert isinstance(r.json()["detail"], list)
+
+
+def test_the_declared_version_is_stored_so_the_flip_can_be_audited(monkeypatch):
+    ds = FakeDeskStore()
+    c = client(monkeypatch, MemStore(), deskstore=ds)
+    r = c.post("/api/v1/fund/desk/runs",
+               json={"run_id": "r1", "seat": "pm", "task": "t", "output": "o",
+                     "routing_version": 1,
+                     "recommendations": [dict(GOOD_REC)]})
+    assert r.status_code == 200
+    assert ds._runs[0]["meta"]["routing_version"] == 1
+
+
+def test_the_gate_and_the_rule_are_ONE_predicate_not_two(monkeypatch):
+    """MOVE the rule and the gated wrapper must follow it (D18: a rule and the
+    guard deciding whether the rule ran must not each carry the question)."""
+    monkeypatch.setattr(desk, "ROUTING_REQUIRED_FIELDS", ("blast_radius",))
+    assert desk.validate_routing(dict(GOOD_REC), 0, enforce=True)
+    assert desk.validate_routing({"blast_radius": 1}, 0, enforce=True) == []
+    # ...and with enforcement off the SAME row produces nothing to refuse.
+    assert desk.validate_routing(dict(GOOD_REC), 0, enforce=False) == []
 
 
 def test_the_endpoint_normalises_undecided_before_storing(monkeypatch):
@@ -997,10 +1137,14 @@ def test_withdrawing_a_superseded_recommendation_stays_easy(monkeypatch):
     assert ds.decided == [("run-x", 1, "rejected")]
 
 
-def test_approving_a_superseded_request_is_refused_before_the_guard_runs(monkeypatch):
-    """FIRST, not last: the caller gets the lineage instead of a confirm-echo
-    error about a row it should not be approving at all. And the guard is
-    proven untouched — it is never reached."""
+def test_approving_a_superseded_request_is_refused_AFTER_the_guard_admits_the_caller(monkeypatch):
+    """ORDER CORRECTED (adversary D22): identity first, lineage second.
+
+    v1 ran the supersession check first and handed the edge, its superseder
+    and its named future event to ANY caller — including one the allowlist was
+    about to refuse. The refusal itself is unchanged and still cannot admit
+    anything; only who gets to read the lineage moved.
+    """
     from app.api.v1 import fund as fundapi
     calls = []
     monkeypatch.setattr(fundapi, "_guard_approval",
@@ -1012,8 +1156,127 @@ def test_approving_a_superseded_request_is_refused_before_the_guard_runs(monkeyp
     r = c.post("/api/v1/fund/desk/requests/q1/approve",
                json={"actor": "ceo", "confirm": "q1"})
     assert r.status_code == 409
-    assert calls == [], "the approval guard must not even be reached"
-    assert store.events == []
+    assert len(calls) == 1, "the approval guard runs FIRST now"
+    assert [e["type"] for e in store.events] == ["ApprovalRefused"]
+    assert store.events[0]["payload"]["guard"] == "supersession_v1"
+    assert "DeskRequestApproved" not in [e["type"] for e in store.events]
+
+
+def test_a_caller_the_allowlist_refuses_never_sees_the_lineage(monkeypatch):
+    """THE REASON THE ORDER MOVED, stated as its own test. A row's supersession
+    lineage names the superseder and the future event that kills its premise;
+    a caller who cannot approve anything has no business reading it.
+
+    The real guard runs here — not a stub — because the fact under test is
+    which refusal arrives first, and a stubbed guard cannot refuse.
+    """
+    store = MemStore()
+    edges = {deskengine.req_ref("q1"): _edge(target_ref=deskengine.req_ref("q1"),
+                                             mode="superseded_pending",
+                                             dies_at_event="R39 step 4",
+                                             revives_if="the probe stops")}
+    c = client(monkeypatch, store, edges=edges)
+    r = c.post("/api/v1/fund/desk/requests/q1/approve",
+               json={"actor": "mallory", "confirm": "q1"})
+    assert r.status_code == 403
+    body = r.json()
+    for leak in ("R39 step 4", "the probe stops", "superseded_pending",
+                 "rec:run-y#1"):
+        assert leak not in str(body), f"the 403 leaked {leak!r}"
+    # The channel guard's own refusal is still recorded, as it always was.
+    assert [e["type"] for e in store.events] == ["ApprovalRefused"]
+    assert store.events[0]["payload"]["reason"].startswith("approver 'mallory'")
+
+
+def test_the_supersession_refusal_is_RECORDED_not_only_returned(monkeypatch):
+    """THE FUND'S FIRST SILENT APPROVAL REFUSAL (adversary D22), closed.
+
+    Every other refusal on this path appends `ApprovalRefused` — the channel
+    guard since v1, `_guard_mark_sanity` since 2026-08-21. The riskofficer
+    audits refusals from /fund/events and nowhere else, so a 409 that exists
+    only in an HTTP response is a refusal nobody can audit.
+    """
+    from app.api.v1 import fund as fundapi
+    monkeypatch.setattr(fundapi, "_guard_approval", lambda *a, **k: "ceo")
+    store = MemStore()
+    edges = {deskengine.req_ref("q1"): _edge(target_ref=deskengine.req_ref("q1"),
+                                             mode="superseded_pending",
+                                             dies_at_event="R39 step 4",
+                                             revives_if="the probe stops")}
+    c = client(monkeypatch, store, edges=edges)
+    r = c.post("/api/v1/fund/desk/requests/q1/approve",
+               json={"actor": "ceo", "confirm": "q1"})
+    assert r.status_code == 409
+    assert len(store.events) == 1
+    ev = store.events[0]
+    assert ev["type"] == "ApprovalRefused"
+    assert ev["aggregate_type"] == "desk_request" and ev["aggregate_id"] == "q1"
+    p = ev["payload"]
+    assert p["guard"] == "supersession_v1"
+    assert p["edge_id"] == "e1" and p["mode"] == "superseded_pending"
+    assert p["row_ref"] == deskengine.req_ref("q1")
+    assert "R39 step 4" in p["reason"]
+
+
+def test_the_refusal_on_a_RECOMMENDATION_is_recorded_too(monkeypatch):
+    """Same control, same silence, same fix — the D17 corollary: a fix applied
+    to one file in a family is not applied to its siblings."""
+    ds = FakeDeskStore()
+    ref = deskengine.rec_ref("run-x", 1)
+    store = MemStore()
+    c = client(monkeypatch, store, deskstore=ds,
+               edges={ref: _edge(target_ref=ref)})
+    r = c.post("/api/v1/fund/desk/runs/run-x/recommendations/1",
+               json={"status": "accepted", "actor": "ceo"})
+    assert r.status_code == 409
+    assert [e["type"] for e in store.events] == ["ApprovalRefused"]
+    assert store.events[0]["payload"]["row_ref"] == ref
+    assert ds.decided == []
+
+
+def test_an_approval_taken_during_an_outage_SAYS_SO_in_the_record(monkeypatch):
+    """THE DISCLOSURE THAT JUSTIFIES FAILING OPEN (adversary D22, ground 1).
+
+    The fail-open is accepted policy; what was missing is the sentence in the
+    record saying the check did not run. Without it an approval taken during a
+    Postgres outage is indistinguishable from a verified one, which is the
+    whole cost of failing open, unpaid.
+    """
+    from app.api.v1 import fund as fundapi
+    monkeypatch.setattr(fundapi, "_guard_approval", lambda *a, **k: "ceo")
+    store = MemStore()
+    c = client(monkeypatch, store, edges=None)     # unreadable, not empty
+    r = c.post("/api/v1/fund/desk/requests/q1/approve", json={"actor": "ceo"})
+    assert r.status_code == 200
+    assert r.json()["supersession_readable"] is False
+    assert store.events[0]["payload"]["supersession_readable"] is False
+
+
+def test_a_verified_approval_says_the_check_RAN(monkeypatch):
+    """The other half, and the one that makes the first half mean anything: a
+    field that is only ever False is a field nobody can read a claim from."""
+    from app.api.v1 import fund as fundapi
+    monkeypatch.setattr(fundapi, "_guard_approval", lambda *a, **k: "ceo")
+    store = MemStore()
+    c = client(monkeypatch, store, edges={})       # readable, and empty
+    r = c.post("/api/v1/fund/desk/requests/q1/approve", json={"actor": "ceo"})
+    assert r.status_code == 200
+    assert r.json()["supersession_readable"] is True
+    assert store.events[0]["payload"]["supersession_readable"] is True
+
+
+def test_a_non_advancing_decision_reports_the_check_as_NOT_RUN_never_as_clean(monkeypatch):
+    """None is not False and neither is True. Rejecting a row does not consult
+    the brake, and the record must not imply that it did."""
+    ds = FakeDeskStore()
+    store = MemStore()
+    c = client(monkeypatch, store, deskstore=ds, edges={})
+    r = c.post("/api/v1/fund/desk/runs/run-x/recommendations/1",
+               json={"status": "rejected", "actor": "ceo"})
+    assert r.status_code == 200
+    assert r.json()["supersession_readable"] is None
+    decided = [e for e in store.events if e["type"] == "DeskRecommendationDecided"]
+    assert decided[0]["payload"]["supersession_readable"] is None
 
 
 def test_an_ordinary_request_still_approves(monkeypatch):

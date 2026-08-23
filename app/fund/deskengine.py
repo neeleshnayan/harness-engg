@@ -162,13 +162,36 @@ _REQ_REF_RE = re.compile(r"^req:(?P<request_id>[^\s#]+)$")
 
 
 def rec_ref(run_id: str, rec_id: Any) -> str:
-    """The canonical reference to one recommendation."""
-    return f"rec:{run_id}#{int(rec_id)}"
+    """The canonical reference to one recommendation.
+
+    ``int(rec_id)`` normalises ``#007`` to ``#7``; the run id keeps its bytes,
+    because a run id is a free-form string whose case is significant.
+    """
+    return f"rec:{str(run_id).strip()}#{int(rec_id)}"
 
 
 def req_ref(request_id: str) -> str:
-    """The canonical reference to one desk request."""
-    return f"req:{request_id}"
+    """The canonical reference to one desk request.
+
+    A REQUEST ID THAT IS A UUID IS NORMALISED TO ITS OWN CANONICAL FORM, and
+    that is the whole of the case rule here (adversary D22, attack E: an edge
+    filed as ``req:ABC`` was accepted, listed, and blocked nothing). Desk
+    request ids are ``str(uuid.uuid4())``, and RFC 4122 says a UUID's
+    hexadecimal is case-insensitive — ``REQ-…`` and ``req-…`` are the SAME
+    identifier, so treating them as two rows is the defect, not the fix.
+    Anything that is not a UUID keeps its bytes: lowercasing a free-form id
+    would merge two genuinely different rows, which is the worse direction.
+
+    Both sides go through this function — the writer (``Supersessions.add``,
+    via ``canonical_ref``) and the reader (``desk_approve``) — so the stored
+    key and the looked-up key cannot drift apart.
+    """
+    rid = str(request_id).strip()
+    try:
+        rid = str(uuid.UUID(rid))
+    except (ValueError, AttributeError, TypeError):
+        pass                       # not a UUID: not ours to re-case
+    return f"req:{rid}"
 
 
 def parse_ref(ref: Any) -> Optional[dict[str, Any]]:
@@ -190,6 +213,28 @@ def parse_ref(ref: Any) -> Optional[dict[str, Any]]:
     if m:
         return {"kind": "req", "request_id": m.group("request_id")}
     return None
+
+
+def canonical_ref(ref: Any) -> Optional[str]:
+    """The one spelling of ``ref`` this fund stores, or None if it is not a ref.
+
+    VALIDATE-STRIPPED / STORE-RAW WAS THE DEFECT (adversary D22, attack E).
+    ``parse_ref`` strips before matching, so ``" req:abc"``, ``"req:abc\\n"``
+    and ``"req:abc"`` all validated — and the raw string went into the table,
+    where the reader's ``req_ref(request_id)`` never matched it again. An edge
+    that is accepted, listed on the page, and blocks nothing is worse than a
+    refused one: it reads as a brake to everybody looking at it.
+
+    Rebuilt from the PARSED parts rather than trimmed, so every normalisation
+    the two ref constructors know about (``#007`` → ``#7``, UUID case) is
+    applied once, here, by construction.
+    """
+    parsed = parse_ref(ref)
+    if parsed is None:
+        return None
+    if parsed["kind"] == "req":
+        return req_ref(parsed["request_id"])
+    return rec_ref(parsed["run_id"], parsed["rec_id"])
 
 
 # --------------------------------------------------------- in-tray states ---
@@ -504,8 +549,57 @@ class InTray(_Table):
                  "at": r[3].isoformat() if r[3] else None} for r in rows]
 
 
+#: How many edges one query may return. Not a control threshold — it is the
+#: cap on ONE READ, and passing it now RAISES rather than returning a short
+#: map (see `SupersessionsTruncated`).
+EDGE_QUERY_LIMIT = 1000
+
+#: How many stored rows the write-canonicalisation migration inspects on
+#: construction. Bounded because it runs in a request-serving process; a table
+#: bigger than this reports `truncated` and fixes what it read, never silently
+#: half-migrating.
+MIGRATION_SCAN_LIMIT = 5000
+
+
+class SupersessionsTruncated(RuntimeError):
+    """The edge query hit its row limit: the answer is INCOMPLETE, not short.
+
+    A CONTROL'S BACKING QUERY MAY NOT SILENTLY CAP (adversary D22, attack A,
+    executed): with 1,001 live edges the R37 specimen's brake vanished from
+    ``by_target()`` while the store reported healthy, so the row it protected
+    became approvable and nothing anywhere said the check had degraded. A
+    partial answer that cannot be distinguished from a complete one is the
+    unwired-kill-switch pattern with a LIMIT clause.
+
+    Raising is the whole repair. ``_edges_by_target`` already treats any
+    exception as UNREADABLE, which is the disclosed fail-open leg
+    (``supersession_readable: false`` in the approve record) — so a flood
+    downgrades the control loudly instead of removing it quietly.
+    """
+
+    def __init__(self, limit: int, where: str = ""):
+        self.limit = limit
+        super().__init__(
+            f"supersession query returned more than its {limit}-row limit"
+            f"{(' for ' + where) if where else ''} — the answer is incomplete, "
+            "and an incomplete edge map cannot be read as 'no edge on this row'")
+
+
 class Supersessions(_Table):
     """`supersedes` edges between desk rows, and the refusal they carry."""
+
+    def _ensure(self) -> None:
+        """Create the schema, then bring any pre-canonical rows forward.
+
+        THE MIGRATION IS PART OF THE FIX, not a follow-up. Canonicalising only
+        on write leaves whatever the table already holds unreadable to the
+        reader for ever, and this table's whole job is to be found by a lookup.
+        Prod holds none of these rows today (the tables do not exist there yet)
+        — the path exists because every test database and every dev box that
+        ran the pre-repair code does.
+        """
+        super()._ensure()
+        self.canonicalise_stored()
 
     def add(self, *, target_ref: str, mode: str, reason: str, actor: str,
             superseder_ref: Optional[str] = None,
@@ -546,6 +640,15 @@ class Supersessions(_Table):
                 "protects nothing while looking like it does")
         if superseder_ref is not None and parse_ref(superseder_ref) is None:
             raise ValueError(f"superseder_ref {superseder_ref!r} is not a desk row reference")
+        # CANONICALISE ON WRITE, before the self-reference check and before the
+        # unique index sees the value. Validating the stripped ref and storing
+        # the raw one let `" req:abc"` occupy the row that `req:abc` needed and
+        # block nothing (adversary D22, attack E). Both the identity check and
+        # the at-most-one-live-edge index are only as good as the spelling they
+        # compare.
+        target_ref = canonical_ref(target_ref)
+        if superseder_ref is not None:
+            superseder_ref = canonical_ref(superseder_ref)
         if superseder_ref is not None and superseder_ref == target_ref:
             raise ValueError("a row cannot supersede itself")
         if mode != "killed" and not superseder_ref:
@@ -595,12 +698,31 @@ class Supersessions(_Table):
         return rows[0] if rows else None
 
     def edges(self, include_retracted: bool = False,
-              limit: int = 1000) -> list[dict[str, Any]]:
+              limit: int = EDGE_QUERY_LIMIT) -> list[dict[str, Any]]:
+        """Every live edge, newest first. Raises past ``limit`` — see `page`."""
         where = "" if include_retracted else "WHERE retracted_at IS NULL"
         return self._select(where, (), limit=limit)
 
-    def _select(self, where: str, params: tuple,
-                limit: int = 1000) -> list[dict[str, Any]]:
+    def page(self, include_retracted: bool = False,
+             limit: int = EDGE_QUERY_LIMIT) -> tuple[list[dict[str, Any]], bool]:
+        """``(rows, truncated)`` — for the DISPLAY path, which shows what it has.
+
+        Two shapes for two jobs, and the difference is deliberate. A control
+        asking "is this row braked?" must never receive a partial map, so
+        `by_target` raises. A human looking at a list is better served by the
+        first thousand rows PLUS the word `truncated` than by an error page.
+        """
+        where = "" if include_retracted else "WHERE retracted_at IS NULL"
+        return self._page(where, (), limit=limit)
+
+    def _page(self, where: str, params: tuple,
+              limit: int) -> tuple[list[dict[str, Any]], bool]:
+        """Rows, and whether the store holds MORE than the caller asked for.
+
+        Fetches ``limit + 1`` so truncation is a measured fact rather than the
+        guess "we got exactly the limit, so probably". At exactly ``limit``
+        rows the answer is complete and says so.
+        """
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -609,8 +731,9 @@ class Supersessions(_Table):
                     "retracted_by, retracted_at, retract_reason, "
                     "confirmed_by, confirmed_at "
                     f"FROM fund_desk_supersession {where} "
-                    "ORDER BY applied_at DESC LIMIT %s", (*params, limit))
+                    "ORDER BY applied_at DESC LIMIT %s", (*params, limit + 1))
                 rows = cur.fetchall()
+        truncated = len(rows) > limit
         return [{"edge_id": r[0], "target_ref": r[1], "superseder_ref": r[2],
                  "mode": r[3], "reason": r[4], "dies_at_event": r[5],
                  "revives_if": r[6], "applied_by": r[7],
@@ -619,15 +742,76 @@ class Supersessions(_Table):
                  "retracted_at": r[10].isoformat() if r[10] else None,
                  "retract_reason": r[11], "confirmed_by": r[12],
                  "confirmed_at": r[13].isoformat() if r[13] else None}
-                for r in rows]
+                for r in rows[:limit]], truncated
 
-    def by_target(self, include_retracted: bool = False) -> dict[str, dict[str, Any]]:
+    def _select(self, where: str, params: tuple,
+                limit: int = EDGE_QUERY_LIMIT) -> list[dict[str, Any]]:
+        rows, truncated = self._page(where, params, limit)
+        if truncated:
+            raise SupersessionsTruncated(limit, where or "all edges")
+        return rows
+
+    def by_target(self, include_retracted: bool = False,
+                  limit: int = EDGE_QUERY_LIMIT) -> dict[str, dict[str, Any]]:
         """Live edges keyed by the row they act on — what every reader wants.
 
         At most one live edge per target is enforced by a partial unique index,
         so this mapping cannot silently drop a second edge that exists.
+
+        RAISES `SupersessionsTruncated` PAST THE LIMIT rather than returning
+        the rows it managed to read. This is the control's own query: a short
+        map answers "no edge on this row" for every row it did not reach, and
+        that answer is indistinguishable from the truth. The caller catches it
+        and publishes `supersession_readable: false`.
         """
-        return {e["target_ref"]: e for e in self.edges(include_retracted)}
+        return {e["target_ref"]: e for e in self.edges(include_retracted,
+                                                       limit=limit)}
+
+    def canonicalise_stored(self) -> dict[str, Any]:
+        """Rewrite pre-repair rows into canonical refs. Idempotent; returns a report.
+
+        WHY IT REPORTS RATHER THAN JUST DOING IT: three outcomes are possible
+        and only one of them is "fixed". A row whose target does not parse at
+        all cannot be canonicalised (nothing here invents a ref); a row that
+        WOULD collide with an existing live edge is left alone, because merging
+        two edges is a decision with a written reason, not a migration's call.
+        Both are counted and logged so the residue is visible instead of
+        rounding to zero.
+        """
+        rows, truncated = self._page("", (), MIGRATION_SCAN_LIMIT)
+        report = {"scanned": len(rows), "rewritten": 0, "unparseable": [],
+                  "conflicts": [], "truncated": truncated}
+        for row in rows:
+            target = canonical_ref(row["target_ref"])
+            superseder = (canonical_ref(row["superseder_ref"])
+                          if row["superseder_ref"] is not None else None)
+            if target is None or (row["superseder_ref"] is not None
+                                  and superseder is None):
+                # Left exactly as filed. An unparseable ref protects nothing,
+                # and rewriting it to a guess would make it protect the WRONG
+                # row — the one failure this table cannot afford.
+                report["unparseable"].append(row["edge_id"])
+                continue
+            if target == row["target_ref"] and superseder == row["superseder_ref"]:
+                continue
+            try:
+                with self._connect() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            "UPDATE fund_desk_supersession "
+                            "SET target_ref=%s, superseder_ref=%s "
+                            "WHERE edge_id=%s",
+                            (target, superseder, row["edge_id"]))
+                    conn.commit()
+                report["rewritten"] += 1
+            except Exception as e:  # noqa: BLE001 — a unique-index collision
+                report["conflicts"].append({"edge_id": row["edge_id"],
+                                            "target_ref": row["target_ref"],
+                                            "canonical": target,
+                                            "error": str(e)[:160]})
+        if report["rewritten"] or report["conflicts"] or report["unparseable"]:
+            logger.warning("supersession ref canonicalisation: %s", report)
+        return report
 
     def retract(self, edge_id: str, actor: str, reason: str) -> dict[str, Any]:
         """The revival branch: the named event did not happen, so the row lives.

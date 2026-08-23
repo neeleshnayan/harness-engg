@@ -1647,12 +1647,59 @@ UNDECIDED = "undecided"
 UNDECIDED_ROUTES_TO = "chair"
 
 
-def validate_routing(rec: Any, index: Optional[int] = None) -> list[str]:
+#: WHETHER ROUTING v1 IS ENFORCED AT THE DOOR. Shipped **False**, and the
+#: number that made it False is the reason it is a flag rather than a
+#: judgement call: run over the last day of live traffic by the D22 blind
+#: review, routing v1's 422 would have REJECTED 16 of the 17 runs recorded
+#: that day, across eight seats — every seat but the chair-composed one. The
+#: schema half shipped without its companion half (the seat protocols and the
+#: run-record format that teach seats to file the four fields), and a contract
+#: enforced on one side only does not tighten anything: it stops the record
+#: from being written at all, which is worse than a badly routed record.
+#:
+#: So the enforcement ships dark and the chair flips it in a one-line
+#: versioned change once the seat-protocol companion lands. Until then every
+#: filing is still MEASURED — `routing_errors` runs regardless and the
+#: endpoint returns the advisory — so the day the flag flips is a day whose
+#: cost is already known rather than discovered.
+#:
+#: A single run may opt IN ahead of the flag by declaring `routing_version`
+#: (see `record_agent_run`): a seat that has adopted the format gets the full
+#: refusal it is asking for without waiting for the fleet.
+DESK_ROUTING_ENFORCE = False
+
+#: The `routing_version` a run must declare to be validated under routing v1
+#: while `DESK_ROUTING_ENFORCE` is False.
+ROUTING_ENFORCED_FROM_VERSION = 1
+
+
+def validate_routing(rec: Any, index: Optional[int] = None,
+                     enforce: Optional[bool] = None) -> list[str]:
+    """Every reason this filing is REFUSED, or an empty list.
+
+    The enforcement gate lives here rather than at the endpoint so that every
+    caller asking "would this be rejected?" — the endpoint, a probe, a seat's
+    own pre-flight — gets one answer, and it is the answer the door will
+    actually give. `routing_errors` is the ungated measurement underneath;
+    when enforcement is off this function returns [] and the errors are still
+    computable, reported, and counted.
+    """
+    if enforce is None:
+        enforce = DESK_ROUTING_ENFORCE
+    if not enforce:
+        return []
+    return routing_errors(rec, index)
+
+
+def routing_errors(rec: Any, index: Optional[int] = None) -> list[str]:
     """Every reason this filing is not routable, or an empty list.
 
     Returns ALL the errors rather than the first, because a seat re-posting a
     run to discover a second missing field one at a time is a seat spending
     four round trips on one form.
+
+    ALWAYS COMPUTED, ENFORCED ONLY BEHIND THE FLAG. Measuring what a rule
+    would refuse is free and is how the flip stops being a leap.
     """
     from app.fund.deskstore import REVERSIBILITY, _due_date, _money_at_stake
 

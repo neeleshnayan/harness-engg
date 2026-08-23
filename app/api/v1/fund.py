@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Query, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, StrictInt
 
 from app.fund import mode as fundmode
 from app.fund.connectors.base import Order, Side
@@ -1727,21 +1727,36 @@ class DeskApprove(BaseModel):
 def desk_approve(request_id: str, req: DeskApprove):
     """Approve a queued request.
 
-    A SUPERSEDED REQUEST IS REFUSED BEFORE THE GUARD RUNS (desk engine v1,
-    2026-08-23). This is a pure TIGHTENING sitting in front of the existing
-    approval guard, which is untouched: the check can only refuse, never
-    admit, and a request with no supersession edge takes exactly the path it
-    took yesterday. It is first rather than last so the caller gets the
-    lineage instead of a confirm-echo error about a row it should not be
-    approving at all.
+    A SUPERSEDED REQUEST IS REFUSED, AFTER THE APPROVAL GUARD AND BEFORE THE
+    WRITE (desk engine v1, 2026-08-23; ORDER CORRECTED 2026-08-24 on the D22
+    review). Still a pure TIGHTENING in front of an untouched guard: the check
+    can only refuse, never admit, and a request with no supersession edge takes
+    exactly the path it took yesterday.
+
+    THE ORDER MOVED FOR A REASON. v1 ran the supersession check first, so the
+    lineage — which edge, which superseder, which future event — was handed to
+    ANY caller, including one the allowlist was about to refuse. Identity is
+    established first now; the CEO with a mistyped echo gets the echo error
+    and then the lineage on his next call, which costs him one round trip and
+    costs a probing caller everything.
+
+    ``supersession_readable`` rides on both the response and the event: when
+    the edge store cannot be read the approval still goes through (the
+    accepted fail-open), and the record now says that it did.
     """
     from app.fund.events import Event, EventType
     from app.fund.deskengine import req_ref
-    _refuse_if_superseded(req_ref(request_id))
     actor = _guard_approval("desk_request", request_id, req.actor, req.confirm,
                             req.instruction, DESK_APPROVAL_ALLOWLIST)
+    readable = _refuse_if_superseded(req_ref(request_id), kind="desk_request",
+                                     target_id=request_id, actor=actor)
     payload = {"request_id": request_id, "actor": actor,
                "note": req.note or "",
+               # WHETHER THE BRAKE WAS CHECKED, on the record beside the
+               # approval it did or did not stop. False means the edge store
+               # was unreadable and this approval was taken WITHOUT the
+               # supersession check — never "there was no edge".
+               "supersession_readable": readable,
                "at": datetime.now(timezone.utc).isoformat()}
     _store.append(Event(aggregate_id=request_id, aggregate_type="desk_request",
                         type=EventType.DESK_REQUEST_APPROVED,
@@ -1874,6 +1889,19 @@ class AgentRunRecord(BaseModel):
     # It is a list of IDENTIFIERS, never prose: the whole policy rests on the
     # difference. Stored under `meta.serves_requests`.
     serves_requests: Optional[list[str]] = None
+    # THE RUN'S OWN OPT-IN TO ROUTING v1. Absent means "validate me under
+    # whatever the fleet default is" (`desk.DESK_ROUTING_ENFORCE`, shipped
+    # False); >= 1 means this caller has adopted the four-field format and
+    # WANTS the 422 rather than an advisory. A seat that has been taught the
+    # format should not have to wait for the seat that has not.
+    #
+    # STRICT, AND MEASURED (this is why): a plain `Optional[int]` accepts JSON
+    # `true` AND the string `"1"` and hands the handler the integer 1 — so a
+    # typo'd flag would opt a caller into a refusal it never asked for, and a
+    # handler-side `isinstance(..., bool)` guard cannot see it, because the
+    # coercion already happened. StrictInt refuses `true`, `"1"` and `0.9`
+    # with a type error that names the field.
+    routing_version: Optional[StrictInt] = None
     meta: Optional[dict] = None
 
 
@@ -1894,16 +1922,25 @@ def record_agent_run(req: AgentRunRecord):
     nullable field upserts through COALESCE, so omitting one leaves the stored
     value alone.
 
-    ROUTING AT BIRTH (desk engine v1, 2026-08-23). Every recommendation must
-    carry ``next_actor``, ``due_date``, ``reversibility`` and
-    ``money_at_stake`` — 422 without them. Required means the KEY is present:
-    ``due_date`` and ``money_at_stake`` may be null when there honestly is
-    none. What is refused is SILENCE. Measured on the live corpus at
-    2026-08-23 (167 open recommendations, counted by this seat rather than
+    ROUTING AT BIRTH (desk engine v1, 2026-08-23; **ENFORCEMENT GATED
+    2026-08-24**). Every recommendation should carry ``next_actor``,
+    ``due_date``, ``reversibility`` and ``money_at_stake``. Required means the
+    KEY is present: ``due_date`` and ``money_at_stake`` may be null when there
+    honestly is none. What is refused is SILENCE. Measured on the live corpus
+    at 2026-08-23 (167 open recommendations, counted by this seat rather than
     carried from a memo): ``due_date`` reached 4 rows, and 28 of the 54 rows
     on the CEO's counter are there only because nothing routed them
     elsewhere. ``next_actor: "undecided"`` is legal and routes to the CHAIR,
     never to the CEO.
+
+    THE 422 IS DARK UNTIL THE COMPANION LANDS. ``desk.DESK_ROUTING_ENFORCE``
+    ships False because the same rule run over the last day of live traffic
+    would have rejected 16 of 17 runs across eight seats (D22 blind review):
+    the schema half of the contract cannot be enforced before the seat-protocol
+    half exists, or the only effect is that runs stop being recorded. What
+    ships today MEASURES every filing and returns the finding as
+    ``routing_advisory`` beside the stored row; a caller that has adopted the
+    format declares ``routing_version: 1`` and gets the full refusal now.
 
     EXISTING ROWS ARE GRANDFATHERED. Nothing rewrites a stored recommendation:
     the validation is at the door, so history stays what it was and the
@@ -1916,29 +1953,64 @@ def record_agent_run(req: AgentRunRecord):
     from app.fund import desk as desk_mod
     payload = req.model_dump()
     serves = payload.pop("serves_requests", None)
+    declared = payload.pop("routing_version", None)
     recs = payload.get("recommendations") or []
-    errors: list[str] = []
+    # ONE PREDICATE, ASKED ONCE. `enforce` is computed here and handed to the
+    # validator; the validator does not re-derive it, because a rule and the
+    # guard deciding whether the rule ran must not each carry the question
+    # (D18: two copies of a predicate is the same defect as two copies of a
+    # constant, and mutation proved the guard's copy independently wrong).
+    # `declared` is a real int or None: the strictness lives in the model
+    # (`StrictInt`), where it is the only place that CAN work — a lax
+    # `Optional[int]` normalises JSON `true` and `"1"` into 1 before any code
+    # here runs, which no guard on this side can undo. Six cases parametrised
+    # in test_what_counts_as_a_version_DECLARATION_measured_at_the_door.
+    enforce = bool(desk_mod.DESK_ROUTING_ENFORCE) or (
+        declared is not None
+        and declared >= desk_mod.ROUTING_ENFORCED_FROM_VERSION)
+    findings: list[str] = []
     for i, rec in enumerate(recs):
-        errors.extend(desk_mod.validate_routing(rec, i))
-    if errors:
+        findings.extend(desk_mod.routing_errors(rec, i))
+    if findings and enforce:
         raise HTTPException(
             status_code=422,
             detail={"routing_rules_version": desk_mod.ROUTING_RULES_VERSION,
                     "required": list(desk_mod.ROUTING_REQUIRED_FIELDS),
-                    "errors": errors})
+                    "enforced": True,
+                    "errors": findings})
     payload["recommendations"] = [desk_mod.route_at_birth(r) for r in recs]
     if serves:
         ids = [str(x).strip() for x in serves if str(x or "").strip()]
         if ids:
             payload["meta"] = {**(payload.get("meta") or {}),
                                "serves_requests": ids}
+    if declared is not None:
+        # The declaration is stored, because "this run asked to be judged
+        # under v1" is a fact about the filing that the flip's own audit will
+        # want and cannot reconstruct later.
+        payload["meta"] = {**(payload.get("meta") or {}),
+                           "routing_version": declared}
     try:
-        return ds.record_run(**payload)
+        stored = ds.record_run(**payload)
     except ValueError as e:
         # A mistyped `status` is a 422, not a 500 and not a silent null — the
         # caller is the chair or a script, and it should see which value was
         # refused rather than discover later that an outcome went unrecorded.
         raise HTTPException(status_code=422, detail=str(e))
+    if findings:
+        # STORED, AND TOLD. The advisory is the measurement the flip rests on;
+        # returning it beside the accepted row is what stops "enforcement is
+        # off" from meaning "nobody knows what it would have cost".
+        return {**stored, "routing_advisory": {
+            "routing_rules_version": desk_mod.ROUTING_RULES_VERSION,
+            "required": list(desk_mod.ROUTING_REQUIRED_FIELDS),
+            "enforced": False,
+            "note": ("recorded anyway: routing v1 is not enforced at this "
+                     "door yet. Declare routing_version >= "
+                     f"{desk_mod.ROUTING_ENFORCED_FROM_VERSION} to be refused "
+                     "on these instead"),
+            "errors": findings}}
+    return stored
 
 
 @router.get("/fund/desk/runs")
@@ -2108,8 +2180,15 @@ def decide_recommendation(run_id: str, rec_id: int, req: RecDecision):
     """
     ds = _deskstore()
     from app.fund.deskengine import rec_ref
+    readable = None
     if req.status in ADVANCING_REC_STATUSES:
-        _refuse_if_superseded(rec_ref(run_id, rec_id))
+        # None on a non-advancing status means EXACTLY that: the check was not
+        # run because this decision does not advance the row. It is a third
+        # value on purpose — writing False would claim an outage that did not
+        # happen, and True would claim a check nobody performed.
+        readable = _refuse_if_superseded(rec_ref(run_id, rec_id),
+                                         kind="desk_run",
+                                         target_id=run_id, actor=req.actor)
     if ds is None:
         raise HTTPException(status_code=503, detail="needs FUND_STORE=postgres")
     from app.fund.events import Event, EventType
@@ -2131,9 +2210,13 @@ def decide_recommendation(run_id: str, rec_id: int, req: RecDecision):
                                  # unrecoverable the moment it changed.
                                  "next_actor": hit.get("next_actor"),
                                  "trace_id": hit.get("trace_id"),
+                                 # None = not applicable (this status does not
+                                 # advance the row); False = the edge store was
+                                 # unreadable and the brake was not consulted.
+                                 "supersession_readable": readable,
                                  "at": datetime.now(timezone.utc).isoformat()},
                         actor=req.actor))
-    return hit
+    return {**hit, "supersession_readable": readable}
 
 
 # ===========================================================================
@@ -2203,22 +2286,85 @@ def _edges_by_target():
     through (with the degradation reported), while an empty dict is a measured
     "no edges exist". Collapsing them would either take the approval path down
     on a bookkeeping outage or claim a clean check that never ran.
+
+    ONE OUTAGE, ONE POLICY — the store's CONSTRUCTION is inside the try
+    (adversary D22, probe F1). It was outside, so the fail-open policy was
+    decided by CACHE WARMTH: a warm process degraded silently to permissive
+    while the first approval after a restart with Postgres down raised
+    ``OSError`` out of ``_supersessions()`` and 500'd the approval path — the
+    exact outcome failing open exists to prevent, arriving only on the unlucky
+    call. A control whose behaviour depends on whether an unrelated request
+    warmed a cache has two policies and no way to tell which one ran.
     """
-    s = _supersessions()
-    if s is None:
-        return None
     try:
+        s = _supersessions()
+        if s is None:
+            return None
         return s.by_target()
     except Exception as e:  # noqa: BLE001
         logger.info("supersession edges unreadable: %s", e)
         return None
 
 
-def _refuse_if_superseded(ref: str) -> None:
+def _supersession_check(ref: str) -> dict:
+    """``{refusal, supersession_readable}`` for one desk row. Writes nothing.
+
+    THE DISCLOSURE IS THE POINT OF THIS FUNCTION EXISTING. The fail-open leg
+    is accepted policy — a bookkeeping table must not take the CEO's approval
+    path down — but the D22 review found that the ``supersession_readable:
+    false`` the policy leans on appeared exactly once in the repo, inside the
+    sentence promising it. An approval taken during an outage was
+    indistinguishable in the record from a verified one, which is the whole of
+    what fail-open costs when nobody writes down that it happened.
+    """
     from app.fund.deskengine import approval_refusal
-    refusal = approval_refusal(ref, _edges_by_target())
-    if refusal:
-        raise HTTPException(status_code=409, detail=refusal)
+    edges = _edges_by_target()
+    return {"refusal": approval_refusal(ref, edges),
+            "supersession_readable": edges is not None}
+
+
+def _refuse_if_superseded(ref: str, *, kind: str, target_id: str,
+                          actor: str) -> bool:
+    """Refuse-and-RECORD a superseded row, or return whether the check ran.
+
+    Returns ``supersession_readable``; raises 409 with the lineage on a live
+    edge. The 409 appends an ``ApprovalRefused`` event exactly as
+    ``_guard_mark_sanity`` does — the D22 review found this was the fund's
+    FIRST silent approval refusal, and a refusal whose only trace is an HTTP
+    response is invisible to the riskofficer, who audits from ``/fund/events``
+    and not from anybody's terminal.
+
+    ``ApprovalRefused`` on a desk aggregate is not a new lifecycle: the
+    approval-channel guard has recorded exactly this type against
+    ``aggregate_type="desk_request"`` since guard v1. The folds that could
+    care were checked and none does — ``desk._requests`` switches on the four
+    ``DeskRequest*`` types and ignores everything else,
+    ``projections/orders.py:48`` drops any aggregate that is not ``order``,
+    and ``ORDER_ANNOTATION_EVENTS`` governs order aggregates only. (D17's
+    lesson, applied as a checklist rather than remembered: a new event type on
+    an existing aggregate is a lifecycle change until proven otherwise.)
+    """
+    from app.fund.events import Event, EventType
+    checked = _supersession_check(ref)
+    refusal = checked["refusal"]
+    if not refusal:
+        return checked["supersession_readable"]
+    _store.append(Event(
+        aggregate_id=target_id, aggregate_type=kind,
+        type=EventType.APPROVAL_REFUSED,
+        payload={"kind": kind, "target_id": target_id,
+                 "approver": actor or "", "guard": "supersession_v1",
+                 "row_ref": ref,
+                 "reason": refusal.get("detail"),
+                 # The lineage on the record too, not only in the response:
+                 # "who was stopped from advancing what, and by which edge"
+                 # is the question this event exists to answer later.
+                 "edge_id": refusal.get("edge_id"),
+                 "mode": refusal.get("mode"),
+                 "superseder_ref": refusal.get("superseder_ref"),
+                 "at": datetime.now(timezone.utc).isoformat()},
+        actor=actor or "unknown"))
+    raise HTTPException(status_code=409, detail=refusal)
 
 
 def _dispatched_request_ids() -> set:
@@ -2570,9 +2716,15 @@ def supersession_list(include_retracted: bool = Query(False)):
     s = _supersessions()
     if s is None:
         raise HTTPException(status_code=503, detail="needs FUND_STORE=postgres")
-    from app.fund.deskengine import SUPERSESSION_MODES, UNAPPROVABLE_MODES
-    edges = s.edges(include_retracted=include_retracted)
+    from app.fund.deskengine import (EDGE_QUERY_LIMIT, SUPERSESSION_MODES,
+                                     UNAPPROVABLE_MODES)
+    # THE DISPLAY PATH SHOWS WHAT IT HAS AND SAYS SO; the CONTROL path
+    # (`by_target`) raises instead. Same limit, two honest answers: a reader
+    # is better served by a thousand rows plus `truncated: true` than by an
+    # error, and a brake is not served by a partial map at all.
+    edges, truncated = s.page(include_retracted=include_retracted)
     return {"edges": edges, "count": len(edges),
+            "truncated": truncated, "limit": EDGE_QUERY_LIMIT,
             "modes": list(SUPERSESSION_MODES),
             "unapprovable_modes": list(UNAPPROVABLE_MODES)}
 
