@@ -12,11 +12,15 @@ import type {
  * The property under test everywhere below is the same one: **a lane's number
  * is the FUND'S number and its rows are this page's fold, and where they
  * differ the lane says so.** Measured live 2026-08-23: `desk_load` reported
- * 162 decided-awaiting-execution while the recommendation feed the page can
- * render carried a different subset. A lane printing its own row count as the
- * fund's figure is the quantity-computed-twice defect for the fourth time on
- * this desk; a lane printing the fund's figure over fewer rows in silence is
- * worse, because the reader believes they have seen everything.
+ * 162 decided-awaiting-execution (167 ninety minutes later) while the
+ * recommendation feed the page can render carried a different subset. The
+ * totals move with the day; the DISAGREEMENT is what holds, which is why no
+ * figure below is hardcoded into the module.
+ *
+ * A lane printing its own row count as the fund's figure is the
+ * quantity-computed-twice defect for the fourth time on this desk; a lane
+ * printing the fund's figure over fewer rows in silence is worse, because the
+ * reader believes they have seen everything.
  */
 
 const NOW = "2026-08-23T16:49:27+00:00";

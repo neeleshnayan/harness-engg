@@ -14,8 +14,10 @@
  * THE ONE PROPERTY THIS MODULE EXISTS TO HOLD: **a lane's number is the FUND'S
  * number, and the rows are this page's fold, and when they differ the lane says
  * so.** Measured live 2026-08-23, `desk_load` reported 162 decided-awaiting-
- * execution and 46 open-elsewhere while `/fund/desk`'s recommendation feed —
- * which is what the page can actually render — carried different subsets. A
+ * execution (167 ninety minutes later) and 46 open-elsewhere (then 48) while
+ * `/fund/desk`'s recommendation feed — which is what the page can actually
+ * render — carried different subsets. The figures move with the day and the
+ * DISAGREEMENT is the invariant, which is why no number here is hardcoded. A
  * lane that printed its own row count as the fund's figure would be the
  * quantity-computed-twice defect for the fourth time on this desk; a lane that
  * printed the fund's figure and rendered fewer rows without comment would be

@@ -15,9 +15,11 @@
  * must produce the served answer.
  *
  * THE HONESTY THAT MAKES THIS SAFE, and it is the whole reason the module is
- * not a one-liner. Measured on the live spine 2026-08-23: **11 of 28 rows
- * awaiting the CEO state NEITHER a date nor a dollar figure**, and the spine
- * says so in `ranked_on_nothing`. For those rows the order IS ARRIVAL ORDER.
+ * not a one-liner. Measured on the live spine 2026-08-23, twice: **11 of 28
+ * rows awaiting the CEO stated NEITHER a date nor a dollar figure, then 13 of
+ * 28** — the total held while the unrankable share grew, inside one
+ * afternoon. The spine reports it as `ranked_on_nothing`, which is why this
+ * module reads that field rather than carrying either figure. For those rows the order IS ARRIVAL ORDER.
  * Naming an arbitrary row "the one that needs you most" would be a fabricated
  * priority on the firm's decision surface — worse than no sentence, because it
  * is unfalsifiable and looks authoritative. So:

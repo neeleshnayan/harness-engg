@@ -867,8 +867,9 @@ export interface DeskRecommendation {
    *  (`desk.route_at_birth`). Its presence is the fund's own record that the
    *  row went through routing; its ABSENCE means no routing version was
    *  recorded, which a row filed before routing v1 and a row that stated no
-   *  usable next actor share. Measured 2026-08-23: 16 of 232 rows in the feed
-   *  carry it. Never read as a verdict — see `routingFootprint`. */
+   *  usable next actor share. Measured twice on 2026-08-23, ninety minutes
+   *  apart: 16 of 232 rows in the feed carried it, then 22 of 238 — the share
+   *  is small and rising. Never read as a verdict — see `routingFootprint`. */
   routing_rules_version?: string | null;
 }
 

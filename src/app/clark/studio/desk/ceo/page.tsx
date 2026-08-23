@@ -658,7 +658,14 @@ export default function CeoDeskPage() {
             {(engine?.on_fire.total ?? 0) > 0 && (
               <Flame size={13} className="mt-0.5 shrink-0 text-[var(--kt-warn)]" />
             )}
-            <span className={(engine?.on_fire.total ?? 0) > 0 ? KT.sev.warn : KT.body}>
+            {/* THREE TONES FOR THREE FACTS, and the third is the one a `?? 0`
+                would have flattened: something IS on fire (warn), nothing is
+                (calm), and WE CANNOT TELL (also warn — an unreadable engine
+                rendered in the calm tone is a reassurance nobody measured).
+                The flame itself stays off in the unknown case, because a flame
+                is a positive claim about fire and there is none to make. */}
+            <span className={engine === null || (engine.on_fire.total ?? 0) > 0
+              ? KT.sev.warn : KT.body}>
               {engine?.greeting?.on_fire
                 ?? "The desk engine could not be read, so whether anything is on "
                    + "fire is UNKNOWN — not no."}

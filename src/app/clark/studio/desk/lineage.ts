@@ -18,10 +18,17 @@
  *
  *   | join                                       | populated |
  *   |--------------------------------------------|-----------|
- *   | run.meta.serves_requests → request         | 2 of 117 runs declare service |
+ *   | run.meta.serves_requests → request         | 2 of 117, then 2 of 119 |
  *   | requests carrying ANY evidence edge        | 0 of 69 open/approved |
  *   | DeskDispatched → request_id                | 10 of 24 linkable (spine's own count) |
- *   | decision events carrying the verbatim note | 300 of 551 |
+ *   | decision events carrying the verbatim note | 300 of 551, then 308 of 559 |
+ *
+ * BOTH ROWS ARE PAIRS AND NOT SNAPSHOTS, and the pair is the point: the two
+ * readings are ninety minutes apart, inside one dispatch. The DECLARED-JOIN
+ * numerator has not moved while its denominator grows with every run, so the
+ * join is not being adopted; the note ratio holds near 55%. Quote the
+ * invariant, never the snapshot — a measured number in a comment goes stale
+ * within the hour, and this one did.
  *
  * A lineage view that drew a clean chain over that would be lying about the
  * firm's bookkeeping, and the bookkeeping is the thing worth fixing. So each
@@ -581,7 +588,9 @@ export function brakeSummary(checks: SupersessionCheck[]): BrakeSummary {
  *
  * Same reason as `brakeSummary`: fifteen copies of "no written instruction was
  * recorded with this decision" is a wall, and the useful fact is the ratio.
- * Measured on the live log 2026-08-23: 300 of 551 decision events carry one.
+ * Measured twice on the live log 2026-08-23, ninety minutes apart: 300 of 551
+ * decision events carry one, then 308 of 559. The ratio holds; the totals do
+ * not, so the ratio is what is claimed here.
  */
 export function instructionCoverage(
   rows: { verbatim: string | null }[],

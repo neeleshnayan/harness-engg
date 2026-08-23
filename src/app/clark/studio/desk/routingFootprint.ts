@@ -27,10 +27,14 @@
  * recorded — and NOT as "this row would have been advised", because a row filed
  * before routing v1 existed is grandfathered and looks identical.
  *
- * Measured live 2026-08-23: 16 of 232 recommendations in the feed carry
- * `routing_rules_version`; 123 carry a `next_actor` at all. The gap between
- * those two figures is the grandfathered population, and it is why this
- * reports a footprint rather than a verdict.
+ * Measured live 2026-08-23, twice and ninety minutes apart: 16 of 232
+ * recommendations in the feed carried `routing_rules_version`, then 22 of
+ * 238. BOTH numbers move, which is the useful fact — new filings are
+ * adopting routing v1 while the grandfathered tail stays put, so roughly
+ * nine in ten rows carry no version and that share is falling slowly. The
+ * gap against the ~123 rows carrying any `next_actor` at all is the
+ * grandfathered population, and it is why this reports a footprint rather
+ * than a verdict.
  */
 
 import type { DeskRecommendation } from "@/lib/fund_api";

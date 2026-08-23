@@ -23,10 +23,12 @@ import type {
  * with a consumer attached.
  *
  * Measured on the live event log 2026-08-23, and the reason the four values
- * are not academic: of 551 `DeskRecommendationDecided` events, 80 carry
- * `true`, 1 carries `null` (a non-advancing status — no check was due), and
- * 470 carry the key not at all (they predate the disclosure). **Zero carry
- * `false`.** The alarm has never fired, which is exactly when a reader is
+ * are not academic: of 551 `DeskRecommendationDecided` events, 80 carried
+ * `true`, 1 carried `null` (a non-advancing status — no check was due), and
+ * 470 carried the key not at all (they predate the disclosure). Re-measured
+ * ninety minutes later: 88 / 1 / 470. The disclosed count grows with the
+ * day, the pre-disclosure tail is frozen at 470, and — the invariant that
+ * matters — **ZERO carry `false`, in both readings.** The alarm has never fired, which is exactly when a reader is
  * cheapest to get wrong, so every branch below is driven by a fixture.
  */
 
@@ -287,7 +289,10 @@ test("a rec with no request says the CHAIN STARTS AT THE RUN, not that nobody as
 });
 
 test("an unjoined row quotes the FIRM-WIDE coverage, not just its own emptiness", () => {
-  /* Measured 2026-08-23: 2 of 117 runs declare service. Without this sentence
+  /* Measured 2026-08-23: 2 of 117 runs declared service, 2 of 119 ninety
+   * minutes later — a frozen numerator over a growing denominator. The
+   * FIXTURE pins 2/117 because the sentence must reproduce whatever figures
+   * it is given; the live pair is the reason the sentence exists. Without it
    * a reader would conclude this ROW is undocumented, when the truth is that
    * the join is 2% populated firm-wide. */
   const l = lineageFor({ kind: "request", requestId: "nope" },
@@ -345,7 +350,8 @@ test("a resolution with no text is a closure the record cannot describe", () => 
 /* ---------------------------------------------------------- the words ---- */
 
 test("an EMPTY instruction is no instruction, never empty quotation marks", () => {
-  /* Measured 2026-08-23: 300 of 551 decision events carry a note. The spine
+  /* Measured 2026-08-23: 300 of 551 decision events carried a note, 308 of
+   * 559 ninety minutes later — the ratio holds near 55%. The spine
    * writes "" when the decider typed nothing. */
   for (const note of ["", "   ", null, undefined, 7]) {
     const l = lineageFor({ kind: "rec", runId: "run-a", recId: 1 }, {

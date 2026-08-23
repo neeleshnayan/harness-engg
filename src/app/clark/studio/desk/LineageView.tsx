@@ -41,7 +41,8 @@ const REC_MAX = 220;
  * EVERY STAGE RENDERS EVEN WHEN EMPTY. That is the point of the component. A
  * chain that drew only the stages it found would make a firm with almost no
  * run→request edges look like a firm with tidy short chains — and the measured
- * truth (2 of 117 runs declare service) is the opposite.
+ * truth is the opposite: 2 of 117 runs declared service, and 2 of 119 ninety
+ * minutes later — the numerator is frozen while the denominator grows.
  */
 
 function StageBlock<T>({ title, stage, children }: {
