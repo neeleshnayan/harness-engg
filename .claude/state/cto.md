@@ -504,3 +504,18 @@ b6f4a407 to run-adversary-batch2 after merge for H1's first live firing.
 Also post-merge: restart the spine; the four new tables create on first
 use.
 
+## 2026-08-23 - CROSS-REPO BUNDLES MERGE TOGETHER, OR THE UI HALF WAITS (my miss, caught by the CEO's own screen)
+
+D22 shipped paired halves: KP (gate PASS) + ClarkHarness (adversary-
+routed). I merged the UI half immediately - creating a version-skew
+window where the desk banner's line THE SPINE STILL REFUSES THE CLICK
+was aspirational: the server-side refusal was still under blind. The
+honest-degradation banner fired correctly; its reassurance clause
+overstated. RULE: when a build spans repos and one half is
+review-blocked, the OTHER HALF WAITS - a UI that claims a server
+guarantee must never merge ahead of the server that provides it.
+Exposure at the time: zero clickable superseded rows (the manual sweep
+held), and the stale R37 review request resolved at the same sitting.
+Also learned: POST /fund/desk/requests/{id}/resolve takes {resolution,
+actor} - the request-closing path exists (API card).
+
