@@ -272,6 +272,29 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   DELEGATION v1 (run-quant-entry20-rejudge recs 1–2), second-look flagged.
 
 **MEASURED**
+- **THE POSITIVE CONTROL RAN AND THE MACHINERY MET GROUND TRUTH
+  (run-quant-metacontrols): four known-good META archetypes, 117
+  containers, ZERO timeouts, ZERO censoring — all four FAIL, and the
+  judgement column splits exactly as designed.** TRUE refusals prove the
+  gate says no to nulls (buyhold cannot beat itself — decomposed to the
+  bp; the event trades genuinely lost to holding). THE FALSE REFUSAL IS
+  THE FINDING: **min_psr_pct is IDENTIFIED — an undisclosed Sharpe~1.34
+  hurdle wearing a luck-filter'''s sentence** (four positive-mean controls
+  under 3% on a stat documented as P(true Sharpe>0) — arithmetic proof;
+  implied target 0.0755/obs ± 5.5% across wildly different strategies;
+  benchmark-Sharpe rejected a FIFTH time; our own module disagrees 40×).
+  → THE PSR RULING is the CEO'''s, on the desk with both options priced.
+  SECOND FINDING: the premia bar'''s KILL-direction cash-carry bias
+  measured (+0.093..+0.100 Sharpe on a 0.46-cash book, 12× the printed
+  advantage) — the leverage hole'''s symmetric twin → D36 after the
+  ruling, adversary-blind. Single-name lane: 30× cheaper + structurally
+  clean bar → standing preference. Volscale halved META'''s drawdown —
+  Stan'''s first curriculum piece. Sobering color kept on the record:
+  every archetype lost to SPY buy-and-hold. The premia candidate'''s
+  "orphan" diagnosed live as SLOT-STARVATION (runner alive, resumed) —
+  reconciler ticket gains specimen #2. Belt-lock write exception
+  CONFIRMED for brief-instructed coordination flags.
+
 - **THE DELISTED PANEL IS REAL: 124 of 125 usable S&P leavers backfilled
   with full terminal price histories — 564,609 bars, 1990–2026, committed
   to data/research/delisted_tiingo (146MB, manifest with per-name

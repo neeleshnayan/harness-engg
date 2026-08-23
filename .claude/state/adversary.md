@@ -603,3 +603,7 @@ The new desk moves the org board off the CEO's page and renders lane counts as T
 - **LIVE FACTS**: results files 113 today (was 110 — census drifts; the load-bearing 108/108-with-statistics-carry-Exposure re-verified); `-summary.json` files carry statistics and NO charts and are excluded by the glob — do not count them. `git archive <rev> app` into a scratch dir is cheaper than a worktree for a base arm.
 - Repaired-and-verified: + **D29 G1 + G2 (CERTIFIED CLOSED)**; D23 rf re-verified at D32.
 - **Fitness**: killed the parent, cleared the child, own falsifiers executed both times; nine failed attacks named; three anti-model traps self-caught; the one new ground reported as a bounded residual with reachability measured at zero rather than promoted to a verdict.
+
+## 2026-08-24 — CARRIED FROM QUANT (run-quant-metacontrols) BY THE CHAIR
+
+Your ±0.05 noise band on premia `sharpe_advantage` is CONFIRMED by the controls (volscale +0.00756 measured, −0.0033 in an independent replica — sign not robust). It needs a second clause: **the gate's advantage is computed on a book whose cash earns 0% while the bar subtracts realised rf, understating a cash-heavy claim by (1−w̄)·rf/σ — measured +0.093 on a 0.46-cash book, 12× the printed advantage.** Demand the CASH WEIGHT and that correction beside any premia number, in BOTH directions: small positives less impressive, small negatives not necessarily fatal. The D36 fix (crediting cash or engine interest) is a LOOSENING and comes to you blind before anything merges.

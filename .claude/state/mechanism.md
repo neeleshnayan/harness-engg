@@ -842,3 +842,7 @@ A premia proposal that levers is currently UNJUDGEABLE, not merely hard: the eng
 ## 2026-08-24 — CARRIED FROM BUILDER (run-builder-d35) BY THE CHAIR
 
 3 of the fund's 34 fill legs are UNMEASURABLE against any market because the orders went out outside regular hours (06:51Z/08:34Z — no consolidated quote exists there). **A proposal whose entry timing is part of the edge must state its intended SESSION** — otherwise its execution observations are unpriceable and the cost model learns nothing from its fills.
+
+## 2026-08-24 — CARRIED FROM QUANT (run-quant-metacontrols) BY THE CHAIR
+
+(1) **The real PSR bar is LEAN-reported Sharpe ~1.34** — a 15%-vol-target that HALVED META's drawdown reports 0.233 and scores 1.4%. Put the expected annualised Sharpe on the pre-flight card, and say plainly when a proposal cannot reach ~1.3 (until the CEO's ruling moves the bar, that is the wall every candidate hits). (2) **Prefer SINGLE-NAME framings when the idea allows**: 30× cheaper containers AND a structurally clean benchmark (no vendor split, no survivorship, no capacity tie). (3) Sobering color: every META archetype lost to SPY buy-and-hold (+96.6% vs +72.0%) over the window.

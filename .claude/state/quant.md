@@ -734,3 +734,29 @@ On any premia belt run: confirm `result["exposure"]["measurable"] is True` befor
 ## 2026-08-24 — CARRIED FROM DOC (run-analyst-ethdossier1) BY THE CHAIR
 
 Any ETH/crypto candidate runs on the belt today with no new code (endpoint serves ETH-USD incl. weekend bars; LEAN custom data defaults always-open) — BUT `leanrunner.py:1651` annualises at √252, understating a 365-day series' vol by 1.2039× (84.6% reports as ~70.3%), and every Sharpe/PSR/vol-cap criterion inherits it. Declare the benchmark explicitly. And the symbol law: **`ETH-USD`, never bare `ETH`** (which is a $23 ETF, 107× away).
+
+## 2026-08-24 — STATE from run-quant-metacontrols (dispatch #5, THE POSITIVE CONTROLS), appended verbatim by the chair — 4 honest verdicts, 117 containers, zero timeouts
+
+**WHAT EXISTS NOW.** meta_ctrl_{buyhold,volscale,earnwindow,pead} in the sandbox; candidates 0427da00eb66 (v4.3 fails 5) / 331b61ee31b1 (v5r3-premia fails 2) / ca0fba4598e7 (fails 4) / c1bf12c33306 (fails 4). All UNIVERSE=["META"], floor 2021-03-02, whole-share $1M, run ONCE, never tuned.
+
+**PSR IS IDENTIFIED. IT IS NOT A LUCK FILTER.** Four positive-mean controls scored 2.128/1.398/0.051/0.315% — impossible against target 0 at any n. Implied target **0.07548 ± 0.00414/obs (cv 5.5%)** across Sharpe −0.18..+0.29, vol 15..36%, kurtosis 24..196. NOT the benchmark Sharpe (fifth construction rejected, cleanest design possible). **To clear PSR 65 at n=1936: per-obs 0.08424 = LEAN Sharpe 1.337.** Our own statistics module at target 0: 85.0/90.4/50.2/78.3 on the same series — 40× disagreement between two things called PSR. → CEO ruling on the desk.
+
+**THE PREMIA BAR'S KILL-DIRECTION BIAS, measured**: LEAN pays 0% on cash; the bar subtracts realised BIL from both legs → a cash-heavy book is charged carry it never earned: **+0.093..+0.100 Sharpe understatement** on volscale (cash weight 0.543 replica / 0.583 engine-Beta), 12× its +0.00756 advantage. `rf_breakeven_pct` 3.6431 vs realised 3.365 — 0.28pp flips it. Never read a small premia advantage without this beside it. Fix = LOOSENING → adversary blind (D36).
+
+**FILL TIMING SETTLED, MEASURED**: a decision on bar d fills at **close(d)** (smoke: 320.19×1.0005). Use `data[sym].time.date()`, never `self.time`. One 16s smoke container closed the biggest implementation risk in three files.
+
+**SINGLE-NAME CANDIDATES: 10–18s/container (vs 452–560 for 170 names) AND a structurally clean bar** — `benchmark_series_source: engine_single_name` (no vendor split, no truncation, no survivorship, no capacity tie). The 900s ceiling is a FETCH-COUNT problem, not window length. Prefer single-name framing when the idea allows.
+
+**KNIFE-EDGES**: earnwindow's holdout train 5.017% vs the 5.000 floor — 1.7bps chose the verdict's SHAPE (number vs absence); volscale 9-of-12 measurable vs 9 required, zero margin, and its fold 9 retention 10.04 off a +6.448% train leg — the exploding denominator 1.4pp above the floor built to stop it. **MIN_TRAIN_RETURN_PCT makes fold measurability a function of the ASSET'S direction for long-only single-name rules** (2 of 4 folds dead on all three 63-hold controls purely because META fell those years).
+
+**HOLD_DAYS IS THE DECISION CADENCE, not days held** — the event pair holds 5/20 sessions but decides quarterly → 63 buys 4×252-day legs with exactly 4 decisions each; declaring the literal hold plans 12 starving folds. No harness code reads BENCHMARK or CLAIM_TYPE constants yet (grep-verified) — only HOLD_DAYS and UNIVERSE; UNIVERSE is the only benchmark control, and declaring one you don't trade is benchmark shopping, refused.
+
+**CENSUS**: 117/117 done, 0 ceiling, 17.5 min; points_declared==realised every sweep; `fund_lean_jobs.algorithm` is an EXACT candidate link when one algorithm runs once — use it over time-window inference. **BELT-LOCK EXCEPTION CONFIRMED BY THE CHAIR**: writing ClarkHarness/.belt_running is permitted when the dispatch brief instructs it — a coordination flag is a coordination surface, not code; the write-scope boundary otherwise stands.
+
+**BELT ETIQUETTE**: background tasks are EVICTED when new ones start — run ONE self-contained background process (wait → lock → every step → release, checkpointed), never two cooperating pollers.
+
+**OBSERVED**: a9db39fdfab5 orphaned at exactly its 3h ceiling while SLOT-STARVED by my own 117 containers (chair diagnosed: runner alive, resumed when slots freed) — a candidate leaving `running` is NOT a free belt; check state=='done'. 9b767717ff08 stands done/passed-true.
+
+**FITNESS**: 4/4 honest verdicts without instrument death; 4 instrument findings (PSR identified + sentence shown false; cash-carry bias quantified; direction-dependent measurability; the unreachable breakeven floor ×4 more); pre-registration scored 4/4 fold geometry, 3/4 returns ≤0.35pp, three misses named and owned.
+
+### EVOLVE — two accepted: **WRITE THE OFFLINE REPLICA AND PRE-REGISTERED PREDICTION BEFORE SUBMITTING, and spend ONE smoke container on fill timing before a hundred on a verdict** (basis: 4/4 fold geometry predicted for zero containers; the 0.84pp miss came from modelling a static purchase as a rebalanced weight path; one 16s smoke settled close(d) fills). **RUN THE BELT FROM ONE SELF-CONTAINED BACKGROUND PROCESS** (basis: two cooperating pollers = two things that die and one that double-submits; both were evicted mid-wait).

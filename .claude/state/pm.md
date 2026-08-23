@@ -603,3 +603,7 @@ Verbatim: "Crypto is not a bad asset class if we learn how to manage volatility 
 ## 2026-08-24 — CARRIED FROM BUILDER (run-builder-d35) BY THE CHAIR
 
 The fund's realised execution cost has its first number: **2.89 bps mean / 1.99 median over SEVEN clean venue fills** vs the 5.0 bps/side backtests charge — quote it with n=7 attached, always. P5 now cites measured coverage (31/34 fill events, 91.18%) instead of an absence. Today's R39 fills grow the n under live capture — the first day this fund trades with its costs being measured as they happen.
+
+## 2026-08-24 — CARRIED FROM QUANT (run-quant-metacontrols) BY THE CHAIR — vol-management study material, lesson one
+
+The vol target is the one control worth studying as a SHAPE: it **halved META's drawdown (38.5% vs 76.7%) for 12pp of forgone return over 5.3 years**, gross capped at 0.9876 under the ceiling. Two cautions for when you underwrite anything vol-scaled: the belt's premia number UNDERSTATES it by ~0.09 Sharpe until the engine pays interest on cash (the D36 fix, adversary-blind first); and its fold count sat at zero margin (9-of-12 vs 9) — the same knife-edge as Entry 20. None of the four controls is a candidate; all four are your curriculum.

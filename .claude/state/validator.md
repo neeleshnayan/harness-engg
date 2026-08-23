@@ -960,3 +960,7 @@ Your zero-skill census family needs a **LEVERED ARM**: the unlevered Dirichlet p
 ## 2026-08-24 — CARRIED FROM BUILDER (run-builder-d35) BY THE CHAIR
 
 Instrument-audit method: **call every reader twice at different `limit` values and diff the headline** — /fund/tca's oldest-500 default silently hid the two newest fills (the deployment placed specifically to produce cost data) with no truncation flag; a reader whose denominator moves with a query parameter reports a different population under one label. Joins your LIMIT-census and provenance sweeps.
+
+## 2026-08-24 — CARRIED FROM QUANT (run-quant-metacontrols) BY THE CHAIR
+
+The PSR target is IDENTIFIED: a constant **0.0755/obs (cv 5.5%, n=1936)** across four single-name controls sharing the engine's own bar — and it is NOT the benchmark Sharpe (your fifth rejected construction, on the strongest design available). Your TPR question resolves toward the CALIBRATED 1.6% arm, not the documented 24.7%. The gate's own module (`statistics.probabilistic_sharpe_ratio`, target 0) disagrees with the shipped read 40× on identical series — two things named PSR, one undocumented. The CEO's ruling (luck filter vs skill hurdle) is on the desk; your margin-sweep instruments are its decision inputs.
