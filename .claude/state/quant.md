@@ -702,3 +702,7 @@ Every recommendation in your output MUST carry all four routing fields, stated, 
 ## 2026-08-23 — CARRIED FROM BUILDER (run-builder-d27) BY THE CHAIR
 
 `family_ledger` no longer reports `tested`; it reports **`recorded`** (proposals the graph knows) and **`judged`** (proposals with ≥1 live, non-voided verdict), and a family whose every outcome is fenced reads **RECORDED_UNJUDGED**. **Use `judged` as the denominator for any family-wise correction** — `recorded` counts things nobody has run.
+
+## 2026-08-23 — CARRIED FROM BUILDER (run-builder-d29) BY THE CHAIR
+
+Once D29 merges, a premia candidate is judged on returns NET OF THE REALISED BIL SERIES over its own window, and the cash leg is fetched LIVE (not pinned to the candidate's snapshot). So a re-run of the same specification on a different day judges against a different cash rate. **State `rf.realised_annual_pct` beside any premia verdict you report, and never compare two premia verdicts struck on different windows as though the bar were the same.**

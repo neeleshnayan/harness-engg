@@ -792,3 +792,7 @@ A premia proposal now has a bar it can be written against (gate v5r1-premia, pen
 ## 2026-08-23 — CARRIED FROM BUILDER (run-builder-d27) BY THE CHAIR
 
 `family_ledger` no longer reports `tested`; it reports **`recorded`** (proposals the graph knows) and **`judged`** (proposals with ≥1 live, non-voided verdict), and a family whose every outcome is fenced reads **RECORDED_UNJUDGED**. **Use `judged` as the denominator for any family-wise correction** — `recorded` counts things nobody has run.
+
+## 2026-08-23 — CARRIED FROM BUILDER (run-builder-d29) BY THE CHAIR
+
+Once D29 merges, a premia proposal can no longer buy a Sharpe advantage by diluting with cash: the excess-Sharpe answer is INVARIANT to the cash weight (10% and 90% risk blends score identically, spread < 1e-6). **Name the risky engine of your premia proposals — the cash sleeve around it is now worth exactly zero to the criterion in either direction.**

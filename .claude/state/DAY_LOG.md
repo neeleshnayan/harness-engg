@@ -92,6 +92,31 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   account) starts Monday.
 
 **BUILT (the merge wave, late evening)**
+- **BUILDER D29 delivered and chair-verified — the premia-gate kill's
+  mechanism is CLOSED** (branch `builder/d29-premia-rf` at `ebb233a`;
+  probe3b reproduces the adversary's arithmetic to 3e-6, every zero-skill
+  cell inside their |adv|<0.05 falsifier, the 700d cash blends that were
+  the kill's headline now FAIL; alpha identity byte-for-byte on 55 stored
+  results; mutation 44/44; app/ fitness 4.9:1 with the first deletion
+  budget honoured). PREMIA v5r2: rf source is a named versioned choice,
+  no threshold moved. **The sharpest line: the false-pass RATE did not
+  move** — the carry channel is shut (excess Sharpe now invariant to cash
+  weight) but a cash-heavy zero-skill blend still passes ~40% of single
+  windows on pure selection noise; closing THAT is a margin (CEO) or
+  per-fold consistency (belt). TWO LOOSENINGS DISCLOSED in the artifact
+  (2000d-window rate; session denominator) → **adversary re-blind
+  REQUIRED and queued, held until the belt A/B frees the host** (0.55 GB
+  during resolve). Run `run-builder-d29` filed WITH `routing_version: 1`
+  — the door 422'd the chair's own first attempt on a vocabulary miss
+  (`hard-to-reverse`→`hard`) and admitted the correction: enforcement
+  measured working, twice. Two premise corrections carried (the review's
+  "12 of 16" is 11 re-run; the brief's acceptance was stricter than its
+  own source). Full suite OWED behind the belt (self-limiting poll live).
+- **ED'S META BATCH DISPATCHED** (batch #4, coverage-model debut):
+  proposals from dossier-price mismatch, first look at the 2026-09-21
+  index-flip and 2026-10-28 earnings catalysts; the vol-ratio falsifier
+  reconciliation (his own 1.0, three computations, only one breaches);
+  self-fanout default under the plumbing rule.
 - **THE MERGED TREE IS PROVEN GREEN AND THE SPINE RUNS ON IT.** First full
   suite showed 2 failed + 107 errors; chair isolated ALL 109 to one
   pre-existing env artifact (app/main.py `load_dotenv()` leaks
