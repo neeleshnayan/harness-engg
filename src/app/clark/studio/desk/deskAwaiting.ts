@@ -107,7 +107,7 @@ export interface AwaitingInput {
   cardCount: number;
 }
 
-/** Plural-safe "N item(s)" without pulling in a formatter. */
+/** Plural-safe "1 row" / "N rows", without pulling in a formatter. */
 const rows = (n: number) => `${n} row${n === 1 ? "" : "s"}`;
 
 /**

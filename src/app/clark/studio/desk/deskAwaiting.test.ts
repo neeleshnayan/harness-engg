@@ -150,6 +150,21 @@ test("an adjustment exactly equal to the total is applied, and reaches zero hone
   assert.match(h.note!, /3 rows this page does not/);
 });
 
+test("a nonsensical served figure is SHOWN and shouted about, not repaired", () => {
+  /* A negative count is not a count. The choice here is deliberate and pinned
+   * so it stays deliberate: the page renders what the fund said, applies no
+   * adjustment to it, and the reconciliation banner fires — rather than
+   * silently clamping to 0, which would present a repaired number as if the
+   * spine had produced it. Never fabricate; report. */
+  const h = awaitingHeadline({
+    deskReadable: true, servedTotal: -3, servedComplete: true,
+    divertedNotes: 1, cardCount: 0,
+  });
+  assert.equal(h.value, -3, "shown as served, unadjusted");
+  assert.equal(h.source, "spine");
+  assert.ok(h.reconciliation, "-3 against 0 cards must be reported loudly");
+});
+
 /* --------------------------------------------------- the reconciliation -- */
 
 test("a residual disagreement is LOUD and points at the larger number", () => {
