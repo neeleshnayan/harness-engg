@@ -752,3 +752,5 @@ D23 verdict: KILL on ONE constant; your capture-only work (statistics clock, psr
 
 ### D29 addendum (seat's own follow-up, appended verbatim by the chair)
 - **The full-suite poll TIMED OUT at 28/28 attempts — suite remains OWED.** By the end of the window the constraint was the **belt lock alone**, not RAM (0.45 GB at the floor, recovered to 2.24 GB). `suite_when_free.sh` is re-runnable unchanged and is the cheaper pattern than waiting inside a dispatch: it self-limits, respects the RAM floor, and takes/releases `.suite_running` properly. Baselines for whoever discharges it: **3488 (base) → 3536 (branch), +48 exactly.**
+
+### D29 suite debt DISCHARGED (chair, via the seat's own suite_when_free.sh once the belt freed): 3536 passed, 0 failed, 235.31s — the exact +48 collection the branch predicted. The only gate left before the D23+D29 merge is the adversary re-blind, in flight.
