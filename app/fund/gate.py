@@ -537,34 +537,74 @@ GATE_VERSION = "v4.3"
 #: premia verdict records this dict beside the alpha one, so it still states
 #: its whole bar.
 #:
-#: WHAT v5r1 CHANGES: exactly one criterion, for exactly one declared claim
-#: type. ``must_beat_benchmark`` is replaced by the inequality below. PSR,
+#: WHAT THE PREMIA BAR CHANGES: exactly one criterion, for exactly one declared
+#: claim type. ``must_beat_benchmark`` is replaced by the inequality below. PSR,
 #: breakeven, orders, capacity, folds, retention and the holdout apply to a
 #: premia claim unchanged.
 #:
-#: WHAT v5r1 EXPLICITLY DOES NOT FIX, stated so no pass is over-read:
+#: v5r2 (2026-08-23) — THE ASSUMED RATE IS GONE; THE REALISED ONE IS READ.
+#: v5r1 shipped a CONSTANT rf stress of 4.0% and the adversary killed it blind
+#: (docs/reviews/ADVERSARY_D23_D24_2026-08-23.md). Two facts settled it:
+#:
+#:   * The constant was BELOW the cash the belt's own windows pay. It was
+#:     rounded up from BIL 3.97%/yr on ONE window (gate v5 round 5, G1) and the
+#:     belt does not run on that window. Measured on the fund's own pinned feed:
+#:     BIL 4.07%/yr over the belt's 700-day window (11 of 16 fleet algorithms
+#:     use 700d), 4.37% over 900d, 4.59% over 2023+. On three of four windows
+#:     the stress was SOFTER than the realised rate — the one condition under
+#:     which a cash tilt survives it.
+#:   * Executed, not argued: ELEVEN of sixteen zero-skill cash/beta blends
+#:     PASSED the v5r1 leg while their TRUE excess-Sharpe advantage, computed
+#:     against the realised BIL series per the constitution's own definition,
+#:     lay between −0.0004 and +0.03. (The review's prose says twelve; the
+#:     re-run of its own probe3 at this base counts eleven passes and five
+#:     failures. The kill is unaffected and the smaller number is the one this
+#:     comment carries, because it is the one that was re-measured.)
+#:
+#: And the fund had already measured that this remedy SHAPE fails:
+#: docs/GATE_V5_ROUND5_MEASURED_2026-08-21.md:88-96, verbatim — *"A plausible
+#: static assumption is not safe"*; *"the risk is static vs realised, not which
+#: bill fund."* v5r1 shipped a static assumption and cited that document for the
+#: number.
+#:
+#: So v5r2 subtracts the REALISED per-observation cash return, read from the
+#: fund's own feed over the CANDIDATE'S OWN WINDOW, from both legs before either
+#: Sharpe is formed. This is the CEO's standing excess-returns amendment
+#: (constitution, Identity, 2026-08-21) reaching the code that judges the claim
+#: it governs, and it is a TIGHTENING in every direction: no window can now be
+#: judged against a rate softer than the one it paid, and a candidate whose
+#: window has no readable cash series is NOT MEASURABLE rather than passed.
+#:
+#: WHAT v5r2 EXPLICITLY DOES NOT FIX, stated so no pass is over-read:
 #:
 #:   1. **The fold and holdout legs still judge RAW return retention.** A
 #:      premia claim's consistency across folds is therefore not a premia
 #:      consistency — the fold legs run `enrich=False` and carry no benchmark
 #:      at all (leanrunner.py, the sweep-point path), so there is nothing to
 #:      compare against inside a fold. Closing it is a BELT change.
-#:   2. **rf = 0, and that is a hole the constitution names.** No risk-free
-#:      series exists anywhere in the gate path (validator H1, gate v5 round 5,
-#:      docs/GATE_V5_ROUND5_MEASURED_2026-08-21.md). The stress test below is
-#:      the fail-closed answer, not a substitute for the series.
-#:   3. **A single-window inequality is one draw.** The validator's J3
+#:   2. **A single-window inequality is one draw.** The validator's J3
 #:      measurement: a zero-skill monthly-rebalanced equal-weight portfolio
 #:      clears a premia inequality in 18.2% of independent gate-length windows
 #:      (4 of 22), and two of its three conditions are nearly free. This
-#:      criterion is NOT sufficient on its own and is not claimed to be; what
-#:      makes it a bar is the rest of the gauntlet standing beside it.
+#:      criterion is NOT sufficient on its own and is not claimed to be.
+#:   3. **NOTHING ELSE IS BENCHMARK-RELATIVE FOR A PREMIA CLAIM.** Enumerated
+#:      rather than gestured at, because "the rest of the gauntlet stands
+#:      beside it" was the sentence the adversary struck: with
+#:      ``must_beat_benchmark`` replaced, the criterion below is the ONLY
+#:      benchmark-relative test a premia candidate faces. PSR, breakeven,
+#:      orders, capacity, fold count, retention share and the holdout are all
+#:      absolute or self-consistency checks. That is why the inequality itself
+#:      has to be right, and it is why an unreadable cash rate fails closed.
 #:   4. **The claim type is SUBMITTER-DECLARED.** A submitter picks which bar
 #:      it is judged against. That is the constitution's design, and it is also
 #:      an obvious loosening vector, so every premia verdict records
 #:      `declared_by: "submitter"` for the audit that will eventually ask
 #:      whether candidates are shopping for the easier bar.
-PREMIA_VERSION = "v5r1"
+#:   5. **The cash instrument is ONE ETF's total return, not a T-bill curve.**
+#:      BIL is what this fund's feed can serve; a financing spread on leverage
+#:      is still unmodelled. Named because the constitution's amendment asks for
+#:      both, and only the first half is here.
+PREMIA_VERSION = "v5r2"
 
 #: Derived, never restated. Two literals for one version is how the stamp on a
 #: stored verdict stops matching the bar that produced it.
@@ -575,6 +615,13 @@ GATE_VERSION_PREMIA = f"{PREMIA_VERSION}-premia"
 #: either direction.
 CLAIM_TYPES = ("alpha", "premia")
 CLAIM_TYPE_DEFAULT = "alpha"
+
+#: The risk-free bases this gate implements. Anything else fails closed, for the
+#: same reason an unrecognised claim type does: a typo in the bar's own
+#: definition must not be able to select a rate by accident, in either
+#: direction. Declared beside the vocabulary it belongs to rather than inline in
+#: the check, so `PREMIA_CRITERIA["premia_rf_basis"]` can be read against it.
+RF_BASES = ("realised_series", "constant")
 
 PREMIA_CRITERIA: dict[str, Any] = {
     # NO MARGIN. A strict inequality and nothing added to it. The temptation is
@@ -592,22 +639,49 @@ PREMIA_CRITERIA: dict[str, Any] = {
     # 01b61967c933 has a +0.054 Sharpe advantage and a 28.67% drawdown against
     # its bar's 28.42% — this condition is what fails it.
     "premia_require_drawdown_not_worse": True,
-    # THE RISK-FREE STRESS, and the reason the constitution's own worked
-    # example cannot pass. Under rf=0 a cash-heavy mix scores a Sharpe on
-    # T-bill carry; the CEO's 2026-08-21 amendment exists because that was
-    # DEMONSTRATED to certify a zero-skill portfolio as premia.
+    # WHERE THE RISK-FREE RATE COMES FROM. A NAMED, VERSIONED CHOICE — not a
+    # code branch nobody can see, and not a number rounded off one window.
     #
-    # 4.0 is not a preference. It is the cash rate this fund's own window
-    # actually paid: the validator measured BIL at 3.97%/yr and SHV at 3.94%
-    # over the gate's window (gate v5 round 5, G1). Rounded to the nearest
-    # whole percent, and rounded UP, so the stress is not softer than the
-    # measurement.
+    #   "realised_series" — subtract the cash return the candidate's OWN window
+    #     actually paid, per observation, read from the fund's own feed. This is
+    #     what ships, and it is the constitution's excess-returns amendment
+    #     (2026-08-21) applied literally.
+    #   "constant" — judge at rf=0 AND at `premia_rf_stress_pct`, the v5r1 rule,
+    #     unchanged. Kept selectable and kept STRICT (both endpoints, so the
+    #     advantage must hold across the whole interval) so that if the CEO
+    #     decides a fixed stress rate is the bar he wants, it is a value change
+    #     on his desk and not a code change here.
+    #
+    # Anything else FAILS CLOSED. A typo in a bar's own definition must not be
+    # able to select a rate by accident, in either direction.
+    "premia_rf_basis": "realised_series",
+    # The instrument the realised series is read from. BIL is the fund's
+    # shortest-duration cash ETF and the one the validator measured in gate v5
+    # round 5; the gate REFUSES a stored payload measured against a different
+    # symbol rather than comparing across instruments silently.
+    "premia_rf_symbol": "BIL",
+    # UNCHANGED VALUE, NARROWED SCOPE. Under "realised_series" this is not read
+    # at all. It is the v5r1 constant and it is left at exactly the number that
+    # version shipped, because moving a threshold is a human's act in either
+    # direction — what changed here is which basis is selected by default, and
+    # that change is a tightening the constitution already mandated.
+    #
+    # Its provenance, kept for whoever revisits it: the validator measured BIL
+    # at 3.97%/yr and SHV at 3.94% over the gate's window (gate v5 round 5, G1),
+    # rounded up to a whole percent. The adversary then measured the belt's own
+    # windows at 4.07 / 4.37 / 4.59%/yr — which is why it is no longer the
+    # default basis.
     "premia_rf_stress_pct": 4.0,
     # A comparison over a minority of the run is not a comparison over the run.
     # Not a new number: this is the same majority rule `_add_benchmark`
     # already applies when it refuses a basket built from a minority of its
     # legs. Compared with a STRICT majority, in the same shape as the
     # walk-forward rule (`retained * 2 <= measurable` fails).
+    #
+    # The DENOMINATOR moved in v5r2 and that is a tightening: v5r1 divided
+    # trading days by CALENDAR days (LEAN emits an equity point every calendar
+    # day), which scored 0.67-0.69 on all 15 real specimens and left ~19pp of
+    # slack. It now runs on the session count. Both numbers are reported.
     "premia_require_majority_window_coverage": True,
 }
 
@@ -806,53 +880,59 @@ def _premia_leg(result: dict[str, Any], pc: dict[str, Any]
     THE FORMULATION, stated in full because it is the whole criterion and the
     adversary should attack it as written:
 
-        A premia claim passes iff, on the window the strategy and its
-        benchmark SHARE,
+        A premia claim passes iff, on the window the strategy, its benchmark
+        AND the cash series all share,
 
           (1) both legs are measurable and that window covers a STRICT
-              MAJORITY of the strategy's own observations;
-          (2) the strategy's annualised Sharpe on EXCESS returns exceeds the
-              benchmark's, at the assumed risk-free rate (0%); AND
-          (3) it still exceeds it at the stressed risk-free rate (4%); AND
-          (4) the strategy's maximum drawdown does not exceed the benchmark's.
+              MAJORITY of the strategy's own SESSIONS;
+          (2) the strategy's annualised Sharpe on returns NET OF THE REALISED
+              PER-OBSERVATION CASH RETURN exceeds the benchmark's, computed the
+              same way; AND
+          (3) the strategy's maximum drawdown does not exceed the benchmark's.
 
-    WHY (2) AND (3) TOGETHER ARE A CLAIM ABOUT THE WHOLE INTERVAL, not two
-    spot checks. Subtracting a per-observation constant leaves a standard
-    deviation unchanged, so each leg's Sharpe is affine in that constant and
-    the DIFFERENCE between them is affine too, with slope
-    ``sqrt(K) * (1/sd_bench - 1/sd_strategy)``. An affine function that is
-    positive at both ends of an interval is positive throughout it. So (2)+(3)
-    is exactly "the advantage holds for every risk-free rate between 0% and
-    4%", checked in two evaluations.
+    WHERE THE CASH RETURN COMES FROM, and why this replaced a constant. v5r1
+    ran the inequality at rf=0 and again at a fixed 4.0%. The adversary
+    executed it: eleven of sixteen zero-skill cash/beta blends passed while
+    their true excess-Sharpe advantage was between −0.0004 and +0.03, because
+    the belt's own windows paid 4.07 / 4.37 / 4.59%/yr and the stress was 4.00.
+    A constant fitted on one window is a threshold that silently changes meaning
+    with every backtest date. So the belt now reads BIL over the CANDIDATE'S OWN
+    window and subtracts it per observation; this function reads the excess pair
+    it stored and never assumes a rate.
 
-    AND THAT IS WHY THE STRESS IS UNCONDITIONAL. The brief this was built from
-    asked for the stress where the strategy's volatility is "materially below"
-    the benchmark's. It does not need the condition, and the condition would
-    have been an invented threshold: the slope above is negative EXACTLY when
-    ``sd_strategy < sd_bench``, so on any candidate whose volatility is at or
-    above its bar's, passing (2) implies passing (3) and the extra evaluation
-    cannot fail anything. Applying it to everything is equivalent on the
-    failing set and carries one fewer number nobody measured.
+    WHY THE RAW (rf=0) ARM IS NO LONGER A CONDITION. Under a constant rate the
+    Sharpe difference is affine in that rate, so two endpoint checks pinned the
+    whole interval and BOTH were needed. Under a realised series there is no
+    free parameter left to sweep: the excess pair IS the comparison, in one
+    evaluation. The raw pair is still REPORTED — ``sharpe_advantage_raw`` beside
+    ``sharpe_advantage`` — because the gap between them is exactly the size of
+    the T-bill carry the constitution's amendment is about, and a reader should
+    be able to see it. It is capture, not a criterion.
 
-    WHAT (3) IS FOR. The constitution's excess-returns amendment exists because
-    a zero-skill cash-heavy mix was DEMONSTRATED to certify as premia under
-    rf=0: T-bill carry impersonates edge. The fund still has no risk-free
-    series (H1), so the honest rule is not to assume one — it is to refuse any
-    premium that survives only at the assumption most flattering to it.
+    FAIL CLOSED ON AN UNREADABLE RATE. An absent cash series does not become
+    rf=0; it becomes NOT MEASURABLE. Absence is never zero, and rf=0 is the
+    single most flattering assumption available to a cash-heavy mix — which is
+    the shape the CEO's 2026-08-21 amendment exists to refuse.
     """
     from app.fund import statistics as st
 
-    rf_assumed = 0.0
-    rf_stress = float(pc["premia_rf_stress_pct"])
+    basis = str(pc.get("premia_rf_basis"))
+    want_symbol = str(pc.get("premia_rf_symbol"))
     out: dict[str, Any] = {
         "declared_by": "submitter",
-        "rf_assumed_pct": rf_assumed,
-        "rf_stress_pct": rf_stress,
-        "rf_basis": ("ZERO — H1 open; a cash-heavy mix can impersonate edge "
-                     "until the rf series lands"),
+        "rf_basis": basis,
+        "rf_symbol": want_symbol,
         "criteria": dict(pc),
         "measurable": False,
     }
+    if basis not in RF_BASES:
+        out["reason"] = (f"the premia bar names an rf basis this gate does not "
+                         f"implement ({basis!r}); it knows "
+                         f"{' and '.join(sorted(RF_BASES))}")
+        return out, [
+            f"the premia comparison could not be measured: {out['reason']} — a "
+            f"criterion whose own risk-free basis is unreadable has not been "
+            f"applied, and an unapplied criterion is not a passed one"]
     p = result.get("premia_inputs")
     if not isinstance(p, dict) or not p.get("measurable"):
         reason = (p.get("reason") if isinstance(p, dict) else None) or (
@@ -903,23 +983,87 @@ def _premia_leg(result: dict[str, Any], pc: dict[str, Any]
         "benchmark_total_return_pct": round(float(b["total_return_pct"]), 4),
     })
 
-    # (1) A strict majority of the strategy's own record, in integer
+    # (1) A strict majority of the strategy's own SESSIONS, in integer
     # arithmetic, for the same reason the walk-forward majority is: a float
     # share compared with `<` is where the off-by-one lives.
-    coverage_ok = common * 2 > total if total else False
+    #
+    # THE DENOMINATOR. v5r1 used `strategy_days`, which counts CALENDAR days
+    # because LEAN emits an equity point every one of them — so the test was
+    # comparing sessions with weekends and scored 0.67-0.69 on all 15 real
+    # specimens, ~19pp of pure slack. `strategy_sessions` is the session count
+    # over the strategy's own span, taken from the union of the bar's and the
+    # cash series' dates. Falling back to the calendar count when the belt did
+    # not record sessions is the STRICT direction — a calendar denominator is
+    # larger, so the majority is harder to reach, and an old payload cannot
+    # pass a test a new one would fail.
+    sessions = cov.get("strategy_sessions")
+    denominator = int(sessions) if sessions else total
+    denominator_basis = ("sessions" if sessions else "calendar_days")
+    coverage_ok = common * 2 > denominator if denominator else False
     out["coverage_majority"] = coverage_ok
+    out["coverage_denominator"] = denominator
+    out["coverage_denominator_basis"] = denominator_basis
     if pc.get("premia_require_majority_window_coverage") and not coverage_ok:
         failures.append(
-            f"the strategy and its bar share only {common} of the strategy's "
-            f"{total} observations — a comparison over a minority of the run "
-            f"is not a comparison over the run")
+            f"the strategy, its bar and the cash leg share only {common} of the "
+            f"strategy's {denominator} {denominator_basis.replace('_', ' ')} "
+            f"({total} calendar days in the run) — a comparison over a minority "
+            f"of the run is not a comparison over the run")
 
-    # (2) and (3).
-    s0 = st.sharpe_at_rf(s, rf_assumed)
-    b0 = st.sharpe_at_rf(b, rf_assumed)
-    s1 = st.sharpe_at_rf(s, rf_stress)
-    b1 = st.sharpe_at_rf(b, rf_stress)
-    if s0 is None or b0 is None or s1 is None or b1 is None:
+    # (2) THE INEQUALITY. Which pair of legs it runs on is the versioned choice
+    # `premia_rf_basis` names, and an unreadable cash rate FAILS CLOSED — it
+    # never silently becomes rf=0, which is the assumption most flattering to
+    # the cash-heavy mix the constitution's amendment was written against.
+    margin = float(pc["premia_min_sharpe_advantage"])
+    raw0 = st.sharpe_at_rf(s, 0.0)
+    raw_b0 = st.sharpe_at_rf(b, 0.0)
+    out["rf_breakeven_pct"] = _rf_breakeven_pct(s, b)
+    if raw0 is not None and raw_b0 is not None:
+        # CAPTURE, NOT A CRITERION. The gap between this and the excess
+        # advantage below IS the T-bill carry, and a reader who cannot see it
+        # cannot audit the criterion that removed it.
+        out.update({"sharpe_strategy_raw": round(raw0, 5),
+                    "sharpe_benchmark_raw": round(raw_b0, 5),
+                    "sharpe_advantage_raw": round(raw0 - raw_b0, 5)})
+
+    if basis == "realised_series":
+        rf = p.get("rf") if isinstance(p.get("rf"), dict) else {}
+        out["rf"] = rf
+        got_symbol = rf.get("symbol")
+        if not p.get("excess_measurable"):
+            out["measurable"] = False
+            out["reason"] = (rf.get("reason")
+                             or "the belt captured no excess-return pair for "
+                                "this run")
+            failures.append(
+                f"the premia comparison could not be measured against a "
+                f"realised cash rate: {out['reason']} — the constitution "
+                f"measures a premia claim over EXCESS returns (2026-08-21), and "
+                f"an unknown cash rate is NOT a zero one")
+            return out, failures
+        if got_symbol != want_symbol:
+            out["measurable"] = False
+            out["reason"] = (f"this run's excess returns were measured against "
+                             f"{got_symbol!r} and the bar names {want_symbol!r}")
+            failures.append(
+                f"the premia comparison could not be measured: {out['reason']} "
+                f"— two cash instruments are not one comparison, and re-judging "
+                f"against a series the run never saw would be an invention")
+            return out, failures
+        s_leg = p.get("strategy_excess") or {}
+        b_leg = p.get("benchmark_excess") or {}
+        out["rf_realised_annual_pct"] = rf.get("realised_annual_pct")
+    else:
+        # "constant": the v5r1 rule, unchanged and still two-armed. The Sharpe
+        # difference is affine in a constant rate, so positivity at both ends of
+        # [0, stress] is positivity throughout it — dropping either arm would
+        # LOOSEN this basis relative to the version it preserves.
+        s_leg, b_leg = s, b
+        out["rf_stress_pct"] = float(pc["premia_rf_stress_pct"])
+
+    s0 = st.sharpe_at_rf(s_leg, 0.0)
+    b0 = st.sharpe_at_rf(b_leg, 0.0)
+    if s0 is None or b0 is None:
         # `measurable` means the comparison WAS measured, so it goes back to
         # False here rather than staying True beside a reason saying it was not.
         out["measurable"] = False
@@ -929,51 +1073,69 @@ def _premia_leg(result: dict[str, Any], pc: dict[str, Any]
             "no usable dispersion, and a constant return is not a "
             "risk-adjusted one")
         return out, failures
-    margin = float(pc["premia_min_sharpe_advantage"])
-    adv0, adv1 = s0 - b0, s1 - b1
+    adv0 = s0 - b0
     out.update({
+        "sharpe_basis": ("excess of the realised cash series"
+                         if basis == "realised_series"
+                         else "raw returns, rf assumed 0%"),
         "sharpe_strategy": round(s0, 5), "sharpe_benchmark": round(b0, 5),
         "sharpe_advantage": round(adv0, 5),
-        "sharpe_strategy_at_stress": round(s1, 5),
-        "sharpe_benchmark_at_stress": round(b1, 5),
-        "sharpe_advantage_at_stress": round(adv1, 5),
-        # THE RATE AT WHICH THE PREMIUM VANISHES, so the verdict answers "how
-        # close was this" instead of only "yes or no". The Sharpe difference is
-        # affine in the per-observation constant, so its root is exact:
-        #
-        #     c* = (mu_s*sd_b - mu_b*sd_s) / (sd_b - sd_s)
-        #
-        # and the annual rate is (1 + c*)**K - 1. Undefined when the two legs
-        # have the same dispersion, because then the difference does not move
-        # with rf at all — reported as None rather than as a number, since
-        # "there is no crossing" and "it crosses at zero" are opposite facts.
-        "rf_breakeven_pct": _rf_breakeven_pct(s, b),
     })
-    # rf_sensitive names the SHAPE the constitution warns about, so it is set
-    # only where that shape is what happened: the advantage exists at rf=0 and
-    # is gone by the stressed rate. A candidate that had no advantage in the
-    # first place is not "rf sensitive", it simply had no premium.
-    out["rf_sensitive"] = bool(adv0 > margin and not adv1 > margin)
+    if basis == "constant":
+        rf_stress = float(pc["premia_rf_stress_pct"])
+        s1 = st.sharpe_at_rf(s, rf_stress)
+        b1 = st.sharpe_at_rf(b, rf_stress)
+        if s1 is None or b1 is None:
+            out["measurable"] = False
+            out["reason"] = "a stressed Sharpe could not be computed"
+            failures.append(
+                "the risk-adjusted comparison could not be computed at the "
+                "stressed rate — one leg has no usable dispersion")
+            return out, failures
+        adv1 = s1 - b1
+        out.update({"sharpe_strategy_at_stress": round(s1, 5),
+                    "sharpe_benchmark_at_stress": round(b1, 5),
+                    "sharpe_advantage_at_stress": round(adv1, 5)})
+        # rf_sensitive names the SHAPE the constitution warns about, so it is
+        # set only where that shape is what happened: the advantage exists at
+        # rf=0 and is gone by the stressed rate. A candidate that had no
+        # advantage in the first place is not "rf sensitive", it simply had no
+        # premium.
+        out["rf_sensitive"] = bool(adv0 > margin and not adv1 > margin)
+        if adv0 > margin and out["rf_sensitive"]:
+            failures.append(
+                f"the risk-adjusted advantage (+{adv0:.3f} at rf=0%) DISAPPEARS "
+                f"at rf={rf_stress:.1f}% ({adv1:+.3f}): the strategy runs at "
+                f"{out['strategy_ann_vol_pct']:.1f}% volatility against the "
+                f"bar's {out['benchmark_ann_vol_pct']:.1f}%, so what looks like "
+                f"a premium is consistent with cash earning the risk-free rate"
+                + ("" if out.get("rf_breakeven_pct") is None else
+                   f". The premium vanishes above a "
+                   f"{out['rf_breakeven_pct']:.2f}%/yr cash rate"))
     if not adv0 > margin:
+        # THE CARRY SENTENCE. When the raw advantage was positive and the excess
+        # one is not, the premium WAS the cash — say so with both numbers and
+        # the rate, because "no premium" alone loses the finding.
+        raw_adv = out.get("sharpe_advantage_raw")
+        realised = out.get("rf_realised_annual_pct")
+        carry = ""
+        if (basis == "realised_series" and raw_adv is not None
+                and raw_adv > margin and realised is not None):
+            carry = (f" The apparent advantage of {raw_adv:+.3f} before the cash "
+                     f"rate was removed is CARRY: {want_symbol} paid "
+                     f"{float(realised):.2f}%/yr over this window, and the "
+                     f"strategy runs at {out['strategy_ann_vol_pct']:.1f}% "
+                     f"volatility against the bar's "
+                     f"{out['benchmark_ann_vol_pct']:.1f}%.")
         failures.append(
             f"risk-adjusted return {s0:.3f} against {b0:.3f} for simply "
             f"holding the bar: no premium over owning the thing, and a premia "
-            f"claim is exactly the claim that there is one")
-    elif out["rf_sensitive"]:
-        failures.append(
-            f"the risk-adjusted advantage (+{adv0:.3f} at rf=0%) DISAPPEARS at "
-            f"rf={rf_stress:.1f}% ({adv1:+.3f}): the strategy runs at "
-            f"{out['strategy_ann_vol_pct']:.1f}% volatility against the bar's "
-            f"{out['benchmark_ann_vol_pct']:.1f}%, so what looks like a premium "
-            f"is consistent with cash earning the risk-free rate. This fund has "
-            f"NO risk-free series (H1 open), so a premium that exists only "
-            f"under the assumption most flattering to it is not established"
-            + ("" if out.get("rf_breakeven_pct") is None else
-               f". The premium vanishes above a "
-               f"{out['rf_breakeven_pct']:.2f}%/yr cash rate; this fund's own "
-               f"window paid 3.97% (BIL)"))
+            f"claim is exactly the claim that there is one." + carry)
 
-    # (4)
+    # (3) The drawdown stays on the RAW legs deliberately. An excess-return
+    # drawdown is not a hole anyone lived through: the money in the account fell
+    # by the raw amount, and netting a cash return out of it would shrink a real
+    # loss by an amount the account never received.
     dd_ok = float(s["max_drawdown_pct"]) <= float(b["max_drawdown_pct"])
     out["drawdown_not_worse"] = dd_ok
     if pc.get("premia_require_drawdown_not_worse") and not dd_ok:
