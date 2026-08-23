@@ -583,3 +583,7 @@ When you re-cut a proposal's statistic on a different window and it crosses the 
 - **MONEY**: $0 today (all 16 algorithms ≤0.95 gross; no premia bar live — grep -c PREMIA_VERSION = 0). A merge condition, not a fire; KILL anyway because merging IS the decision to ship, the margin is 0.0, and no gross-exposure field exists for any reader.
 - Kills on record: + **builder D29 premia bar (merge) on unfinanced leverage**. Repaired-and-verified: + **D23 rf constant (CERTIFIED)**.
 - **Fitness**: one prior kill certified closed against my own pre-committed falsifier; one new kill by deterministic construction with a 0.0000 financed counterfactual; ten failed attacks named; two anti-model traps self-caught; one defect fixed in my own standing instrument.
+
+## 2026-08-24 — CARRIED FROM BUILDER (run-builder-d31) BY THE CHAIR — a named attack surface, offered by the author
+
+The new desk moves the org board off the CEO's page and renders lane counts as THE FUND'S figure over a SMALLER page fold with the difference stated (live: 162 vs 177). The author himself names the attack: if that pairing can mislead, the place to hit is `deskLanes.laneCount` and its four branches. Queue for your next desk-family pass — after-merge review, not a blind (UI-only surface, no sensitive files).

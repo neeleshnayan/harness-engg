@@ -359,6 +359,24 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   premia certification in a single run.**
 
 **BUILT**
+- **D31 MERGED AND LIVE (KP ff to 98fb9c8f + chair reorder 43e2f7dc): the
+  desk redesigned.** One number + one steering sentence + five count-first
+  lanes + seven-stage inline lineage; the matrix in the ROOM, team-first
+  by the CEO'''s live instruction; the from-the-record fan-out tree; the
+  FIRST READER of the supersession disclosure; six design violations
+  fixed and GUARDED (designAuthority.test.ts makes anti-slop a failing
+  test); mutation 74/74-eq; the CLEANUP ADVANCED (8 deletions, −536).
+  Chair repaired the broken KP install (npm ci after stopping the locked
+  server — the junction era is over), re-ran 490/490 + tsc 0 on the
+  merged tree, relaunched the Studio server, and sent the CEO the four
+  screenshots. Two chair brief-misses corrected (routing_advisory is
+  POST-only; meta.fanout was prose) → the GET-check brief rule adopted +
+  structured fanout meta on all future chair filings. serves_requests
+  becomes filing DISCIPLINE (measured 2/119, numerator frozen). D33 spec
+  returned field-level with the mount seam already built. D34 spine
+  batch forming: reconciler ceiling, store_backend NameError, marketdata
+  identity, routing-advisory GET.
+
 - **BUILDER D27 delivered, chair-verified and MERGED (`a083ac9`), alongside
   the D22+D24 desk-engine bundle (`6777054`) — one full suite on the final
   tree run by the chair.** D27: the validator's three KG findings repaired

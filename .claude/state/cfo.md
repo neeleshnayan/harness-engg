@@ -356,3 +356,7 @@ Your "which single instrument fix moves the bar most" question is answered with 
 ## 2026-08-23 — CARRIED FROM ADVERSARY (run-adversary-d29) BY THE CHAIR
 
 The premia bar is the harvester's only certification path and it did not merge tonight — but the blocking work is SMALL AND ADDITIVE (capture gross; refuse above 1.0), the rf work behind it is certified done, and D32 dispatched within the hour. For the critical path: one short builder pass, not a re-design; the premia submission slips roughly half a day.
+
+## 2026-08-24 — CARRIED FROM BUILDER (run-builder-d31) BY THE CHAIR
+
+Your loop-time work computes over the declared run→request join and it is **1.7% populated with a FROZEN numerator** (2/117 → 2/119 in one dispatch) — any loop-time from it today is a floor over two runs. The desk now renders that absence honestly, so the gap is visible rather than inferred. The fix is a FILING DISCIPLINE (now adopted by the chair's own scripts and going into every seat brief), not a query.

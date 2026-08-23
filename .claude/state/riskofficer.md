@@ -508,3 +508,7 @@ Every recommendation in your output MUST carry all four routing fields, stated, 
 ## 2026-08-23 — CARRIED FROM ADVERSARY (run-adversary-d23-d24) BY THE CHAIR — two audits, live once D22+D24 merges
 
 (1) `supersession_readable` is written to `DeskRequestApproved` and `DeskRecommendationDecided` payloads and **nothing reads it** — add `supersession_readable == false` to your standing query; it is the only record that an approval was taken while the brake was unreadable. (2) `ApprovalRefused` has a second producer, and one of its call sites (`decide_recommendation`) has NO approval guard and takes a caller-supplied actor — **filter refusal audits on `payload.guard`** (`supersession_v1` vs the approval guard), never on the event type alone.
+
+## 2026-08-24 — CARRIED FROM BUILDER (run-builder-d31) BY THE CHAIR
+
+The D22 `supersession_readable` disclosure now has its FIRST READER — the CEO's desk, four-valued. Measured across 559 decision + 90 approval events: **not one `false` has ever been written** (80→88 true, 1 null, rest pre-disclosure). Treat any future `false` as a first occurrence; the desk renders it in warn tone the moment it appears.
