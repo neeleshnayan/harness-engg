@@ -548,11 +548,24 @@ GATE_VERSION = "v4.3"
 #:
 #:   * The constant was BELOW the cash the belt's own windows pay. It was
 #:     rounded up from BIL 3.97%/yr on ONE window (gate v5 round 5, G1) and the
-#:     belt does not run on that window. Measured on the fund's own pinned feed:
-#:     BIL 4.07%/yr over the belt's 700-day window (11 of 16 fleet algorithms
-#:     use 700d), 4.37% over 900d, 4.59% over 2023+. On three of four windows
-#:     the stress was SOFTER than the realised rate — the one condition under
-#:     which a cash tilt survives it.
+#:     belt does not run on that window.
+#:
+#:     THE ONE TABLE, measured on the fund's own pinned BIL feed with the same
+#:     function this code uses (``leg_moments``: the per-observation mean
+#:     compounded to the series' OWN derived clock), reproducible with
+#:     scratchpad/d29/rates.py:
+#:
+#:         window                sessions   realised %/yr   vs the 4.00 stress
+#:         belt 700d                  480            4.05        SOFTER by 0.05
+#:         belt 900d                  619            4.35        SOFTER by 0.35
+#:         2023-01 onward             912            4.57        SOFTER by 0.57
+#:         2021-01 onward (~2000d)   1378            3.25        harsher by 0.75
+#:
+#:     On three of four the stress was SOFTER than the realised rate — the one
+#:     condition under which a cash tilt survives it. The adversary's own
+#:     figures (4.07 / 4.37 / 4.59) are the same fact under a CAGR-at-252
+#:     convention and agree with these to within 0.021pp; they are NOT a second
+#:     measurement and must not be carried as one.
 #:   * Executed, not argued: ELEVEN of sixteen zero-skill cash/beta blends
 #:     PASSED the v5r1 leg while their TRUE excess-Sharpe advantage, computed
 #:     against the realised BIL series per the constitution's own definition,
@@ -571,9 +584,24 @@ GATE_VERSION = "v4.3"
 #: fund's own feed over the CANDIDATE'S OWN WINDOW, from both legs before either
 #: Sharpe is formed. This is the CEO's standing excess-returns amendment
 #: (constitution, Identity, 2026-08-21) reaching the code that judges the claim
-#: it governs, and it is a TIGHTENING in every direction: no window can now be
-#: judged against a rate softer than the one it paid, and a candidate whose
-#: window has no readable cash series is NOT MEASURABLE rather than passed.
+#: it governs.
+#:
+#: THE DIRECTION IS NOT UNIFORM, AND SAYING SO IS THE POINT. A constant can be
+#: wrong both ways and this one was: replacing it TIGHTENS on every window that
+#: paid more than 4.0% and LOOSENS on every window that paid less. Measured
+#: against the shipped fleet and the table above: 11 of 16 algorithms declare a
+#: 700-day lookback and 3 declare 900 — those 14 tighten. The 2 that declare
+#: 2000 days reach back into the zero-rate era — those loosen, and measurably:
+#: a cash-heavy zero-skill census over that window passes 15.4% under v5r1 and
+#: 29.5% under v5r2 (n=1,000 each, same draws, scratchpad/d29/probe8c.py).
+#: That second direction is v5r1 refusing candidates against a rate their window
+#: never paid, which is a false rejection rather than a protection — but it is
+#: still permissive movement, and the CEO owns that trade rather than a comment
+#: burying it under the word "tightening".
+#:
+#: WHAT IS UNAMBIGUOUSLY TIGHTER: a candidate whose window has no readable cash
+#: series is NOT MEASURABLE rather than passed, and no window can be judged
+#: against a rate softer than the one it actually paid.
 #:
 #: WHAT v5r2 EXPLICITLY DOES NOT FIX, stated so no pass is over-read:
 #:
@@ -582,11 +610,24 @@ GATE_VERSION = "v4.3"
 #:      consistency — the fold legs run `enrich=False` and carry no benchmark
 #:      at all (leanrunner.py, the sweep-point path), so there is nothing to
 #:      compare against inside a fold. Closing it is a BELT change.
-#:   2. **A single-window inequality is one draw.** The validator's J3
-#:      measurement: a zero-skill monthly-rebalanced equal-weight portfolio
-#:      clears a premia inequality in 18.2% of independent gate-length windows
-#:      (4 of 22), and two of its three conditions are nearly free. This
-#:      criterion is NOT sufficient on its own and is not claimed to be.
+#:   2. **A single-window inequality is one draw, AND v5r2 DOES NOT IMPROVE
+#:      THAT — measured, not assumed.** The validator's J3 estimate was 18.2%
+#:      (4 of 22 windows). Measured directly on the belt's own geometry with
+#:      1,000 Dirichlet zero-skill portfolios per cell, same draws under both
+#:      versions: 700d 22.7% -> 23.2%, 900d 27.4% -> 29.3%, 2021+ 8.7% -> 8.8%.
+#:      Unchanged within noise (SE ~1.4pp).
+#:
+#:      THAT IS NOT A FAILURE OF THE REPAIR, IT IS A DIFFERENT DEFECT, and the
+#:      distinction matters for whoever fixes it next. Those false passes are
+#:      SELECTION NOISE — a random long-only tilt across eight ETFs beats
+#:      equal-weight on Sharpe about a quarter of the time — and subtracting a
+#:      cash rate from BOTH legs cannot touch them. What v5r2 removes is the
+#:      CARRY illusion, and there the movement is total: on the reviewer's own
+#:      cells the advantage falls from +0.7208 to −0.0003, and the answer is now
+#:      INVARIANT to the cash weight (a 10% risk blend and a 90% one score
+#:      identically, spread < 1e-6, where v5r1 spread them by an order of
+#:      magnitude). Closing the selection-noise half needs per-fold premia
+#:      consistency, which is note 1's belt change, not a gate change.
 #:   3. **NOTHING ELSE IS BENCHMARK-RELATIVE FOR A PREMIA CLAIM.** Enumerated
 #:      rather than gestured at, because "the rest of the gauntlet stands
 #:      beside it" was the sentence the adversary struck: with

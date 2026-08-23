@@ -8,11 +8,13 @@ named incidents are in the docstrings. The three that matter most:
     not certify as premia. ``test_the_cash_heavy_impersonator_*``.
   * THE D23 KILL (adversary, blind, 2026-08-23 —
     docs/reviews/ADVERSARY_D23_D24_2026-08-23.md): v5r1 stressed at a CONSTANT
-    4.0%/yr while the belt's own windows paid 4.05-4.57%, so eleven of sixteen
-    zero-skill cash/beta blends passed with a true excess-Sharpe advantage
-    between -0.0004 and +0.03. The rate is now READ, per observation, from the
-    candidate's own window — and every test that could pass by assuming a rate
-    instead of reading one is written to fail if it is ever assumed again.
+    4.0%/yr while three of the four windows the belt uses paid MORE (4.05% over
+    700 days, 4.35% over 900, 4.57% over 2023+; the ~2000-day reach paid 3.25%
+    and is the one the constant was harsh on). Eleven of sixteen zero-skill
+    cash/beta blends passed with a true excess-Sharpe advantage between -0.0004
+    and +0.03. The rate is now READ, per observation, from the candidate's own
+    window — and every test that could pass by assuming a rate instead of
+    reading one is written to fail if it is ever assumed again.
   * THE DISCARDED BENCHMARK LEG (measured on four stored candidates,
     2026-08-23): ``daily_returns["benchmark"]`` is the series the belt threw
     away, and judging off it FLIPS the premia answer on three of the four.
@@ -801,16 +803,21 @@ def test_the_SESSION_denominator_changes_a_verdict_on_LEANs_real_shape():
     """Item 3 as a VERDICT difference, not a field difference — and it is a
     LOOSENING relative to v5r1, said plainly.
 
-    LEAN emits an equity point every CALENDAR day, so a 500-day run carries ~357
-    sessions and 143 weekends nobody could ever have compared. v5r1 divided the
-    comparison by 500. A bar covering 200 of the 357 sessions therefore read as
-    40% and FAILED the majority; it is in fact 56% of the run and passes.
+    LEAN emits an equity point every CALENDAR day, so this 500-return run
+    carries 358 sessions and 142 weekend/holiday points nobody could ever have
+    compared. v5r1 divided the comparison by 500. A bar covering 200 of the 358
+    sessions therefore read as 40.0% and FAILED the majority; it is in fact
+    55.9% of the run and passes.
 
     Both readings are here, and the direction is disclosed: in the band
-    179 <= common <= 250 this criterion now passes candidates v5r1 refused. That
+    180 <= common <= 250 this criterion now passes candidates v5r1 refused. That
     is the correct answer — the old denominator was comparing trading days with
     weekends — and it is still a control moving in the permissive direction, so
     it is written down rather than buried in a fraction.
+
+    (Counted, not estimated: the assertions below re-derive 358 and 200 from the
+    fixture rather than restating them, and the two band inequalities are
+    asserted directly. The first draft of this docstring said 357 and 179.)
 
     Mutation N29 is what demanded this test: reverting the gate's denominator to
     `total` survived the entire suite, because every other premia fixture uses
@@ -836,8 +843,9 @@ def test_the_SESSION_denominator_changes_a_verdict_on_LEANs_real_shape():
         res, rf_bars=cash_feed(RF_TEST_PCT, obs_per_year=261.0))
     cov = res["premia_inputs"]["coverage"]
     assert cov["strategy_days"] == 500                     # calendar
-    assert cov["strategy_sessions"] == len(sess) - 1       # sessions
+    assert cov["strategy_sessions"] == len(sess) - 1 == 358   # sessions
     common = cov["common_days"]
+    assert common == 200, cov
     assert common * 2 > cov["strategy_sessions"], cov      # a majority of the run
     assert common * 2 <= cov["strategy_days"], cov         # not of the calendar
     p = judge(res, claim_type="premia")["checks"]["premia"]

@@ -1694,11 +1694,19 @@ def _returns_from_curve(curve: Any, dates: Any) -> dict[str, float]:
 #:     date of a window has no return unless the price series reaches one
 #:     session behind it.
 #:
-#: Seven calendar days covers the longest US market closure (a Thursday holiday
-#: plus the weekend is four sessions of gap; seven has margin) without being a
-#: number anything depends on: a pad that is too short shows up as
-#: ``rf_dropped_days``, never as a silently shorter window.
+#: Seven CALENDAR days covers the longest ordinary US market closure — a
+#: Thursday holiday plus the Friday and the weekend is four consecutive closed
+#: days, so the gap between two sessions reaches five — and nothing depends on
+#: the exact figure: a pad that is too short shows up as ``rf_dropped_days``,
+#: never as a silently shorter window.
 RF_FETCH_PAD_DAYS = 7
+
+
+def _round_or_none(value: Any, places: int) -> Optional[float]:
+    """Round for storage, keeping an ABSENCE absent. ``round(None)`` raises and
+    ``round(x or 0)`` would turn an unreadable figure into a zero, which is the
+    one thing this codebase does not do."""
+    return None if value is None else round(float(value), places)
 
 
 def _shift_date(iso: str, days: int) -> str:
@@ -1769,7 +1777,13 @@ def rf_series(symbol: str, first: str, last: str,
                         "algorithm's declared legs and the cash symbol is never "
                         "one of them"),
         "source": None,
-        "requested_window": {"first": first, "last": last},
+        # TWO WINDOWS, because they are two different facts and conflating them
+        # would make a reader think the feed was asked a question it was not.
+        # `span_requested` is what the run is ABOUT; `fetch_window` is what the
+        # feed was asked FOR, padded at both ends for the reasons in
+        # RF_FETCH_PAD_DAYS.
+        "span_requested": {"first": first, "last": last},
+        "fetch_window": None,
     }
     if fetcher is None:
         meta["reason"] = (
@@ -1780,6 +1794,7 @@ def rf_series(symbol: str, first: str, last: str,
         return {}, meta
     start = _shift_date(first, -RF_FETCH_PAD_DAYS)
     end = _shift_date(last, RF_FETCH_PAD_DAYS)
+    meta["fetch_window"] = {"first": start, "last": end}
     try:
         bars = fetcher(symbol, start, end)
     except Exception as e:  # noqa: BLE001
@@ -1827,14 +1842,18 @@ def premia_inputs(result: dict[str, Any], rf_bars: Any = None,
     THE SECOND DEFECT THIS CLOSES, added 2026-08-23 after the adversary's blind
     KILL of v5r1 (docs/reviews/ADVERSARY_D23_D24_2026-08-23.md). v5r1 judged the
     inequality at an ASSUMED risk-free rate of 0% and stressed it at a CONSTANT
-    4.0%. The constant was rounded up from BIL's 3.97%/yr on ONE window — and
-    the belt does not run on that window. Measured on the fund's own pinned
-    feed: BIL paid **4.07%/yr over the belt's 700-day window** (11 of 16 fleet
-    algorithms use 700d), **4.37% over 900d** and **4.59% over 2023+**. On three
-    of four windows the stress was SOFTER than the cash the window actually
-    paid, which is the one condition under which a cash tilt survives it:
-    eleven of sixteen zero-skill cash/beta blends PASSED while their true
-    excess-Sharpe advantage was between −0.0004 and +0.03.
+    4.0%. The constant was rounded up from BIL's 3.97%/yr on ONE window and the
+    belt does not run on that window; on three of the four windows the belt
+    actually uses, the stress was SOFTER than the cash the window paid, which is
+    the one condition under which a cash tilt survives it. Eleven of sixteen
+    zero-skill cash/beta blends PASSED while their true excess-Sharpe advantage
+    was between −0.0004 and +0.03.
+
+    THE PER-WINDOW RATES ARE A TABLE IN ``gate.PREMIA_VERSION``'s note and are
+    deliberately NOT restated here. Two copies of one measurement is how a
+    comment stops describing the thing it names (D19: a gate shipped with the
+    same arm at "5 folds / 4.17%" in one docstring and "6 folds / 5.17%" in
+    another, both true of something and only one true of what shipped).
 
     So this function now carries the REALISED cash series over the candidate's
     own window — ``strategy_excess`` and ``benchmark_excess``, both legs net of
@@ -1852,9 +1871,10 @@ def premia_inputs(result: dict[str, Any], rf_bars: Any = None,
         2026-08-04 — and that is a pre-existing defect this function declines to
         inherit. What the cash leg's own alignment costs is reported as
         ``coverage.rf_dropped_days`` rather than absorbed silently.
-      * ONE CLOCK. The intersection is the benchmark's trading days, so the
-        weekend zeros LEAN pads the equity curve with drop out of BOTH legs.
-        The annualisation factor is then derived from the surviving dates
+      * ONE CLOCK. The intersection is a SESSION calendar — the benchmark's
+        dates, narrowed by the cash series' — so the weekend zeros LEAN pads
+        the equity curve with drop out of every leg. The annualisation factor
+        is then derived from the surviving dates
         (``statistics.observations_per_year``), never assumed.
       * ONE METHOD. Volatility, drawdown and total return come from the same
         function for both legs. Reading the strategy's drawdown off the engine
@@ -1919,19 +1939,21 @@ def premia_inputs(result: dict[str, Any], rf_bars: Any = None,
         return out
 
     # --- the cash leg -----------------------------------------------------
-    # Read over the STRATEGY'S OWN window, not a fixed one, because a constant
-    # fitted on one window is a threshold that silently changes meaning with
-    # every backtest date (the adversary's rule, D23 review).
+    # READ OVER THE CANDIDATE'S OWN WINDOW, never a fixed one: a rate fitted on
+    # one window is a threshold that silently changes meaning with every
+    # backtest date (the adversary's rule, D23 review).
+    #
+    # And specifically over the STRATEGY'S SPAN, not the strategy-and-bar
+    # intersection. Fetching over the intersection looked equivalent and is not:
+    # when the BAR is the short leg — the Entry 20 truncation, 11.85pp — the
+    # cash leg would be cut to match it, and then neither series could say how
+    # many sessions the strategy's run actually contained. The coverage
+    # denominator below depends on exactly that, and a denominator that shrinks
+    # with the leg it is measuring is a majority test that gets EASIER the more
+    # is missing.
     if rf_symbol is None:
         from app.fund.gate import PREMIA_CRITERIA as _PC
         rf_symbol = str(_PC["premia_rf_symbol"])
-    # OVER THE STRATEGY'S OWN SPAN, not the strategy-and-bar intersection.
-    # Fetching over the intersection looked equivalent and is not: when the BAR
-    # is the short leg — the Entry 20 truncation, 11.85pp — the cash leg would
-    # be cut to match it, and then neither series could say how many sessions
-    # the strategy's run actually contained. The coverage denominator below
-    # depends on exactly that, and a denominator that shrinks with the leg it is
-    # measuring is a majority test that gets EASIER the more is missing.
     rfmap, rf_meta = rf_series(rf_symbol, s_dates[0], s_dates[-1],
                                fetcher=rf_bars)
     out["rf"] = rf_meta
@@ -2021,13 +2043,24 @@ def premia_inputs(result: dict[str, Any], rf_bars: Any = None,
             # annualised on the same clock as the legs it is subtracted from.
             # This is the number v5r1 assumed at 4.0 and the belt's windows
             # disagreed with.
-            "realised_annual_pct": rf_leg.get("ann_return_pct"),
-            "realised_total_pct": rf_leg.get("total_return_pct"),
-            "obs_per_year": rf_leg.get("obs_per_year"),
+            #
+            # ROUNDED like every other reported figure in this payload. Reading
+            # the raw float back gave `4.5000000000020135` for a series built to
+            # pay exactly 4.5%, which is a fact about binary compounding and not
+            # about the cash rate — and a stored record should not carry the
+            # arithmetic's residue as though it were precision.
+            "realised_annual_pct": _round_or_none(rf_leg.get("ann_return_pct"), 4),
+            "realised_total_pct": _round_or_none(rf_leg.get("total_return_pct"), 4),
+            "obs_per_year": _round_or_none(rf_leg.get("obs_per_year"), 2),
             "basis": "realised_series",
         })
     elif rfmap:
-        rf_meta["reason"] = (
+        # ON ITS OWN KEY, not on `rf["reason"]`. The cash leg WAS readable here;
+        # what failed is the raw pair. Overwriting the rf block's reason would
+        # make a stored payload say the cash series was the problem when it was
+        # not — a diagnosis that names the wrong cause sends the next reader to
+        # the wrong place.
+        out["excess_absent_reason"] = (
             "the raw pair was not measurable, so no excess pair was formed")
     out.setdefault("strategy_excess", None)
     out.setdefault("benchmark_excess", None)
