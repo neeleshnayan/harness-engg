@@ -247,6 +247,16 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   DELEGATION v1 (run-quant-entry20-rejudge recs 1–2), second-look flagged.
 
 **MEASURED**
+- **THE DELISTED PANEL IS REAL: 124 of 125 usable S&P leavers backfilled
+  with full terminal price histories — 564,609 bars, 1990–2026, committed
+  to data/research/delisted_tiingo (146MB, manifest with per-name
+  provenance).** One UNKNOWN (NYX, silent empty-200, recorded as UNKNOWN
+  per the probe-5 lesson — never as none-existed). Joined to the free PIT
+  membership file this is the survivorship-corrected S&P 500 study
+  universe for 2015+ (partial deeper), at /usr/bin/bash spent. Doc'''s next batch can
+  finally measure the loser half of the cross-section; the Monday data
+  decision now compares Norgate against a WORKING baseline.
+
 - **THE ADVERSARY'S D29 VERDICT (~19:3xZ): KILL (merge), narrowly grounded
   — AND the D23 rf ground CERTIFIED CLOSED** (falsifier met exactly, 4dp
   reproduction on 12/12 cells; the rf work is untouchable). **The new
