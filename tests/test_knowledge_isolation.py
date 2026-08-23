@@ -32,21 +32,57 @@ APP = ROOT / "app"
 #: Now the only way to leave a store unpoliced is to delete its own
 #: declaration, which fails on the author who does it
 #: (``test_the_derived_forbidden_set_is_exactly_the_stores_we_know_about``).
-def _work_layer_modules() -> tuple[str, ...]:
-    found = []
-    for p in sorted((APP / "fund").glob("*.py")):
-        tree = ast.parse(p.read_text(encoding="utf-8"), filename=str(p))
-        for node in tree.body:
-            if (isinstance(node, ast.Assign)
-                    and any(isinstance(t, ast.Name) and t.id == "WORK_LAYER_STORE"
-                            for t in node.targets)
-                    and isinstance(node.value, ast.Constant)
-                    and node.value.value is True):
-                found.append(f"app.fund.{p.stem}")
-    return tuple(found)
+def _declares_work_layer(path: pathlib.Path) -> bool:
+    """Does this module declare ``WORK_LAYER_STORE = True`` at module level?
+
+    Takes a PATH so the scanner can be run over planted code — an AST guard
+    whose scope is a hardcoded directory cannot be tested against the shapes
+    it is supposed to reject, and the adversary's D18 carry says to run one
+    over planted code in every construction shape the codebase uses.
+    """
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    for node in tree.body:
+        if (isinstance(node, ast.Assign)
+                and any(isinstance(t, ast.Name) and t.id == "WORK_LAYER_STORE"
+                        for t in node.targets)
+                and isinstance(node.value, ast.Constant)
+                and node.value.value is True):
+            return True
+    return False
+
+
+def _work_layer_modules(directory: pathlib.Path | None = None) -> tuple[str, ...]:
+    d = directory or (APP / "fund")
+    return tuple(f"app.fund.{p.stem}" for p in sorted(d.glob("*.py"))
+                 if _declares_work_layer(p))
 
 
 FORBIDDEN_MODULES = _work_layer_modules()
+
+
+@pytest.mark.parametrize("source,declares", [
+    ("WORK_LAYER_STORE = True\n", True),
+    ("WORK_LAYER_STORE = False\n", False),
+    ("WORK_LAYER_STORE = 1\n", False),
+    ("WORK_LAYER_STORE = None\n", False),
+    ('"""A docstring saying WORK_LAYER_STORE = True."""\nX = 1\n', False),
+    ("def f():\n    WORK_LAYER_STORE = True\n", False),
+    ("class C:\n    WORK_LAYER_STORE = True\n", False),
+    ("X = 1\n", False),
+])
+def test_the_layer_scan_reads_the_declaration_and_nothing_that_looks_like_one(
+        source, declares, tmp_path):
+    """``= False`` and ``= 1`` must NOT count.
+
+    Mutation found this: dropping the ``is True`` check survived every other
+    test, because both real modules declare True and the mutant was a no-op on
+    today's tree. A module-level constant inside a function or a class body is
+    not a module-level declaration either, and neither is a docstring that
+    mentions one.
+    """
+    p = tmp_path / "planted.py"
+    p.write_text(source, encoding="utf-8")
+    assert _declares_work_layer(p) is declares
 
 #: Kept as a name because the planted-import test reads like prose with it.
 FORBIDDEN = "app.fund.knowledge"
