@@ -123,6 +123,18 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   is fired and discharged by this work — the register cannot record
   either; recorded here, and the evaluability ticket (a26debb9 family)
   remains the owner.
+- **THE COVERAGE MODEL CHARTERED (CEO pivot, ratified): 'make money
+  somehow' is measured-dead; the new posture is a TIGHT UNIVERSE
+  (10-20 names, CEO selects Monday) with a measured DOSSIER per name
+  (what shapes it / what moves it / when - every claim cited and
+  measured or it does not enter the graph), generation from
+  dossier-price MISMATCH, mutation as grounded variation over measured
+  structure, the fast loop over the slow base.** Falsifiers both
+  directions (zero mismatch-candidates in a month reopens the pivot;
+  implausible pass rates trigger a dossier-scoreboard audit before any
+  deploy). Ed's universe slate (mechanism/counterparty axis) DISPATCHED;
+  Doc's independent slate (data-richness axis) fires when his 8-K run
+  returns - two independent slates, overlap is signal, CEO decides.
 - **ED BATCH #3: ZERO FILED - AND THAT IS THE FINDING.** Six
   constructions desk-killed/refused at zero adversary cost, all
   Recount-verified: the macro announcement premium dead both variants
