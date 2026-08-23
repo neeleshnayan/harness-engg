@@ -91,6 +91,34 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
 - The CEO's parting instructions from the night stand otherwise; G1 (live
   account) starts Monday.
 
+**BUILT (the merge wave, late evening)**
+- **THE MERGED TREE IS PROVEN GREEN AND THE SPINE RUNS ON IT.** First full
+  suite showed 2 failed + 107 errors; chair isolated ALL 109 to one
+  pre-existing env artifact (app/main.py `load_dotenv()` leaks
+  `FIRESTORE_DATABASE_ID` mid-suite into a test fake whose client took no
+  kwargs — builders never saw it because worktrees carry no `.env`):
+  **3746/3746 green with `.env` parked**, root-fixed in
+  `scripts/_fake_firestore.py` (`8559d93`), re-verified green UNDER the
+  poisoned env. Spine restarted on the merged tree: liveness OK,
+  `GET /fund/desk/ceo` 200 (the D28 UI's endpoint, live). **Episode store
+  live: 432 sections ingested, re-ingest 0 new.** Routing dogfood filed
+  (`run-cto-mergewave-0823`, `routing_version: 1`, stored clean) — the
+  flip is now a one-line dated change, target 08-24.
+- **D29 DISPATCHED (the premia-gate repair round)**: realised rf from the
+  fund's own feed in place of the killed 4.0% constant (implements the
+  standing excess-returns amendment; fail-closed when no rf series covers
+  the window), the manual-judge claim_type gap, the coverage denominator —
+  the adversary's probes as acceptance tests, first deletion budget
+  attached per the accepted cleanup challenge.
+- **THE SNAPSHOT-OFF A/B ARM IS RUNNING OVERNIGHT** (candidate
+  `9b767717ff08`, identical algorithm + four-point grid + identical
+  holdout, spine temporarily at `FUND_BAR_SNAPSHOT=0`, belt lock held,
+  completion monitor armed). Two birds by design: if it hangs, the
+  snapshot is exonerated; **if it runs clean it confirms the hang
+  hypothesis AND is itself the uncensored v4.3 re-judge row the 08-25
+  deadline wants.** Executed as `neelesh-via-cto` under THE EXPERIMENT
+  DELEGATION v1 (run-quant-entry20-rejudge recs 1–2), second-look flagged.
+
 **MEASURED**
 - **THE ADVERSARY'S BATCH VERDICT: D23 KILLED, D24 SURVIVES**
   (`run-adversary-d23-d24`, doc
