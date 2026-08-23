@@ -317,3 +317,25 @@ if dossier-grounded candidates start passing the gate at a rate the
 family-wise arithmetic says is implausible, that is the narrative-
 conviction failure mode wearing success, and the validator audits the
 dossier scoreboard before anything deploys.
+
+## AMENDMENT 2026-08-23 — THE COVERAGE MODEL'S ROUTING (CEO decision: "Accept as written", on Ed's batch-#4 challenge)
+
+The coverage model and its dossiers CONTINUE unchanged in their measurement
+mandate. What moves is the PIPE: **a dossier's output routes to the PM
+(Stan) as RISK PARAMETERS and to the mechanism (Ed) as CROSS-SECTIONAL
+LEADS — never as a per-name candidate source.** Ed's batches source from
+the counterparty question first, with dossiers one input among several.
+
+Basis, measured on the charter's own first outing (run-ed-batch4): a
+single mega-cap cannot generate a testable mechanism at ~2%/day residual
+volatility — the dossier's own MDE arithmetic says only three event
+classes per name reach usable n; its one trade-shaped claim measured 0.15
+bps with a counterparty (the issuer) who does not lose; and the dossier's
+real first-run products were a corrected vol parameter and a killed stop
+rule — risk inputs, not candidates. The challenge loosened nothing; no
+adversary pass required.
+
+What would change this decision's mind (recorded at decision time): a
+dossier producing a per-name proposal that survives the adversary blind
+AND the belt on its dossier-sourced premise — that existence proof reopens
+the per-name candidate lane.
