@@ -52,6 +52,12 @@ from typing import Any, Iterable, Optional
 
 logger = logging.getLogger(__name__)
 
+#: THE MODULE DECLARES ITS OWN LAYER, and the guard reads the declaration.
+#: ``tests/test_knowledge_isolation.py`` derives its forbidden-import set by
+#: scanning ``app/fund`` for this flag rather than keeping a list somebody has
+#: to remember to extend — see the note in ``app/fund/episodes.py``.
+WORK_LAYER_STORE = True
+
 # --- vocabularies ---------------------------------------------------------
 
 #: Where a hypothesis came from. Closed set, per the design.
@@ -328,6 +334,17 @@ CREATE TRIGGER kg_outcome_immutable
 """
 
 
+class SchemaAbsent(RuntimeError):
+    """The ``kg_*`` tables do not exist in the store this reader was pointed at.
+
+    Raised instead of returning an empty result, because "the graph has no
+    kills" and "the graph has never been created here" are different facts and
+    only one of them is a statement about the fund. Before the reader/writer
+    split a reader could not hit this — it created the tables on the way past,
+    which is how a read-only report came to hold an ACCESS EXCLUSIVE lock.
+    """
+
+
 def _cite(value: Any, field: str) -> str:
     """A citation, or a refusal.
 
@@ -382,6 +399,41 @@ def _clean_reasons(reasons: Any) -> Optional[list[dict[str, str]]]:
     return out or None
 
 
+def _unclassified_block(slot: Optional[dict[str, Any]],
+                        checked: int) -> dict[str, Any]:
+    """The taxonomy's unclassified report — ALWAYS a block, never None.
+
+    Three states the caller must be able to tell apart, and v1 collapsed two of
+    them into ``None``:
+
+      * ``n > 0``    — sentences no rule matched. Go and look.
+      * ``n == 0``, ``checked > 0`` — every stored sentence matched. A real,
+        earned zero, and worth printing: it is the evidence that
+        KILL_REASON_RULES still covers the gate's vocabulary.
+      * ``n == 0``, ``checked == 0`` — NOTHING WAS CHECKED. No kill outcome is
+        stored, so the classifier never ran. Reporting this as a clean sweep is
+        the "absence is never zero" rule broken at the one place the module
+        exists to notice drift.
+    """
+    n = slot["n"] if slot else 0
+    if n:
+        note = ("kill sentences no rule in KILL_REASON_RULES matched — either "
+                "the gate reworded itself or a new cause exists. Reported "
+                "rather than folded into the modal cause.")
+    elif checked:
+        note = (f"0 unclassified — every sentence matched: all {checked} "
+                f"stored kill sentence(s) were classified by a rule in "
+                f"KILL_REASON_RULES.")
+    else:
+        note = ("0 unclassified because NOTHING WAS CHECKED — no kill outcome "
+                "is stored, so the classifier has not run. This is an empty "
+                "graph, not a clean sweep.")
+    return {"n": n,
+            "checked": checked,
+            "example_verbatim": slot["example_verbatim"] if slot else None,
+            "note": note}
+
+
 def _num(x: Any) -> Optional[float]:
     """A finite float, or None. Booleans are NOT numbers here."""
     if x is None or isinstance(x, bool):
@@ -398,26 +450,92 @@ def _num(x: Any) -> Optional[float]:
 class KnowledgeGraph:
     """Reader/writer over the three ``kg_*`` tables.
 
-    Constructing one issues DDL, exactly like ``DeskStore`` and ``MetricsStore``.
+    **CONSTRUCTING ONE ISSUES NO DDL AND TAKES NO LOCK.** v1 called ``_ensure()``
+    from ``__init__``, so every reader — including ``scripts/kg/report.py``,
+    which only ever SELECTs — ran the whole ``SCHEMA`` string on the way past.
+    That wedged ``kg_outcome`` for ~5 minutes behind one ordinary transaction
+    during the validator's spot-audit (run-validator-parity, 2026-08-23).
+
+    MEASURED, not reasoned about (``scratchpad/d27probe_lock2.py``, one
+    connection holding a plain ``SELECT count(*) FROM kg_outcome`` open, a 2s
+    statement timeout on the prober). ``SCHEMA`` issues 14 statements in SIX
+    distinct forms, and every form was probed:
+
+        CREATE TABLE IF NOT EXISTS   (x3)   free, 0.03s
+        CREATE INDEX IF NOT EXISTS   (x6)   free, 0.03s
+        CREATE UNIQUE INDEX IF NOT EXISTS (x2)  free, 0.03s
+        CREATE OR REPLACE FUNCTION   (x1)   free, 0.03s
+        DROP TRIGGER IF EXISTS       (x1)   BLOCKED 2.03s  <-- the wedge
+        CREATE TRIGGER               (x1)   free, 0.02s
+        (the SELECT-only reader path)       free, 0.03s
+
+    So exactly ONE of the fourteen takes ACCESS EXCLUSIVE, and it is the one
+    the immutability guard needs. Note the asymmetry, which is the part worth
+    remembering: CREATE TRIGGER is free (SHARE ROW EXCLUSIVE, no conflict with
+    a reader's ACCESS SHARE) while DROP TRIGGER is not. The statement stays
+    exactly where it is — the fix is that only a WRITER pays for it:
+
+      * readers go through :meth:`_read`, which is SELECT-only and raises
+        :class:`SchemaAbsent` on a store where the tables were never created;
+      * every write calls :meth:`ensure_schema`, memoised per instance, so a
+        backfill of 41 candidates issues the DDL once and not forty-one times.
+
     Never instantiate at import time: ``pgstore.dsn()`` resolves to the LIVE
-    database in a unit-test process, so a module-level instance would create
-    tables in the operational store during ``pytest --collect-only``.
+    database in a unit-test process. That hazard is smaller than it was — a
+    construction no longer writes anything — but a module-level instance would
+    still hold a DSN nobody chose.
     """
 
     def __init__(self, dsn: Optional[str] = None):
         from app.fund.pgstore import dsn as default_dsn
         self._dsn = dsn or default_dsn()
-        self._ensure()
+        self._ensured = False
 
     def _connect(self):
         import psycopg
         return psycopg.connect(self._dsn, autocommit=False)
 
-    def _ensure(self) -> None:
+    def ensure_schema(self) -> bool:
+        """Issue the DDL. THE ONLY PLACE THIS MODULE TAKES A WRITE LOCK.
+
+        Idempotent in Postgres and memoised here: returns True the first time
+        this instance ran it, False every time after. The memo is per-instance
+        and deliberately not per-process — two graphs pointed at two databases
+        must each create their own.
+
+        Callers are the four writers and ``scripts/kg/backfill.py``. A READER
+        must never call it; ``tests/test_knowledge.py`` holds an open
+        transaction and proves the read path completes while this one does not.
+        """
+        if self._ensured:
+            return False
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(SCHEMA)
             conn.commit()
+        self._ensured = True
+        return True
+
+    def _read(self, sql: str, params: tuple = ()) -> list[tuple]:
+        """Every SELECT this module makes against a ``kg_*`` table.
+
+        SELECT-only by construction. An absent table surfaces as
+        :class:`SchemaAbsent` rather than as an empty list, because a reader
+        that answers "0 kills" for a store it has never been ingested into is
+        reporting absence as zero.
+        """
+        import psycopg
+        try:
+            with self._connect() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(sql, params)
+                    return cur.fetchall()
+        except psycopg.errors.UndefinedTable as e:
+            raise SchemaAbsent(
+                f"the kg_* tables do not exist in this store — nothing has "
+                f"been ingested here, which is NOT the same as a graph with no "
+                f"rows. Run scripts/kg/backfill.py, or call ensure_schema() if "
+                f"you meant to create them ({e})") from e
 
     # --- writes -----------------------------------------------------------
 
@@ -452,6 +570,7 @@ class KnowledgeGraph:
         if provenance not in PROVENANCES:
             raise ValueError(f"provenance must be one of {PROVENANCES}")
         hid = (id or "").strip() or f"kg-{uuid.uuid4().hex[:12]}"
+        self.ensure_schema()
         conflict = ("ON CONFLICT (id) DO NOTHING"
                     if on_conflict == "ignore" else "")
         with self._connect() as conn:
@@ -533,6 +652,7 @@ class KnowledgeGraph:
                 "algorithm, so accepting it would bill 25,043s nine times.")
         reasons = _clean_reasons(kill_reasons)
         head = reasons[0] if reasons else None
+        self.ensure_schema()
         conflict = ("ON CONFLICT (dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING"
                     if on_conflict == "ignore" and dedupe_key else "")
         with self._connect() as conn:
@@ -570,6 +690,7 @@ class KnowledgeGraph:
                  on_conflict: str = "raise") -> dict[str, Any]:
         if kind not in EDGE_KINDS:
             raise ValueError(f"kind must be one of {EDGE_KINDS}, got {kind!r}")
+        self.ensure_schema()
         conflict = ("ON CONFLICT (dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING"
                     if on_conflict == "ignore" and dedupe_key else "")
         with self._connect() as conn:
@@ -607,6 +728,10 @@ class KnowledgeGraph:
             raise ValueError(
                 "a void needs a written reason — an unexplained void is a "
                 "deleted finding with extra steps")
+        # A WRITER, so it pays the DDL like the other three. On a store with no
+        # kg_* tables this then raises KeyError("no outcome N") — which is the
+        # true answer, rather than an UndefinedTable from three frames down.
+        self.ensure_schema()
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute("SELECT verdict FROM kg_outcome WHERE outcome_id = %s "
@@ -636,11 +761,8 @@ class KnowledgeGraph:
                  "source_ref, provenance, proposed_at, run_id")
 
     def _hyp_rows(self, where: str = "", params: tuple = ()) -> list[dict[str, Any]]:
-        with self._connect() as conn:
-            with conn.cursor() as cur:
-                cur.execute(f"SELECT {self._HYP_COLS} FROM kg_hypothesis {where}",
-                            params)
-                rows = cur.fetchall()
+        rows = self._read(f"SELECT {self._HYP_COLS} FROM kg_hypothesis {where}",
+                          params)
         return [{"id": r[0], "family": r[1], "mechanism": r[2],
                  "counterparty": r[3], "claim_type": r[4], "entities": r[5],
                  "observable": r[6], "horizon": r[7], "predictions": r[8],
@@ -655,11 +777,8 @@ class KnowledgeGraph:
                  "provenance, cited_run, at, voided_from, void_reason")
 
     def _out_rows(self, where: str = "", params: tuple = ()) -> list[dict[str, Any]]:
-        with self._connect() as conn:
-            with conn.cursor() as cur:
-                cur.execute(f"SELECT {self._OUT_COLS} FROM kg_outcome {where}",
-                            params)
-                rows = cur.fetchall()
+        rows = self._read(f"SELECT {self._OUT_COLS} FROM kg_outcome {where}",
+                          params)
         return [{"outcome_id": int(r[0]), "hypothesis_id": r[1], "stage": r[2],
                  "verdict": r[3], "kill_reason_slug": r[4],
                  "kill_reason_verbatim": r[5], "kill_reasons": r[6],
@@ -674,49 +793,72 @@ class KnowledgeGraph:
         if hypothesis_id:
             where = "WHERE from_id = %s OR to_id = %s"
             params = (hypothesis_id, hypothesis_id)
-        with self._connect() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT edge_id, from_id, to_id, kind, note, "
-                            f"cited_run FROM kg_edge {where} ORDER BY edge_id",
-                            params)
-                rows = cur.fetchall()
+        rows = self._read("SELECT edge_id, from_id, to_id, kind, note, "
+                          f"cited_run FROM kg_edge {where} ORDER BY edge_id",
+                          params)
         return [{"edge_id": int(r[0]), "from_id": r[1], "to_id": r[2],
                  "kind": r[3], "note": r[4], "cited_run": r[5]} for r in rows]
 
     def families(self) -> list[str]:
-        with self._connect() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT DISTINCT family FROM kg_hypothesis "
-                            "ORDER BY family")
-                return [r[0] for r in cur.fetchall()]
+        return [r[0] for r in self._read(
+            "SELECT DISTINCT family FROM kg_hypothesis ORDER BY family")]
 
     # --- reader 1: THE FAMILY LEDGER ---------------------------------------
 
     def family_ledger(self, family: str) -> dict[str, Any]:
-        """How many variants of this family were EVER tested, and what killed them.
+        """How many variants of this family are RECORDED, how many were JUDGED,
+        and what killed them.
 
         Ed's grammar header needs a family count for the family-wise discovery
         correction. Today that number comes from recall; this is the same number
         from the record, with the run ids that support it.
 
-        AN UNTESTED FAMILY READS ``UNTESTED``. Not ``tested: 0`` on its own —
-        zero rows and zero survivors look identical in a count, and one of them
-        means "we looked and nothing lived" while the other means "nobody has
-        ever asked". Absence is never zero.
+        **``recorded`` AND ``judged`` ARE TWO NUMBERS AND v1 SHIPPED ONE.** The
+        field was called ``tested`` and counted rows in ``kg_hypothesis`` — i.e.
+        proposals the graph knows about, judged or not. The validator's
+        spot-audit (run-validator-parity, 2026-08-23) read the fenced family
+        back as ``status: TESTED, tested: 6, not yet judged: 6``: six things
+        tested, none of them judged, in one sentence. A family-wise correction
+        divided by that number is dividing by proposals, which is not the
+        multiple-comparisons denominator anybody meant.
+
+        So: ``recorded`` counts hypotheses; ``judged`` counts hypotheses
+        carrying at least one NON-VOIDED outcome. Two invariants hold and
+        ``tests/test_knowledge.py`` pins both —
+        ``killed + len(survivors) == judged`` and
+        ``judged + len(unjudged) == recorded``.
+
+        THREE STATUSES, because two could not say this:
+
+          ``UNTESTED``           nothing recorded. Not ``0`` — zero rows and
+                                 zero survivors look identical in a count, and
+                                 one means "nobody asked".
+          ``RECORDED_UNJUDGED``  variants exist, none has a live verdict. This
+                                 is the state the fenced family is actually in.
+          ``TESTED``             at least one variant has been judged.
         """
         fam = _slugify(family, "family")
         hyps = self._hyp_rows("WHERE family = %s ORDER BY proposed_at NULLS LAST, id",
                               (fam,))
         if not hyps:
+            # THE SAME KEY SET AS THE POPULATED BRANCH, on purpose: a shape that
+            # changes with the status makes every consumer write a status check
+            # it will one day forget. `status` carries the meaning; the zeroes
+            # are only safe to read once it has been consulted, and the note
+            # says so in words.
             return {
                 "family": fam,
                 "status": "UNTESTED",
-                "tested": 0,
+                "recorded": 0,
+                "judged": 0,
+                "killed": 0,
+                "provenance": {p: 0 for p in PROVENANCES},
                 "note": (f"UNTESTED — no hypothesis in family {fam!r} has ever "
                          f"been recorded. This is not 'zero survived': nobody "
                          f"has asked, so the family-wise correction has no "
                          f"denominator from the record and must say so."),
                 "kills_by_reason": [], "survivors": [], "unjudged": [],
+                "unjudged_because_voided": [],
                 "voided_outcomes": 0, "citations": [],
             }
         ids = [h["id"] for h in hyps]
@@ -768,8 +910,9 @@ class KnowledgeGraph:
             if c and c not in citations:
                 citations.append(c)
 
-        note = (f"{len(hyps)} tested; {len(killed_ids)} killed, "
-                f"{len(survivors)} survived, {len(unjudged)} not yet judged")
+        note = (f"{len(hyps)} recorded, {len(judged_ids)} judged; "
+                f"{len(killed_ids)} killed, {len(survivors)} survived, "
+                f"{len(unjudged)} not yet judged")
         if voided:
             note += (f"; {len(voided)} outcome(s) VOIDED and excluded from "
                      f"every count above")
@@ -780,8 +923,12 @@ class KnowledgeGraph:
 
         return {
             "family": fam,
-            "status": "TESTED",
-            "tested": len(hyps),
+            # RECORDED_UNJUDGED is not a cosmetic third value. A brief that
+            # reads "TESTED" for a family whose every outcome is fenced has
+            # been told the opposite of what the record says.
+            "status": "TESTED" if judged_ids else "RECORDED_UNJUDGED",
+            "recorded": len(hyps),
+            "judged": len(judged_ids),
             "provenance": {
                 p: sum(1 for h in hyps if h["provenance"] == p)
                 for p in PROVENANCES},
@@ -915,6 +1062,11 @@ class KnowledgeGraph:
         The runs table lives in the same database and is the only place a run's
         seat is recorded. If it cannot be read, every hypothesis reports NO
         SEAT rather than a guessed one.
+
+        Deliberately NOT routed through :meth:`_read`: ``fund_agent_runs`` is
+        not a ``kg_*`` table, and raising SchemaAbsent — "run the kg backfill"
+        — for a missing flight recorder would send the reader somewhere the
+        problem is not.
         """
         try:
             with self._connect() as conn:
@@ -998,22 +1150,24 @@ class KnowledgeGraph:
 
         unclassified = next((c for c in out_causes
                              if c["slug"] == UNCLASSIFIED_KILL_SLUG), None)
+        counted = sum(c["n"] for c in out_causes)
         return {
             "causes": out_causes,
             "total_kill_outcomes": len(live),
-            "total_causes_counted": sum(c["n"] for c in out_causes),
+            "total_causes_counted": counted,
             "distinct_causes": len(out_causes),
             "earning_preflight_card": [c["slug"] for c in out_causes
                                        if c["earns_preflight_card"]],
             "excluded_voided_outcomes": voided_n,
-            "unclassified": (None if not unclassified else {
-                "n": unclassified["n"],
-                "example_verbatim": unclassified["example_verbatim"],
-                "note": ("kill sentences no rule in KILL_REASON_RULES matched "
-                         "— either the gate reworded itself or a new cause "
-                         "exists. Reported rather than folded into the modal "
-                         "cause."),
-            }),
+            # A GENUINE ZERO IS RENDERED, NEVER NULLED. v1 returned None here
+            # whenever the bucket was empty, and scripts/kg/report.py gated its
+            # whole block on truthiness — so a taxonomy where every sentence
+            # matched printed EXACTLY the same thing as one where the
+            # classifier had never run: nothing. Found by the validator's
+            # spot-audit, run-validator-parity 2026-08-23. The three states are
+            # distinguishable now, and `checked` is what distinguishes the last
+            # two: 0 of 0 is not a clean sweep.
+            "unclassified": _unclassified_block(unclassified, counted),
             "note": (f"{len(live)} kill outcome(s) carrying "
                      f"{sum(c['n'] for c in out_causes)} cause(s) across "
                      f"{len(out_causes)} distinct slug(s)"

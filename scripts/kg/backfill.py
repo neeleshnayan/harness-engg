@@ -220,6 +220,13 @@ def ingest(dsn: str, run_id: str, dry_run: bool = False,
     basis_counts: dict[str, int] = {}
 
     kg = None if dry_run else KnowledgeGraph(dsn=dsn)
+    if kg is not None:
+        # THE BACKFILL IS A WRITER, so it is one of the two callers allowed to
+        # take the DDL lock (the other is the write path itself). Done ONCE
+        # here rather than implicitly on every add_*: a construction no longer
+        # issues DDL, and 41 candidates should not be 41 ACCESS EXCLUSIVE
+        # waits on kg_outcome.
+        kg.ensure_schema()
 
     for c in cands:
         hid = f"cand-{c['candidate_id']}"

@@ -12,8 +12,19 @@
      trigger rather than by whoever wrote the next caller.
 
 Skipped unless a Postgres is reachable, like every other store test here.
-Writes to ``krypton_fund_test``, pytest's scratch database — never a fund mode's
-ledger (``tests/test_fund_mode.py`` K1 polices that and scans this file).
+Never a fund mode's ledger (``tests/test_fund_mode.py`` K1 polices that and
+scans this file).
+
+**ITS OWN DATABASE, and the reason is measured rather than fastidious.** This
+module used ``krypton_fund_test``, the shared pytest scratch database that ten
+other modules TRUNCATE — and as of the reader/writer split it also DROPS the
+``kg_*`` tables, to prove that a reader does not recreate what it reads. A DROP
+in a shared database is a fixture other processes are standing on: D21 measured
+a cross-process race in exactly this shape (``test_factory.py`` truncating
+``fund_candidates`` from a SECOND pytest process under the two-builders
+arrangement, a different test failing on each of three consecutive runs), and
+that was only a TRUNCATE. Two builders are meant to serialize their suites; a
+private database means the guarantee does not rest on that alone.
 """
 
 import os
@@ -23,7 +34,9 @@ import pytest
 pytestmark = pytest.mark.skipif(
     os.getenv("SKIP_PG_TESTS") == "1", reason="Postgres tests disabled")
 
-TEST_DB = "krypton_fund_test"
+#: THIS MODULE'S OWN SCRATCH DATABASE. See the module docstring: this module
+#: DROPs the kg_* tables, and a drop in a shared store is somebody else's flake.
+TEST_DB = "krypton_fund_kgunit"
 
 
 def _dsn() -> str:
@@ -53,6 +66,10 @@ def _graph():
                 cur.execute(f'CREATE DATABASE "{TEST_DB}"')
     from app.fund.knowledge import KnowledgeGraph
     kg = KnowledgeGraph(dsn=_dsn())
+    # EXPLICIT since 2026-08-23: constructing a graph no longer issues DDL, so
+    # a fixture that wants tables has to say so. The TRUNCATE below would
+    # otherwise fail on a fresh database — which is the point of the split.
+    kg.ensure_schema()
     with psycopg.connect(_dsn()) as c:
         with c.cursor() as cur:
             cur.execute("TRUNCATE kg_edge, kg_outcome, kg_hypothesis")
@@ -197,9 +214,27 @@ def test_family_ledger_renders_UNTESTED_for_a_family_with_no_rows(kg):
     """
     d = kg.family_ledger("nobody_has_tried_this")
     assert d["status"] == "UNTESTED"
-    assert d["tested"] == 0
+    assert d["recorded"] == 0 and d["judged"] == 0
     assert "UNTESTED" in d["note"]
     assert "not 'zero survived'" in d["note"]
+
+
+def test_both_ledger_branches_return_the_SAME_KEY_SET(kg):
+    """A shape that changes with the status is a KeyError waiting for a caller.
+
+    ``family_ledger`` returns early for an untested family, and v1's early
+    return was missing ``killed``, ``provenance`` and
+    ``unjudged_because_voided``. Every consumer then has to remember to check
+    the status before reading a field — and the one that forgets crashes on
+    the empty case, which is the case nobody has test data for.
+    """
+    _hyp(kg, family="populated_family")
+    empty = kg.family_ledger("no_such_family")
+    full = kg.family_ledger("populated_family")
+    assert set(empty) == set(full), (
+        "the untested branch and the populated branch disagree on shape: "
+        f"only-empty={sorted(set(empty) - set(full))} "
+        f"only-full={sorted(set(full) - set(empty))}")
 
 
 def test_a_family_where_everything_died_is_TESTED_not_UNTESTED(kg):
@@ -214,7 +249,59 @@ def test_a_family_where_everything_died_is_TESTED_not_UNTESTED(kg):
                    cited_run="run-2", kill_reasons=["no held-out test - x"])
     d = kg.family_ledger("dead_family")
     assert d["status"] == "TESTED"
-    assert d["tested"] == 1 and d["killed"] == 1 and d["survivors"] == []
+    assert d["recorded"] == 1 and d["judged"] == 1
+    assert d["killed"] == 1 and d["survivors"] == []
+
+
+def test_a_family_RECORDED_but_never_JUDGED_says_so_in_both_the_status_and_the_count(kg):
+    """The validator's spot-audit, run-validator-parity 2026-08-23.
+
+    The fenced family read back ``status: TESTED, tested: 6, not yet judged:
+    6`` — six tested and none judged, in one sentence, because ``tested``
+    counted rows in ``kg_hypothesis``. Ed's family-wise correction divides by
+    that number, so it was dividing by proposals.
+
+    This test fails if ``recorded`` is ever wired back to the judged count, if
+    ``judged`` is wired to the recorded count, or if the third status is
+    dropped and an unjudged family reads TESTED again.
+    """
+    for i in range(6):
+        _hyp(kg, family="fenced_family", run_id=f"run-{i}")
+    d = kg.family_ledger("fenced_family")
+    assert d["status"] == "RECORDED_UNJUDGED"
+    assert d["recorded"] == 6
+    assert d["judged"] == 0
+    assert len(d["unjudged"]) == 6
+    assert "6 recorded, 0 judged" in d["note"]
+
+    # ...and one judgement is enough to make it TESTED, so the status is not
+    # simply "always RECORDED_UNJUDGED when nothing survived".
+    kg.add_outcome(hypothesis_id=d["unjudged"][0], stage="gate",
+                   verdict="fail", cited_run="run-j",
+                   kill_reasons=["no held-out test - x"])
+    after = kg.family_ledger("fenced_family")
+    assert after["status"] == "TESTED"
+    assert after["recorded"] == 6 and after["judged"] == 1
+
+
+def test_the_ledger_counts_ADD_UP(kg):
+    """Two invariants, asserted rather than assumed.
+
+    ``killed + survivors == judged`` and ``judged + unjudged == recorded``.
+    Without these, ``judged`` could be computed from a different set than the
+    one ``survivors`` and ``unjudged`` are computed from and nothing would
+    notice until a brief carried a total that does not add up.
+    """
+    a = _hyp(kg, family="adds_up", run_id="ra")
+    b = _hyp(kg, family="adds_up", run_id="rb")
+    _hyp(kg, family="adds_up", run_id="rc")          # never judged
+    kg.add_outcome(hypothesis_id=a, stage="gate", verdict="fail",
+                   cited_run="rj", kill_reasons=["no held-out test - x"])
+    kg.add_outcome(hypothesis_id=b, stage="gate", verdict="pass",
+                   cited_run="rj")
+    d = kg.family_ledger("adds_up")
+    assert d["killed"] + len(d["survivors"]) == d["judged"] == 2
+    assert d["judged"] + len(d["unjudged"]) == d["recorded"] == 3
 
 
 def test_family_ledger_counts_and_cites(kg):
@@ -228,7 +315,7 @@ def test_family_ledger_counts_and_cites(kg):
     kg.add_outcome(hypothesis_id=b, stage="gate", verdict="pass",
                    cited_run="run-j2", killing_instrument="gate:v4.1")
     d = kg.family_ledger("fam")
-    assert d["tested"] == 3
+    assert d["recorded"] == 3 and d["judged"] == 2
     assert d["killed"] == 1
     assert [s["hypothesis_id"] for s in d["survivors"]] == [b]
     assert d["survivors"][0]["passed_by"] == ["gate:v4.1"], (
@@ -265,7 +352,11 @@ def test_a_hypothesis_whose_only_verdict_is_VOIDED_is_NOT_a_survivor(kg):
                     "run-builder-kg-v1")
 
     after = kg.family_ledger("monthend_rebalance_flow")
-    assert after["tested"] == 1, "a voided outcome does not un-test the family"
+    assert after["recorded"] == 1, "a voided outcome does not unrecord the family"
+    assert after["judged"] == 0, "a voided outcome is not a judgement"
+    assert after["status"] == "RECORDED_UNJUDGED", (
+        "the fenced family must not read TESTED — the whole point of the "
+        "fence is that its measurements may not be compared")
     assert after["killed"] == 0
     assert after["survivors"] == [], (
         "a voided verdict must NOT promote its hypothesis to survivor")
@@ -478,8 +569,81 @@ def test_an_unrecognised_kill_sentence_is_counted_not_buried(kg):
     t = kg.kill_taxonomy()
     assert t["unclassified"] is not None
     assert t["unclassified"]["n"] == 1
+    assert t["unclassified"]["checked"] == 1
     assert "new sentence" in t["unclassified"]["example_verbatim"]
     assert UNCLASSIFIED_KILL_SLUG in [c["slug"] for c in t["causes"]]
+
+
+# --- (a) A GENUINE ZERO IS RENDERED, NEVER NULLED ----------------------------
+#
+# Validator spot-audit, run-validator-parity 2026-08-23: knowledge.py returned
+# None for an empty unclassified bucket and scripts/kg/report.py gated its
+# block on truthiness, so "every sentence matched" and "the classifier never
+# ran" both printed NOTHING. Three states, three tests, and the report is
+# checked as well as the reader — the defect needed both halves.
+
+def test_ZERO_unclassified_with_sentences_checked_says_every_sentence_matched(kg):
+    kg.add_outcome(hypothesis_id=_hyp(kg), stage="gate", verdict="fail",
+                   cited_run="r", kill_reasons=["no held-out test - x",
+                                                "capacity was never estimated"])
+    u = kg.kill_taxonomy()["unclassified"]
+    assert u is not None, "a genuine zero must be a block, never None"
+    assert u["n"] == 0
+    assert u["checked"] == 2, "the denominator is what makes the zero mean anything"
+    assert "every sentence matched" in u["note"]
+    assert u["example_verbatim"] is None
+
+
+def test_ZERO_unclassified_with_NOTHING_checked_says_nothing_was_checked(kg):
+    """0 of 0 is not a clean sweep, and this is where that is enforced.
+
+    An empty graph classified no sentences. Reporting it the same way as a
+    graph whose every sentence matched would make the module's own drift
+    detector read healthiest exactly when it has seen nothing.
+    """
+    u = kg.kill_taxonomy()["unclassified"]
+    assert u is not None
+    assert u["n"] == 0 and u["checked"] == 0
+    assert "NOTHING WAS CHECKED" in u["note"]
+    assert "not a clean sweep" in u["note"]
+
+
+@pytest.mark.parametrize("planted,expect", [
+    ([], "NOTHING WAS CHECKED"),
+    (["no held-out test - x"], "every sentence matched"),
+    (["the gate grew a sentence nobody mapped"], "no rule in KILL_REASON_RULES"),
+])
+def test_the_taxonomy_REPORT_prints_the_unclassified_line_in_all_three_states(
+        kg, planted, expect):
+    """The render half. The reader can be right and the report still silent.
+
+    ``report.py`` printed the unclassified block only ``if d["unclassified"]``,
+    so fixing the reader alone would have left the chair reading the same blank
+    page. Asserted on the rendered TEXT, through the real script.
+    """
+    import scripts.kg.report as rpt
+    if planted:
+        kg.add_outcome(hypothesis_id=_hyp(kg), stage="gate", verdict="fail",
+                       cited_run="r", kill_reasons=planted)
+    text = _render_with(rpt, kg, rpt.taxonomy)
+    assert "UNCLASSIFIED:" in text, (
+        "the unclassified line must be printed unconditionally — its absence "
+        "is what made a zero indistinguishable from a never-checked")
+    assert expect in text
+
+
+def _render_with(rpt, kg, fn):
+    """Run a report function against THIS test's graph, not pgstore's default.
+
+    Monkeypatching ``_kg`` rather than reimplementing the rendering: a second
+    copy of the formatter in the test could not catch a formatter defect.
+    """
+    original = rpt._kg
+    rpt._kg = lambda: kg
+    try:
+        return fn()
+    finally:
+        rpt._kg = original
 
 
 # --- calibration: n of m, and VOIDED excluded --------------------------------
@@ -709,3 +873,155 @@ def test_an_edge_needs_a_real_kind_and_two_real_hypotheses(kg):
     import psycopg
     with pytest.raises(psycopg.errors.ForeignKeyViolation):
         kg.add_edge(from_id=a, to_id="does-not-exist", kind="same_family")
+
+
+# --- (c) THE DDL-ON-CONSTRUCT LOCK -------------------------------------------
+#
+# Validator spot-audit, run-validator-parity 2026-08-23: `KnowledgeGraph.
+# __init__` ran `_ensure()`, so a read-only `scripts/kg/report.py` run issued
+# the whole SCHEMA string — and the `DROP TRIGGER IF EXISTS ... ON kg_outcome`
+# inside it needs ACCESS EXCLUSIVE. One ordinary open transaction wedged the
+# table for ~5 minutes behind a report that only wanted to SELECT.
+#
+# Measured before the fix (scratchpad/d27probe_lock2.py, with one connection
+# holding a plain `SELECT count(*) FROM kg_outcome` open):
+#
+#     CREATE TABLE IF NOT EXISTS kg_outcome ...      free    0.03s
+#     CREATE INDEX IF NOT EXISTS kg_outcome_hyp_idx  free    0.03s
+#     CREATE OR REPLACE FUNCTION kg_outcome_guard    free    0.03s
+#     DROP TRIGGER IF EXISTS kg_outcome_immutable    BLOCKED 2.03s  <-- the wedge
+#     SELECT-only reader path                        free    0.03s
+
+#: A graph whose connections give up on a lock rather than hanging. The suite
+#: must never wait five minutes to learn that a reader took a write lock — a
+#: hung suite is not a failing test, and a test that can hang is a test nobody
+#: will keep.
+_LOCK_TIMEOUT_MS = 1500
+
+
+def _impatient_graph():
+    from app.fund.knowledge import KnowledgeGraph
+    return KnowledgeGraph(
+        dsn=f"{_dsn()}?options=-c%20lock_timeout%3D{_LOCK_TIMEOUT_MS}")
+
+
+def test_CONSTRUCTING_a_graph_creates_no_tables(kg):
+    """__init__ is not allowed to touch the store at all.
+
+    Proven by MOVING the store rather than by inspecting the object: point a
+    fresh graph at a database name that does not exist and construct it. If the
+    constructor connects, this raises; if it issues DDL, it raises. Asserting
+    on an internal flag would pass against a constructor that did both.
+    """
+    from app.fund.knowledge import KnowledgeGraph
+    g = KnowledgeGraph(dsn=f"{_dsn()}_no_such_database_d27")
+    assert g is not None
+    assert g.ensure_schema.__self__ is g   # the writer's door exists, unopened
+
+
+def test_a_READER_on_a_store_with_no_graph_says_ABSENT_not_ZERO(kg):
+    """SchemaAbsent, not `{"causes": [], "total_kill_outcomes": 0}`.
+
+    Two facts the old reader could not tell apart: a graph that has been
+    ingested and holds no kills, and a database the graph has never been
+    created in. One of those is a statement about the fund.
+
+    The tables are DROPPED here, so this also proves the reader did not
+    recreate them on the way past — which is the actual regression.
+    """
+    import psycopg
+    from app.fund.knowledge import KnowledgeGraph, SchemaAbsent
+    with psycopg.connect(_dsn()) as c:
+        with c.cursor() as cur:
+            cur.execute("DROP TABLE IF EXISTS kg_edge, kg_outcome, "
+                        "kg_hypothesis CASCADE")
+        c.commit()
+    reader = KnowledgeGraph(dsn=_dsn())
+    for name, call in (("kill_taxonomy", reader.kill_taxonomy),
+                       ("cheap_kills", reader.cheap_kills),
+                       ("families", reader.families),
+                       ("edges", reader.edges),
+                       ("prediction_calibration", reader.prediction_calibration),
+                       ("family_ledger", lambda: reader.family_ledger("f"))):
+        with pytest.raises(SchemaAbsent):
+            call()
+        assert f"{name}" or True
+    with psycopg.connect(_dsn()) as c:
+        with c.cursor() as cur:
+            cur.execute("SELECT to_regclass('kg_outcome')")
+            assert cur.fetchone()[0] is None, (
+                "a reader recreated the table it was reading — that is the "
+                "DDL-on-construct defect, back")
+
+
+def test_a_WRITER_on_a_store_with_no_graph_creates_it(kg):
+    """The other half: the write path is the one that pays for the schema."""
+    import psycopg
+    from app.fund.knowledge import KnowledgeGraph
+    with psycopg.connect(_dsn()) as c:
+        with c.cursor() as cur:
+            cur.execute("DROP TABLE IF EXISTS kg_edge, kg_outcome, "
+                        "kg_hypothesis CASCADE")
+        c.commit()
+    writer = KnowledgeGraph(dsn=_dsn())
+    h = writer.add_hypothesis(family="made_by_the_writer", run_id="run-w")["id"]
+    assert writer.family_ledger("made_by_the_writer")["recorded"] == 1
+    assert h
+
+
+def test_ensure_schema_is_MEMOISED_per_instance(kg):
+    """Once per graph, not once per write.
+
+    41 candidates through the backfill must not be 41 ACCESS EXCLUSIVE waits.
+    The return value is the contract: True the time it ran, False after.
+    """
+    from app.fund.knowledge import KnowledgeGraph
+    g = KnowledgeGraph(dsn=_dsn())
+    assert g.ensure_schema() is True
+    assert g.ensure_schema() is False
+    g.add_hypothesis(family="f", run_id="r")
+    assert g.ensure_schema() is False
+    # ...and the memo is per INSTANCE, so a second graph on another store still
+    # creates its own.
+    assert KnowledgeGraph(dsn=_dsn()).ensure_schema() is True
+
+
+def test_a_READ_ONLY_REPORT_DOES_NOT_WAIT_FOR_A_LOCK_ON_kg_outcome(kg):
+    """THE INCIDENT, made into a test. run-validator-parity, 2026-08-23.
+
+    One connection holds an ordinary read transaction open on ``kg_outcome``.
+    Under a 1.5s lock timeout:
+
+      * every reader completes — SELECT needs only ACCESS SHARE, which the
+        blocker already holds and does not exclude;
+      * ``ensure_schema()`` does NOT — it wants ACCESS EXCLUSIVE for the
+        DROP TRIGGER, and that is the wedge.
+
+    The second arm is what makes the first arm mean something. Without it the
+    test would pass against a store that simply never locks anything, and could
+    not distinguish "the reader takes no write lock" from "there was no
+    contention". If the reader ever calls ``ensure_schema()`` again, the first
+    arm raises LockNotAvailable and this test names the regression.
+    """
+    import psycopg
+    kg.add_outcome(hypothesis_id=_hyp(kg), stage="gate", verdict="fail",
+                   cited_run="r", kill_reasons=["no held-out test - x"])
+
+    blocker = psycopg.connect(_dsn(), autocommit=False)
+    try:
+        with blocker.cursor() as cur:
+            cur.execute("SELECT count(*) FROM kg_outcome")   # ACCESS SHARE, held
+            assert cur.fetchone()[0] == 1
+
+        reader = _impatient_graph()
+        assert reader.kill_taxonomy()["total_kill_outcomes"] == 1
+        # one kill, no instrument named -> the single UNRECORDED_INSTRUMENT bucket
+        assert reader.cheap_kills()["distinct_instruments"] == 1
+        assert reader.family_ledger("carry_family")["recorded"] == 1
+        assert reader.families() == ["carry_family"]
+
+        with pytest.raises(psycopg.errors.LockNotAvailable):
+            _impatient_graph().ensure_schema()
+    finally:
+        blocker.rollback()
+        blocker.close()

@@ -14,6 +14,15 @@ must not become something a decision path can reach by accident.
 
 Every block prints its citations. A number from this graph without the run ids
 behind it is not admissible in a brief.
+
+**THIS SCRIPT ISSUES NO DDL AND TAKES NO LOCK.** It never calls
+``ensure_schema()``. Until 2026-08-23 it did so implicitly, because
+``KnowledgeGraph.__init__`` ran the schema — and the ``DROP TRIGGER IF EXISTS``
+inside it needs ACCESS EXCLUSIVE on ``kg_outcome``, so running this report
+wedged the table for ~5 minutes behind one ordinary open transaction during the
+validator's spot-audit. A read-only instrument that can block the store it is
+reading is not read-only. If the tables do not exist here, it says so and exits
+non-zero rather than printing an empty graph.
 """
 
 from __future__ import annotations
@@ -46,9 +55,20 @@ def ledger(family: str) -> str:
                  "family count of 0 — the family-wise correction has no "
                  "denominator from the record.")
         return "\n".join(L)
-    L.append(f"tested: {d['tested']}   (provenance {d['provenance']})")
-    L.append(f"killed: {d['killed']}   survivors: {len(d['survivors'])}   "
+    # RECORDED AND JUDGED ON SEPARATE LINES, because they are separate numbers
+    # and printing one of them under the word "tested" is what let the fenced
+    # family read as "tested: 6, not yet judged: 6".
+    L.append(f"recorded: {d['recorded']}   (provenance {d['provenance']})")
+    L.append(f"judged:   {d['judged']}   killed: {d['killed']}   "
+             f"survivors: {len(d['survivors'])}   "
              f"not yet judged: {len(d['unjudged'])}")
+    if d["status"] == "RECORDED_UNJUDGED":
+        L.append("")
+        L.append("RECORDED_UNJUDGED — variants of this family are in the "
+                 "record and NOT ONE of them carries a live verdict. Do not "
+                 "write a tested count in the grammar header from this: the "
+                 "family-wise correction wants judged variants, and there are "
+                 "none.")
     L.append("")
     if d["kills_by_reason"]:
         L.append("what killed them:")
@@ -117,10 +137,15 @@ def taxonomy() -> str:
                     if c["earns_preflight_card"] else ""))
         L.append(f"          {c['cost_note']}")
         L.append(f"          families: {', '.join(c['families']) or 'UNKNOWN'}")
-    if d["unclassified"]:
-        L.append("")
-        L.append(f"UNCLASSIFIED: {d['unclassified']['n']} — "
-                 f"{d['unclassified']['note']}")
+    # UNCONDITIONAL. The block used to be printed only when the bucket was
+    # non-empty, so a reader could not tell "every sentence matched" from
+    # "the classifier never ran" — both printed nothing at all.
+    u = d["unclassified"]
+    L.append("")
+    L.append(f"UNCLASSIFIED: {u['n']} of {u['checked']} kill sentence(s) checked")
+    L.append(f"    {u['note']}")
+    if u["example_verbatim"]:
+        L.append(f"    e.g. {u['example_verbatim'][:150]}")
     L.append("")
     L.append(f"earning a pre-flight card item: "
              f"{', '.join(d['earning_preflight_card']) or 'none yet'}")
@@ -150,7 +175,18 @@ def cheap() -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    a = list(sys.argv[1:] if argv is None else argv)
+    from app.fund.knowledge import SchemaAbsent
+    try:
+        return _dispatch(list(sys.argv[1:] if argv is None else argv))
+    except SchemaAbsent as e:
+        # AN ABSENT STORE IS NOT AN EMPTY ONE, and the exit code says so too:
+        # a chair piping this into a brief gets a refusal, not a blank block
+        # that reads like "the firm has killed nothing".
+        print(f"THE GRAPH DOES NOT EXIST IN THIS STORE — {e}", file=sys.stderr)
+        return 3
+
+
+def _dispatch(a: list[str]) -> int:
     if not a:
         print(__doc__)
         return 2
