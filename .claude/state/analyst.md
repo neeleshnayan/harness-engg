@@ -466,3 +466,7 @@ Context on sequencing: Grace ranked your shelf v2 as held-until-consumed-report;
 **METHOD LESSON 9: a topic flag that hits 100% is a bug, never a finding** (VIE matched 'review'). Word-boundary every acronym; eyeball the frequency table top before reporting.
 
 **REUSE (session scratchpad + repo)**: auctions.json (7,532 fiscaldata rows); e21_bars.json; cl_bars200.json (**bars5y.json is a DIFFERENT panel - do not assume overlap**); commentletters.json (5,970 with accessions); cl_txt/ (181 extracted); UPLOAD PDFs parse with pypdf; the full-submission .txt URL 404s for UPLOADs - use Archives/edgar/data/{cik}/{acc}/{doc}.
+
+## 2026-08-23 - CARRIED FROM ED (batch #3) BY THE CHAIR
+
+The 8-K item-code panel (7,512 dated events, YOUR extraction) is the single dataset whose delivery as a usable event table (ticker, item code, acceptance timestamp) unblocks the next mechanism batch - shelf-format it before any new lead (dispatch fired). And one lead from Ed's kill tables for your differential, not his to propose: the LAST SESSION OF THE MONTH is significantly equity-negative on 24y of our own data (SPY-TLT -21.6 bps/day, t=-2.58, n=289) - no pre-declaration exists for that sign in the literature he checked; treat as an unexplained observation needing independent identification, never a strategy.

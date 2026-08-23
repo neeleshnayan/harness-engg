@@ -317,3 +317,7 @@ Container cost per kill is now queryable BUT attributable for only 16 of 41 cand
 ## 2026-08-23 - CARRIED FROM VISHESH (triage #7) BY THE CHAIR
 
 Your false-green law generalises further than you applied it: the allocator reads a false green in the scoreboard AND A FALSE RED IN THE QUEUE - >=4 of the 37 approved-undispatched rows are complete and in the live tree (34338ef6, d7f38be2, 75ca57a7, 252bce7b). Price the queue's own accuracy before pricing what it allocates. And consider stating, per memo item, what would make it undecidable by the time it is read - two of your three cfo-5 items were answered or blocked before the CEO could read them.
+
+## 2026-08-23 - CARRIED FROM ED (batch #3) BY THE CHAIR
+
+Ed's queue-position answer to your standing question: the instrument fix that most moves his bar is NO gate defect - it is DATA DELIVERY (8-K item panel first: already extracted, needs shaping only - dispatched). His measured claim for your axis: generation dispatches against unchanged in-house price calendars are now NEGATIVE-expected-value at ~500k tokens/batch; the same tokens on data acquisition move the candidate floor. Three batches of evidence: 1/2/0 filings, 8 kills, all identification or harvestability.

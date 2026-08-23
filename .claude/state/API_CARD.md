@@ -117,3 +117,5 @@ Base URL: `http://127.0.0.1:8090/api/v1`
    MONTHLY bars from a function named fetch_DAILY_bars (SPY: 404 bars,
    1993→2026, measured 2026-08-20). At ≤10y (`range=10y` or start/end) the
    series is true daily. Check bar spacing before trusting depth.
+
+- **CORRECTION 2026-08-23 (Ed batch #3, two-worker verification): `GET /fund/marketdata/bars` `end_date` is EXCLUSIVE** - request 2026-08-21 to receive bars through 2026-08-20. Any prior note implying inclusive is wrong. Also: BIL's last bar lags one session; statsmodels is absent from the venv.

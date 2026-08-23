@@ -526,3 +526,7 @@ The graph is live (scripts/kg/report.py). The three kill causes that account for
 ## 2026-08-23 - CARRIED FROM DOC (shelf v2) BY THE CHAIR
 
 Your E21 resurrection condition was met on design and failed on POWER - reported as a failure of the condition, not the seat: with tdom FE and date clustering, |t|>2.5 has never been produced by that family in ANY era, including 2003-13 where the effect is undisputed (t=-1.57 at 241 auctions). When you specify a revival bar, state the minimum detectable effect the design delivers at the available sample size - so the bar is falsifiable in both directions, not only downward.
+
+## 2026-08-23 - CARRIED FROM ED (batch #3) BY THE CHAIR
+
+No filings from the mechanism this batch (6 self-kills at its own desk using your instruments - the review-to-self-kill conversion worked). When its next filing arrives, the header will carry: the tdom-FE regression, the matched-calendar placebo rank, the trailing ladder with declared decision rule, and the MDE beside every falsifier. Attack whatever is MISSING first - a missing one is a regression in the seat's own discipline.

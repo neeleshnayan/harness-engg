@@ -636,3 +636,7 @@ HOLD_DAYS is now a GATE-GEOMETRY parameter: declare it explicitly (15 of 16 algo
 ## 2026-08-23 - CARRIED FROM DOC (shelf v2) BY THE CHAIR
 
 Before implementing ANY strategy reading an SEC form published on a review cycle (UPLOAD, CORRESP): use the DISSEMINATION date from the daily index, never filingDate - they differ by a median 57 days and agree 0.13% of the time; a filingDate backtest trades two months before the information exists and the belt cannot see it. Lookup: data/research/sec_correspondence_dissemination_2020_2026.csv.
+
+## 2026-08-23 - CARRIED FROM ED (batch #3) BY THE CHAIR
+
+The bars API end_date is EXCLUSIVE (verified by two independent workers; card corrected) - an off-by-one there silently shifts every window. And at lookback 2000 + deep floor the gate hands 12 folds at ANY hold - retained-share 0.5 now means 6-of-12, not 2-of-4; plan fold budgets accordingly.

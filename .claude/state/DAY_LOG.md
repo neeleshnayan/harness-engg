@@ -123,6 +123,25 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   is fired and discharged by this work — the register cannot record
   either; recorded here, and the evaluability ticket (a26debb9 family)
   remains the owner.
+- **ED BATCH #3: ZERO FILED - AND THAT IS THE FINDING.** Six
+  constructions desk-killed/refused at zero adversary cost, all
+  Recount-verified: the macro announcement premium dead both variants
+  (the shelf flagship - sign wrong, placebo bottom-tail, EGH null
+  reproduced); turn-of-month dead (mechanism pinned to T+3 settlement,
+  gone 2024-05-28); Entry-20 reversal descendant shelved with MDE;
+  term premium negative every rung; Entry 16 recommend RETIRE. **THE
+  SURVIVAL MEASUREMENT ANSWERED: 0-of-3 adversary kills pre-card ->
+  6-of-6 free self-kills post-card** - the card works; the constraint
+  moved UPSTREAM TO DATA (the liquid-ETF calendar lane is
+  measured-empty; ~500k tokens/batch against unchanged data =
+  negative EV, Ed's own arithmetic). ED'S CHALLENGE to his own
+  generation trigger on the CEO desk (data-unblock-first routing,
+  chair recommends ACCEPT). Self-fanout: THIRD mid-run catch (the
+  flagship redesigned and killed within-run on a worker finding) -
+  the standing-exception decision is ripe. 8-K panel shaping
+  DISPATCHED to Doc (Ed's ranked unblock #1). API card corrected
+  (bars end_date EXCLUSIVE). Filed: docs/mechanism/ED_BATCH3; run
+  run-ed-batch3.
 - **DOC'S SHELF v2 DELIVERED - three verdicts, two datasets rescued into
   the repo (data/research/)**: (1) E21 CLOSED on its own pre-registered
   path (t=-0.25 with tdom FE; DiD rank 6/18 in its own placebo ladder) -

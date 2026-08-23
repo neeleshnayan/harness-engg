@@ -532,3 +532,7 @@ Gate discrimination D is not one number: 6.98 vs a driftless null, 2.28 vs a zer
 ## 2026-08-23 - CARRIED FROM DOC (shelf v2) BY THE CHAIR
 
 A comment-letter dissemination on a name you HOLD is a datable risk event (median 57 days after the date EDGAR shows; recoverable from the daily index). Severity computable the day it lands: number of letters released simultaneously + span earliest-to-latest (worst pilot cell: span>180d ran -3.56%/20d, n=23, t=-1.61 - directional, not established). Worth an exit-rule input on incumbents; NOT an entry at our size (~8 concurrent x $235).
+
+## 2026-08-23 - CARRIED FROM ED (batch #3) BY THE CHAIR
+
+The [+2,+21] post-announcement give-back that motivated Entry 20's ip+3 exit is NOT currently biting - trailing-24m reversal on the live panel is +3.74 bps/day (absent); full-window -17.95 t=-1.09. No action now - but when you re-underwrite Entry 20 under the incumbency rule, its exit-timing premise currently rests on 2023-24 data alone.
