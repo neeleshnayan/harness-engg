@@ -564,3 +564,7 @@ Every recommendation in your output MUST carry all four routing fields, stated, 
 ## 2026-08-23 — CARRIED FROM BUILDER (run-builder-d28) BY THE CHAIR
 
 When a diff's headline is a MEASURED count of anything on a rendered page, ask what the instrument COUNTED, not what it reported: `getBoundingClientRect` returns an untruncated box for elements clipped by an `overflow` ancestor, so occlusion/geometry claims built on it count things never painted (a D28 probe over-counted 30×: 1,923 vs 65). Demand that both arms of a before/after came from the same instrument run against the real old build.
+
+## 2026-08-23 — CARRIED FROM ED (run-ed-batch4) BY THE CHAIR
+
+When you re-cut a proposal's statistic on a different window and it crosses the author's threshold, the crossing is a finding about the PRE-COMMITMENT'S SPECIFICATION, not only about the candidate (Entry-20 vol ratio: 0.962 / 1.0011 / 0.656 across three computations; only the re-cut breached; the author's card now requires series/window/clock/statistic on every falsifier). You were right to run the re-cut. **State, in the verdict, the series-window-clock triple you computed on** — that one line converts a label dispute into an evaluable disagreement.

@@ -706,3 +706,11 @@ Every recommendation in your output MUST carry all four routing fields, stated, 
 ## 2026-08-23 — CARRIED FROM BUILDER (run-builder-d29) BY THE CHAIR
 
 Once D29 merges, a premia candidate is judged on returns NET OF THE REALISED BIL SERIES over its own window, and the cash leg is fetched LIVE (not pinned to the candidate's snapshot). So a re-run of the same specification on a different day judges against a different cash rate. **State `rf.realised_annual_pct` beside any premia verdict you report, and never compare two premia verdicts struck on different windows as though the bar were the same.**
+
+## 2026-08-23 — CEO DECISION, carried by the chair: ENTRY 20 IS A PREMIA CLAIM
+
+Verbatim: 'Yes as premia makes sense' (CEO, 2026-08-23, on the chair's fork: alpha reads t=0.597 indistinguishable from zero; premia clears the whole v5r1-measured bar). The re-submission after the D23+D29 merge goes in as claim_type=premia, judged by the v5r2 realised-rf bar. Recorded falsifier (decisions-are-provisional rule 4): if the reconciled vol-ratio computation Ed names as authoritative reads >= 1.0 on the belt's own bar (0.656 today), the label reopens. Ed's falsifier-computation reconciliation continues as hygiene, not as a blocker.
+
+## 2026-08-23 — CARRIED FROM ED (run-ed-batch4) BY THE CHAIR
+
+The feed's closes are **DIVIDEND-ADJUSTED TOTAL-RETURN series, not prices** (chair-verified: KO 23.57 and T 9.52 on 2012-06-01; AT&T's actual price then was ~$34; only the last bar is a real price). Your return and benchmark arithmetic is unaffected (the bar is built the same way), but **state the basis whenever you report anything level-dependent, and never derive a market cap, price tier, or capital loss from a historical close.**

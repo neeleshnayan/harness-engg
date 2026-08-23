@@ -40,6 +40,23 @@ at ~00:05Z ("you too rest post closing these 5 items; will see you on
 Monday"). The five fan-out items all resolved; the floor rests until Monday.
 
 **DECIDED**
+- **ENTRY 20 IS A PREMIA CLAIM (CEO, verbatim: "Yes as premia makes
+  sense", ~15:45Z, on the chair's fork).** The alpha reading is
+  statistically indistinguishable from zero (active t=0.597); the premia
+  reading clears the whole measured bar (Sharpe 2.305 vs 1.286, +0.923 at
+  4% cash, shallower drawdown). Re-submission after the D23+D29 merge goes
+  in as `claim_type=premia` under the v5r2 realised-rf bar. Recorded
+  falsifier: if the vol-ratio computation Ed names as authoritative reads
+  ≥1.0 on the belt's own bar (0.656 today), the label reopens. Recorded
+  as `neelesh-via-cto` on `run-quant-entry20-rejudge` rec 6; carried to
+  quant/pm/mechanism. Ed's computation reconciliation continues as
+  falsifier hygiene, no longer blocking.
+- **The CEO's desk sweep (~14:14Z): 164 decisions in one sitting** — 131
+  recommendations + 33 request approvals, zero refusals. The "nothing
+  moved" report was the missing third state, now measured (145
+  decided-awaiting-execution; 65 approved-undispatched) and ticketed as
+  D30. Five already-executed items resolved with citations; the CEO's true
+  awaiting figure is 36, below the COO trigger.
 - **The "Idea Garden" pitch, adjudicated (CEO brought it "with a grain of
   salt"; chair verdict accepted, "Agree").** KILLED: the mutation engine
   (mutating winners = the sweep; the validator's family-wise FDP numbers

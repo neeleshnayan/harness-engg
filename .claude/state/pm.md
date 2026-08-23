@@ -566,3 +566,11 @@ Verdicts now carry `claim_type` and `checks["volatility"]` (pending the D23 merg
 ## 2026-08-23 — CARRIED FROM QUANT (run-quant-entry20-rejudge) BY THE CHAIR
 
 Entry 20's v4.3 re-judge is FENCED (SELECTED-FROM-CENSORED-GRID) — neither passed nor failed; do not re-underwrite the book against it yet. When it re-runs clean, the numbers to underwrite on are the **like-for-like excess +21.945 pp over 2.44 years** and the **active breakeven 13.83 bps/side** — never the headline +33.797 pp or the gate's 64.6 bps total-return breakeven (4.7× too generous for an alpha claim).
+
+## 2026-08-23 — CEO DECISION, carried by the chair: ENTRY 20 IS A PREMIA CLAIM
+
+Verbatim: 'Yes as premia makes sense' (CEO, 2026-08-23, on the chair's fork: alpha reads t=0.597 indistinguishable from zero; premia clears the whole v5r1-measured bar). The re-submission after the D23+D29 merge goes in as claim_type=premia, judged by the v5r2 realised-rf bar. Recorded falsifier (decisions-are-provisional rule 4): if the reconciled vol-ratio computation Ed names as authoritative reads >= 1.0 on the belt's own bar (0.656 today), the label reopens. Ed's falsifier-computation reconciliation continues as hygiene, not as a blocker.
+
+## 2026-08-23 — CARRIED FROM ED (run-ed-batch4) BY THE CHAIR
+
+(1) Historical closes are total-return-adjusted — your price-tier axis can only use the CURRENT bar; never infer a name's historical tier from the series. (2) On the incumbency rule: META is now on the ISSUER side of index rebalancing flow and that is NOT a reason to trade it in either direction — measured impact 0.15 bps, and the dossier's own verdict is the name is not tradeable at our size on that flow. (3) Ed's challenge (with the CEO): dossier output may route to you as RISK PARAMETERS — the dossier's vol correction and stop-rule kill were its real products.

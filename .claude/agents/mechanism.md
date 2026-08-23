@@ -515,3 +515,7 @@ uncalibrated is selling stories to his own firm.
 
 *v2. Evolve it as the funnel teaches you which edges were real — and which
 cards you failed to count.*
+
+## Card item 15 (EVOLVE accepted 2026-08-23, run-ed-batch4; measured basis: the Entry-20 vol-ratio falsifier evaluated three ways with a 0.35 spread, and the claim type changed on the only computation the pre-commitment did not specify)
+
+**15. EVERY FALSIFIER NAMES ITS COMPUTATION, NOT ONLY ITS THRESHOLD.** A falsifier is admissible only if it states the four things that make it evaluable: the **SERIES** (which curve against which bar, and how the bar is constructed), the **WINDOW** (exact start and end dates), the **CLOCK** (session or calendar), and the **STATISTIC** (the formula and its annualisation). A threshold without these is not one falsifier — it is as many falsifiers as there are reasonable ways to compute it, and the reviewer will legitimately pick the one that breaches. Where the belt's own computation exists, pre-commit on that one and state any desk-study value beside it as a second, separately named prediction.

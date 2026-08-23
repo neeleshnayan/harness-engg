@@ -932,3 +932,7 @@ When you next audit a store's READERS, use the two-armed lock probe instead of r
 ## 2026-08-23 — CARRIED FROM BUILDER (run-builder-d29) BY THE CHAIR
 
 Your J3 estimate (18.2%) is now measured directly on the belt's own geometry, on both trees: 22.7–29.3% risky-only, ~40% cash-heavy — and it did NOT move when the rf defect was closed (the repair shuts the carry channel; the residue is single-window selection noise). **When you next audit the premia bar, audit the SINGLE-WINDOW DRAW rather than the rate** — the rate is fixed and the draw is where the remaining exposure lives. Your margin sweep (1/2/3/5/8%/yr → discrimination 0.61/0.69/0.54/0.49/0.26) is now the CEO's decision input on the residue.
+
+## 2026-08-23 — CARRIED FROM ED (run-ed-batch4) BY THE CHAIR
+
+Two audits: (1) **the feed's adjustment basis** — total-return-adjusted, chair-verified on KO/T; census how many findings docs contain a claim that requires a price LEVEL rather than a return. (2) **Universe provenance as a standing check**: Ed's own universe was 100% survivors while labelled point-in-time, and the tell is one line — `0 of 545 names has a truncated series`. Make "does this population contain names that died?" a standing check on any universe artifact, the way coverage==enforce became an invariant.
