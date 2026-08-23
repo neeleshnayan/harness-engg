@@ -738,7 +738,14 @@ def volatility_check(result: dict[str, Any]) -> dict[str, Any]:
     p = result.get("premia_inputs")
     rb = result.get("robustness") or {}
     engine = rb.get("engine_annual_vol_pct")
-    if not isinstance(p, dict) or not p.get("measurable"):
+    # The same defensive read as `_premia_leg`, and for the same reason: this
+    # runs on EVERY verdict including alpha ones, so a stored payload that
+    # claims to be measurable and carries no volatility would take out the
+    # whole judgement — on a field that exists only to be looked at.
+    readable = (isinstance(p, dict) and p.get("measurable")
+                and (p.get("strategy") or {}).get("ann_vol_pct") is not None
+                and (p.get("benchmark") or {}).get("ann_vol_pct") is not None)
+    if not readable:
         return {
             "strategy_ann_vol_pct": None,
             "benchmark_ann_vol_pct": None,

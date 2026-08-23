@@ -623,6 +623,10 @@ def test_a_malformed_stored_payload_fails_the_leg_and_never_raises():
     # And the rest of the gauntlet still ran: this failed ONE criterion.
     assert out["gate_version"] == "v5r1-premia"
     assert out["checks"]["psr_pct"] == 92.0
+    # The volatility field reads the SAME payload and must not raise either —
+    # it runs on every verdict, alpha ones included, purely to be looked at.
+    assert out["checks"]["volatility"]["strategy_ann_vol_pct"] is None
+    assert judge(res)["checks"]["volatility"]["benchmark_ann_vol_pct"] is None
 
 
 def test_a_flat_strategy_is_unmeasurable_not_a_zero_sharpe():
