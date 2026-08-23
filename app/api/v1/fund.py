@@ -1934,13 +1934,15 @@ def record_agent_run(req: AgentRunRecord):
     never to the CEO.
 
     THE 422 IS DARK UNTIL THE COMPANION LANDS. ``desk.DESK_ROUTING_ENFORCE``
-    ships False because the same rule run over the last day of live traffic
-    would have rejected 16 of 17 runs across eight seats (D22 blind review):
-    the schema half of the contract cannot be enforced before the seat-protocol
-    half exists, or the only effect is that runs stop being recorded. What
-    ships today MEASURES every filing and returns the finding as
-    ``routing_advisory`` beside the stored row; a caller that has adopted the
-    format declares ``routing_version: 1`` and gets the full refusal now.
+    ships False; the measurement that made it False, and its re-measurement,
+    live beside the flag in ``app/fund/desk.py`` and are deliberately NOT
+    repeated here — two copies of one measured table are one copy too many,
+    and only one of them ever gets updated. The short of it: enforcing the
+    schema half before the seat-protocol half exists does not tighten routing,
+    it stops runs being recorded. What ships today MEASURES every filing and
+    returns the finding as ``routing_advisory`` beside the stored row; a
+    caller that has adopted the format declares ``routing_version: 1`` and
+    gets the full refusal now.
 
     EXISTING ROWS ARE GRANDFATHERED. Nothing rewrites a stored recommendation:
     the validation is at the door, so history stays what it was and the
@@ -2734,7 +2736,11 @@ def supersession_list(include_retracted: bool = Query(False)):
     # is better served by a thousand rows plus `truncated: true` than by an
     # error, and a brake is not served by a partial map at all.
     edges, truncated = s.page(include_retracted=include_retracted)
-    return {"edges": edges, "count": len(edges),
+    # SHOWN AND TOTAL, the way every other capped surface on this desk reports
+    # itself. `count` used to be the only number and it silently became "what
+    # we returned" the moment the cap could bite; the total is one count(*).
+    return {"edges": edges, "count": len(edges), "shown": len(edges),
+            "total": s.count(include_retracted=include_retracted),
             "truncated": truncated, "limit": EDGE_QUERY_LIMIT,
             "modes": list(SUPERSESSION_MODES),
             "unapprovable_modes": list(UNAPPROVABLE_MODES)}

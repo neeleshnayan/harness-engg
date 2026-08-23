@@ -189,8 +189,9 @@ def req_ref(request_id: str) -> str:
     rid = str(request_id).strip()
     try:
         rid = str(uuid.UUID(rid))
-    except (ValueError, AttributeError, TypeError):
-        pass                       # not a UUID: not ours to re-case
+    except ValueError:
+        pass         # not a UUID: not ours to re-case. ValueError is the only
+                     # thing UUID() raises for a str, and `rid` is always one.
     return f"req:{rid}"
 
 
@@ -718,6 +719,19 @@ class Supersessions(_Table):
         where = "" if include_retracted else "WHERE retracted_at IS NULL"
         return self._page(where, (), limit=limit)
 
+    def count(self, include_retracted: bool = False) -> int:
+        """How many edges the store actually holds — the `total` beside `shown`.
+
+        A capped list that publishes only what it returned tells a reader the
+        table is that size. This is one cheap query and it is what makes the
+        display path's truncation notice a MEASUREMENT rather than a shrug.
+        """
+        where = "" if include_retracted else "WHERE retracted_at IS NULL"
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(f"SELECT count(*) FROM fund_desk_supersession {where}")
+                return int(cur.fetchone()[0])
+
     def _page(self, where: str, params: tuple,
               limit: Optional[int] = None) -> tuple[list[dict[str, Any]], bool]:
         """Rows, and whether the store holds MORE than the caller asked for.
@@ -822,7 +836,11 @@ class Supersessions(_Table):
                                             "target_ref": row["target_ref"],
                                             "canonical": target,
                                             "error": str(e)[:160]})
-        if report["rewritten"] or report["conflicts"] or report["unparseable"]:
+        # `truncated` is in the condition because a migration that could not
+        # read the whole table is a PARTIAL migration, and a partial migration
+        # that logs nothing is the silent-cap defect wearing a second hat.
+        if (report["rewritten"] or report["conflicts"]
+                or report["unparseable"] or report["truncated"]):
             logger.warning("supersession ref canonicalisation: %s", report)
         return report
 

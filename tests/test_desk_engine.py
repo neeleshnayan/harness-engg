@@ -1487,10 +1487,16 @@ def test_the_edge_LIST_endpoint_shows_its_rows_and_declares_the_cap(monkeypatch)
         def page(self, include_retracted=False, limit=None):
             return [{"edge_id": "e1"}], True
 
+        def count(self, include_retracted=False):
+            return 4321
+
     monkeypatch.setattr(fundapi, "_supersessions", lambda: Paged())
     app = FastAPI()
     app.include_router(fundapi.router, prefix="/api/v1")
     body = TestClient(app).get("/api/v1/fund/desk/supersessions").json()
     assert body["truncated"] is True
     assert body["limit"] == EDGE_QUERY_LIMIT
-    assert body["count"] == 1
+    assert body["count"] == 1 and body["shown"] == 1
+    assert body["total"] == 4321, (
+        "shown is not total: a capped list that publishes only what it "
+        "returned tells the reader the table is that size")

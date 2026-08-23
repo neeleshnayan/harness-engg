@@ -384,6 +384,19 @@ def test_rows_written_BEFORE_the_repair_are_migrated_on_construction(edges):
     assert Supersessions(dsn=_dsn()).migration_report["rewritten"] == 0
 
 
+def test_a_migration_that_could_not_read_the_whole_table_SAYS_SO(edges, monkeypatch):
+    """A partial migration that reports success is the silent-cap defect in a
+    second costume. The scan is bounded because it runs inside a
+    request-serving process; the bound is disclosed, not hidden."""
+    from app.fund import deskengine as DE
+    for i in range(3):
+        edges.add(target_ref=f"req:row-{i}", superseder_ref=R39,
+                  mode="superseded", reason="r", actor="cto")
+    monkeypatch.setattr(DE, "MIGRATION_SCAN_LIMIT", 2)
+    report = DE.Supersessions(dsn=_dsn()).migration_report
+    assert report["truncated"] is True and report["scanned"] == 2
+
+
 def test_a_migration_collision_is_REPORTED_and_neither_row_is_lost(edges):
     """Two spellings of one row cannot be merged by a migration: which edge
     survives is a decision with a written reason. So the collision is counted
@@ -435,9 +448,11 @@ def test_a_FLOOD_makes_the_brake_UNREADABLE_and_never_absent(edges):
         c.commit()
     with pytest.raises(SupersessionsTruncated):
         edges.by_target()
-    # The DISPLAY path still answers, and says what it is missing.
+    # The DISPLAY path still answers, and says what it is missing — with the
+    # true total beside the page, measured rather than implied.
     rows, truncated = edges.page()
     assert truncated is True and len(rows) == EDGE_QUERY_LIMIT
+    assert edges.count() == EDGE_QUERY_LIMIT + 1
 
 
 def test_EXACTLY_the_limit_is_a_complete_answer_not_a_truncated_one(edges):
