@@ -725,9 +725,10 @@ PREMIA_CRITERIA: dict[str, Any] = {
     #
     # Its provenance, kept for whoever revisits it: the validator measured BIL
     # at 3.97%/yr and SHV at 3.94% over the gate's window (gate v5 round 5, G1),
-    # rounded up to a whole percent. The adversary then measured the belt's own
-    # windows at 4.07 / 4.37 / 4.59%/yr — which is why it is no longer the
-    # default basis.
+    # rounded up to a whole percent. The belt's own windows then measured
+    # higher on three of four — the table in the PREMIA_VERSION note above,
+    # which is the ONLY copy of those figures — which is why this is no longer
+    # the default basis.
     "premia_rf_stress_pct": 4.0,
     # A comparison over a minority of the run is not a comparison over the run.
     # Not a new number: this is the same majority rule `_add_benchmark`
@@ -735,10 +736,17 @@ PREMIA_CRITERIA: dict[str, Any] = {
     # legs. Compared with a STRICT majority, in the same shape as the
     # walk-forward rule (`retained * 2 <= measurable` fails).
     #
-    # The DENOMINATOR moved in v5r2 and that is a tightening: v5r1 divided
-    # trading days by CALENDAR days (LEAN emits an equity point every calendar
-    # day), which scored 0.67-0.69 on all 15 real specimens and left ~19pp of
-    # slack. It now runs on the session count. Both numbers are reported.
+    # THE DENOMINATOR MOVED IN v5r2 AND IT IS A LOOSENING, said plainly. v5r1
+    # divided sessions by CALENDAR days (LEAN emits an equity point every
+    # calendar day), scoring 0.67-0.69 on all 15 real specimens with nothing
+    # actually missing. The denominator is now the session count, which is
+    # SMALLER, so the majority is easier to reach: on a 500-return LEAN-shaped
+    # run with 358 sessions, a bar covering 180 to 250 of them now passes where
+    # v5r1 refused. That is the correct answer — the old test compared trading
+    # days with weekends — but it is permissive movement and a reader should not
+    # have to derive that from a fraction. Both numbers are reported, and
+    # `test_the_SESSION_denominator_changes_a_verdict_on_LEANs_real_shape`
+    # is the verdict flip made explicit.
     "premia_require_majority_window_coverage": True,
 }
 
@@ -950,12 +958,13 @@ def _premia_leg(result: dict[str, Any], pc: dict[str, Any]
     WHERE THE CASH RETURN COMES FROM, and why this replaced a constant. v5r1
     ran the inequality at rf=0 and again at a fixed 4.0%. The adversary
     executed it: eleven of sixteen zero-skill cash/beta blends passed while
-    their true excess-Sharpe advantage was between −0.0004 and +0.03, because
-    the belt's own windows paid 4.07 / 4.37 / 4.59%/yr and the stress was 4.00.
-    A constant fitted on one window is a threshold that silently changes meaning
-    with every backtest date. So the belt now reads BIL over the CANDIDATE'S OWN
-    window and subtracts it per observation; this function reads the excess pair
-    it stored and never assumes a rate.
+    their true excess-Sharpe advantage was between −0.0004 and +0.03, because on
+    three of the four windows the belt uses the realised rate was ABOVE the 4.00
+    stress (the table is in the ``PREMIA_VERSION`` note and is not restated
+    here). A constant fitted on one window is a threshold that silently changes
+    meaning with every backtest date. So the belt now reads the cash series over
+    the CANDIDATE'S OWN window and subtracts it per observation; this function
+    reads the excess pair it stored and never assumes a rate.
 
     WHY THE RAW (rf=0) ARM IS NO LONGER A CONDITION. Under a constant rate the
     Sharpe difference is affine in that rate, so two endpoint checks pinned the

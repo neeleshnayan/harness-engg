@@ -8,13 +8,14 @@ named incidents are in the docstrings. The three that matter most:
     not certify as premia. ``test_the_cash_heavy_impersonator_*``.
   * THE D23 KILL (adversary, blind, 2026-08-23 —
     docs/reviews/ADVERSARY_D23_D24_2026-08-23.md): v5r1 stressed at a CONSTANT
-    4.0%/yr while three of the four windows the belt uses paid MORE (4.05% over
-    700 days, 4.35% over 900, 4.57% over 2023+; the ~2000-day reach paid 3.25%
-    and is the one the constant was harsh on). Eleven of sixteen zero-skill
-    cash/beta blends passed with a true excess-Sharpe advantage between -0.0004
-    and +0.03. The rate is now READ, per observation, from the candidate's own
-    window — and every test that could pass by assuming a rate instead of
-    reading one is written to fail if it is ever assumed again.
+    4.0%/yr while three of the four windows the belt uses paid MORE and the
+    fourth paid less (the per-window table lives once, in ``gate``'s
+    ``PREMIA_VERSION`` note, and is deliberately not copied here). Eleven of
+    sixteen zero-skill cash/beta blends passed with a true excess-Sharpe
+    advantage between -0.0004 and +0.03. The rate is now READ, per observation,
+    from the candidate's own window — and every test that could pass by assuming
+    a rate instead of reading one is written to fail if it is ever assumed
+    again.
   * THE DISCARDED BENCHMARK LEG (measured on four stored candidates,
     2026-08-23): ``daily_returns["benchmark"]`` is the series the belt threw
     away, and judging off it FLIPS the premia answer on three of the four.
@@ -368,9 +369,10 @@ def test_the_same_impersonator_PASSES_when_the_world_pays_less_than_it_earns():
     The advantage of a cash mix is exactly ``(1-w)(rf_earned - rf_charged) /
     (w * sd_bench) * sqrt(K)``, so its SIGN is the sign of the gap between what
     the cash leg earned and what the criterion charges. v5r1 charged a fixed
-    4.0% and the belt's windows paid 4.05-4.57%: the gap was positive, and the
-    impersonator walked through. Here the identical portfolio is judged in a
-    world paying 2.5% and it PASSES.
+    4.0% while most of the belt's windows paid more (the table is in ``gate``'s
+    ``PREMIA_VERSION`` note): the gap was positive, and the impersonator walked
+    through. Here the identical portfolio is judged in a world paying 2.5% and
+    it PASSES.
 
     That is not a defect in v5r2, it is the fact v5r1 could not see: whether a
     cash tilt is edge depends on the rate, so the rate must come from the window
