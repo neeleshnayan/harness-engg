@@ -86,6 +86,10 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   `739b5ac9` runs first).
 - Builder queue ranked in cto.md; THE CLEANUP (`dce47670`) deferred six
   times and owed.
+- **Vault push PENDING for the final two commits** (ClarkHarness `536b427`,
+  firm `52021fc`): the permission classifier blocked `git push vault` after
+  the CEO left; last time it cleared only in manual-permissions mode. First
+  live session pushes both — the standing authorization covers it.
 
 **ON FIRE**
 - Nothing burning money. Two dated items: R1's 08-25 deadline, and the
