@@ -40,6 +40,17 @@ at ~00:05Z ("you too rest post closing these 5 items; will see you on
 Monday"). The five fan-out items all resolved; the floor rests until Monday.
 
 **DECIDED**
+- **THE GAUNTLET (CEO proposal, ~20:2xZ): the builder's standing QA worker,
+  spec v1** — the Recount pattern applied to code: six standing checks,
+  each born from a measured miss (null tests, shared-word audit, CALL-vs-
+  MODEL fixtures, env-sensitivity, boundary tables, number re-counts),
+  spawned post-diff pre-bundle, findings answered in writing in the
+  ledger. STRUCTURAL LINE SAID LOUDLY: author-side only — it makes diffs
+  cheaper to get right and NEVER substitutes for the adversary blind;
+  counting a Gauntlet pass as a blind is itself a revert-the-worker
+  breach. Spec evolves only on measured misses; Grace prices at n=3;
+  graduation to a seat only by the CDO audition if scars demand it.
+
 - **THE JUNIOR-DEV FAN-OUT TRIAL v1 (CEO proposal, ~20:0xZ): the builder
   may fan mechanical breadth to Sonnet 5 juniors** — test authorship from
   spec, fixtures, mutation-harness assembly, probe drafts against fixed
