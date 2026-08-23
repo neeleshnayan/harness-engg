@@ -294,8 +294,24 @@ export function WindowNote({ events, capped }: { events: number; capped: boolean
  *                       because a component was unreadable.
  *   - over the line   → "COO triage due". A SIGNAL for the CTO to dispatch;
  *                       this chip fires nothing and neither does the spine.
+ *
+ * `total` — WHETHER THIS CHIP MAY PRINT THE COUNT, and it is a named case
+ * rather than a boolean because the two situations are genuinely different.
+ * On the CTO console the chip is the ONLY figure on screen and must carry it.
+ * On the CEO's desk the served figure is already the headline eighteen pixels
+ * above, and the chip printing its own made the desk render "96 awaiting your
+ * decision" over "97 / 50 AWAITING YOU" — two numbers for one question, which
+ * is the defect `deskAwaiting` exists to end. Everything else the chip says —
+ * the trigger, the elsewhere split, the unknowns, the partial flag — is
+ * information the headline does NOT carry and stays either way.
  */
-export function CooTriageChip({ load }: { load?: DeskView["desk_load"] }) {
+export function CooTriageChip(
+  { load, total = "show" }: {
+    load?: DeskView["desk_load"];
+    /** `already-on-screen`: the surface renders the served figure itself. */
+    total?: "show" | "already-on-screen";
+  },
+) {
   if (!load) return null;
   const over = load.coo_triage_due;
   // Work that is real and is somebody else's. Rendered BESIDE the CEO's figure
@@ -316,11 +332,20 @@ export function CooTriageChip({ load }: { load?: DeskView["desk_load"] }) {
           : `border-[var(--kt-border)] ${KT.muted}`
       }`}
     >
-      <span className="tabular-nums">
-        {load.total}
-        {!load.complete && "+"}
-      </span>
-      <span>/ {load.threshold} awaiting you</span>
+      {total === "show" ? (
+        <>
+          <span className="tabular-nums">
+            {load.total}
+            {!load.complete && "+"}
+          </span>
+          <span>/ {load.threshold} awaiting you</span>
+        </>
+      ) : (
+        // The count is on screen already. What is NOT is the line it is being
+        // measured against, so the chip keeps the threshold and drops the
+        // rival figure.
+        <span>triage trigger {load.threshold}</span>
+      )}
       {!!unknown && (
         <span
           title="rows whose next actor could not be determined. They COUNT toward your figure — an unmeasurable is not a zero."

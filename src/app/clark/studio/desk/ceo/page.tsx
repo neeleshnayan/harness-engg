@@ -21,8 +21,9 @@ import {
 } from "../execDesk";
 import type { Decision, DecisionGroup } from "../decisionList";
 import {
-  countCheck, decisionList, foldedCounts, orderingHazard,
+  decisionList, foldedCounts, orderingHazard,
 } from "../decisionList";
+import { awaitingHeadline } from "../deskAwaiting";
 import { officerDesk } from "../officerQueues";
 import { CooTriageChip, ProvenanceChip } from "../components";
 import { cardStyle } from "../deskCardStyle";
@@ -200,15 +201,29 @@ export default function CeoDeskPage() {
     () => foldedCounts(officers, asks, memo?.available === true),
     [officers, asks, memo],
   );
+  /* ONE FOLD FOR "WHAT AWAITS YOU".
+     This page used to render its OWN count in the header and let the triage
+     chip render the SPINE's eighteen pixels below — measured live on
+     2026-08-23 as "96 awaiting your decision" over "97 / 50 AWAITING YOU",
+     with nothing on screen saying which to believe, because the difference
+     was the one divergence the drift check is designed to stay quiet about.
+     `awaitingHeadline` folds once: the served counter is the figure, less the
+     measured read-only notes, with the substitution stated; the page's own
+     fold survives only where the spine serves nothing, and says so when used.
+     `list.total === officers.awaitingTotal` by construction, so the cards are
+     the honest thing to reconcile the served figure against. */
+  const headline = useMemo(
+    () => awaitingHeadline({
+      deskReadable: desk !== null,
+      servedTotal: desk?.desk_load?.total,
+      servedComplete: desk?.desk_load?.complete,
+      servedUnreadable: desk?.desk_load?.unreadable,
+      divertedNotes: officers.donna.notes.length,
+      cardCount: list.total,
+    }),
+    [desk, officers, list],
+  );
   const awaitingCount = officers.awaitingTotal;
-
-  /* Do the header's number and the chip's number — eight pixels apart, from
-     two different implementations — still agree? See `countCheck`. */
-  const countDrift = countCheck({
-    spineTotal: desk?.desk_load?.total,
-    pageTotal: awaitingCount,
-    divertedNotes: officers.donna.notes.length,
-  });
 
   /* Coverage over the CARDS, not over the flat split — the sentence about what
      the ranking could not see must describe the rows on screen. */
@@ -231,7 +246,8 @@ export default function CeoDeskPage() {
             <h1 className="text-2xl font-medium tracking-tight">Neelesh · CEO</h1>
             <p className={`mt-1 text-sm ${KT.body}`}>
               <span className="font-mono tabular-nums text-[var(--kt-text-strong)]">
-                {desk === null ? "unknown" : awaitingCount}
+                {headline.value === null ? "unknown" : headline.value}
+                {headline.atLeast && "+"}
               </span>{" "}
               awaiting your decision
               {/* The GROUP count, gated on there being more than one group —
@@ -262,8 +278,22 @@ export default function CeoDeskPage() {
                   more on file, at the foot
                 </span>
               )}
-              <CooTriageChip load={desk?.desk_load} />
+              {/* `already-on-screen`: the figure to its left IS the spine's
+                  own counter now, so the chip printing its own would put two
+                  numbers for one question back on the same line. It keeps the
+                  trigger, the elsewhere split and the partial flag, none of
+                  which the headline carries. */}
+              <CooTriageChip load={desk?.desk_load} total="already-on-screen" />
             </p>
+            {/* WHICH FOLD PRODUCED THAT NUMBER. A figure this build computed
+                and a figure the fund computed are different claims, and the
+                one time the reader must know is the one time nothing used to
+                say. */}
+            {headline.note && (
+              <p className={`mt-1 max-w-3xl text-xs leading-relaxed ${KT.muted}`}>
+                {headline.note}
+              </p>
+            )}
             <p className={`mt-0.5 text-xs ${KT.muted}`}>
               decisions recorded{" "}
               <span className="font-mono tabular-nums">
@@ -284,7 +314,11 @@ export default function CeoDeskPage() {
             needs you, and what is on fire — GENERATED from the same folds the
             page renders, never hand-written. A hand-written "all quiet" would
             be the one line here nobody could falsify. */}
-        <GreetingHeader view={engine} needsYou={desk === null ? null : awaitingCount} />
+        {/* The SAME figure as the header — the greeting used to render the
+            spine's four lines above a header rendering the page's, which put
+            three numbers for one question on this desk. Now there is one fold
+            and all three read it. */}
+        <GreetingHeader view={engine} needsYou={headline.value} />
         {engineErr && (
           <div className={`${KT.card} mb-6 flex items-start gap-2 border-[var(--kt-warn)]`}>
             <AlertTriangle size={15} className="mt-0.5 shrink-0 text-[var(--kt-warn)]" />
@@ -365,10 +399,14 @@ export default function CeoDeskPage() {
           </div>
         )}
 
-        {desk !== null && countDrift && (
+        {/* The residual. The figure above is the fund's; the cards below are
+            this page's fold. When they still disagree after the one measured
+            adjustment, neither is safe to present alone — so this says so
+            loudly rather than the page quietly showing both. */}
+        {headline.reconciliation && (
           <div className={`${KT.card} mb-6 flex items-start gap-2 border-[var(--kt-warn)]`}>
             <AlertTriangle size={15} className="mt-0.5 shrink-0 text-[var(--kt-warn)]" />
-            <p className="text-sm">{countDrift}</p>
+            <p className="text-sm">{headline.reconciliation}</p>
           </div>
         )}
 
@@ -382,7 +420,15 @@ export default function CeoDeskPage() {
           </section>
         ) : awaitingCount === 0 ? (
           <section className="mb-10">
-            <p className="text-[15px] leading-relaxed">Nothing awaits your decision.</p>
+            {/* "Nothing awaits your decision" is a claim about the CARDS, and
+                it may only be made when the fund's own counter agrees. If the
+                served figure says otherwise, the banner above is already
+                shouting and this sentence must not contradict it. */}
+            <p className="text-[15px] leading-relaxed">
+              {headline.reconciliation
+                ? "This page has no decision cards to show — and the fund's own counter disagrees, above."
+                : "Nothing awaits your decision."}
+            </p>
             <p className={`mt-1 text-sm ${KT.body}`}>
               That is a measurement of this moment, not of the firm:{" "}
               <span className="font-mono tabular-nums">{folded.total}</span>{" "}

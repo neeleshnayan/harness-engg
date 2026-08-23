@@ -371,11 +371,22 @@ test("a spine that sent no total is quiet, not accusing", () => {
 });
 
 test("the page renders the count check", () => {
+  /* THE CALL SITE MOVED, THE CONTROL DID NOT (2026-08-23, D28). The CEO desk
+   * no longer calls `countCheck` directly: it calls `awaitingHeadline`, which
+   * calls `countCheck` for exactly this sentence. The intent of this test is
+   * unchanged and is the reason it is edited rather than deleted — an unwired
+   * control is the pattern this firm names in its own doctrine, so the chain
+   * page → awaitingHeadline → countCheck is asserted at every link. The
+   * middle link is pinned BY OUTPUT in deskAwaiting.test.ts ("the
+   * reconciliation sentence is countCheck's, not a second copy of it"). */
   const src = readFileSync(new URL("./ceo/page.tsx", import.meta.url), "utf8");
-  assert.ok(src.includes("countCheck({"),
+  const fold = readFileSync(new URL("./deskAwaiting.ts", import.meta.url), "utf8");
+  assert.ok(fold.includes("countCheck({"),
     "the check must actually be called — an unwired control is the pattern "
     + "this firm names in its own doctrine");
-  assert.ok(src.includes("{countDrift}"),
+  assert.ok(src.includes("awaitingHeadline({"),
+    "and the page must call the fold that calls it");
+  assert.ok(src.includes("{headline.reconciliation}"),
     "and its sentence must reach the screen");
   assert.ok(src.includes("divertedNotes: officers.donna.notes.length"),
     "the known divergence must be measured from the live routing, not "
