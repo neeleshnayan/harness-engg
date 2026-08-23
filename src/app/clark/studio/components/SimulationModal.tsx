@@ -20,10 +20,10 @@ interface SimulationModalProps {
 }
 
 const PRESET_OPTIONS = [
-  { key: 'oil_spike', label: '🛢️ Geopolitical Oil Spike ($110/bbl)', oil: 110, rate: 35, mkt: -4.2, vix: 30 },
-  { key: 'rate_surge', label: '📈 Hawkish Fed Yield Surge (+60bps)', oil: 78, rate: 60, mkt: -5.5, vix: 25 },
-  { key: 'tech_selloff', label: '📉 Tech Sector De-risking (-12%)', oil: 72, rate: -15, mkt: -8.5, vix: 45 },
-  { key: 'crypto_crash', label: '⚡ Crypto Liquidity Crunch (-25%)', oil: 74, rate: -5, mkt: -3.0, vix: 20 },
+  { key: 'oil_spike', label: 'Geopolitical oil spike ($110/bbl)', oil: 110, rate: 35, mkt: -4.2, vix: 30 },
+  { key: 'rate_surge', label: 'Hawkish Fed yield surge (+60bps)', oil: 78, rate: 60, mkt: -5.5, vix: 25 },
+  { key: 'tech_selloff', label: 'Tech sector de-risking (-12%)', oil: 72, rate: -15, mkt: -8.5, vix: 45 },
+  { key: 'crypto_crash', label: 'Crypto liquidity crunch (-25%)', oil: 74, rate: -5, mkt: -3.0, vix: 20 },
 ];
 
 export function SimulationModal({ open, onOpenChange, onSuccess }: SimulationModalProps) {
@@ -113,7 +113,7 @@ export function SimulationModal({ open, onOpenChange, onSuccess }: SimulationMod
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl bg-[var(--kt-bg)] border-[var(--kt-border)] text-[var(--kt-text)] p-6 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl bg-[var(--kt-bg)] border-[var(--kt-border)] text-[var(--kt-text)] p-6 rounded-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="border-b border-[var(--kt-border)] pb-4 mb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -227,7 +227,7 @@ export function SimulationModal({ open, onOpenChange, onSuccess }: SimulationMod
           {simResult && (
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <div className="bg-rose-950/20 border border-rose-900/40 rounded-xl p-3.5">
+                <div className="rounded-xl border border-[var(--kt-border)] bg-[var(--kt-inset)] p-3.5">
                   <div className="text-[10px] font-medium uppercase tracking-wider text-[var(--kt-down)] mb-1 flex items-center gap-1.5">
                     <TrendingDown className="w-3.5 h-3.5" /> Forecast Drawdown
                   </div>

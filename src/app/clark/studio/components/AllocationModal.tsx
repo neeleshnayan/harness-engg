@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { fundApiClient, StrategyView } from "@/lib/fund_api";
+import { KT } from "../theme";
 
 interface Props {
   strategy: StrategyView | null;
@@ -73,10 +74,16 @@ export function AllocationModal({ strategy, onClose, onSuccess }: Props) {
           <Button variant="outline" onClick={onClose} className="bg-transparent border-[var(--kt-border)] text-[var(--kt-text-dim)]">
             Cancel
           </Button>
+          {/* WAS a blue→purple gradient with two hardcoded Tailwind hues.
+              The design brief allows exactly one accent (emerald, the fund) and
+              one machine tone (violet, Clark), from `studio-theme.css`, and
+              forbids gradient fills outright — the CEO's own word for what a
+              two-hue gradient button looks like is "generic ai slop". This is
+              the Studio's primary button, unchanged in behaviour. */}
           <Button
             onClick={submit}
             disabled={loading}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 text-[var(--kt-text-strong)]"
+            className={KT.btn}
           >
             {loading && <Loader2 className="animate-spin mr-2" size={16} />}
             {loading ? "Saving..." : "Save"}

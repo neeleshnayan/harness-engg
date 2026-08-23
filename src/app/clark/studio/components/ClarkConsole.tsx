@@ -405,7 +405,7 @@ export function ClarkConsole() {
       <button
         onClick={() => setOpen(true)}
         title="Ask Clark about what is on screen (Ctrl/Cmd-K)"
-        className="fixed bottom-5 right-5 z-40 flex h-11 items-center gap-2 rounded-full border border-[var(--kt-agent-border)] bg-[var(--kt-agent-bg)] px-4 text-sm font-medium text-[var(--kt-agent)] shadow-lg backdrop-blur transition hover:border-[var(--kt-agent)]"
+        className="fixed bottom-5 right-5 z-40 flex h-11 items-center gap-2 rounded-full border border-[var(--kt-agent-border)] bg-[var(--kt-agent-bg)] px-4 text-sm font-medium text-[var(--kt-agent)] backdrop-blur transition hover:border-[var(--kt-agent)]"
       >
         <Sparkles size={15} /> Ask Clark
       </button>

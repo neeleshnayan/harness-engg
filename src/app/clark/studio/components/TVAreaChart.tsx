@@ -92,10 +92,10 @@ export function TVAreaChart({ data, height = 220, up, valuePrefix = "", classNam
             tickFormatter={(v) => fmt(Number(v))}
           />
           <Tooltip
-            cursor={{ stroke: "#52525b", strokeWidth: 1 }}
+            cursor={{ stroke: c.axis, strokeWidth: 1 }}
             contentStyle={{
               background: c.bg,
-              border: "1px solid #27272a",
+              border: `1px solid ${c.grid}`,
               borderRadius: 8,
               fontSize: 12,
             }}

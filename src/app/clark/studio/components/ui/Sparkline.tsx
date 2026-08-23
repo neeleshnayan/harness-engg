@@ -20,7 +20,11 @@ export function Sparkline({ data, up, width = 60, height = 24, className = "" }:
 
   // Infer trend if not explicitly provided
   const isUp = typeof up === "boolean" ? up : data[data.length - 1] >= data[0];
-  const color = isUp ? "#34d399" : c.down; // emerald-400 / rose-400
+  // WAS `isUp ? "#34d399" : c.down` — half migrated, and the hardcoded half
+  // was the OLD emerald: the theme moved to #79a98c and every rising
+  // sparkline kept drawing the retired one, beside a falling sparkline that
+  // correctly followed the token. Both halves read the palette now.
+  const color = isUp ? c.up : c.down;
 
   // Format for recharts
   const chartData = data.map((val, i) => ({ val, i }));

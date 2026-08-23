@@ -236,8 +236,8 @@ export default function StrategyComposerPage() {
           <div
             className={`mb-6 flex items-center justify-between rounded-xl border px-4 py-3 text-sm ${
               statusMsg.type === "success"
-                ? "border-emerald-500/30 bg-emerald-500/10 text-[var(--kt-accent)]"
-                : "border-rose-500/30 bg-rose-500/10 text-[var(--kt-down)]"
+                ? "border-[var(--kt-accent-border)] bg-[var(--kt-accent-bg)] text-[var(--kt-accent)]"
+                : "border-[var(--kt-border-strong)] bg-[var(--kt-inset)] text-[var(--kt-down)]"
             }`}
           >
             <div className="flex items-center gap-2">

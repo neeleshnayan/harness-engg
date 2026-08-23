@@ -529,6 +529,86 @@ export function lineageFor(anchor: LineageAnchor, src: LineageSources): Lineage 
 }
 
 /**
+ * ONE LINE FOR A STAGE'S BRAKE DISCLOSURES — because the per-row version is
+ * noise, and noise on every row is how a warning stops being read.
+ *
+ * FOUND BY LOOKING AT THE RENDERED DRAWER, not by the suite: a chain with 17
+ * decisions printed the same sentence — *"the supersession brake was
+ * consulted before this was recorded"* — seventeen times, in a panel whose
+ * whole purpose is to be readable. The rule this codebase already carries
+ * (`reversibilityOf`, `orderingHazard`) is that a sentence which fires on
+ * every row has stopped being information.
+ *
+ * So the reassuring values are COUNTED here and rendered once; the ALARM is
+ * never rolled up, because one skipped brake among sixteen clean ones is
+ * exactly the row a summary would bury.
+ */
+export interface BrakeSummary {
+  /** Rows whose brake was NOT consulted. Rendered individually, always. */
+  alarms: number;
+  checked: number;
+  notApplicable: number;
+  undisclosed: number;
+  /** The one line, or null when there is nothing to say (no rows at all). */
+  line: string | null;
+}
+
+export function brakeSummary(checks: SupersessionCheck[]): BrakeSummary {
+  const n = { alarms: 0, checked: 0, notApplicable: 0, undisclosed: 0 };
+  for (const c of checks) {
+    if (c === "not_consulted") n.alarms += 1;
+    else if (c === "checked") n.checked += 1;
+    else if (c === "not_applicable") n.notApplicable += 1;
+    else n.undisclosed += 1;
+  }
+  if (checks.length === 0) return { ...n, line: null };
+  const parts: string[] = [];
+  if (n.checked) parts.push(`${n.checked} checked`);
+  if (n.notApplicable) parts.push(`${n.notApplicable} not applicable`);
+  if (n.undisclosed) {
+    parts.push(`${n.undisclosed} predating the disclosure (UNKNOWN, not no)`);
+  }
+  // THE ALARM IS NAMED IN THE SUMMARY TOO, even though it is also rendered
+  // per row: a reader who scans only the summary line must not miss it.
+  if (n.alarms) {
+    parts.unshift(`${n.alarms} recorded WITHOUT the brake being consulted`);
+  }
+  return { ...n, line: `supersession brake: ${parts.join(", ")}` };
+}
+
+/**
+ * How many rows in a stage carry the decider's own words.
+ *
+ * Same reason as `brakeSummary`: fifteen copies of "no written instruction was
+ * recorded with this decision" is a wall, and the useful fact is the ratio.
+ * Measured on the live log 2026-08-23: 300 of 551 decision events carry one.
+ */
+export function instructionCoverage(
+  rows: { verbatim: string | null }[],
+): string | null {
+  if (rows.length === 0) return null;
+  const n = rows.filter((r) => r.verbatim !== null).length;
+  if (n === rows.length) return null;   // nothing missing; say nothing
+  return `${n} of ${rows.length} carr${rows.length === 1 ? "ies" : "y"} the `
+    + "decider's own words; the rest recorded none";
+}
+
+/**
+ * Long prose, clamped, with the clamp VISIBLE.
+ *
+ * A lineage drawer is a pointer into the record, not a copy of it. Measured on
+ * the rendered page: one COO run's verdict is ~1,900 characters and rendered
+ * as fourteen lines of 12px prose inside a panel opened to answer "where did
+ * this come from". The full text is one click away on the seat's own page.
+ */
+export function clampText(s: string | null | undefined, max: number): string {
+  const t = (s ?? "").replace(/\s+/g, " ").trim();
+  if (!t) return "";
+  if (t.length <= max) return t;
+  return `${t.slice(0, max - 1).trimEnd()}…`;
+}
+
+/**
  * The stores behind this chain that could not be read, for the ONE warning
  * line the drawer prints above everything.
  *

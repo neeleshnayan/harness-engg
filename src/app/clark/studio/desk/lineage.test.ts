@@ -2,9 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  lineageFor, recRef, reqRef, servesRequests, supersessionCheckIsAlarm,
-  supersessionCheckOf, supersessionCheckSentence, unreadableStages,
-  worstSupersessionCheck,
+  brakeSummary, clampText, instructionCoverage, lineageFor, recRef, reqRef,
+  servesRequests, supersessionCheckIsAlarm, supersessionCheckOf,
+  supersessionCheckSentence, unreadableStages, worstSupersessionCheck,
 } from "./lineage.ts";
 import type {
   DeskSupersessionEdge, DeskView, SpineEvent,
@@ -394,4 +394,71 @@ test("an edge that REPLACES this row is in the chain as well as one that kills i
   });
   assert.equal(l.supersessions.state, "found");
   assert.equal(l.supersessions.rows[0].target_ref, "rec:run-a#1");
+});
+
+/* ------------------------------------------------------- the roll-ups ---- */
+
+test("the ALARM is never rolled away, and is named in the summary too", () => {
+  /* FOUND BY LOOKING AT THE RENDERED DRAWER, not by this suite: a 17-decision
+   * chain printed the same reassuring brake sentence seventeen times, in a
+   * panel whose whole job is to be read. The roll-up is the repair — and its
+   * one hard rule is that summarising must not be able to hide the row that
+   * matters. */
+  const s = brakeSummary(["checked", "checked", "not_consulted", "undisclosed"]);
+  assert.equal(s.alarms, 1);
+  assert.equal(s.checked, 2);
+  assert.equal(s.undisclosed, 1);
+  assert.match(s.line!, /^supersession brake: 1 recorded WITHOUT/,
+    "the alarm must come FIRST in the line — a reader scanning only the "
+    + "summary must not have to read past two reassurances to find it");
+  assert.match(s.line!, /2 checked/);
+  assert.match(s.line!, /1 predating the disclosure \(UNKNOWN, not no\)/);
+});
+
+test("a clean chain's summary states what it checked, never 'all clear'", () => {
+  const s = brakeSummary(["checked", "checked"]);
+  assert.equal(s.alarms, 0);
+  assert.equal(s.line, "supersession brake: 2 checked");
+  assert.ok(!/clear|fine|ok/i.test(s.line!));
+});
+
+test("a chain that discloses nothing says UNKNOWN, and an empty one says nothing", () => {
+  assert.equal(brakeSummary(["undisclosed", "undisclosed"]).line,
+    "supersession brake: 2 predating the disclosure (UNKNOWN, not no)");
+  assert.equal(brakeSummary([]).line, null,
+    "a stage with no rows has nothing to summarise, and an empty summary line "
+    + "would be a claim about a population that does not exist");
+});
+
+test("the summary's four counters partition the input", () => {
+  const input = ["checked", "not_consulted", "not_applicable", "undisclosed",
+                 "checked"] as const;
+  const s = brakeSummary([...input]);
+  assert.equal(s.alarms + s.checked + s.notApplicable + s.undisclosed,
+               input.length, "every row lands in exactly one counter");
+});
+
+test("instruction coverage is a RATIO, and says nothing when nothing is missing", () => {
+  assert.equal(instructionCoverage([{ verbatim: "x" }, { verbatim: "y" }]), null,
+    "a sentence that fires when there is nothing to report is noise");
+  assert.equal(instructionCoverage([]), null);
+  assert.match(instructionCoverage([{ verbatim: "x" }, { verbatim: null }])!,
+               /1 of 2 carry/);
+  assert.match(instructionCoverage([{ verbatim: null }])!, /0 of 1 carries/,
+    "one row is singular; the desk has shipped 'row of that are' before");
+});
+
+test("clampText makes its clamp visible and leaves short text alone", () => {
+  assert.equal(clampText("short", 40), "short");
+  assert.equal(clampText("  a   b  ", 40), "a b", "whitespace is normalised");
+  const long = "x".repeat(300);
+  const out = clampText(long, 50);
+  assert.equal(out.length, 50);
+  assert.ok(out.endsWith("…"), "a silent truncation is a lie about the record");
+  assert.equal(clampText(null, 10), "");
+  assert.equal(clampText(undefined, 10), "");
+  // A string EXACTLY at the limit is not clamped — an off-by-one here would
+  // put an ellipsis on text that fits.
+  assert.equal(clampText("y".repeat(50), 50), "y".repeat(50));
+  assert.ok(clampText("y".repeat(51), 50).endsWith("…"));
 });

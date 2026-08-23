@@ -7,8 +7,18 @@ import { fmtAt } from "./seatLib";
 import { supersessionChip } from "./deskEngine";
 import type { Lineage, LineageStage } from "./lineage";
 import {
-  supersessionCheckIsAlarm, supersessionCheckSentence, unreadableStages,
+  brakeSummary, clampText, instructionCoverage, supersessionCheckIsAlarm,
+  supersessionCheckSentence, unreadableStages,
 } from "./lineage";
+
+/* HOW MUCH PROSE A STAGE MAY SPEND, measured against the rendered drawer
+ * rather than chosen. One COO run's verdict is ~1,900 characters and filled
+ * fourteen lines of a panel opened to answer "where did this come from"; a
+ * recommendation's text runs to four. The full text is one click away on the
+ * seat's page, and the clamp is always visible. */
+const TASK_MAX = 200;
+const VERDICT_MAX = 260;
+const REC_MAX = 220;
 
 /**
  * THE CHAIN BEHIND ONE ROW, rendered INLINE under it.
@@ -91,6 +101,26 @@ function BrakeLine({ check }: { check: Parameters<typeof supersessionCheckSenten
   );
 }
 
+/** The decisions stage's two rolled-up facts, folded ONCE. */
+function DecisionsFoot({ rows }: { rows: Lineage["decisions"]["rows"] }) {
+  const coverage = instructionCoverage(rows);
+  const brake = brakeSummary(rows.map((d) => d.supersessionReadable));
+  if (!coverage && !brake.line) return null;
+  return (
+    <div className="border-t border-[var(--kt-border)] pt-2">
+      {coverage && (
+        <p className={`text-[11px] leading-relaxed ${KT.muted}`}>{coverage}</p>
+      )}
+      {brake.line && (
+        <p className={`mt-0.5 text-[11px] leading-relaxed ${
+          brake.alarms > 0 ? KT.sev.warn : KT.muted}`}>
+          {brake.line}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function LineageView({ lineage }: { lineage: Lineage }) {
   const outages = unreadableStages(lineage);
   return (
@@ -108,7 +138,9 @@ export function LineageView({ lineage }: { lineage: Lineage }) {
       <StageBlock title="1 · the ask" stage={lineage.request}>
         {lineage.request.rows.map((r) => (
           <div key={r.requestId}>
-            <p className={`text-[12px] leading-relaxed ${KT.body}`}>{r.subject}</p>
+            <p className={`text-[12px] leading-relaxed ${KT.body}`}>
+              {clampText(r.subject, TASK_MAX)}
+            </p>
             <Line>
               {r.actor ?? "unattributed"} asked {r.seat ?? "—"} · {r.kind ?? "no kind"}
               {" · "}{r.at ? fmtAt(r.at) : "undated"} · {r.status ?? "no status"}
@@ -138,10 +170,12 @@ export function LineageView({ lineage }: { lineage: Lineage }) {
       <StageBlock title="3 · what came back" stage={lineage.runs}>
         {lineage.runs.rows.map((r) => (
           <div key={r.runId}>
-            <p className={`text-[12px] leading-relaxed ${KT.body}`}>{r.task}</p>
+            <p className={`text-[12px] leading-relaxed ${KT.body}`}>
+              {clampText(r.task, TASK_MAX)}
+            </p>
             {r.verdict && (
               <p className={`mt-0.5 text-[12px] leading-relaxed text-[var(--kt-text)]`}>
-                {r.verdict}
+                {clampText(r.verdict, VERDICT_MAX)}
               </p>
             )}
             <Line>
@@ -156,7 +190,9 @@ export function LineageView({ lineage }: { lineage: Lineage }) {
       <StageBlock title="4 · what it recommended" stage={lineage.recommendations}>
         {lineage.recommendations.rows.map((r) => (
           <div key={`${r.run_id}#${r.rec_id}`}>
-            <p className={`text-[12px] leading-relaxed ${KT.body}`}>{r.text}</p>
+            <p className={`text-[12px] leading-relaxed ${KT.body}`}>
+              {clampText(r.text, REC_MAX)}
+            </p>
             <Line>
               {r.seat} · rec {r.rec_id} · {r.status}
               {" · "}{r.due_date ? `due ${r.due_date}` : "no date"}
@@ -168,6 +204,18 @@ export function LineageView({ lineage }: { lineage: Lineage }) {
         ))}
       </StageBlock>
 
+      {/* THE ROLL-UP, AND WHY IT IS NOT CONCEALMENT.
+          Found by looking at the rendered drawer: a 17-decision chain printed
+          "the supersession brake was consulted before this was recorded"
+          seventeen times and "no written instruction was recorded with this
+          decision" fifteen times, in a panel whose whole job is to be read. A
+          sentence that fires on every row has stopped being information.
+
+          So the REASSURING values are counted once at the foot of the stage
+          and the ALARM is still rendered on its own row, every time — one
+          skipped brake among sixteen clean ones is exactly the row a summary
+          would bury, and it is also named in the summary line so a reader who
+          scans only that line cannot miss it. */}
       <StageBlock title="5 · what was decided" stage={lineage.decisions}>
         {lineage.decisions.rows.map((d, i) => (
           <div key={`${d.runId}#${d.recId}#${i}`}>
@@ -175,28 +223,28 @@ export function LineageView({ lineage }: { lineage: Lineage }) {
               {d.actor ?? "no actor recorded"} · {d.status} · rec {d.recId}
               {" · "}{d.at ? fmtAt(d.at) : "undated"}
             </Line>
-            {/* VERBATIM, IN QUOTES, OR NOT AT ALL. 300 of 551 decision events
-                carry one; empty quotation marks under the other 251 would
-                suggest the decider said nothing when the record simply holds
-                nothing. */}
-            {d.verbatim ? (
+            {/* VERBATIM, IN QUOTES, OR NOT AT ALL. Empty quotation marks under
+                a decision that recorded no words would suggest the decider
+                said nothing when the record simply holds nothing. */}
+            {d.verbatim && (
               <p className={`mt-1 border-l border-[var(--kt-border)] pl-3 text-[12px] leading-relaxed ${KT.body}`}>
                 “{d.verbatim}”
               </p>
-            ) : (
-              <p className={`mt-1 text-[11px] ${KT.muted}`}>
-                no written instruction was recorded with this decision
-              </p>
             )}
-            <BrakeLine check={d.supersessionReadable} />
+            {supersessionCheckIsAlarm(d.supersessionReadable) && (
+              <BrakeLine check={d.supersessionReadable} />
+            )}
           </div>
         ))}
+        <DecisionsFoot rows={lineage.decisions.rows} />
       </StageBlock>
 
       <StageBlock title="6 · evidence it was carried out" stage={lineage.execution}>
         {lineage.execution.rows.map((e, i) => (
           <div key={i}>
-            <p className={`text-[12px] leading-relaxed ${KT.body}`}>{e.text}</p>
+            <p className={`text-[12px] leading-relaxed ${KT.body}`}>
+              {clampText(e.text, VERDICT_MAX)}
+            </p>
             <Line>
               {e.actor ?? "no actor recorded"} · {e.at ? fmtAt(e.at) : "undated"}
             </Line>

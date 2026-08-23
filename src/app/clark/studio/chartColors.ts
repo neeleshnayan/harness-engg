@@ -12,8 +12,19 @@ import { useKtTheme } from "./ThemeToggle";
  * a color — it throws "Cannot parse color". So charts read literal hexes from
  * this hook instead.
  *
- * Values MUST mirror `studio-theme.css`. If you change a color there, change it
- * here too — these are the same palette expressed for a different consumer.
+ * Values MUST mirror `studio-theme.css`, and `chartColors.test.ts` PARSES that
+ * file and asserts it, token by token, in both themes. That test exists because
+ * the sentence above shipped as a comment and nothing checked it: measured
+ * 2026-08-23, EVERY dark-theme value here had drifted from the stylesheet —
+ * `accent` was `#34d399` against the theme's `#79a98c`, `down` `#fb7185`
+ * against `#ce7681`, `bg` `#0a0a0b` against `#0b0c0e`. Every chart in the
+ * Studio was being drawn in a brighter palette than the page it sat on, which
+ * is exactly the drift theme.ts's own header says the CSS-variable split
+ * exists to prevent. A rule kept by a comment is not kept.
+ *
+ * `series` is the one field with no counterpart in the stylesheet — a
+ * categorical ramp has no semantic token — so it is literal by necessity and
+ * the test says so rather than pretending otherwise.
  */
 export interface ChartColors {
   bg: string;
@@ -33,35 +44,38 @@ export interface ChartColors {
 }
 
 const DARK: ChartColors = {
-  bg: "#0a0a0b",
-  surface: "#111113",
-  grid: "#27272a",
-  axis: "#3f3f46",
-  text: "#f4f4f5",
-  textDim: "#a1a1aa",
-  textMuted: "#71717a",
-  accent: "#34d399",
-  accentSoft: "#6ee7b7",
-  up: "#34d399",
-  down: "#fb7185",
-  warn: "#fbbf24",
-  series: ["#34d399", "#10b981", "#6ee7b7", "#38bdf8", "#a78bfa", "#fbbf24"],
+  bg: "#0b0c0e",            // --kt-bg
+  surface: "#14161a",       // --kt-surface
+  grid: "#22252b",          // --kt-border, as hex
+  axis: "#343941",          // --kt-border-strong, as hex
+  text: "#c9ccd1",          // --kt-text
+  textDim: "#9ba0a8",       // --kt-text-dim
+  textMuted: "#6c727a",     // --kt-text-muted
+  accent: "#79a98c",        // --kt-accent
+  accentSoft: "#9cc2ac",    // --kt-accent-soft
+  up: "#79a98c",            // --kt-up
+  down: "#ce7681",          // --kt-down
+  warn: "#c9a227",          // --kt-warn
+  // The categorical ramp: accent, accent-soft, up, the agent hue, its soft
+  // form, and warn. Every entry is a token from the stylesheet, so a donut
+  // slice cannot be a colour the rest of the Studio has never used.
+  series: ["#79a98c", "#9cc2ac", "#a5b4d4", "#c3cee4", "#c9a227", "#ce7681"],
 };
 
 const LIGHT: ChartColors = {
-  bg: "#fafaf9",
-  surface: "#ffffff",
-  grid: "#e7e5e4",
-  axis: "#d6d3d1",
-  text: "#27272a",
-  textDim: "#57534e",
-  textMuted: "#78716c",
-  accent: "#047857",
-  accentSoft: "#059669",
-  up: "#047857",
-  down: "#be123c",
-  warn: "#b45309",
-  series: ["#047857", "#059669", "#0d9488", "#0369a1", "#6d28d9", "#b45309"],
+  bg: "#fafaf8",            // --kt-bg
+  surface: "#ffffff",       // --kt-surface
+  grid: "#e3e1db",          // --kt-border, as hex
+  axis: "#cfccc4",          // --kt-border-strong, as hex
+  text: "#33373d",          // --kt-text
+  textDim: "#565b63",       // --kt-text-dim
+  textMuted: "#8a8f97",     // --kt-text-muted
+  accent: "#2f6b48",        // --kt-accent
+  accentSoft: "#3f7a57",    // --kt-accent-soft
+  up: "#2f6b48",            // --kt-up
+  down: "#9c3742",          // --kt-down
+  warn: "#8a6410",          // --kt-warn
+  series: ["#2f6b48", "#3f7a57", "#4a5878", "#5b6b8f", "#8a6410", "#9c3742"],
 };
 
 export function useChartColors(): ChartColors {
