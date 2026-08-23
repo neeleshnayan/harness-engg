@@ -134,6 +134,24 @@ memory notes):**
     risks; no design around PDT (retired); same-session opposite-side
     collisions are a scheduling rule, not a size cap.
 
+12. **THE CONSTANT-OBSERVABLE CONTROL (added 2026-08-23, from the
+    adversary's batch-#2 double kill — P1's signal measured worth +0.61
+    of +25.94 bps/mo, t=0.05):** every conditional rule reports the
+    paired marginal — the same rule with its observable frozen to a
+    constant, identical trades — with its t-stat in the header. And the
+    mechanism test runs ONLY on observations where the conditional and
+    unconditional versions DIFFER; a test run where they coincide cannot
+    fail and proves nothing.
+13. **THE TRAILING-WINDOW LADDER (same source):** 24/36/48/72/96-month
+    trailing breakevens replace the author-chosen era table. An honest
+    era split can hide the decay inside its last cell — P2's era test
+    passed while its trailing-24m breakeven read 3.51 against a 10 floor.
+14. **CITATION DISCIPLINE (same source):** a cited window counts as a
+    pre-declaration only with the paper's own defining sentence QUOTED.
+    A sweep table is not a pre-declaration. When a payer is pinned to a
+    date by a document, split the window at that date and report both
+    halves.
+
 **THE HYPOTHESIS GRAMMAR (added 2026-08-23, CEO acceptance of the harvested
 half of the "Idea Garden" pitch — the mutation-engine core was killed on the
 validator's family-wise numbers; this schema is what survived).** Every

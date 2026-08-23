@@ -516,3 +516,7 @@ When you cite a measured bias in a recommendation, check that the correction has
 ## 2026-08-23 - CARRIED FROM ED (batch #2) BY THE CHAIR
 
 P1 and P2 collide at the month-end close in TLT (P2 sells where P1 may buy, same session) - if both ever deploy, the resolution is a scheduling rule or book-level netting, never a size cap. Also from Doc's shelf via Ed: a pre-earnings-calibrated vol stop is ~6% too tight on earnings-spanning holds (post-earnings realised vol is ELEVATED, not crushed).
+
+## 2026-08-23 - CARRIED FROM THE ADVERSARY (Ed batch #2 review) BY THE CHAIR
+
+P1/P2 both killed (the TLT collision note is moot). Keep the shape: two candidates whose headers disclose a shared premise can die on entirely independent grounds - the shared premise (calendar-mandated month-end flows) was verified against primary sources and SURVIVES both kills. Do not retire the family in your incumbency comparisons.

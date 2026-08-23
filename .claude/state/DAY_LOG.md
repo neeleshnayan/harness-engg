@@ -123,6 +123,21 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   is fired and discharged by this work — the register cannot record
   either; recorded here, and the evaluability ticket (a26debb9 family)
   remains the owner.
+- **ADVERSARY ON P1/P2: KILL / KILL - both on falsifiers the proposals
+  themselves wrote, at zero container cost, with every headline number
+  reproduced EXACTLY (identification failures, not competence).** P1: the
+  signal is worth 2.3% of its own headline - always-SPY-at-the-turn with
+  identical trades earns 98%, and the tercile falsifier ran on months
+  where the two rules are the same portfolio. P2: the payer detached from
+  the methodology-pinned date; the claimed last-3 pre-declaration does
+  not exist in the paper; trailing-24m BE 3.51 vs floor 10. The shared
+  calendar-flows premise SURVIVES (both citations verified exact) - the
+  family stays open with two named re-entry paths. Three tightening
+  standards applied to Ed's card at resolve (constant-observable control;
+  trailing ladder; citation discipline - items 12-14). Funnel: back to
+  zero candidates awaiting; Ed's batch #3 fires under the new standards.
+  Filed: docs/reviews/ADVERSARY_EDBATCH2_2026-08-23.md; run
+  run-adversary-edbatch2.
 - **ED BATCH #2 DELIVERED - the first grammar-era batch and the experiment
   earned its keep on its first outing.** TWO adversary-ready candidates at
   ZERO containers: P1 (Entry 11 advanced, 282 months, placebo-dead,

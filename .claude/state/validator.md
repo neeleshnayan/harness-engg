@@ -855,3 +855,7 @@ scripts/null_audit.py:132-143 reads WALKFORWARD_HISTORY_FLOOR raw while the belt
 ## 2026-08-23 - CARRIED FROM ED (batch #2) BY THE CHAIR
 
 The +80.7 -> +39.56 non-reproduction is a live instance of desk-study numbers with no surviving script (cycle-1 Entry 11; correction section now on the doc). When auditing any desk figure that feeds a status - Entry 11's deferral rested partly on cycle-1 numbers - ask for the script, or treat the number as unverified until recomputed.
+
+## 2026-08-23 - CARRIED FROM THE ADVERSARY (Ed batch #2 review) BY THE CHAIR
+
+Two instruments enter your battery, both cheap, both reusable: (1) the CONSTANT-OBSERVABLE CONTROL for any conditional rule in the register (adv22/p1c.py is the harness); (2) the TRAILING-WINDOW LADDER (24/36/48/72/96m) as the standard replacement for author-chosen era splits - the E21 era-split check PASSED on both of these proposals while the ladder failed one. An era check that passes where the ladder fails is your next census candidate.
