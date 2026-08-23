@@ -209,13 +209,31 @@ def probabilistic_sharpe_ratio(sharpe: float, n_obs: int,
     tails both *lower* the probability for the same Sharpe, which is exactly the
     correction a strategy that sells tails needs applied to it.
     """
+    g3 = skewness(returns) if returns else 0.0
+    g4 = kurtosis(returns) if returns else 3.0
+    return psr_from_moments(n_obs, sharpe, g3, g4, target_sharpe)
+
+
+def psr_from_moments(n_obs: int, sharpe: float, skew: float, kurt: float,
+                     target_sharpe: float = 0.0) -> dict[str, Any]:
+    """PSR from the four sufficient statistics, with no series in hand.
+
+    THE ONE PLACE THE z FORMULA IS WRITTEN. ``probabilistic_sharpe_ratio``
+    derives the two shape moments from a series and delegates here; the premia
+    luck filter reads the moments the belt STORED for a difference series it no
+    longer has. Two spellings of Bailey & López de Prado's z would be two
+    statistics wearing one name, and the difference would surface as a criterion
+    that disagrees with the capture block beside it.
+
+    ``sharpe`` and ``target_sharpe`` are PER OBSERVATION, on the same base as
+    ``n_obs``; ``kurt`` is NON-excess (a normal distribution gives 3.0).
+    """
     n = int(n_obs)
     if n < 2:
         return {"usable": False, "reason": "fewer than 2 observations", "n_obs": n}
     sr = float(sharpe)
-    g3 = skewness(returns) if returns else 0.0
-    g4 = kurtosis(returns) if returns else 3.0
-    shape = 1.0 - g3 * sr + ((g4 - 1.0) / 4.0) * (sr ** 2)
+    g3, g4 = float(skew), float(kurt)
+    shape = _psr_shape(sr, g3, g4)
     if shape <= 0:
         # A degenerate moment estimate, not a licence to claim certainty.
         return {
@@ -241,6 +259,301 @@ def probabilistic_sharpe_ratio(sharpe: float, n_obs: int,
             f"{float(target_sharpe):.2f}; anything under 95% is not evidence of an edge"
         ),
     }
+
+
+#: A dispersion at or below this is NO dispersion, not a small one. The floor is
+#: relative to the mean because that is the scale the cancellation happens on,
+#: with an absolute backstop for a series centred on zero. Measured (D23): 100
+#: copies of 0.001 give `sum((x - mu)**2)` around 1e-19 and a Sharpe of order
+#: 1e16 — which a bare `sd > 0` accepts and a luck filter would then score at
+#: 100%. ONE definition, shared by `leg_moments` and `psr_from_series`, because
+#: two spellings of "is this leg flat" is the two-copies-of-one-belief defect.
+def _no_dispersion(mu: float, sd: float) -> bool:
+    return sd <= max(1e-12, abs(mu) * 1e-9)
+
+
+def psr_from_series(returns: Sequence[float] | None,
+                    target_sharpe: float = 0.0) -> dict[str, Any]:
+    """The luck filter, derived from a return SERIES rather than a headline.
+
+    ``probabilistic_sharpe_ratio`` takes a Sharpe and a sample size and trusts
+    the caller to have put them on the same clock. This is the ONE place that
+    derives them from the observations, and it exists because the derivation —
+    not the formula — is where the two readings of "the PSR" diverged:
+
+      * The per-observation Sharpe is ``mean / stdev`` over the SAME n the count
+        reports, never an annualised figure. Bailey & López de Prado's z scales
+        with ``sqrt(n - 1)`` against a per-observation SR; feeding it an
+        annualised Sharpe multiplies the statistic by ``sqrt(K)`` and reports a
+        confidence the sample does not support.
+      * A flat leg is UNMEASURABLE, not certain. See ``_no_dispersion``.
+
+    ``target_sharpe`` is on the same per-observation base. Zero is the
+    documented job of this statistic — "is the true Sharpe above nothing" — and
+    is the only target for which the sentence "not distinguishable from luck"
+    is true. Any other target is a SKILL HURDLE and the caller must say so in
+    its own words; this function will compute it and will not name it.
+
+    THE CLOCK QUESTION, measured rather than argued (2026-08-24, four control
+    candidates, ``scratchpad/d36probe/fold1.py``): a LEAN equity series carries
+    one point per CALENDAR day, so roughly 29% of its observations are weekend
+    zeros. Dropping them changes this statistic by at most 0.063pp on the four
+    controls (85.030 -> 85.019, 90.357 -> 90.346, 50.153 -> 50.151, 78.339 ->
+    78.276): the smaller n and the larger per-observation Sharpe very nearly
+    cancel. So the series is scored AS THE BELT ALIGNED IT, and the reason that
+    is safe is a measurement rather than an assumption.
+    """
+    r = _clean(returns)
+    out: dict[str, Any] = {
+        "measurable": False,
+        "psr_pct": None,
+        "sharpe_per_obs": None,
+        "n_obs": len(r),
+        "target_sharpe": float(target_sharpe),
+        "skew": None,
+        "kurtosis": None,
+        "reason": None,
+    }
+    if len(r) < 2:
+        out["reason"] = (f"{len(r)} usable observation(s) — a probability needs "
+                         f"a sample, and an absent one is not a confident one")
+        return out
+    mu, sd = mean_std(r)
+    if _no_dispersion(mu, sd):
+        out["reason"] = ("the series has no dispersion, so no Sharpe exists for "
+                         "it and no probability can be attached to one")
+        return out
+    sr = mu / sd
+    inner = probabilistic_sharpe_ratio(sr, len(r), r, float(target_sharpe))
+    if not inner.get("usable"):
+        out["reason"] = inner.get("reason")
+        return out
+    out.update({
+        "measurable": True,
+        "psr_pct": inner["psr_pct"],
+        "sharpe_per_obs": round(sr, 8),
+        "skew": inner.get("skew"),
+        "kurtosis": inner.get("kurtosis"),
+    })
+    return out
+
+
+def sharpe_advantage_series(strategy: Sequence[float] | None,
+                            benchmark: Sequence[float] | None) -> dict[str, Any]:
+    """The moments of the SHARPE-ADVANTAGE series, so a luck filter can score it.
+
+    A premia claim is "better risk-adjusted return than holding the asset", and
+    the quantity it asserts is positive is ``SR_s - SR_b``, not ``SR_s``. Asking
+    a luck filter about the strategy's ABSOLUTE Sharpe answers a question the
+    claim never made — a low-volatility overlay with a real advantage can have a
+    modest absolute Sharpe, and a beta-heavy book with no advantage at all can
+    have a large one.
+
+    THE CONSTRUCTION, and why it is this one. Scale each leg by its OWN standard
+    deviation and difference them per observation:
+
+        d_t = r_s,t / sd_s  -  r_b,t / sd_b
+
+    Then ``mean(d) == SR_s - SR_b`` EXACTLY, per observation, so the series' own
+    mean is the advantage itself and ``psr_from_moments`` applied to d answers
+    "what is the probability the true advantage exceeds zero" using the same
+    machinery, the same level and the same skew/kurtosis correction the alpha
+    bar uses. Nothing new is invented and nothing is assumed normal.
+
+    WHY NOT JOBSON-KORKIE / MEMMEL. The textbook standard error for a difference
+    of Sharpe ratios is normal-theory and needs the two legs' correlation as a
+    separate input. These candidates carry a kurtosis of 24 to 196, where the
+    normal-theory error is UNDERSTATED — which points in the admitting
+    direction, the one direction this fund does not accept a convenience in. The
+    difference series carries the correlation implicitly (a pair that moves
+    together has a small dispersion in d) and carries its own fat tails into the
+    same correction the rest of the gate already applies.
+
+    WHAT IT DOES NOT MODEL, said plainly: ``sd_s`` and ``sd_b`` are estimated on
+    the same sample they scale, so d treats two estimates as known constants.
+    This is the same simplification Bailey & López de Prado's PSR makes for a
+    single leg, and at the sample sizes the belt produces it is small — but it
+    is a simplification, not an exact distribution.
+
+    PAIRED, OR NOTHING. Two series of different lengths are not a difference;
+    they are two measurements of different things, and the honest answer is that
+    the advantage is unmeasurable.
+    """
+    s = _clean(strategy)
+    b = _clean(benchmark)
+    out: dict[str, Any] = {
+        "measurable": False, "n": len(s), "mean_per_obs": None, "stdev": None,
+        "sharpe_per_obs": None, "skew": None, "kurtosis": None,
+        "sharpe_strategy_per_obs": None, "sharpe_benchmark_per_obs": None,
+        "reason": None,
+    }
+    if len(s) != len(b):
+        out["reason"] = (f"the strategy leg has {len(s)} usable observations and "
+                         f"the bar has {len(b)} — an unpaired difference is not "
+                         f"an advantage")
+        return out
+    if len(s) < 2:
+        out["reason"] = (f"{len(s)} paired observation(s) — nothing to measure, "
+                         f"which is not the same as no advantage")
+        return out
+    mu_s, sd_s = mean_std(s)
+    mu_b, sd_b = mean_std(b)
+    if _no_dispersion(mu_s, sd_s) or _no_dispersion(mu_b, sd_b):
+        out["reason"] = ("one leg has no dispersion, so it has no Sharpe and "
+                         "their difference does not exist")
+        return out
+    d = [x / sd_s - y / sd_b for x, y in zip(s, b)]
+    mu_d, sd_d = mean_std(d)
+    if _no_dispersion(mu_d, sd_d):
+        # Two legs that differ by an exact constant multiple. The advantage is
+        # then a number with no sampling variation IN THIS SAMPLE, which is a
+        # degenerate estimate rather than a certain one.
+        out["reason"] = ("the two legs differ by a constant, so the advantage "
+                         "has no dispersion and no probability attaches to it")
+        return out
+    out.update({
+        "measurable": True,
+        "n": len(d),
+        "mean_per_obs": mu_d,
+        "stdev": sd_d,
+        "sharpe_per_obs": mu_d / sd_d,
+        "skew": skewness(d),
+        "kurtosis": kurtosis(d),
+        "sharpe_strategy_per_obs": mu_s / sd_s,
+        "sharpe_benchmark_per_obs": mu_b / sd_b,
+    })
+    return out
+
+
+def _psr_shape(sr: float, g3: float, g4: float) -> float:
+    """The variance term under PSR's square root. One spelling, three callers."""
+    return 1.0 - g3 * sr + ((g4 - 1.0) / 4.0) * (sr ** 2)
+
+
+def _psr_moments(returns: Sequence[float] | None) -> tuple | None:
+    """(n, per-observation Sharpe, skew, kurtosis) or None when unmeasurable."""
+    r = _clean(returns)
+    if len(r) < 2:
+        return None
+    mu, sd = mean_std(r)
+    if _no_dispersion(mu, sd):
+        return None
+    return len(r), mu / sd, skewness(r), kurtosis(r)
+
+
+def implied_target_sharpe(psr_pct: float,
+                          returns: Sequence[float] | None) -> dict[str, Any]:
+    """WHAT TARGET was a reported PSR measured against? Inverted, not assumed.
+
+    A PSR is meaningless without the ``SR*`` it was computed against, and LEAN
+    publishes a ``Probabilistic Sharpe Ratio`` and no target for it (the engine's
+    statistics block carries no ``Benchmark Sharpe Ratio`` key — verified on a
+    real 27-key block, candidate 144387901688). The formula is invertible, so the
+    target can be RECOVERED from the run's own series instead of guessed:
+
+        z = Phi^-1(PSR);  SR* = SR - z * sqrt(shape(SR)) / sqrt(n - 1)
+
+    This is the identification the fund previously carried as a table of four
+    numbers in a comment. Computing it per candidate means the disclosure cannot
+    go stale and cannot describe a different candidate than the one being judged.
+
+    Returns ``measurable: False`` rather than a number at PSR of exactly 0% or
+    100%, where the normal inverse is infinite and the target is unrecoverable.
+    """
+    out: dict[str, Any] = {"measurable": False, "target_per_obs": None,
+                           "reason": None}
+    m = _psr_moments(returns)
+    if m is None:
+        out["reason"] = ("no usable return series, so the target this PSR was "
+                         "measured against cannot be recovered")
+        return out
+    n, sr, g3, g4 = m
+    try:
+        p = float(psr_pct) / 100.0
+    except (TypeError, ValueError):
+        out["reason"] = "the reported PSR is not a number"
+        return out
+    if not 0.0 < p < 1.0:
+        out["reason"] = (f"a reported PSR of {psr_pct}% pins the target at "
+                         f"infinity; it cannot be inverted")
+        return out
+    shape = _psr_shape(sr, g3, g4)
+    if shape <= 0:
+        out["reason"] = ("the return distribution gives a non-positive variance "
+                         "term, so the inversion has no real solution")
+        return out
+    z = _N.inv_cdf(p)
+    out.update({
+        "measurable": True,
+        "target_per_obs": sr - z * math.sqrt(shape) / math.sqrt(n - 1),
+        "sharpe_per_obs": sr,
+        "n_obs": n,
+    })
+    return out
+
+
+def sharpe_bar_for_psr(level_pct: float, returns: Sequence[float] | None,
+                       target_sharpe: float = 0.0) -> dict[str, Any]:
+    """The per-observation Sharpe a series of THIS shape needs to clear a PSR level.
+
+    This is what a PSR threshold actually TESTS, and a criterion that cannot
+    state it is asking a question in units nobody can check. Solving
+    ``(x - SR*)^2 (n-1) = z^2 * shape(x)`` for x is a quadratic:
+
+        x^2 [ (n-1) - z^2 (g4-1)/4 ]  +  x [ z^2 g3 - 2 SR* (n-1) ]
+                                      +  [ SR*^2 (n-1) - z^2 ]  =  0
+
+    Solved in closed form and then VERIFIED by evaluating the PSR at the root:
+    the squaring can introduce a solution below the target, and the shape term is
+    not monotone in x, so a bisection would be unsound and an unverified root
+    would be arithmetic rather than an answer. Unverifiable roots return
+    ``measurable: False`` — this figure is a DISCLOSURE and must never be able to
+    break the verdict it explains.
+    """
+    out: dict[str, Any] = {"measurable": False, "sharpe_per_obs": None,
+                           "reason": None}
+    m = _psr_moments(returns)
+    if m is None:
+        out["reason"] = "no usable return series to state a bar against"
+        return out
+    n, _sr, g3, g4 = m
+    try:
+        lv = float(level_pct) / 100.0
+    except (TypeError, ValueError):
+        out["reason"] = "the level is not a number"
+        return out
+    if not 0.0 < lv < 1.0:
+        out["reason"] = (f"a level of {level_pct}% is not a probability strictly "
+                         f"between 0 and 100, so no finite bar exists")
+        return out
+    z = _N.inv_cdf(lv)
+    t = float(target_sharpe)
+    a = (n - 1) - z * z * (g4 - 1.0) / 4.0
+    b = z * z * g3 - 2.0 * t * (n - 1)
+    c = t * t * (n - 1) - z * z
+    roots: list[float] = []
+    if abs(a) < 1e-18:
+        if abs(b) > 1e-18:
+            roots.append(-c / b)
+    else:
+        disc = b * b - 4.0 * a * c
+        if disc >= 0:
+            rt = math.sqrt(disc)
+            roots.extend([(-b + rt) / (2.0 * a), (-b - rt) / (2.0 * a)])
+    valid = []
+    for x in sorted(roots):
+        shape = _psr_shape(x, g3, g4)
+        if shape <= 0:
+            continue
+        got = _N.cdf((x - t) * math.sqrt(n - 1) / math.sqrt(shape)) * 100.0
+        if abs(got - float(level_pct)) < 1e-6:
+            valid.append(x)
+    if not valid:
+        out["reason"] = ("no Sharpe reproduces this level for a series of this "
+                         "shape, so the bar cannot be stated")
+        return out
+    out.update({"measurable": True, "sharpe_per_obs": min(valid), "n_obs": n})
+    return out
 
 
 def min_track_record_length(sharpe: float, n_obs: int, returns: Sequence[float] | None = None,
@@ -453,15 +766,11 @@ def leg_moments(returns: Sequence[float], dates: Sequence[str]) -> dict[str, Any
         return out
     mu, sd = mean_std(r)
     k = float(clock["obs_per_year"])
-    # A CONSTANT SERIES DOES NOT HAVE A TINY VOLATILITY, IT HAS NONE.
-    # `sum((x - mu)**2)` over 100 copies of 0.001 is not exactly zero in
-    # binary floating point — the mean lands at 0.0010000000000000005 — so a
-    # bare `sd > 0` accepts a dispersion of 1e-19 and hands back a Sharpe of
-    # order 1e16. Found while writing the test that asserts a flat leg is
-    # unmeasurable; it passed as measurable. The floor is relative to the mean
-    # because that is the scale the cancellation happens on, with an absolute
-    # backstop for a series centred on zero.
-    if sd <= max(1e-12, abs(mu) * 1e-9):
+    # A CONSTANT SERIES DOES NOT HAVE A TINY VOLATILITY, IT HAS NONE. The floor
+    # itself lives once, in `_no_dispersion`, and is shared with the luck filter
+    # — a leg this function calls flat and the filter calls measurable would be
+    # two answers to one question.
+    if _no_dispersion(mu, sd):
         sd = 0.0
     dd = max_drawdown(r)
     total = 1.0

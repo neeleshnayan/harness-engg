@@ -1535,6 +1535,17 @@ class LeanRunner:
             # four lines below — the same reason `daily_returns` is computed
             # here and not from the downsampled curve.
             "exposure": gross_exposure(charts),
+            # AND WHAT IT WEIGHED ON EACH DAY, for the cash-carry credit. The
+            # maxima above answer "was this book levered"; only the dated series
+            # answers "how much of it sat in cash on the day the bar charged it
+            # a cash rate". Stored rather than threaded through the enricher
+            # because a premia payload that cannot be REBUILT from a stored
+            # result is a payload no probe and no re-judgement can check — and
+            # this fund verifies far more off stored results than off live runs.
+            # Measured cost: ~37 KB on a 118 KB result (a 1,937-day run,
+            # 2026-08-24), against a `daily_returns` block of 72 KB carried for
+            # the same reason.
+            "invested_weight": invested_weights(charts),
             "orders": _orders(best),
             # `daily` is handed in UNDOWNSAMPLED and before the thinning above,
             # because the PSR capture needs the sample length the engine
@@ -2012,21 +2023,40 @@ def premia_inputs(result: dict[str, Any], rf_bars: Any = None,
     ``gross_measurable`` are carried here from the engine's own exposure chart
     (``gross_exposure``), and the gate refuses what it cannot measure.
 
-    THREE MEASURABILITY FLAGS, deliberately, because they answer different
-    questions and only two of them are read by a criterion.
+    THE FOURTH DEFECT THIS CLOSES, added 2026-08-24 from the positive-control
+    round (quant, run-quant-metacontrols). Subtracting the realised cash rate
+    from a book that HELD cash charges it a rate the engine never paid it: LEAN
+    pays 0% on idle balances. The correction is per observation and it is
+    ``w_t * rf_t`` in place of ``rf_t`` — see ``invested_weights`` for the
+    arithmetic and for why the benchmark leg is not credited. It ADMITS
+    candidates, which is why it is versioned, disclosed and adversary-reviewed
+    rather than shipped as a bug fix.
+
+    AND THE ADVANTAGE ITSELF IS NOW MEASURED, not only the two legs. A premia
+    claim asserts that ``SR_s - SR_b`` is positive, so ``advantage`` carries the
+    moments of the series whose mean IS that difference
+    (``statistics.sharpe_advantage_series``) and the gate's luck filter scores
+    THAT rather than the strategy's absolute Sharpe.
+
+    FOUR MEASURABILITY FLAGS, deliberately, because they answer different
+    questions and only three of them are read by a criterion.
     ``measurable`` is the RAW pair — it gates ``gate.volatility_check``, which
     is capture only, and its meaning is unchanged from schema 1.
     ``excess_measurable`` is the pair the premia CRITERION is judged on, and it
     is False whenever the cash leg could not be read. ``gross_measurable`` says
     whether the book's leverage is known, and it is INDEPENDENT of both: a run
     can have a perfect excess pair and an unreadable exposure chart, and that
-    run's premia claim is not measurable even though its Sharpe is. Collapsing
-    any two of them would have made one outage delete another capture.
+    run's premia claim is not measurable even though its Sharpe is.
+    ``cash_credit["measurable"]`` says whether the invested weight is known, and
+    ``excess_measurable`` now DEPENDS on it: an UNCREDITED excess pair is the
+    biased one, so forming it and judging it anyway would ship the defect with a
+    flag beside it. Collapsing any of them would make one outage delete another
+    capture.
     """
     from app.fund import statistics as _stats
 
     out: dict[str, Any] = {"measurable": False, "excess_measurable": False,
-                           "gross_measurable": False, "schema": 3}
+                           "gross_measurable": False, "schema": 4}
     # THE BOOK'S LEVERAGE, carried into the premia payload BEFORE any of the
     # early returns below. A payload that says nothing about gross exposure is
     # the payload the D29 kill was written about, and a reader should get the
@@ -2193,13 +2223,87 @@ def premia_inputs(result: dict[str, Any], rf_bars: Any = None,
         out["reason"] = (strat.get("reason") or bench.get("reason")
                          or "one leg carried no usable dispersion")
 
+    # --- the CASH CREDIT, which decides what "excess" even means -----------
+    #
+    # The engine pays 0% on idle cash and the bar subtracts the realised rate
+    # from both legs, so a cash-heavy book is charged a rate it never earned.
+    # `invested_weights` carries the why; what happens HERE is the alignment,
+    # and the alignment is where it could go wrong quietly: a weight read off
+    # the wrong date credits the wrong day's rate.
+    #
+    # FAIL CLOSED ON A WEIGHT THIS CANNOT PLACE. Every observation in the common
+    # window needs a weight. A missing day is NOT assumed fully invested (that
+    # would credit nothing and keep the bias) and NOT assumed all cash (that
+    # would credit the maximum) — it makes the excess pair unmeasurable, exactly
+    # as an unreadable cash rate does.
+    credit: dict[str, Any] = {
+        "measurable": False,
+        "basis": "invested weight per date, from the engine's exposure chart",
+        "reason": None,
+    }
+    wmap: dict[str, float] = {}
+    invested_weight = result.get("invested_weight")
+    if not isinstance(invested_weight, dict):
+        credit["reason"] = (
+            "this result carries no invested-weight series, so the share of the "
+            "book sitting in cash is UNKNOWN — it was measured by a belt older "
+            "than the one that reads the engine's exposure chart per date. The "
+            "engine pays 0% on that cash and this bar subtracts the realised "
+            "rate from it, so judging without it charges the book a rate it "
+            "never earned")
+    elif not invested_weight.get("measurable"):
+        credit["reason"] = invested_weight.get("reason") or (
+            "the invested-weight series could not be read")
+    else:
+        supplied = invested_weight.get("weights") or {}
+        missing = [d for d in common if d not in supplied]
+        if missing:
+            credit["reason"] = (
+                f"the exposure chart carries no invested weight for "
+                f"{len(missing)} of the {len(common)} days in the comparison "
+                f"window (first {missing[0]}) — an unweighted day would have to "
+                f"be assumed either fully invested or fully in cash, and both "
+                f"are inventions")
+        else:
+            wmap = {d: float(supplied[d]) for d in common}
+            vals = [wmap[d] for d in common]
+            credited = [(1.0 - wmap[d]) * rfmap[d] for d in common] if rfmap else []
+            cr_leg = (_stats.leg_moments(credited, common) if credited else {})
+            credit.update({
+                "measurable": True,
+                "n": len(vals),
+                "mean_invested_weight": round(sum(vals) / len(vals), 6),
+                "mean_cash_weight": round(1.0 - sum(vals) / len(vals), 6),
+                "min_invested_weight": round(min(vals), 6),
+                "max_invested_weight": round(max(vals), 6),
+                # WHAT THE CREDIT IS WORTH, annualised on the legs' own clock, so
+                # a reader can see the size of the correction without re-deriving
+                # it from two Sharpes.
+                "credited_annual_pct": _round_or_none(
+                    cr_leg.get("ann_return_pct"), 4),
+            })
+    out["cash_credit"] = credit
+
     # --- the EXCESS pair, which is what the criterion is judged on ---------
-    if rfmap and out["measurable"]:
+    if rfmap and out["measurable"] and credit["measurable"]:
         rf_leg = _stats.leg_moments([rfmap[d] for d in common], common)
-        s_ex = _stats.leg_moments([smap[d] - rfmap[d] for d in common], common)
+        # THE CREDITED LEG. `w_t * rf_t`, not `rf_t`: the book is charged the
+        # cash rate only on the part of it that was actually invested. The
+        # BENCHMARK is not credited, and that is not an oversight — every
+        # benchmark leg this belt builds is a fully-invested buy-and-hold basket
+        # or the engine's own single-name curve, so its invested weight is 1 by
+        # construction and `w_b * rf == rf`.
+        s_ex = _stats.leg_moments(
+            [smap[d] - wmap[d] * rfmap[d] for d in common], common)
         b_ex = _stats.leg_moments([bmap[d] - rfmap[d] for d in common], common)
+        # KEPT FOR COMPARABILITY, never judged. This is the leg v5r3 judged, and
+        # the gap between the two advantages is the size of the bias — a reader
+        # who cannot see it cannot audit the correction that removed it.
+        s_ex_unc = _stats.leg_moments(
+            [smap[d] - rfmap[d] for d in common], common)
         out["strategy_excess"] = s_ex
         out["benchmark_excess"] = b_ex
+        out["strategy_excess_uncredited"] = s_ex_unc
         out["excess_measurable"] = bool(s_ex.get("measurable")
                                         and b_ex.get("measurable"))
         rf_meta.update({
@@ -2222,14 +2326,48 @@ def premia_inputs(result: dict[str, Any], rf_bars: Any = None,
         })
     elif rfmap:
         # ON ITS OWN KEY, not on `rf["reason"]`. The cash leg WAS readable here;
-        # what failed is the raw pair. Overwriting the rf block's reason would
-        # make a stored payload say the cash series was the problem when it was
-        # not — a diagnosis that names the wrong cause sends the next reader to
-        # the wrong place.
+        # what failed is the raw pair or the weight series. Overwriting the rf
+        # block's reason would make a stored payload say the cash series was the
+        # problem when it was not — a diagnosis that names the wrong cause sends
+        # the next reader to the wrong place. THREE causes, named separately,
+        # for the same reason.
         out["excess_absent_reason"] = (
-            "the raw pair was not measurable, so no excess pair was formed")
+            "the raw pair was not measurable, so no excess pair was formed"
+            if not out["measurable"] else
+            f"the cash credit could not be measured, so no excess pair was "
+            f"formed: {credit.get('reason')}")
     out.setdefault("strategy_excess", None)
     out.setdefault("benchmark_excess", None)
+    out.setdefault("strategy_excess_uncredited", None)
+
+    # --- the ADVANTAGE, which is what a PREMIA luck filter must score -------
+    #
+    # A premia claim asserts `SR_s - SR_b > 0`, so the luck filter belongs on
+    # THAT quantity and not on the strategy's absolute Sharpe. The moments of the
+    # advantage series are stored here (the series itself is not, for the same
+    # reason `leg_moments` stores six numbers instead of a curve) and the gate
+    # scores them with the same `psr_from_moments` the alpha bar uses.
+    #
+    # BUILT ON THE CREDITED PAIR, deliberately. The advantage the fund wants a
+    # probability for is the one it would actually judge, and judging a
+    # probability of a quantity nobody is testing is worse than not having one.
+    adv: dict[str, Any] = {"measurable": False, "reason": None}
+    if out["excess_measurable"] and rfmap and wmap:
+        adv = _stats.sharpe_advantage_series(
+            [smap[d] - wmap[d] * rfmap[d] for d in common],
+            [bmap[d] - rfmap[d] for d in common])
+        # THE CROSS-CHECK, computed rather than asserted in a comment: the
+        # advantage series' own mean, annualised, IS the Sharpe advantage the
+        # criterion compares against its margin. If these two ever disagree, the
+        # difference series is not measuring the inequality it is named after.
+        if adv.get("measurable"):
+            k = (out.get("strategy_excess") or {}).get("obs_per_year")
+            adv["advantage_annualised"] = (
+                None if not k else adv["mean_per_obs"] * math.sqrt(float(k)))
+    elif not out["excess_measurable"]:
+        adv["reason"] = ("no excess pair was formed, so the advantage between "
+                         "the two legs does not exist to be scored")
+    out["advantage"] = adv
 
     # THE DISAGREEMENT, measured on every run rather than rediscovered. When
     # the engine's leg was discarded, `daily_returns["benchmark"]` still holds
@@ -2440,6 +2578,117 @@ LONG_RATIO_SUFFIX = "Long Ratio"
 SHORT_RATIO_SUFFIX = "Short Ratio"
 
 
+def _exposure_by_timestamp(series: dict) -> tuple[dict, dict, list[str]]:
+    """The engine's exposure chart, joined per timestamp. ONE reader, two users.
+
+    ``gross_exposure`` wants the maxima; ``invested_weights`` wants the dated
+    series. Writing the classify-and-sum loop twice would be two answers to "what
+    was this book holding" that could drift apart silently — and the drift would
+    land in a criterion (the ceiling) and a correction (the cash credit) that
+    must agree about the same book by construction.
+    """
+    longs: dict[Any, float] = {}
+    shorts: dict[Any, float] = {}
+    unclassified: list[str] = []
+    for name, block in (series or {}).items():
+        label = str(name)
+        if label.endswith(LONG_RATIO_SUFFIX):
+            bucket = longs
+        elif label.endswith(SHORT_RATIO_SUFFIX):
+            bucket = shorts
+        else:
+            unclassified.append(label)
+            continue
+        for pt in ((block or {}).get("values")
+                   or (block or {}).get("Values") or []):
+            if not isinstance(pt, (list, tuple)) or len(pt) < 2:
+                continue
+            try:
+                value = abs(float(pt[-1]))
+            except (ValueError, TypeError):
+                continue
+            bucket[pt[0]] = bucket.get(pt[0], 0.0) + value
+    return longs, shorts, unclassified
+
+
+def invested_weights(charts: Any) -> dict[str, Any]:
+    """The book's INVESTED FRACTION per date, for the cash-carry credit.
+
+    THE DEFECT THIS EXISTS TO CLOSE (quant, run-quant-metacontrols, 2026-08-24).
+    LEAN pays 0% on idle cash, and the premia bar subtracts the realised cash
+    return from BOTH legs. So a book that sat half in cash is charged a rate it
+    never earned, while its fully-invested benchmark is charged one it did:
+
+        engine    r_t = w_t * a_t                       (cash pays nothing)
+        reality   r_t = w_t * a_t + (1 - w_t) * rf_t
+        excess    r_t - rf_t   is charged, when the honest figure is
+                  r_t - w_t * rf_t
+
+    The bias is exactly ``(1 - w_t) * rf_t`` per observation, it runs in the
+    KILL direction, and it is the symmetric twin of the free-borrow hole the
+    gross-exposure ceiling closes above 1.0x.
+
+    LONG-ONLY, AND IT REFUSES OTHERWISE. Cash held against a SHORT book is not
+    ``1 - gross``: short proceeds earn interest the engine also does not pay, and
+    modelling that is a different correction. Every LEAN run this fund has on
+    disk is long-only (max short 0.0 on 108 of 108 runs with a statistics block,
+    scratchpad/d32/census_exposure2.py; re-confirmed on the four control
+    candidates 2026-08-24), so the shape is refused rather than guessed at.
+
+    ABOVE 1.0x THE CREDIT GOES NEGATIVE, and that is left alone deliberately: it
+    is arithmetic, not a financing model, and the premia bar refuses a book above
+    the gross ceiling before any of it is read. This function does not decide
+    that question and must not be read as pricing leverage.
+    """
+    out: dict[str, Any] = {
+        "measurable": False, "weights": {}, "n": 0,
+        "source": f"lean chart {EXPOSURE_CHART!r}", "reason": None,
+    }
+    if not isinstance(charts, dict):
+        out["reason"] = ("this result carries no charts block, so the book's "
+                         "invested weight could not be read")
+        return out
+    chart = charts.get(EXPOSURE_CHART)
+    series = ((chart or {}).get("series") or (chart or {}).get("Series")
+              if isinstance(chart, dict) else None)
+    if not isinstance(series, dict) or not series:
+        out["reason"] = (f"this run has no readable {EXPOSURE_CHART!r} chart, so "
+                         f"the share of the book sitting in cash is UNKNOWN — "
+                         f"and an unknown cash weight is not a zero one")
+        return out
+    longs, shorts, unclassified = _exposure_by_timestamp(series)
+    if unclassified:
+        out["reason"] = (
+            f"the {EXPOSURE_CHART!r} chart carries series this reader cannot "
+            f"classify as long or short ({', '.join(sorted(unclassified))}); an "
+            f"invested weight summed over an unknown series is wrong in a "
+            f"direction nobody can see")
+        return out
+    if any(v > 0 for v in shorts.values()):
+        out["reason"] = (
+            "this book holds SHORT exposure, and the cash a short book earns is "
+            "not one minus its gross — short proceeds earn interest the engine "
+            "also does not pay, which is a different correction than this one")
+        return out
+    weights: dict[str, float] = {}
+    for ts, value in longs.items():
+        day = _iso_or_none(ts)
+        if day is None:
+            continue
+        # A DAY THAT APPEARS TWICE KEEPS ITS LARGEST READING. The chart is one
+        # point per day on every run measured, so this cannot fire today; if a
+        # future engine samples intraday, the largest invested reading is the
+        # SMALLEST cash credit, which is the direction that cannot manufacture
+        # an advantage.
+        weights[day] = max(weights.get(day, 0.0), float(value))
+    if not weights:
+        out["reason"] = (f"the {EXPOSURE_CHART!r} chart's series carry no values "
+                         f"this reader could place on a date")
+        return out
+    out.update({"measurable": True, "weights": weights, "n": len(weights)})
+    return out
+
+
 def gross_exposure(charts: Any) -> dict[str, Any]:
     """MAX GROSS EXPOSURE over the run, read from the engine's own chart.
 
@@ -2510,27 +2759,7 @@ def gross_exposure(charts: Any) -> dict[str, Any]:
                          f"the book's gross exposure is UNKNOWN")
         return out
     out["series"] = sorted(str(k) for k in series)
-    longs: dict[Any, float] = {}
-    shorts: dict[Any, float] = {}
-    unclassified: list[str] = []
-    for name, block in series.items():
-        label = str(name)
-        if label.endswith(LONG_RATIO_SUFFIX):
-            bucket = longs
-        elif label.endswith(SHORT_RATIO_SUFFIX):
-            bucket = shorts
-        else:
-            unclassified.append(label)
-            continue
-        for pt in ((block or {}).get("values")
-                   or (block or {}).get("Values") or []):
-            if not isinstance(pt, (list, tuple)) or len(pt) < 2:
-                continue
-            try:
-                value = abs(float(pt[-1]))
-            except (ValueError, TypeError):
-                continue
-            bucket[pt[0]] = bucket.get(pt[0], 0.0) + value
+    longs, shorts, unclassified = _exposure_by_timestamp(series)
     if unclassified:
         out["unclassified_series"] = sorted(unclassified)
         out["reason"] = (
