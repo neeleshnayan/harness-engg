@@ -366,6 +366,20 @@ def test_the_decision_list_ranks_dates_first_then_money_with_absent_last():
     assert out["decisions"]["ranked_on_nothing"] == 1
 
 
+def test_a_stated_negative_stake_still_outranks_a_stated_nothing():
+    """Found by mutation: dropping the absence FLAG from the money key
+    SURVIVED, because every fixture stated a positive figure and a positive
+    figure sorts ahead of the 0.0 an absence contributes.
+
+    A NEGATIVE stake exposes it — magnitude alone puts `-5` behind a row that
+    said nothing at all, which is an absence beating a number, hiding in a
+    sign. It is the exact case the comment on `_rank_key` claims to handle,
+    and until this test the claim was unchecked.
+    """
+    out = _ceo([rec(1, money_at_stake=-5.0), rec(2)])
+    assert [i["rec_id"] for i in out["decisions"]["items"]] == [1, 2]
+
+
 def test_a_superseded_row_is_not_offered_as_a_decision():
     """The server refuses the approval, so listing it would offer a button
     that fails. It is on the kill shelf with its lineage instead."""
@@ -497,6 +511,28 @@ def test_no_shipped_rule_can_write_anything_but_bookkeeping():
             assert rule.produces is None
 
 
+def test_the_allowlist_holds_exactly_one_status_and_it_is_resolved():
+    """PINNED, HARDCODED, FROM BOTH SIDES (D21 standard).
+
+    Found by mutation: widening ``BOOKKEEPING_STATUSES`` to include
+    `accepted` SURVIVED the whole suite, because `assert_bookkeeping_only`
+    also checks the action->status mapping and refused on that second test
+    instead. Defence in depth is good; a test that cannot tell WHICH layer
+    refused is not, because the day someone simplifies the second check the
+    allowlist becomes the only guard and nothing here would notice.
+
+    So this pins the constant itself. Widening it is then a visible red test
+    with this docstring attached, which is exactly the conversation a
+    loosening should have to have.
+    """
+    assert deskhygiene.BOOKKEEPING_STATUSES == ("resolved",)
+    assert deskhygiene.ACTION_STATUS == {"close_request": "resolved"}
+    assert deskhygiene.CLOSING_ACTIONS == ("close_request",)
+    for forbidden in ("accepted", "staged", "approved", "rejected", "declined",
+                      "done", "noted"):
+        assert forbidden not in deskhygiene.BOOKKEEPING_STATUSES
+
+
 def test_every_rule_carries_its_id_version_reason_and_authority():
     """An auditor reads the rule, never a diff."""
     for rule in deskhygiene.HYGIENE_RULES:
@@ -530,6 +566,45 @@ def test_the_guard_reads_the_allowlist_rather_than_repeating_it(monkeypatch):
     with pytest.raises(ValueError):
         deskhygiene.assert_bookkeeping_only("close_request", "resolved")
     deskhygiene.assert_bookkeeping_only("close_request", "filed_away")
+
+
+def test_the_allowlist_is_INDEPENDENT_of_the_action_mapping(monkeypatch):
+    """THE BOUNDARY MUST NOT DERIVE FROM THE MECHANISM.
+
+    Found by mutation: deleting the allowlist check entirely SURVIVED, because
+    the action->status mapping refused the same inputs. That agreement holds
+    only while there is one action and one status — and it means a future
+    loosening could be shipped by widening the MECHANISM alone, with the
+    boundary quietly following it.
+
+    So this pins the case where the two disagree: the mechanism is moved to
+    produce `accepted`, and the guard must still refuse, because `accepted` is
+    not a state this policy is allowed to write no matter what any action map
+    says. Deriving `BOOKKEEPING_STATUSES` from `ACTION_STATUS.values()` would
+    make this test impossible to write, which is the reason the duplication
+    stays.
+    """
+    monkeypatch.setattr(deskhygiene, "ACTION_STATUS",
+                        {"close_request": "accepted"})
+    with pytest.raises(ValueError, match="may only write"):
+        deskhygiene.assert_bookkeeping_only("close_request", "accepted")
+
+
+def test_the_applier_calls_the_guard_and_not_only_its_own_checks():
+    """Found by mutation: removing `assert_bookkeeping_only` from
+    `apply_proposal` SURVIVED — every fixture went through `evaluate`, which
+    never builds a mismatched proposal. A guard is only wired if something
+    reaches it that nothing else would catch, so here is that something: a
+    well-formed close carrying a status the policy may not write.
+    """
+    called = []
+    with pytest.raises(ValueError, match="may only write"):
+        deskhygiene.apply_proposal(
+            {"action": "close_request", "status": "accepted", "rule_id": "H1",
+             "citation": "a real-looking citation",
+             "target": {"request_id": "q1"}},
+            close_request=lambda *a: called.append(a))
+    assert called == [], "the write must not happen before the guard"
 
 
 def test_an_unrecognised_action_is_refused_rather_than_guessed():

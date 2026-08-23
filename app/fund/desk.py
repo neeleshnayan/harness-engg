@@ -2005,10 +2005,14 @@ def _rank_key(item: dict[str, Any]) -> tuple:
     has_due = isinstance(due, str) and bool(due.strip())
     money = item.get("money_at_stake")
     has_money = isinstance(money, (int, float)) and not isinstance(money, bool)
+    # The two ABSENCE FLAGS lead their own key rather than trailing it. With
+    # the money magnitude first, a row stating a NEGATIVE stake would sort
+    # behind a row stating nothing — an absence beating a number, which is the
+    # error this whole ordering exists to avoid, hiding in a sign.
     return (0 if has_due else 1,
             due if has_due else "",
-            -float(money) if has_money else 0.0,
             0 if has_money else 1,
+            -float(money) if has_money else 0.0,
             str(item.get("at") or ""))
 
 
