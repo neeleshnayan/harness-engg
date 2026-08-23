@@ -15,6 +15,7 @@ import cleanly under that setup before this file was written.
 from __future__ import annotations
 
 import ast
+import io
 import pathlib
 from datetime import datetime, timedelta, timezone
 
@@ -688,3 +689,106 @@ def test_load_env_not_called_at_import_time():
     called_at_module_scope = module_level_call_names(tree)
     assert "load_dotenv" not in called_at_module_scope
     assert "load_env" not in called_at_module_scope
+
+
+# ===========================================================================
+# Added by the builder after the first live end-to-end run, which caught this.
+# ===========================================================================
+
+def test_a_replay_reports_the_rows_it_wrote_not_the_rows_it_saw(
+        tmp_path, monkeypatch):
+    """SEEN AND WRITTEN ARE DIFFERENT NUMBERS.
+
+    The natural key makes a re-run a no-op, so a loop restarted from an old
+    checkpoint re-processes rows the store already holds. The first live
+    end-to-end run reported ``rows_written: 2`` against a table whose row count
+    had not moved — a summary claiming a write that never happened. This test
+    fails if the two counters are ever collapsed back into one.
+    """
+    fresh_ts = iso(NOW - timedelta(seconds=5))
+    events = [
+        proposed(1, "oA", "AAPL", "buy", fresh_ts),
+        filled(2, "oA", fresh_ts, "AAPL", "buy"),
+    ]
+
+    class RefusingStore(FakeStore):
+        """A store whose natural key rejects everything — the replay case.
+
+        ON CONFLICT DO NOTHING returns no row, so the real store reports
+        ``created: False`` with a null id. This mirrors that exactly.
+        """
+
+        def record(self, **kw):
+            out = super().record(**kw)
+            out["created"] = False
+            out["quote_row_id"] = None
+            return out
+
+    def fake_fetch(spine, since_seq, limit=nbbo_capture.EVENTS_PAGE,
+                   timeout=10.0):
+        return list(events)
+
+    monkeypatch.setattr(nbbo_capture, "fetch_events", fake_fetch)
+    monkeypatch.setattr(nbbo_capture.time, "sleep", lambda s: None)
+
+    store = RefusingStore()
+    quotes = FakeQuotes(by_symbol={"AAPL": {"bid": 100.0, "ask": 100.10,
+                                            "bid_size": 1, "ask_size": 1,
+                                            "quote_ts": fresh_ts}})
+    summary = nbbo_capture.run_loop(
+        spine="http://x", store=store, quotes=quotes, run_id="r",
+        checkpoint=tmp_path / "cp.seq", from_seq=0, poll_s=0.0,
+        max_age_s=120.0, max_ticks=1, dry_run=False, out=io.StringIO(),
+        now_fn=lambda: NOW)
+
+    assert summary["events_seen"] == 1
+    assert summary["rows_written"] == 0
+    # The loop still PROCESSED it - the point is that processing and storing
+    # are counted apart, not that the event was skipped.
+    assert len(store.calls) == 1
+
+
+def test_run_loops_clock_is_injectable_and_is_the_only_one(tmp_path,
+                                                           monkeypatch):
+    """The staleness guard must be testable at its boundary from OUTSIDE.
+
+    ``run_loop`` used to call ``capture_batch`` without a clock, so the one
+    control preventing today's market being stamped on a historical event ran
+    on the wall clock and could not be exercised. Driving the injected clock
+    forward past the bound must flip a fresh event to refused; if a second,
+    hidden clock ever appears, this test goes green on the wrong branch and
+    the assertion on the reason string catches it.
+    """
+    event_ts = iso(NOW)
+    events = [proposed(1, "oA", "AAPL", "buy", event_ts),
+              filled(2, "oA", event_ts, "AAPL", "buy")]
+
+    def fake_fetch(spine, since_seq, limit=nbbo_capture.EVENTS_PAGE,
+                   timeout=10.0):
+        return list(events)
+
+    monkeypatch.setattr(nbbo_capture, "fetch_events", fake_fetch)
+    monkeypatch.setattr(nbbo_capture.time, "sleep", lambda s: None)
+    quotes = FakeQuotes(by_symbol={"AAPL": {"bid": 100.0, "ask": 100.10,
+                                            "bid_size": 1, "ask_size": 1,
+                                            "quote_ts": event_ts}})
+
+    def run_at(clock):
+        store = FakeStore()
+        nbbo_capture.run_loop(
+            spine="http://x", store=store, quotes=quotes, run_id="r",
+            checkpoint=tmp_path / f"cp-{clock.timestamp()}.seq", from_seq=0,
+            poll_s=0.0, max_age_s=120.0, max_ticks=1, dry_run=False,
+            out=io.StringIO(), now_fn=lambda: clock)
+        # Read the reason off what the loop actually SENT to the store. Not
+        # re-derived here: a test that recomputes the expected reason from the
+        # same clock it injected would agree with itself whatever run_loop did.
+        return [c["quote_absent_reason"] for c in store.calls]
+
+    at_the_event = run_at(NOW)
+    assert at_the_event == [None], at_the_event
+
+    long_after = run_at(NOW + timedelta(seconds=3600))
+    assert len(long_after) == 1
+    assert long_after[0].startswith("event_too_old_for_live_quote:")
+    assert "3600" in long_after[0]

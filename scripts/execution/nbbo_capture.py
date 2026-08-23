@@ -413,7 +413,14 @@ def run_loop(*, spine: str, store: QuoteStore, quotes: Any, run_id: str,
           file=out, flush=True)
 
     ticks = 0
-    written = absent = measured = 0
+    # SEEN AND WRITTEN ARE DIFFERENT NUMBERS AND THE DIFFERENCE IS THE POINT.
+    # The natural key makes a re-run a no-op, so a loop restarted from an old
+    # checkpoint processes rows it has already stored. Reporting them as
+    # "written" made the first idempotency check read `rows_written: 2` against
+    # a table whose row count had not moved - a summary claiming a write that
+    # did not happen, which is the same family of defect this whole instrument
+    # is built to keep out of the record.
+    seen = written = absent = measured = 0
     gaps: list[tuple[int, int]] = []
     errors = 0
     try:
@@ -440,7 +447,9 @@ def run_loop(*, spine: str, store: QuoteStore, quotes: Any, run_id: str,
                                     max_age_s=max_age_s, now=now_fn(),
                                     dry_run=dry_run)
             for r in results:
-                written += 1
+                seen += 1
+                if r.get("created"):
+                    written += 1
                 if r.get("quote_absent_reason"):
                     absent += 1
                 if r.get("effective_spread_bps") is not None:
@@ -459,7 +468,11 @@ def run_loop(*, spine: str, store: QuoteStore, quotes: Any, run_id: str,
     except KeyboardInterrupt:
         print("[capture] interrupted", file=out, flush=True)
     summary = {"run_id": run_id, "ticks": ticks, "last_seq": cp,
-               "rows_written": written, "rows_absent": absent,
+               # events processed vs rows the store actually accepted. On a
+               # clean forward run they are equal; on a replay `rows_written`
+               # is 0 and that is the honest report.
+               "events_seen": seen, "rows_written": written,
+               "rows_absent": absent,
                "rows_measured": measured, "gaps": gaps,
                "spine_errors": errors, "dry_run": dry_run}
     print(f"[capture] {json.dumps(summary)}", file=out, flush=True)

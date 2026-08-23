@@ -471,6 +471,51 @@ def test_the_endpoint_serves_the_mark_table_beside_the_quote_table(monkeypatch):
         assert row["basis"] == eq.MARK_BASIS
 
 
+def test_the_endpoint_serves_a_populated_store_with_its_class_cut(
+        store, monkeypatch):
+    """The populated path, end to end through the router.
+
+    The headline must be the ``executed`` bucket. This plants one small
+    executed spread and one enormous simulated one — the shape of the fund's
+    real log, where a paper-venue fill priced against a phantom mark reads over
+    fifteen thousand basis points — and fails if the endpoint ever serves a
+    single undivided mean that the phantom can move.
+    """
+    from fastapi.testclient import TestClient
+    from app.main import app
+    import app.api.v1.fund as fundmod
+
+    store.record(**_row(order_id="ex1", event_seq=201, symbol="SPY",
+                        submitted_venue="alpaca", was_submitted=True,
+                        bid=765.45, ask=765.54, fill_price=765.54))
+    store.record(**_row(order_id="sim1", event_seq=202, symbol="GLD",
+                        side="sell", submitted_venue="paper",
+                        was_submitted=True, bid=411.92, ask=412.15,
+                        fill_price=100.0))
+    monkeypatch.setattr(fundmod, "_execution_quotes", lambda: store)
+
+    body = TestClient(app).get("/api/v1/fund/execution/quality").json()
+    assert body["readable"] is True and body["reason"] is None
+    assert body["total"] == 2 and body["shown"] == 2
+    assert body["truncated"] is False
+
+    summary = body["summary"]
+    assert summary["headline_class"] == "executed"
+    ex = summary["by_execution_class"]["executed"]["effective_spread_bps"]
+    sim = summary["by_execution_class"]["simulated"]["effective_spread_bps"]
+    assert ex["n"] == 1 and sim["n"] == 1
+    # The executed figure is a couple of basis points and the simulated one is
+    # four orders of magnitude larger. If they were ever pooled, this holds.
+    assert ex["mean"] < 10.0
+    assert sim["mean"] > 1000.0
+    # _stats ROUNDS TO FOUR DECIMALS for display, so the served figure is not
+    # the raw one and the comparison says so rather than loosening a tolerance
+    # until it passes. (This same quote and fill, captured live from Alpaca
+    # through the real loop on 2026-08-23, produced the same 1.1757.)
+    raw = eq.effective_spread_bps(765.54, (765.45 + 765.54) / 2)
+    assert ex["mean"] == round(raw, 4)
+
+
 def test_the_endpoint_route_is_registered_and_is_read_only():
     """The route exists at the path the desk will call, and it is GET only.
 
