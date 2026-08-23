@@ -182,8 +182,11 @@ export default function FloorPage() {
           </p>
         </header>
 
-        {board}
-
+        {/* CEO instruction, verbatim 2026-08-24: "put the ticket board below
+            the team UI; I wanna see my team first when I enter the room and
+            not the tickets" — the board renders AFTER the Floor. (In the
+            flag-off build below there is no team to see, so the board leads
+            there unchanged.) */}
         {!loaded ? (
           <p className={`text-sm ${KT.muted}`}>Reading the room…</p>
         ) : (
@@ -253,6 +256,8 @@ export default function FloorPage() {
                 renders no decidable control, no ambient motion, and no
                 interior for Abhishek's thesis wing. They are properties of the
                 code, not a caption, and the caption was costing a screenful. */}
+
+            {board}
           </>
         )}
       </div>
