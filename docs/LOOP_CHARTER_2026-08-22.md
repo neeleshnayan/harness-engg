@@ -258,3 +258,62 @@ verification skipped, a blind compromised, a click bypassed to go
 faster) — the brakes clause above already answers it: the loop gets
 faster, the brakes do not get lighter. Any such event strikes the
 loop-time metric back to advisory pending a written re-decision.
+
+---
+
+## AMENDMENT 2026-08-23 (evening) — THE COVERAGE MODEL
+
+**CEO direction, verbatim: "make money somehow is not gonna work... We
+might need to tighten the universe understand what shapes both the
+obvious and non-obvious stuff and then what moves it and when;
+measurably." And, ratifying the synthesis: "slow positive that builds a
+base for faster mutations and quick e2e loops is our edge + hypothesis
+generation is the thing that triggers rest of the flow otherwise we are
+just finessing a system that nobody needs."**
+
+**The measured basis for the pivot**: three mechanism batches (cycles
+6–8), eight constructions, zero survivors — every kill on identification
+or harvestability against commodity data. Screening published anomalies
+on liquid ETFs has a measured EV of zero at ~500k tokens/batch (Ed's own
+arithmetic, batch #3).
+
+### The model
+
+1. **A TIGHT UNIVERSE (10–20 names), chosen by the CEO** — security
+   selection is his row. Selection criteria, measured per name: data
+   richness in our own corpus; event frequency; mechanism diversity;
+   harvestability at our size (capacity-tiny edges are our advantage);
+   the book's incumbents included.
+2. **A DOSSIER per name — the slowly-built base.** What SHAPES it (who
+   owns it, who MUST trade it and when: index membership and rebalance
+   mechanics, options expiry structure, insider patterns, the earnings
+   cycle); what MOVES it (factor betas — rates, dollar, oil, sector —
+   with stability ladders, never vibes); WHEN (the event calendar with
+   measured, placebo-controlled response profiles). Every dossier claim
+   carries a citation and a measurement or it does not enter the graph —
+   dossiers live in the knowledge graph as structural claims, and the
+   calibration query becomes the dossier scoreboard: did the name respond
+   as the dossier predicted?
+3. **GENERATION FROM MISMATCH.** Ed proposes name-specific trades where
+   price disagrees with the dossier, payer named, grammar header intact.
+   Mutation is now GROUNDED variation over measured structure — the Idea
+   Garden's engine, rebuilt on the substrate that makes it safe.
+4. **THE FAST LOOP OVER THE SLOW BASE.** The e2e loop (propose →
+   self-controls → blind → cached belt → gate) is already tuned to hours.
+   The base compounds; the loop iterates; loop-time stays the metric.
+5. **UNCHANGED**: the premia harvester sleeve, the candidate chain, the
+   gate, every brake. The pivot is the ALPHA lane's search posture, not
+   the firm's controls. Narrative conviction is the named failure mode:
+   knowing a name deeply makes its mispricings FELT, and feelings do not
+   survive the placebo — the adversary stays blind and the dossier's
+   claims stay falsifiable, or coverage becomes story-telling with a
+   research budget.
+
+### Falsifier, written at birth
+If the first cohort of dossiers produces zero admissible
+mismatch-candidates within one month of the universe's selection, the
+pivot is re-examined in the open — not defended. And the reverse guard:
+if dossier-grounded candidates start passing the gate at a rate the
+family-wise arithmetic says is implausible, that is the narrative-
+conviction failure mode wearing success, and the validator audits the
+dossier scoreboard before anything deploys.
