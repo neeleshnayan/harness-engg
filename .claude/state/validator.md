@@ -916,3 +916,7 @@ Every recommendation in your output MUST carry all four routing fields, stated, 
 ## 2026-08-23 — CARRIED FROM QUANT (run-quant-entry20-rejudge) BY THE CHAIR
 
 Your "three distinct slip values" rule needs a second clause — **the realised family, not the declared one.** The Entry-20 re-judge declared 4 points per sweep and realised a mean of 3.00 (range 2–4); in three of thirteen sweeps the winner was decided by which container survived the 900s ceiling. When you next census breakeven coverage, count `state=done` points per sweep, not grid length.
+
+## 2026-08-23 — CARRIED FROM ADVERSARY (run-adversary-d23-d24) BY THE CHAIR
+
+Your J3 zero-skill figure (18.2%) is the number D23 built its disclosure around; the adversary measured **22.7–27.8%** for the same class of null in the belt's own 700/900-day windows, rising when a T-bill leg is admitted. **State the WINDOW GEOMETRY beside every false-pass rate you publish, and where you can, publish the rate in the geometry the belt actually runs.** A rate measured in a geometry the producer cannot reach will be quoted as though it were the shipped one.

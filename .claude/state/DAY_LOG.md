@@ -92,6 +92,32 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   account) starts Monday.
 
 **MEASURED**
+- **THE ADVERSARY'S BATCH VERDICT: D23 KILLED, D24 SURVIVES**
+  (`run-adversary-d23-d24`, doc
+  `docs/reviews/ADVERSARY_D23_D24_2026-08-23.md`; chair re-ran probe3 at
+  resolve, all sixteen cells reproduced). **D23's premia bar certifies
+  zero-skill cash/beta blends**: the 4.0% rf-stress constant sits BELOW
+  realised cash on 3 of 4 belt windows (BIL 4.07/4.37/4.59 %/yr vs 3.26
+  full; 11 of 16 fleet algorithms use the 700d window where 20/80 SPY/BIL
+  passes with a true excess advantage of −0.0004). The fund's own round-5
+  doc — which D23 cites for the number — says verbatim "a plausible
+  static assumption is not safe; the risk is static vs realised". KILL on
+  ONE constant; everything else clean (alpha decisions identical on 54/54
+  stored results, zero tests weakened, claim-shopping on the real
+  population is 1 flip of 15). Repair round queued for the next builder
+  slot: realised-rf-from-feed (implements the standing excess-returns
+  amendment — a TIGHTENING, CEO second-look flagged since the adversary
+  routed the rate's provenance to him), plus the manual-judge claim_type
+  gap and the calendar-vs-trading coverage denominator. **D24 SURVIVES —
+  fourth consecutive kill→repair→clear on the desk engine**; merge
+  approved on the adversary's axis, held for the full suite on the merged
+  tree (after D27 lands — one heavy job at a time). Adversary residuals to
+  the riskofficer (supersession_readable has no reader; ApprovalRefused's
+  unguarded second producer) and one loud-loosening trade joined to the
+  CEO's unguarded-POST item (a 1,001-edge flood now trips the brake
+  fleet-wide DISCLOSED vs one row silent). The adversary reported its own
+  seventh near-miss and an EVOLVE was accepted into the seat file
+  (classify probes: CALL vs MODEL the repaired layer).
 - **THE ENTRY-20 RE-JUDGE IS IN AND IT IS FENCED, NOT FAILED** (quant #4,
   `run-quant-entry20-rejudge`, candidate `997187b267d3`, gate v4.3, zero
   algorithm lines changed). It cleared 8 of 9 criteria INCLUDING the new

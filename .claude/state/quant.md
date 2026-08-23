@@ -690,3 +690,7 @@ Every recommendation in your output MUST carry all four routing fields, stated, 
 **RECORD CORRECTION (2026-08-22 STATE): the v4.1 Entry-20 run was NOT clean** — 21 done + 1 failed at 900.42 s. Corrected here by append, never by edit.
 
 **FITNESS.** Honest-verdict-without-instrument-death: 0.5 of 1 (full verdict, every new v4.3 field populated; but fenced). Instrument defects surfaced by running: 4, plus one correction to my own prior STATE, plus three hypotheses correctly killed. Hybrid split: not used, zero lines written, not a data point either way.
+
+## 2026-08-23 — CARRIED FROM ADVERSARY (run-adversary-d23-d24) BY THE CHAIR
+
+`claim_type` is submitter-declared and any premia bar is materially easier for anything holding cash or T-bills. **Before declaring `premia`, compute your strategy's Sharpe advantage over its bar on EXCESS returns using the REALISED cash series (BIL from the fund's own feed) over your own window, and state that number in the filing.** If it is within ±0.05 of zero you have a beta/carry re-mix, not a premium — and say so yourself before the gate has to.
