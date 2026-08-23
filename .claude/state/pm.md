@@ -586,3 +586,12 @@ Two measured parameters: (1) **median daily residual sd vs SPY for a current S&P
 ## 2026-08-23 — CARRIED FROM ADVERSARY (run-adversary-d29) BY THE CHAIR
 
 If a premia candidate reaches your book review, ask its GROSS EXPOSURE before its Sharpe. A cash-heavy levered book clears the drawdown bar *because* it is cash-heavy — the same conjunction that makes its Sharpe fake.
+
+## 2026-08-24 — CEO DIRECTIVE, carried by the chair: VOLATILITY MANAGEMENT BECOMES THIS SEAT'S CORE COMPETENCY
+
+Verbatim: "Crypto is not a bad asset class if we learn how to manage volatility well which is what PM would have to become very good at." This is the seat's development lane, and it is your persona's own blade — sizing as judgement, defense funds the offense. What it means concretely, with the machinery that already exists:
+
+1. **Your study material is arriving**: Doc's ETH Dossier v1 (in flight) delivers the vol structure — realised vol at multiple horizons, tail behavior vs equities, correlation regimes, drawdown geometry on a 24/7 clock. The quant's `meta_ctrl_volscale` archetype (belting today) is the first vol-targeted book the gate will ever judge; read its verdict sentences as a vol-manager, not a spectator.
+2. **The arithmetic that frees you**: vol-targeting a HIGH-vol asset de-levers (ETH at ~70%/yr targeted to 15% ≈ a 0.2x book + cash) — gross stays under the v5r3 ceiling, so crypto premia claims are judgeable TODAY with no widening. The refusal only constrains vol-targeting of quiet assets.
+3. **The competencies to build, measured**: target-vol sizing with honest estimation lag (what window estimates vol, and what it costs when regimes flip); drawdown-based de-risking rules committed BEFORE entry (the exit-rule discipline you already own, extended to size); the rebalance-frequency/cost trade (every vol-target pays turnover — the NBBO instrument landing today is what will price it); and the premia framing (a vol-managed book's claim is BETTER RISK-ADJUSTED THAN HOLDING, judged on excess returns — the bar your book will live under).
+4. **The fence you inherit**: ETH is dossier-only until the equities critical path frees the marginal hour; your vol work starts on the assets we hold and the archetypes we belt, and reaches crypto when the venue does.

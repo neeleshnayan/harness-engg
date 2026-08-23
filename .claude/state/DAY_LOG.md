@@ -40,6 +40,18 @@ at ~00:05Z ("you too rest post closing these 5 items; will see you on
 Monday"). The five fan-out items all resolved; the floor rests until Monday.
 
 **DECIDED**
+- **ETH AS COVERAGE PILOT #2 + VOL MANAGEMENT AS STAN'''S CORE COMPETENCY
+  (CEO).** Doc dispatched (ETH Dossier v1 under the amended routing —
+  understanding/risk-params/leads, never candidates — batched with the
+  FRED+RSS collector harvest). THE FENCE recorded: dossier-only until the
+  equities critical path frees the hour; ETH build tickets earn slots on
+  their own case, never dossier momentum; real ETH capital fires the
+  market-specialist audition per the registered trigger. The happy
+  arithmetic noted: vol-targeting HIGH-vol assets DE-levers, so crypto
+  premia claims are judgeable under v5r3 as shipped. Stan'''s directive
+  carried to his seat with the concrete competency list; his study
+  material arrives via the dossier + today'''s volscale archetype verdict.
+
 - **THE LEVERAGE RULE: THE REFUSAL STANDS (chair decision under the CEO'''s
   explicit delegation, verbatim "Yes you decide").** Gate v5r3 refuses
   premia claims above 1.0x gross, fail-closed, as shipped. Grounds:
