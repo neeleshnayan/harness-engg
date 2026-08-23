@@ -69,6 +69,30 @@ def store():
     return s
 
 
+
+def _client():
+    """A FRESH FastAPI carrying only the fund router — NEVER ``app.main``.
+
+    THE HOUSE PATTERN, and it is not cosmetic. Importing ``app.main`` in-process
+    runs ``load_dotenv()``, resolves the process mode, mounts the web directory
+    and constructs the whole application against the suite's shared Firestore
+    fake. This module was the FIRST test in the repo to do it, and the full
+    suite went from green to 59 failed / 28 errors across a dozen unrelated
+    modules — "no price available for TLT", DivisionByZero, "order was never
+    proposed" — none of which reproduce when this file runs alone.
+
+    Every other API test in the repo builds the app this way
+    (``tests/test_metrics_endpoints.py::_client``). Followed here for the same
+    reason, and written down because the symptom points nowhere near the cause.
+    """
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from app.api.v1 import fund as fundapi
+    app = FastAPI()
+    app.include_router(fundapi.router, prefix="/api/v1")
+    return TestClient(app)
+
+
 def _row(**over):
     base = dict(order_id="o1", event_kind="filled", event_seq=100,
                 event_ts="2026-08-14T13:30:03.230302+00:00",
@@ -437,12 +461,10 @@ def test_the_endpoint_reports_an_unreadable_store_as_unreadable(monkeypatch):
     from the log — because "we cannot read the quotes" and "we have no fills"
     are different, and the second one is false.
     """
-    from fastapi.testclient import TestClient
-    from app.main import app
     import app.api.v1.fund as fundmod
 
     monkeypatch.setattr(fundmod, "_execution_quotes", lambda: None)
-    body = TestClient(app).get("/api/v1/fund/execution/quality").json()
+    body = _client().get("/api/v1/fund/execution/quality").json()
     assert body["readable"] is False
     assert body["rows"] is None
     assert body["summary"] is None
@@ -457,12 +479,10 @@ def test_the_endpoint_serves_the_mark_table_beside_the_quote_table(monkeypatch):
     """Two bases, never merged. The mark table is computed from the log on
     every request and stored nowhere, so no reader can pick it up believing a
     quote was behind it."""
-    from fastapi.testclient import TestClient
-    from app.main import app
     import app.api.v1.fund as fundmod
 
     monkeypatch.setattr(fundmod, "_execution_quotes", lambda: None)
-    body = TestClient(app).get("/api/v1/fund/execution/quality").json()
+    body = _client().get("/api/v1/fund/execution/quality").json()
     retro = body["retro_mark_basis"]
     assert retro["basis"] == eq.MARK_BASIS
     assert retro["basis"] not in eq.BASES, (
@@ -481,8 +501,6 @@ def test_the_endpoint_serves_a_populated_store_with_its_class_cut(
     fifteen thousand basis points — and fails if the endpoint ever serves a
     single undivided mean that the phantom can move.
     """
-    from fastapi.testclient import TestClient
-    from app.main import app
     import app.api.v1.fund as fundmod
 
     store.record(**_row(order_id="ex1", event_seq=201, symbol="SPY",
@@ -494,7 +512,7 @@ def test_the_endpoint_serves_a_populated_store_with_its_class_cut(
                         fill_price=100.0))
     monkeypatch.setattr(fundmod, "_execution_quotes", lambda: store)
 
-    body = TestClient(app).get("/api/v1/fund/execution/quality").json()
+    body = _client().get("/api/v1/fund/execution/quality").json()
     assert body["readable"] is True and body["reason"] is None
     assert body["total"] == 2 and body["shown"] == 2
     assert body["truncated"] is False
@@ -528,8 +546,6 @@ def test_the_endpoint_counts_fills_from_the_WHOLE_log_not_a_page(monkeypatch):
     A shortened read survived every other endpoint test because the test
     ledger is small. This plants a fill past any plausible page size.
     """
-    from fastapi.testclient import TestClient
-    from app.main import app
     import app.api.v1.fund as fundmod
 
     events = [{"seq": i + 1, "aggregate_id": f"n{i}", "aggregate_type": "nav",
@@ -555,7 +571,7 @@ def test_the_endpoint_counts_fills_from_the_WHOLE_log_not_a_page(monkeypatch):
 
     monkeypatch.setattr(fundmod, "_store", Store())
     monkeypatch.setattr(fundmod, "_execution_quotes", lambda: None)
-    body = TestClient(app).get("/api/v1/fund/execution/quality").json()
+    body = _client().get("/api/v1/fund/execution/quality").json()
 
     assert body["coverage"]["fill_events_total"] == 1, (
         "the endpoint's read of the log was capped, so the newest fill fell "
@@ -574,8 +590,7 @@ def test_the_endpoint_route_is_registered_and_is_read_only():
     A capture-only dispatch may add a read and nothing else, and this is what
     pins that: the new path serves GET and no verb that writes.
     """
-    from app.main import app
-    paths = app.openapi()["paths"]
+    paths = _client().app.openapi()["paths"]
     path = "/api/v1/fund/execution/quality"
     assert path in paths, f"route missing; nearest: {[p for p in paths if 'execution' in p]}"
     assert set(paths[path]) == {"get"}
@@ -694,8 +709,6 @@ def test_the_summary_describes_every_row_even_when_the_PAGE_is_truncated(
     Two rows, page cap of one: the page shows one and says truncated, and the
     summary counts both.
     """
-    from fastapi.testclient import TestClient
-    from app.main import app
     import app.api.v1.fund as fundmod
 
     store.record(**_row(order_id="p1", event_seq=301, symbol="SPY",
@@ -704,7 +717,7 @@ def test_the_summary_describes_every_row_even_when_the_PAGE_is_truncated(
                         bid=100.00, ask=100.10, fill_price=100.05))
     monkeypatch.setattr(fundmod, "_execution_quotes", lambda: store)
 
-    body = TestClient(app).get(
+    body = _client().get(
         "/api/v1/fund/execution/quality?limit=1").json()
     assert body["shown"] == 1 and body["truncated"] is True
     assert body["total"] == 2
@@ -716,3 +729,46 @@ def test_the_summary_describes_every_row_even_when_the_PAGE_is_truncated(
     # a page-limited summary would report the first row's spread as the mean.
     assert ex["effective_spread_bps"]["best"] == 0.0
     assert body["coverage"]["readable"] is True
+
+
+def test_no_d35_test_module_imports_app_main_in_process():
+    """A GUARD THAT FIRES ON THE NEXT AUTHOR, not on the next reviewer.
+
+    Importing ``app.main`` inside a test runs ``load_dotenv()``, resolves the
+    process mode, mounts the web directory and constructs the whole application
+    against the suite's shared Firestore fake. This dispatch's endpoint tests
+    were the first in the repo to do it and the FULL SUITE went from green to
+    59 failed / 28 errors across a dozen modules that share nothing with them —
+    while every one of those tests passed when its own file ran alone.
+
+    The symptom points nowhere near the cause, so the fix is a test rather than
+    a memory. Scoped to this dispatch's own files: widening it to the whole
+    suite would be a rule about somebody else's code, filed as a
+    recommendation instead.
+
+    Reads the AST, not the source text: a module that merely MENTIONS app.main
+    in a docstring — as this one does, twice — is not importing it.
+    """
+    import ast
+    import pathlib as _p
+
+    here = _p.Path(__file__).resolve().parent
+    mine = ["test_executionquality_arithmetic.py", "test_executionquality_fold.py",
+            "test_executionquality_store.py", "test_nbbo_capture.py",
+            "test_retro_spread.py", "test_tca_default_limit.py"]
+    offenders = []
+    for name in mine:
+        path = here / name
+        assert path.exists(), f"{name} is missing; the guard's scope went stale"
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.Import):
+                if any(a.name == "app.main" or a.name.startswith("app.main.")
+                       for a in node.names):
+                    offenders.append(f"{name}:{node.lineno}")
+            elif isinstance(node, ast.ImportFrom):
+                if (node.module or "") == "app.main":
+                    offenders.append(f"{name}:{node.lineno}")
+    assert offenders == [], (
+        "these tests import app.main in-process and will poison the shared "
+        f"Firestore fake for every module after them: {offenders}. Build a "
+        "fresh FastAPI with the fund router instead - see _client() above.")
