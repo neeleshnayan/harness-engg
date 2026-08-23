@@ -811,3 +811,61 @@ def test_the_future_clock_bound_is_probed_at_its_own_boundary(ahead_s, flagged):
         assert result.startswith("event_timestamp_in_the_future:")
     else:
         assert result is None
+
+
+def test_the_capture_loop_keeps_a_genuine_quantity_of_zero():
+    """THE LOOP HAS ITS OWN COPY of the filled_qty/cumulative_qty choice.
+
+    A fold test cannot cover it: mutation showed the loop's copy surviving
+    while the fold's was pinned. A fill of exactly zero shares is falsy, and
+    ``a or b`` would reach past it to the other key — an absent quantity
+    recorded where a measured zero belongs.
+    """
+    fresh_ts = iso(NOW - timedelta(seconds=5))
+    events = [
+        proposed(1, "z", "AAPL", "buy", fresh_ts),
+        _event(2, "z", "order", "OrderFilled", fresh_ts,
+               {"fees": "0", "side": "buy", "symbol": "AAPL",
+                "avg_price": "100.05", "filled_qty": 0,
+                "cumulative_qty": 99.0}),
+    ]
+    store = FakeStore()
+    quotes = FakeQuotes(by_symbol={"AAPL": {"bid": 100.0, "ask": 100.10,
+                                            "bid_size": 1, "ask_size": 1,
+                                            "quote_ts": fresh_ts}})
+    nbbo_capture.capture_batch(events, store, quotes, run_id="r",
+                               max_age_s=120.0, now=NOW)
+    assert store.calls[0]["filled_qty"] == 0, (
+        "a real zero was coalesced into the cumulative figure")
+
+
+def test_two_events_without_a_sequence_number_get_their_own_staleness():
+    """STALENESS IS THE ONLY THING PREVENTING A FABRICATED MARKET.
+
+    It used to be held in a dict keyed on seq, so two events arriving with no
+    seq both keyed on 0 and the second silently inherited the first's verdict.
+    Here the first event is fresh and the second is hours old: if they shared a
+    verdict the stale one would be handed a live quote.
+    """
+    fresh_ts = iso(NOW - timedelta(seconds=5))
+    stale_ts = iso(NOW - timedelta(hours=5))
+    events = [
+        {"aggregate_id": "a", "aggregate_type": "order", "type": "OrderFilled",
+         "actor": "t", "ts": fresh_ts,
+         "payload": {"symbol": "AAPL", "side": "buy", "avg_price": "100.05",
+                     "filled_qty": "1.0"}},
+        {"aggregate_id": "b", "aggregate_type": "order", "type": "OrderFilled",
+         "actor": "t", "ts": stale_ts,
+         "payload": {"symbol": "AAPL", "side": "buy", "avg_price": "100.05",
+                     "filled_qty": "1.0"}},
+    ]
+    store = FakeStore()
+    quotes = FakeQuotes(by_symbol={"AAPL": {"bid": 100.0, "ask": 100.10,
+                                            "bid_size": 1, "ask_size": 1,
+                                            "quote_ts": fresh_ts}})
+    nbbo_capture.capture_batch(events, store, quotes, run_id="r",
+                               max_age_s=120.0, now=NOW)
+    by_order = {c["order_id"]: c for c in store.calls}
+    assert by_order["a"]["quote_absent_reason"] is None
+    assert by_order["b"]["quote_absent_reason"].startswith(
+        "event_too_old_for_live_quote:")

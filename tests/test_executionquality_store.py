@@ -680,3 +680,39 @@ def test_the_refusal_names_WHICH_vocabulary_it_refused(store, bad, expect_word):
     others = {"event_kind", "basis", "feed"} - {expect_word}
     assert not [w for w in others if f"{w} must be" in str(e.value)], (
         f"the refusal for a bad {expect_word} named a different vocabulary")
+
+
+def test_the_summary_describes_every_row_even_when_the_PAGE_is_truncated(
+        store, monkeypatch):
+    """FOUND BY READING THE DIFF, NOT BY THE SUITE OR THE MUTATION PASS.
+
+    The first draft summarised ``rows`` — the display page. With more captured
+    fills than the page cap, the served mean would have described the newest
+    page while carrying the label of the fund's execution cost. That is the
+    same defect measured in ``/fund/tca`` the same day, rebuilt by hand.
+
+    Two rows, page cap of one: the page shows one and says truncated, and the
+    summary counts both.
+    """
+    from fastapi.testclient import TestClient
+    from app.main import app
+    import app.api.v1.fund as fundmod
+
+    store.record(**_row(order_id="p1", event_seq=301, symbol="SPY",
+                        bid=100.00, ask=100.10, fill_price=100.10))
+    store.record(**_row(order_id="p2", event_seq=302, symbol="SPY",
+                        bid=100.00, ask=100.10, fill_price=100.05))
+    monkeypatch.setattr(fundmod, "_execution_quotes", lambda: store)
+
+    body = TestClient(app).get(
+        "/api/v1/fund/execution/quality?limit=1").json()
+    assert body["shown"] == 1 and body["truncated"] is True
+    assert body["total"] == 2
+    assert body["summary_complete"] is True
+    ex = body["summary"]["by_execution_class"]["executed"]
+    assert ex["measured"] == 2, (
+        "the summary described the page instead of the table")
+    # The second fill is AT the mid, so its effective spread is exactly 0.0;
+    # a page-limited summary would report the first row's spread as the mean.
+    assert ex["effective_spread_bps"]["best"] == 0.0
+    assert body["coverage"]["readable"] is True

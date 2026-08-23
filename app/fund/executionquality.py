@@ -4,8 +4,10 @@ THE BLINDSPOT THIS CLOSES. ``app/fund/tca.py`` already folds implementation
 shortfall out of the log: decision price, arrival price, fill price, signed so
 positive is a cost. It is good and it is not the same measurement. Every price
 it compares against is a price the FUND struck — and the fund strikes its marks
-from the last TRADE (``connectors/alpaca.py:156`` requests
-``StockLatestTradeRequest``). A last trade is as likely to have printed at the
+from the last TRADE (``connectors/alpaca.py::AlpacaConnector._fetch_price``
+issues ``StockLatestTradeRequest``; named rather than numbered because line
+numbers go stale and this one already had). A last trade is as likely to have
+printed at the
 bid as at the ask, so a shortfall measured against it carries roughly half a
 spread of noise per observation and a bias in whichever direction trade
 direction happens to be autocorrelated.
@@ -366,12 +368,22 @@ def fold_order_lifecycles(events: Iterable[dict]) -> dict[str, dict]:
     SYMBOL AND SIDE COME FROM WHEREVER THEY EXIST, and the reason is measured:
     ``OrderSubmitted.payload`` is ``{venue, venue_ref, arrival_price}`` with no
     symbol at all, and ``OrderPartiallyFilled.payload`` is
-    ``{avg_price, cumulative_qty}`` with neither symbol nor side. Only
-    ``OrderProposed`` and ``OrderFilled`` carry them, and 7 of the 29 filled
-    orders in the live log have no ``OrderProposed`` (they predate the propose
-    path). So the fold takes the first one it can find and reports None when it
-    finds none — an order whose symbol is unknown cannot be quoted, and saying
-    so is the whole job.
+    ``{avg_price, cumulative_qty}`` with neither symbol nor side. Four order
+    event types carry a symbol in the live log — ``OrderProposed``,
+    ``OrderFilled``, ``OrderRejected`` and ``OrderFailed`` — and only the first
+    two can coexist with a fill, but the fold reads ANY of them rather than a
+    named pair, because a list of type names is the kind of guard that goes
+    stale silently. It takes the LOWEST-seq event that names one, and reports
+    None when nothing does: 7 of the 29 filled orders in the live log have no
+    ``OrderProposed`` at all (they predate the propose path). An order whose
+    symbol is unknown cannot be quoted, and saying so is the whole job.
+
+    A RE-SUBMITTED ORDER'S LAST ``OrderSubmitted`` WINS — its arrival price,
+    its venue and its seq together, so the record describes one submission
+    rather than a blend of two. No order in the live log has been submitted
+    twice (checked), so this is a choice with no data behind it yet; it is
+    written down because the alternative (first wins) is equally arguable and
+    the next reader should not have to infer which was meant.
     """
     rows = sorted(
         (e for e in events if (e or {}).get("aggregate_type") == "order"),
@@ -413,12 +425,22 @@ def fold_order_lifecycles(events: Iterable[dict]) -> dict[str, dict]:
             rec["filled_venue"] = pay.get("venue")
         if kind is None:
             continue
+        # `filled_qty` on a terminal fill, `cumulative_qty` on a partial - the
+        # two payloads spell the same fact differently and only one is ever
+        # present. Written as an explicit None test rather than `a or b`: a
+        # genuine quantity of ZERO is falsy, and `or` would silently reach past
+        # it to the other key and then to None. No fill in the log carries a
+        # zero quantity today (checked), which is exactly the condition under
+        # which this defect would have shipped unnoticed.
+        qty = _num(pay.get("filled_qty"))
+        if qty is None:
+            qty = _num(pay.get("cumulative_qty"))
         rec["legs"].append({
             "kind": kind,
             "seq": int(e.get("seq") or 0),
             "ts": e.get("ts"),
             "price": _num(pay.get("avg_price")),
-            "qty": _num(pay.get("filled_qty")) or _num(pay.get("cumulative_qty")),
+            "qty": qty,
         })
     return out
 
@@ -766,12 +788,22 @@ def coverage(fill_legs_from_log: list[dict],
                 "measured": None, "quote_absent": None, "uncaptured": None,
                 "pct_measured": None,
                 "reason": "the execution-quote store could not be read"}
-    seen = {(r.get("order_id"), int(r.get("event_seq") or -1))
-            for r in quote_rows if r.get("event_kind") in FILL_KINDS}
-    measured_keys = {(r.get("order_id"), int(r.get("event_seq") or -1))
-                     for r in quote_rows
-                     if r.get("event_kind") in FILL_KINDS
-                     and _num(r.get("effective_spread_bps")) is not None}
+    def _key(r):
+        # `int(x or -1)` would map a genuine seq of 0 onto the sentinel. Seq 0
+        # does not exist in this log, which is precisely why the bug would have
+        # shipped; written as an explicit None test because the next store to
+        # be counted here may number differently.
+        s = r.get("event_seq")
+        return (r.get("order_id"), -1 if s is None else int(s))
+
+    # TWO ROWS FOR ONE EVENT COLLAPSE TO ONE, deliberately. The live IEX row
+    # and the consolidated row describe the same fill from two markets; a fill
+    # is MEASURED if any basis measured it, and counting both would let the
+    # coverage figure exceed the number of fills.
+    fills = [r for r in quote_rows if r.get("event_kind") in FILL_KINDS]
+    seen = {_key(r) for r in fills}
+    measured_keys = {_key(r) for r in fills
+                     if _num(r.get("effective_spread_bps")) is not None}
     log_keys = {(r["order_id"], r["event_seq"]) for r in fill_legs_from_log}
     measured = len(log_keys & measured_keys)
     captured = len(log_keys & seen)
@@ -900,6 +932,18 @@ ROW_COLUMNS = (
 #: The display cap. Fetched as ``limit + 1`` so truncation is a measured fact
 #: rather than the ambiguity of ``len(rows) == limit`` (D24).
 ROW_QUERY_LIMIT = 1000
+
+#: How far a SUMMARY reads. Deliberately far above the display cap, because a
+#: page and a statistic are two different jobs on a capped read (D24): the
+#: display may honestly show a thousand rows and say ``truncated``, but a mean
+#: computed over "the newest page" is a different number wearing the same
+#: label — the exact defect measured in ``GET /fund/tca`` on 2026-08-23.
+#:
+#: A summary that hits even THIS cap reports ``complete: false`` rather than
+#: quietly describing a prefix. One row per fill event per basis, and the fund
+#: has made 34 fill events in eleven days, so 100,000 is a very long way off;
+#: the flag exists because "a long way off" is not "never".
+SUMMARY_SCAN_LIMIT = 100_000
 
 
 class QuoteStore:

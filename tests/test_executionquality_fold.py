@@ -761,3 +761,73 @@ def test_the_identity_tolerance_is_probed_at_its_own_edge():
     # 100.0 (the float spacing there is about 1.4e-14), so this really is a
     # difference the arithmetic can see.
     assert classify(1e-9) == "measured"
+
+
+def test_a_genuine_quantity_of_zero_is_kept_not_coalesced_away():
+    """`a or b` REACHES PAST A REAL ZERO.
+
+    ``filled_qty`` on a terminal fill and ``cumulative_qty`` on a partial spell
+    the same fact, and the fold used to pick between them with ``or``. A fill
+    of exactly zero shares is falsy, so it would silently become the other key
+    and then None — an absent quantity where a measured zero belongs. No fill
+    in the live log carries a zero quantity, which is the only reason this
+    would have shipped unnoticed.
+    """
+    events = [
+        ev(1, "z1", "OrderFilled",
+           {"fees": "0", "side": "buy", "symbol": "SPY", "avg_price": "10.0",
+            "filled_qty": 0, "cumulative_qty": 99.0}),
+    ]
+    leg = fill_legs(fold_order_lifecycles(events))[0]
+    assert leg["filled_qty"] == 0.0, "a real zero was coalesced into 99.0"
+
+
+def test_a_quantity_that_is_absent_falls_through_to_the_other_spelling():
+    """The other side of the same branch, so the fix cannot be "always take
+    filled_qty" — a partial fill has only ``cumulative_qty``."""
+    events = [
+        ev(1, "z2", "OrderPartiallyFilled",
+           {"avg_price": "10.0", "cumulative_qty": "2.5"}),
+    ]
+    leg = fill_legs(fold_order_lifecycles(events))[0]
+    assert leg["filled_qty"] == 2.5
+
+
+def test_two_events_with_no_sequence_number_do_not_share_a_key():
+    """A seq of 0/absent must not make two events one.
+
+    ``coverage`` keys on ``(order_id, event_seq)``; a missing seq mapped onto a
+    shared sentinel would silently merge two fills into one and shrink the
+    denominator of the fund's own coverage figure.
+    """
+    events = [
+        {"aggregate_id": "n1", "aggregate_type": "order", "type": "OrderFilled",
+         "actor": "t", "ts": "2026-08-23T00:00:00+00:00",
+         "payload": {"symbol": "SPY", "side": "buy", "avg_price": "1.0",
+                     "filled_qty": "1.0"}},
+        {"aggregate_id": "n2", "aggregate_type": "order", "type": "OrderFilled",
+         "actor": "t", "ts": "2026-08-23T00:00:00+00:00",
+         "payload": {"symbol": "SPY", "side": "buy", "avg_price": "2.0",
+                     "filled_qty": "1.0"}},
+    ]
+    legs = fill_legs(fold_order_lifecycles(events))
+    assert len(legs) == 2
+    cov = coverage(legs, [])
+    assert cov["fill_events_total"] == 2 and cov["uncaptured"] == 2
+
+
+def test_coverage_matches_a_quote_row_whose_event_seq_is_zero():
+    """A SEQ OF ZERO IS A SEQ, NOT AN ABSENT ONE.
+
+    The fold gives a seq-less event ``event_seq = 0``, so a captured quote for
+    it carries 0 too. Keying that onto the missing-seq sentinel would make the
+    fill read as uncaptured forever while a perfectly good row sat in the
+    table — coverage understating itself, permanently and invisibly.
+    """
+    log_legs = [{"order_id": "o0", "event_seq": 0}]
+    quote_rows = [{"order_id": "o0", "event_seq": 0, "event_kind": "filled",
+                   "effective_spread_bps": 2.5}]
+    out = coverage(log_legs, quote_rows)
+    assert out["measured"] == 1
+    assert out["uncaptured"] == 0
+    assert out["pct_measured"] == 100.0

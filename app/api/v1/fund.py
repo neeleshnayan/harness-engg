@@ -688,8 +688,8 @@ def get_execution_quality(limit: int = Query(500, ge=1, le=5000)):
         zero is a measurement, and on 2026-08-23 it was the true state of the
         fund: thirty four fill events, none of them ever quoted.
     """
-    from app.fund.executionquality import (MARK_BASIS, SchemaAbsent,
-                                           coverage, fill_legs,
+    from app.fund.executionquality import (MARK_BASIS, SUMMARY_SCAN_LIMIT,
+                                           SchemaAbsent, coverage, fill_legs,
                                            fold_order_lifecycles,
                                            retro_mark_rows,
                                            summarise_mark_rows,
@@ -700,17 +700,30 @@ def get_execution_quality(limit: int = Query(500, ge=1, le=5000)):
     legs = fill_legs(fold_order_lifecycles(events))
     mark_rows = retro_mark_rows(events)
 
+    # TWO READS, TWO JOBS, AND THAT IS THE WHOLE POINT (D24).
+    #
+    # `rows` is a PAGE for a human to look at and may honestly be truncated.
+    # `all_rows` backs the SUMMARY and the COVERAGE, which are claims about
+    # every captured fill — computing them over the newest page would produce a
+    # mean and a percentage that describe the page while wearing the label of
+    # the fund. That is precisely the defect measured in `/fund/tca` the same
+    # day this was written, and the first draft of this endpoint had it too.
     store = _execution_quotes()
     rows: list | None = None
+    all_rows: list | None = None
     truncated = False
+    summary_complete = True
     total: int | None = None
     unreadable: str | None = None
     if store is None:
         unreadable = "this process is not on Postgres; there is no quote store"
     else:
         try:
-            rows, truncated = store.rows(limit=limit)
+            all_rows, over_scan = store.rows(limit=SUMMARY_SCAN_LIMIT)
+            summary_complete = not over_scan
             total = store.count()
+            rows = all_rows[:limit]
+            truncated = len(all_rows) > limit
         except SchemaAbsent as e:
             unreadable = str(e)
         except Exception as e:  # noqa: BLE001 - an unreachable store is an absence
@@ -724,8 +737,14 @@ def get_execution_quality(limit: int = Query(500, ge=1, le=5000)):
         "total": total,
         "truncated": truncated,
         "limit": limit,
-        "summary": summarise_quote_rows(rows) if rows is not None else None,
-        "coverage": coverage(legs, rows),
+        # Computed over EVERY row, not over the page above. `summary_complete`
+        # is False only if the scan cap itself bit, and then the figures below
+        # describe a prefix and say so rather than pretending otherwise.
+        "summary_complete": summary_complete,
+        "summary_scan_limit": SUMMARY_SCAN_LIMIT,
+        "summary": (summarise_quote_rows(all_rows)
+                    if all_rows is not None else None),
+        "coverage": coverage(legs, all_rows),
         # THE MARK TABLE IS SERVED BESIDE THE QUOTE TABLE AND NEVER INSIDE IT.
         # It is implementation shortfall against the fund's own struck mark,
         # not an effective spread, and it is computed here rather than stored

@@ -302,11 +302,16 @@ def capture_batch(events: list[dict], store: QuoteStore, quotes: Any, *,
     now = now or _now()
 
     # Which symbols do we need? Only for events that will actually get a quote.
-    wanted, staleness = set(), {}
+    #
+    # STALENESS IS CARRIED POSITIONALLY, NOT IN A DICT KEYED ON SEQ. Two events
+    # arriving with no seq would both key on 0 and the second would silently
+    # inherit the first's verdict - and the verdict decides whether a live
+    # quote may be attached at all. A list beside `todo` cannot collide.
+    wanted: set[str] = set()
+    staleness: list[Optional[str]] = []
     for e in todo:
-        seq = int(e.get("seq") or 0)
         stale = too_old(e.get("ts"), max_age_s, now)
-        staleness[seq] = stale
+        staleness.append(stale)
         sym = (lifecycles.get(str(e.get("aggregate_id")), {}) or {}).get("symbol")
         if stale is None and sym:
             wanted.add(sym)
@@ -323,7 +328,7 @@ def capture_batch(events: list[dict], store: QuoteStore, quotes: Any, *,
             vendor_error = f"quote_fetch_failed:{type(exc).__name__}:{str(exc)[:120]}"
 
     out = []
-    for e in todo:
+    for i, e in enumerate(todo):
         seq = int(e.get("seq") or 0)
         oid = str(e.get("aggregate_id") or "")
         kind = EVENT_KIND_OF_TYPE[str(e.get("type"))]
@@ -331,12 +336,18 @@ def capture_batch(events: list[dict], store: QuoteStore, quotes: Any, *,
         sym, side = rec.get("symbol"), rec.get("side")
         pay = e.get("payload") or {}
         fill_price = pay.get("avg_price") if kind in FILL_KINDS else None
-        filled_qty = (pay.get("filled_qty") or pay.get("cumulative_qty")
-                      if kind in FILL_KINDS else None)
+        # `a or b` would reach past a genuine quantity of zero. The log stores
+        # these as strings today, where "0" is truthy and the bug is dormant -
+        # which is the only reason it is worth writing out longhand.
+        filled_qty = None
+        if kind in FILL_KINDS:
+            filled_qty = pay.get("filled_qty")
+            if filled_qty is None:
+                filled_qty = pay.get("cumulative_qty")
 
         q, reason = {}, None
-        if staleness[seq] is not None:
-            reason = staleness[seq]
+        if staleness[i] is not None:
+            reason = staleness[i]
         elif not sym:
             reason = "symbol_unknown:no event in this order names one"
         elif vendor_error is not None:
