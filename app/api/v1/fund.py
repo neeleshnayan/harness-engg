@@ -2356,6 +2356,14 @@ def _refuse_if_superseded(ref: str, *, kind: str, target_id: str,
     and ``ORDER_ANNOTATION_EVENTS`` governs order aggregates only. (D17's
     lesson, applied as a checklist rather than remembered: a new event type on
     an existing aggregate is a lifecycle change until proven otherwise.)
+
+    ONE KNOCK-ON, DISCLOSED RATHER THAN LEFT TO BE FOUND: this is a NEW
+    PRODUCER of ``ApprovalRefused``, and ``mode._controls_have_fired`` (prod
+    precondition 1) is satisfied by that type appearing in the store at all. A
+    supersession refusal genuinely IS an approval refused on the approval
+    path, so nothing false is being told — but a store whose ONLY refusal was
+    this one would now read as "the approval control has fired", and whoever
+    owns that precondition should know a second producer exists.
     """
     from app.fund.events import Event, EventType
     checked = _supersession_check(ref)

@@ -196,7 +196,7 @@ def test_an_honest_absence_is_accepted_on_both_ranking_keys():
     dollar figure states one, and the desk then ranks on fabricated money.
     """
     assert desk.routing_errors({**GOOD_REC, "due_date": None,
-                                  "money_at_stake": None}, 0) == []
+                                "money_at_stake": None}, 0) == []
 
 
 @pytest.mark.parametrize("value", ["free", float("nan"), float("inf"), "12"])
@@ -224,10 +224,12 @@ def test_the_endpoint_refuses_an_unrouted_filing_with_422_WHEN_ENFORCED(monkeypa
 #
 # THE HALF-SHIPPED CONTRACT (adversary D22, ground 2 of the bundle kill). The
 # 422 was measured over the last day of live traffic and would have rejected
-# 16 of 17 runs across eight seats: the schema half of a contract whose other
-# half — the seat protocols that teach seats the four fields — is outside this
-# repo's write scope. Enforced alone it does not tighten routing; it stops the
-# record being written.
+# almost every run recorded that day, across eight seats — the schema half of
+# a contract whose other half, the seat protocols that teach seats the four
+# fields, is outside this repo's write scope. Enforced alone it does not
+# tighten routing; it stops the record being written. THE FIGURES LIVE BESIDE
+# THE FLAG in app/fund/desk.py and are deliberately not copied here; the test
+# below asserts they are still there.
 
 def test_the_enforcement_flag_SHIPS_OFF_and_the_reason_is_on_the_record():
     """Traceability half of the pin (D21 standard): the shipped value, and the
