@@ -165,6 +165,17 @@ def test_the_ratchet_default_is_the_one_walkforward_holds(monkeypatch):
     import app.fund.factory as f
     import app.fund.walkforward as wf
     assert f.HISTORY_FLOOR_RATCHET is wf.HISTORY_FLOOR_RATCHET
+    # `is` alone rests on CPython not interning this literal, which is true for
+    # a dashed date and is not a guarantee. So the SHAPE is asserted too: the
+    # factory-side assignment must bind a NAME, never spell the date again.
+    import ast
+    from pathlib import Path
+    tree = ast.parse((Path(f.__file__)).read_text(encoding="utf-8"))
+    rhs = [n.value for n in tree.body if isinstance(n, ast.Assign)
+           and any(getattr(t, "id", None) == "HISTORY_FLOOR_RATCHET"
+                   for t in n.targets)]
+    assert len(rhs) == 1 and isinstance(rhs[0], ast.Name), (
+        "factory re-declares the ratchet date instead of re-exporting it")
     monkeypatch.setattr(f, "HISTORY_FLOOR_RATCHET", "2018-03-04")
     out = f.effective_history_floor(_code(700), END, run_date=END)
     assert out["ratchet"] == "2018-03-04"

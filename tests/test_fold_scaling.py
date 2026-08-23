@@ -372,6 +372,29 @@ def test_the_fold_count_term_is_READ_from_v42s_own_ceiling(monkeypatch):
     assert g.folds_required(_wf(plan))["required_by_folds"] == 16
 
 
+@pytest.mark.parametrize("hold,by_days", [(1, 2), (3, 3), (10, 5)])
+def test_the_fold_count_term_DECIDES_the_requirement_for_a_fast_rule(hold, by_days):
+    """FOUND BY MUTATION. Deleting the term from the ``max`` left the suite green.
+
+    Every test above pins ``required_by_folds`` or a 21-day hold, where the days
+    term is the larger. So the guard could have been computed, reported, and
+    never applied — a control with no caller, which is this fund's oldest defect
+    shape. A fast rule at the deep floor is where it decides: twelve folds whose
+    days term prices at two or three, and the requirement is eight.
+    """
+    plan = _plan(hold, "2021-03-02")
+    need = folds_required(_wf(plan))
+    assert len(plan["folds"]) == MAX_WALKFORWARD_FOLDS
+    assert need["required_by_days"] == by_days
+    assert need["binding_term"] == "folds"
+    assert need["required"] == need["required_by_folds"] == 8
+    # And the verdict it produces changes with it: eight measurable folds of
+    # twelve is not enough evidence under the term, and is under the days term.
+    starved = evaluate({}, walkforward={"folds_measurable": 7,
+                                        "folds_retained": 7, **_wf(plan)})
+    assert any("below the 8 required" in f for f in starved["failures"])
+
+
 def test_the_fold_count_term_is_non_binding_on_every_plan_v42_could_make():
     """Which is why it does not disturb the identity claim above."""
     for planned in range(1, V42_MAX_FOLDS + 1):

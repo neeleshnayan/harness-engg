@@ -123,8 +123,7 @@ def covered_window(wf: Any) -> dict[str, Any]:
             # floor would have supplied for this same candidate. Read from the
             # last fold rather than from any field the payload asserts, for the
             # same reason the span is.
-            "last_test_end": str(last.get("test_end")),
-            "first_train_start": str(first.get("train_start"))}
+            "last_test_end": str(last.get("test_end"))}
 
 
 def folds_required(wf: Any, criteria: Optional[dict[str, Any]] = None
@@ -185,9 +184,10 @@ def folds_required(wf: Any, criteria: Optional[dict[str, Any]] = None
     this function was written to close, so the requirement also carries the
     LOOSEST fold-count density v4.2 could reach — its planner ceiling of
     ``V42_MAX_FOLDS`` folds against the anchor's four. It is non-binding on
-    every plan v4.2 could produce (six folds price at four, which is the
-    anchor), and it binds only where the extension has bought folds term one
-    does not price.
+    every plan v4.2's planner could produce — its ceiling was six folds, which
+    price at exactly four, and the deepest it was ever measured actually laying
+    was five — so it binds only where the D20 extension has bought folds that
+    term one does not price.
 
     NEITHER TERM MOVES A THRESHOLD. ``min_walkforward_folds`` is untouched at
     4; both terms are ``max``-ed against it, so both can only ever ask for MORE
@@ -239,8 +239,12 @@ def folds_required(wf: Any, criteria: Optional[dict[str, Any]] = None
     out["required_by_folds"] = int(by_folds)
     out["required"] = max(anchor, int(by_days), int(by_folds))
     out["scaled"] = out["required"] > anchor
+    # Which term decided it, named so a candidate can see WHY its bar moved. A
+    # TIE is reported as a tie: saying "days" when both terms landed on the
+    # same number would let a reader conclude the other one is slack.
     out["binding_term"] = ("anchor" if out["required"] == anchor else
-                           "days" if by_days >= by_folds else "folds")
+                           "days and folds" if by_days == by_folds else
+                           "days" if by_days > by_folds else "folds")
     # The calendar lengths above come from the evidence, so this needs no
     # conversion back to trading days. ``walkforward.span_for_folds`` is the
     # trading-day twin of the same closed form and is what the BELT plans
@@ -469,15 +473,21 @@ def fmt_bps(x: float) -> str:
 #: geometries and the survey that says so is `scratchpad/d20_fleet.py`.
 #: Reproduce: `python ../d20_fp.py 20000 7717` from the worktree root.
 #:
-#:   shipped geometry     algos  v4.2 plan  v4.3 plan   FP v4.2  FP v4.3   diff
+#:   geometry             algos  v4.2 plan  v4.3 plan   FP v4.2  FP v4.3   diff
 #:   floor 2024-02-26      14      4f/4       4f/4       2.95%    2.95%   +0.00pp
 #:   floor 2021-03-02       2      4f/4      12f/9       2.95%    2.90%   -0.05pp
+#:   ...the same pair as D19 shipped it, KILLED, not in this code:
+#:   floor 2021-03-02       2      4f/4       6f/5       2.95%    4.96%   +2.01pp
 #:
-#:   power at Sharpe 1.0: 22.18% -> 22.18% (unchanged) and 22.18% -> 39.91%.
-#:   n=20,000 paired draws, seed 7717; paired SE 0.16pp on the false-pass
-#:   difference and 0.42pp on the power difference. An independent run at
-#:   n=6,000 seed 2026 agreed: +0.00pp and -0.13pp on false-pass, 22.63% ->
-#:   39.88% on power.
+#:   power at Sharpe 1.0: 22.18% -> 22.18% (unchanged), 22.18% -> 39.91%
+#:   (shipped) and 22.18% -> 32.46% (the killed arm — it bought less power for
+#:   a real cost in false passes). n=20,000 paired draws, seed 7717; paired SE
+#:   0.16pp on the false-pass differences and 0.42pp on the power difference.
+#:   An independent run at n=6,000 seed 2026 agreed on the shipped rows:
+#:   +0.00pp and -0.13pp on false-pass, 22.63% -> 39.88% on power. The killed
+#:   row also reproduces the adversary's own independent figure for it (they
+#:   measured 3.33% -> 5.00% on a different seed; the +2pp is the finding, and
+#:   two harnesses agree on it).
 #:
 #: HOW TO READ IT, precisely, because the honest claim is narrower than "we
 #: lowered the false-pass rate". On the 14-algorithm geometry the plan is

@@ -113,12 +113,22 @@ def cal_days(trading_days: int) -> int:
 #: answers.
 MAX_WALKFORWARD_FOLDS = 12
 
-#: The most folds gate v4.2's planner could ever lay: its ceiling was
-#: ``max(min_folds, 6)``. Named because TWO rules now derive from it — the
-#: unextended plan below still uses it, and ``gate.folds_required`` uses it to
-#: bound how much slack the density may grant (v4.2's loosest reachable
-#: configuration was six folds requiring four, so carrying THAT ratio forward is
-#: the weakest fold-count bar that cannot be looser than v4.2).
+#: Gate v4.2's DECLARED planner ceiling — its ``max(min_folds, 6)``. Named
+#: because TWO rules now derive from it: the unextended plan below still uses
+#: it, and ``gate.folds_required`` uses it to bound how much slack the fold
+#: density may grant (four folds required per six planned is the loosest ratio
+#: v4.2's own code PERMITTED, so carrying that forward is the weakest
+#: fold-count bar that cannot be stricter than v4.2 allowed).
+#:
+#: DECLARED, not observed, and the difference is measured: v4.2's reach-back
+#: rule meant the ceiling was NEVER REACHED. Over holds 1..199 at three floors
+#: (597 plans) it laid at most FIVE folds — reproduce on the v4.2 tree with
+#: ``python -c "from app.fund.walkforward import window_for_strategy as w;
+#: print(max(len(w('2026-08-23',h,min_folds=4,floor=f)['folds'])
+#: for h in range(1,200) for f in ('2024-02-26','2021-03-02','1993-01-29')))"``.
+#: Anchoring on the ceiling rather than on the observed maximum is deliberate
+#: and is the permissive choice: a bar derived from what v4.2 ALLOWED cannot
+#: retroactively tighten anything v4.2 would have passed.
 V42_MAX_FOLDS = 6
 
 #: The floor this fund enforced before gate v4.3 — the old value of
@@ -322,13 +332,13 @@ def window_for(end: str, min_folds: int, train_days: int = 252,
     blind review killed the D19 pair). Until D20 the reach-back was
     ``train + test*(min_folds+1)`` and the plan was capped at
     ``max(min_folds, 6)`` folds, so a candidate whose containers could be fed a
-    five-year window still got six folds — and six folds requiring five was
-    MEASURED as a net loosening (5.00% zero-skill false-pass against v4.2's
-    3.33%, paired, n=6,000). The configuration that strictly dominates today is
-    twelve folds requiring nine, and it was unreachable under those two caps.
-    So a plan whose floor is deeper than the pre-v4.3 window now reaches back
-    until it has laid ``MAX_WALKFORWARD_FOLDS`` folds, or until it hits the
-    floor, whichever comes first.
+    five-year window still got six folds — and six folds requiring five is a
+    measured net loosening (the killed row of the table in ``gate.py``). The
+    configuration that does not loosen is twelve folds requiring nine, and it
+    was unreachable under those two caps. So a plan whose floor is deeper than
+    the pre-v4.3 window now reaches back until it has laid
+    ``MAX_WALKFORWARD_FOLDS`` folds, or until it hits the floor, whichever comes
+    first.
 
     IT EXTENDS AND NEVER SHORTENS, and the guard is structural rather than
     hopeful: the start is the EARLIER of the old rule's start and the extended

@@ -138,6 +138,7 @@ def preflight() -> None:
     under v4.3 the requirement and the window size each other.
     """
     from datetime import date
+    from pathlib import Path
 
     from app.fund.factory import effective_history_floor
     from app.fund.gate import CRITERIA, GATE_VERSION, folds_required
@@ -146,12 +147,16 @@ def preflight() -> None:
     anchor = int(CRITERIA.get("min_walkforward_folds") or 0)
     today = date.today().isoformat()
     code = None
+    # Resolved from this file, not from the cwd: the audit is run from the repo
+    # root by convention, and a convention is not a guarantee. Reading nothing
+    # would silently make the data-path leg UNKNOWN, which is the SHALLOWEST
+    # floor — the preflight would then pass a geometry the belt does not use.
+    src = (Path(__file__).resolve().parents[1] / "lean_workspace" /
+           "algorithms" / ALGO / "main.py")
     try:
-        with open(f"lean_workspace/algorithms/{ALGO}/main.py",
-                  encoding="utf-8") as fh:
-            code = fh.read()
+        code = src.read_text(encoding="utf-8")
     except OSError as e:
-        print(f"  (could not read {ALGO}/main.py: {e} — the data-path leg will "
+        print(f"  (could not read {src}: {e} — the data-path leg will "
               f"read UNKNOWN, which ratchets the floor rather than deepening "
               f"it)", flush=True)
     history = effective_history_floor(code, today)
@@ -176,10 +181,13 @@ def preflight() -> None:
         print(f"  hold {h:>3}d -> {fits} fold(s) of {w['test_days']}d, "
               f"needs {need}   {mark}", flush=True)
         if not enough:
-            bad.append((h, fits, w["test_days"]))
+            bad.append((h, fits, w["test_days"], need))
     if bad:
-        detail = "; ".join(f"{h}-day hold fits {f} fold(s) of {t}d"
-                           for h, f, t in bad)
+        # The requirement is per-candidate under v4.3, so the abort has to name
+        # it: "fits 4 folds" is not a diagnosis unless the reader is told the
+        # bar was 9.
+        detail = "; ".join(f"{h}-day hold fits {f} fold(s) of {t}d against a "
+                           f"requirement of {n}" for h, f, t, n in bad)
         raise SystemExit(
             f"\nABORTING before spending container time.\n\n"
             f"These holds cannot be judged on the history available ({detail}), so "

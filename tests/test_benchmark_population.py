@@ -181,7 +181,7 @@ def test_a_snapshot_that_does_not_cover_a_name_may_not_condemn_it(monkeypatch):
     assert result["benchmark_basket"] == ["AAA", "BBB"]
 
 
-def test_a_snapshot_that_judged_NOBODY_does_not_claim_the_correction(monkeypatch):
+def test_a_snapshot_that_judged_NOBODY_does_not_claim_the_correction():
     """THE ADVERSARY'S D19 REPAIR (kill1.py), reproduced end to end.
 
     The fund has ONE as-of snapshot, 2025-01-01, holding types CS and ADRC. The
