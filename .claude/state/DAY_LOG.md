@@ -40,6 +40,24 @@ at ~00:05Z ("you too rest post closing these 5 items; will see you on
 Monday"). The five fan-out items all resolved; the floor rests until Monday.
 
 **DECIDED**
+- **THE DELEGATION v2 (CEO, verbatim, ~18:4xZ): the chair is unhobbled** —
+  decide-and-execute across the R&D/operational lane as neelesh-via-cto
+  with second-look flags; THE FLOOR stays his and self-widening is
+  forbidden (money moving, money spent, any loosening, the control layer,
+  constitution beyond his decisions, irreversibles). Amendment in the
+  constitution with its revocation trigger; the floor itself is flagged
+  for his second look. **First sweep executed the same hour: 8 of the 12
+  CEO-lane items decided** — the Tiingo probe closed as executed; the
+  routing challenge closed with citation; the stale D19 block-merge
+  discharged (superseded by the v4.3 merge); the friction trend and P1
+  scoreboard noted to Grace; the R6 fire drill ACCEPTED and scheduled
+  (second-look; prod stays gated); the worktree-placement defect closed
+  into the brief template; **and 6(c) DECIDED (second-look): retro
+  effective-spread counts for P5, backfill reader commissioned — Monday
+  is no longer blocked on it.** His true desk now: the first-pass
+  second-look, the QC org + data-buy decision, the Norgate arithmetic,
+  and the rf-margin threshold when the adversary reports.
+
 - **ED'S ROUTING CHALLENGE ACCEPTED AS WRITTEN (CEO, options card,
   ~16:15Z)**: dossier output routes to Stan as risk parameters and to Ed
   as cross-sectional leads — never as a per-name candidate source; Ed
