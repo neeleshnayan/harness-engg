@@ -1,4 +1,4 @@
-"""The belt side of gate v5r2: the premia legs, the REALISED cash leg, and the
+"""The belt side of gate v5r3: the premia legs, the REALISED cash leg, and the
 PSR's identifying inputs.
 
 The measurements these tests encode were taken on 2026-08-23 against the four
@@ -394,7 +394,7 @@ def test_rounding_for_storage_keeps_an_ABSENCE_absent(given, expect):
 
 def test_the_stored_schema_says_2_so_a_v5r1_capture_is_distinguishable():
     got, _c, _s = _lean_shaped(500)
-    assert got["schema"] == 2
+    assert got["schema"] == 3
 
 
 def test_the_cash_leg_is_fetched_over_the_STRATEGYS_span_not_the_bars():

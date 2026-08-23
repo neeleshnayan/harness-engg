@@ -1528,6 +1528,13 @@ class LeanRunner:
             # comparison should be impossible to skip.
             "benchmark_curve": bench,
             "benchmark_return_pct": _total_return(bench),
+            # WHAT THE BOOK ACTUALLY WEIGHED, from the engine's own chart. The
+            # premia bar refuses a levered book because a backtest lends for
+            # free (adversary D29, G1), and it can only refuse what it can see.
+            # Read here rather than downstream because `charts` is discarded
+            # four lines below — the same reason `daily_returns` is computed
+            # here and not from the downsampled curve.
+            "exposure": gross_exposure(charts),
             "orders": _orders(best),
             # `daily` is handed in UNDOWNSAMPLED and before the thinning above,
             # because the PSR capture needs the sample length the engine
@@ -1719,6 +1726,113 @@ def _shift_date(iso: str, days: int) -> str:
         return str(iso)[:10]
 
 
+#: How far the cash series may fall short of either end of the strategy's span
+#: and still be said to COVER it, in calendar days.
+#:
+#: THE MEASURED BASIS, and it is the same fact ``RF_FETCH_PAD_DAYS`` is sized
+#: from rather than a second guess at it: the longest run of consecutive CLOSED
+#: days on a US equity calendar is four (a Thursday holiday, the Friday and the
+#: weekend), so two consecutive SESSIONS can be five calendar days apart. The
+#: strategy's own first and last dates come from LEAN's equity curve, which
+#: emits a point every CALENDAR day, so either end can legitimately land on a
+#: day the market was shut. Five is therefore the largest gap a fully-covering
+#: session series can show at an end; anything beyond it is missing data, not a
+#: weekend. (``RF_FETCH_PAD_DAYS`` is seven — the same five with two days of
+#: slack, because a pad that is too short is visible as `rf_dropped_days` while
+#: a tolerance that is too long is not visible at all.)
+SESSION_SPAN_TOLERANCE_DAYS = 5
+
+
+def _days_between(first: str, last: str) -> Optional[int]:
+    """Whole calendar days from ``first`` to ``last``, or absent if unparseable.
+
+    Absent, never zero: a date this cannot read must not be reported as a
+    perfect fit, which is exactly what a ``0`` would mean to the caller.
+    """
+    from datetime import date as _date
+    try:
+        return (_date.fromisoformat(str(last)[:10])
+                - _date.fromisoformat(str(first)[:10])).days
+    except (ValueError, TypeError):
+        return None
+
+
+def _session_span(session_days: list[str], first: str, last: str
+                  ) -> dict[str, Any]:
+    """Does the session calendar actually COVER the strategy's whole span?
+
+    Written for ground G2 of the D29 blind review: the session denominator is
+    the union of the bar's dates and the cash leg's, and both are fetched
+    through the same function — so a vendor tail-lag truncates them TOGETHER,
+    the union collapses onto the shared window, and the majority test compares a
+    window with itself. Measured on the reviewer's own characteriser
+    (``scratchpad/adv29/probeF.py``): with the bar and the cash leg both cut at
+    15.6% of the run, the test read 214 of 214 and PASSED.
+
+    THE CHECK IS ON THE UNION, NOT ON THE CASH LEG ALONE, and that is a
+    deliberate departure from the review's wording — stated here rather than
+    quietly. "The cash leg spans the run" would ALSO refuse the case where the
+    bar is complete and only the cash leg is short, where the bar is a perfectly
+    truthful session calendar and the comparison already fails on `common_days`
+    anyway; measured, that wording turns an existing invariant
+    (`test_a_cash_series_that_stops_early_drops_days_and_SAYS_SO`: a short cash
+    leg must make the majority test HARDER, not easier) into a fallback to the
+    CALENDAR basis, which is the very weekends-versus-sessions comparison v5r2
+    removed. The union form refuses exactly the correlated-truncation case the
+    kill describes and nothing else.
+
+    AND IT CHECKS FOR A HOLE, which neither wording covers: a bar truncated at
+    the END beside a cash leg truncated at the START spans the run at both ends
+    while missing every session in between, and the union would undercount the
+    denominator exactly where it matters. The largest gap BETWEEN consecutive
+    session dates is therefore checked with the same tolerance as the two ends.
+
+    Reports the gaps in days rather than a bare boolean, because the interesting
+    question when this fires is *by how much* — a two-day lag and a five-year
+    truncation are the same `False`.
+    """
+    out: dict[str, Any] = {
+        "vouched": False,
+        "strategy_first": first, "strategy_last": last,
+        "session_first": None, "session_last": None,
+        "head_shortfall_days": None, "tail_shortfall_days": None,
+        "largest_internal_gap_days": None,
+        "tolerance_days": SESSION_SPAN_TOLERANCE_DAYS,
+        "basis": "the union of the bar's dates and the cash leg's",
+        "reason": None,
+    }
+    if not session_days:
+        out["reason"] = ("no session calendar was readable, so nothing vouches "
+                         "for how many sessions this run contained")
+        return out
+    out["session_first"], out["session_last"] = session_days[0], session_days[-1]
+    head = _days_between(first, session_days[0])
+    tail = _days_between(session_days[-1], last)
+    gaps = [_days_between(a, b)
+            for a, b in zip(session_days, session_days[1:])]
+    if head is None or tail is None or any(g is None for g in gaps):
+        out["reason"] = ("the strategy's span or the session dates could not be "
+                         "read as dates, so their coverage is unknown")
+        return out
+    head, tail = max(head, 0), max(tail, 0)
+    biggest = max(gaps) if gaps else 0
+    out["head_shortfall_days"] = head
+    out["tail_shortfall_days"] = tail
+    out["largest_internal_gap_days"] = biggest
+    worst = max(head, tail, biggest)
+    if worst > SESSION_SPAN_TOLERANCE_DAYS:
+        out["reason"] = (
+            f"the session calendar {session_days[0]}..{session_days[-1]} does "
+            f"not cover the strategy's span {first}..{last}: {head} day(s) "
+            f"missing at the start, {tail} at the end and a largest internal "
+            f"gap of {biggest}, past the {SESSION_SPAN_TOLERANCE_DAYS}-day "
+            f"tolerance a closed market can explain — so it cannot say how many "
+            f"sessions the run contained")
+        return out
+    out["vouched"] = True
+    return out
+
+
 def _default_rf_bars(symbol: str, start: str, end: str) -> Any:
     """The fund's own feed. Kept as a NAMED function, not a lambda, so a caller
     can substitute it and a test can assert which one ran.
@@ -1884,18 +1998,46 @@ def premia_inputs(result: dict[str, Any], rf_bars: Any = None,
     Returns ``measurable: False`` with a reason whenever either leg is absent.
     A premia claim that cannot be measured has not been established.
 
-    TWO MEASURABILITY FLAGS, deliberately, because they answer different
-    questions and one of them is read by a criterion while the other is not.
+    THE THIRD DEFECT THIS CLOSES, added 2026-08-23 after the adversary's blind
+    KILL of v5r2 (docs/reviews/ADVERSARY_D29_2026-08-23.md, ground G1).
+    Subtracting a realised cash rate closes the carry channel only for a book
+    whose GROSS EXPOSURE is at most 100%. A backtest lends for free, so above
+    that the borrow is a gift that grows with the cash weight, and the payload
+    said nothing about leverage at all. ``max_gross_exposure`` and
+    ``gross_measurable`` are carried here from the engine's own exposure chart
+    (``gross_exposure``), and the gate refuses what it cannot measure.
+
+    THREE MEASURABILITY FLAGS, deliberately, because they answer different
+    questions and only two of them are read by a criterion.
     ``measurable`` is the RAW pair — it gates ``gate.volatility_check``, which
     is capture only, and its meaning is unchanged from schema 1.
     ``excess_measurable`` is the pair the premia CRITERION is judged on, and it
-    is False whenever the cash leg could not be read. Collapsing them into one
-    flag would have made an rf outage delete the volatility capture too.
+    is False whenever the cash leg could not be read. ``gross_measurable`` says
+    whether the book's leverage is known, and it is INDEPENDENT of both: a run
+    can have a perfect excess pair and an unreadable exposure chart, and that
+    run's premia claim is not measurable even though its Sharpe is. Collapsing
+    any two of them would have made one outage delete another capture.
     """
     from app.fund import statistics as _stats
 
     out: dict[str, Any] = {"measurable": False, "excess_measurable": False,
-                           "schema": 2}
+                           "gross_measurable": False, "schema": 3}
+    # THE BOOK'S LEVERAGE, carried into the premia payload BEFORE any of the
+    # early returns below. A payload that says nothing about gross exposure is
+    # the payload the D29 kill was written about, and a reader should get the
+    # answer — including "unknown, and here is why" — from every one of them,
+    # not only from the ones that got as far as computing a Sharpe.
+    ex = result.get("exposure")
+    ex = ex if isinstance(ex, dict) else {
+        "measurable": False, "max_gross": None,
+        "reason": ("this result carries no exposure capture at all — it was "
+                   "measured by a belt older than the one that reads the "
+                   "engine's exposure chart")}
+    out["exposure"] = ex
+    out["gross_measurable"] = bool(ex.get("measurable")
+                                   and ex.get("max_gross") is not None)
+    out["max_gross_exposure"] = (float(ex["max_gross"])
+                                 if out["gross_measurable"] else None)
     daily = result.get("daily_returns")
     if not isinstance(daily, dict) or not daily.get("present"):
         out["reason"] = (
@@ -1982,10 +2124,17 @@ def premia_inputs(result: dict[str, Any], rf_bars: Any = None,
     # nothing about whether anything was actually missing.
     #
     # The session calendar is the UNION of the bar's dates and the cash series'
-    # dates over the strategy's own span. Both are session series from the same
-    # feed, so the union can only move the count TOWARD the truth: if the bar
-    # was truncated, the cash leg — fetched over the strategy's span, above —
-    # still supplies those sessions.
+    # dates over the strategy's own span: if the bar was truncated, the cash
+    # leg — fetched over the strategy's span, above — still supplies those
+    # sessions.
+    #
+    # v5r2 SAID THE UNION "CAN ONLY MOVE THE COUNT TOWARD THE TRUTH" AND THAT
+    # WAS FALSE. Both legs come through `fetch_daily_bars`, so they are not two
+    # independent witnesses: one vendor tail-lag truncates them TOGETHER and the
+    # union collapses onto the shared window, at which point the majority test
+    # compares a window with itself. Measured, 15.6% coverage read as 214 of 214
+    # and PASSED. So the union is now CHECKED for coverage before it is
+    # believed — `_session_span`, whose docstring carries the shapes.
     #
     # WITH NO CASH LEG THERE IS NO SESSION COUNT, and this is not a detail. The
     # bar alone is exactly the leg that gets truncated, so deriving the
@@ -1995,9 +2144,20 @@ def premia_inputs(result: dict[str, Any], rf_bars: Any = None,
     # the count is reported only when the cash leg vouches for the span, and the
     # gate's fallback is the CALENDAR figure, which is larger and therefore
     # stricter.
-    session_days = ({d for d in (set(bmap) | set(rfmap))
-                     if s_dates[0] <= d <= s_dates[-1]} if rfmap else set())
-    sessions = len(session_days) or None
+    #
+    # AND VOUCHING IS A SPAN, NOT A PRESENCE — this is the D29 kill's second
+    # ground (G2) and it is the same defect one level up. The bar and the cash
+    # leg BOTH come through `fetch_daily_bars`, so one vendor tail-lag truncates
+    # them together; the union then degenerates to common/common and 15.6%
+    # coverage read as a strict majority and PASSED, where v5r1 refused. "The
+    # cash leg exists" is not "the cash leg covers the run". So the count is
+    # reported only when the cash series actually REACHES both ends of the
+    # strategy's own span, and when it does not the gate falls back to the
+    # CALENDAR figure, which is larger and therefore stricter.
+    union = sorted(d for d in (set(bmap) | set(rfmap))
+                   if s_dates[0] <= d <= s_dates[-1]) if rfmap else []
+    span = _session_span(union, s_dates[0], s_dates[-1])
+    sessions = (len(union) or None) if span["vouched"] else None
     coverage: dict[str, Any] = {
         "common_days": len(common),
         "strategy_days": len(s_dates),
@@ -2006,6 +2166,7 @@ def premia_inputs(result: dict[str, Any], rf_bars: Any = None,
         "session_fraction": (None if not sessions
                              else round(len(common) / sessions, 4)),
         "session_basis": ("benchmark+cash" if sessions else None),
+        "session_span": span,
         "rf_dropped_days": len(pair_days) - len(common),
         "note": ("`fraction` divides sessions by CALENDAR days and is kept only "
                  "so the two are comparable; `session_fraction` is the one the "
@@ -2261,6 +2422,150 @@ def _curve(charts: dict, chart: str, series: str) -> tuple[list[float], list[str
         values.append(value)
         dates.append(date)
     return values, dates
+
+
+#: LEAN's own exposure chart, and the two series suffixes it writes per
+#: security type ("Base - Long Ratio", "Base - Short Ratio"; a futures leg would
+#: add "Future - Long Ratio"). Named constants rather than inline strings
+#: because the reader below FAILS CLOSED on a series it cannot classify, and a
+#: reader that fails closed must say exactly what it was looking for.
+EXPOSURE_CHART = "Exposure"
+LONG_RATIO_SUFFIX = "Long Ratio"
+SHORT_RATIO_SUFFIX = "Short Ratio"
+
+
+def gross_exposure(charts: Any) -> dict[str, Any]:
+    """MAX GROSS EXPOSURE over the run, read from the engine's own chart.
+
+    THE DEFECT THIS EXISTS TO CLOSE (adversary D29, blind, 2026-08-23 —
+    docs/reviews/ADVERSARY_D29_2026-08-23.md, ground G1). LEAN's default
+    brokerage charges NO margin interest (``NullMarginInterestRateModel``), so a
+    levered book's excess return in a backtest is ``sum(w_i r_i) - rf`` and not
+    ``sum(w_i (r_i - rf))``: the borrow is free. Subtracting a realised cash
+    return therefore closes the carry channel only for gross <= 100%, and above
+    it the gift GROWS with the cash weight. Executed on the fund's own pinned
+    feed, a 1.25x book of 25% SPY and 75% BIL scored +0.153..+0.239 against SPY
+    on all four belt windows where the financed answer is 0.0000, and a 3.0x
+    version scored +2.49..+3.92. The premia payload carried no gross-exposure
+    field at all, so a reader could not see the borrow.
+
+    So the belt now MEASURES gross, and the gate refuses a premia claim it
+    cannot measure. The engine publishes exactly what is needed: an ``Exposure``
+    chart carrying a long-ratio and a short-ratio series per security type,
+    sampled once per day, each value a fraction of portfolio value.
+
+    WHY THE SUM IS TAKEN PER TIMESTAMP. ``max(long) + max(short)`` is an upper
+    bound, not a measurement — the two maxima can fall on different days.
+    Gross is a property of one instant, so the series are joined on their own
+    timestamps and the maximum is taken over the joined totals.
+
+    ABSOLUTE VALUES. The short ratio is written as a MAGNITUDE on every run this
+    fund has (108 of 108 with a non-empty statistics block, measured
+    2026-08-23 by scratchpad/d32/census_exposure2.py), but a sign convention is
+    a vendor's to change and ``abs`` is right under both.
+
+    FAIL CLOSED ON A SERIES THIS CANNOT CLASSIFY. If a future engine adds a
+    third series to this chart — a net ratio, say — summing it would either
+    double-count or miss, and both are silent. An unclassified series makes the
+    reading UNMEASURABLE with the offending names in the reason. Measured cost
+    today: zero, because the only two series names across all 108 runs are the
+    long and short ratios.
+
+    Returns a block that always states ``measurable``; ``max_gross`` is absent,
+    never zero, when it could not be read. Absence is never zero, and for this
+    field zero would be the single most permissive answer available.
+    """
+    out: dict[str, Any] = {
+        "measurable": False,
+        "max_gross": None,
+        "max_long": None,
+        "max_short": None,
+        "max_gross_on": None,
+        "observations": 0,
+        "series": [],
+        "unclassified_series": [],
+        "source": f"lean chart {EXPOSURE_CHART!r}",
+        "reason": None,
+    }
+    if not isinstance(charts, dict):
+        out["reason"] = ("this result carries no charts block, so the engine's "
+                         "exposure series could not be read")
+        return out
+    chart = charts.get(EXPOSURE_CHART)
+    if not isinstance(chart, dict):
+        out["reason"] = (
+            f"this run has no {EXPOSURE_CHART!r} chart, so the book's gross "
+            f"exposure is UNKNOWN — the charts present are "
+            f"{', '.join(sorted(str(k) for k in charts)) or '(none)'}")
+        return out
+    series = chart.get("series") or chart.get("Series") or {}
+    if not isinstance(series, dict) or not series:
+        out["reason"] = (f"the {EXPOSURE_CHART!r} chart carries no series, so "
+                         f"the book's gross exposure is UNKNOWN")
+        return out
+    out["series"] = sorted(str(k) for k in series)
+    longs: dict[Any, float] = {}
+    shorts: dict[Any, float] = {}
+    unclassified: list[str] = []
+    for name, block in series.items():
+        label = str(name)
+        if label.endswith(LONG_RATIO_SUFFIX):
+            bucket = longs
+        elif label.endswith(SHORT_RATIO_SUFFIX):
+            bucket = shorts
+        else:
+            unclassified.append(label)
+            continue
+        for pt in ((block or {}).get("values")
+                   or (block or {}).get("Values") or []):
+            if not isinstance(pt, (list, tuple)) or len(pt) < 2:
+                continue
+            try:
+                value = abs(float(pt[-1]))
+            except (ValueError, TypeError):
+                continue
+            bucket[pt[0]] = bucket.get(pt[0], 0.0) + value
+    if unclassified:
+        out["unclassified_series"] = sorted(unclassified)
+        out["reason"] = (
+            f"the {EXPOSURE_CHART!r} chart carries series this reader cannot "
+            f"classify as long or short ({', '.join(sorted(unclassified))}); "
+            f"summing an unknown series would either double-count the book or "
+            f"miss part of it, and both are silent")
+        return out
+    stamps = sorted(set(longs) | set(shorts))
+    if not stamps:
+        out["reason"] = (f"the {EXPOSURE_CHART!r} chart's series carry no "
+                         f"readable values")
+        return out
+    best_ts, best = None, None
+    for ts in stamps:
+        total = longs.get(ts, 0.0) + shorts.get(ts, 0.0)
+        if best is None or total > best:
+            best, best_ts = total, ts
+    out.update({
+        "measurable": True,
+        "max_gross": round(float(best), 6),
+        "max_long": round(max(longs.values()), 6) if longs else 0.0,
+        "max_short": round(max(shorts.values()), 6) if shorts else 0.0,
+        "max_gross_on": _iso_or_none(best_ts),
+        "observations": len(stamps),
+    })
+    return out
+
+
+def _iso_or_none(stamp: Any) -> Optional[str]:
+    """A LEAN chart timestamp as an ISO date, or absent if it will not convert.
+
+    The same conversion ``_curve`` makes, kept separate because this one labels
+    a single reported instant rather than a series: an unconvertible stamp must
+    cost the LABEL, never the measurement it labels.
+    """
+    try:
+        return datetime.fromtimestamp(
+            float(stamp), tz=timezone.utc).date().isoformat()
+    except (ValueError, TypeError, OSError, OverflowError):
+        return None
 
 
 def _daily_returns(equity: list[float], dates: list[str],

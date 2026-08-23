@@ -1,4 +1,4 @@
-"""Gate v5r2: the premia bar, and the alpha bar's byte-identity beside it.
+"""Gate v5r3: the premia bar, and the alpha bar's byte-identity beside it.
 
 Every test here guards a specific way this criterion could be wrong, and the
 named incidents are in the docstrings. The three that matter most:
@@ -33,7 +33,7 @@ from app.fund import statistics as st
 from app.fund.gate import (CLAIM_TYPES, CRITERIA, GATE_VERSION,
                            GATE_VERSION_PREMIA, PREMIA_CRITERIA,
                            PREMIA_VERSION, RF_BASES, evaluate)
-from app.fund.leanrunner import premia_inputs
+from app.fund.leanrunner import gross_exposure, premia_inputs
 
 DAY0 = datetime.date(2021, 1, 4)
 
@@ -128,10 +128,39 @@ def feed(annual_pct: float = RF_TEST_PCT, dates: list[str] | None = None,
     return cash_feed(annual_pct, obs_per_year=_clock(dates or R600), **kw)
 
 
+def exposure_chart(dates: list[str], long_ratio: float,
+                   short_ratio: float = 0.0) -> dict:
+    """The engine's own ``Exposure`` chart for a book of known gross.
+
+    The SHAPE is taken from a real LEAN result file
+    (``lean_workspace/results/008a35252790/AnnouncementPremium.json``, whose
+    chart carries ``Base - Long Ratio`` and ``Base - Short Ratio`` as
+    ``[unix_ts, ratio]`` pairs sampled once per day, the short leg written as a
+    MAGNITUDE). Built as a chart rather than as a finished exposure block so
+    the fixture is read by the SHIPPED ``gross_exposure`` on every use — a
+    hand-built block would test the gate against a model of the capture instead
+    of against the capture (D24: probeC's attack-E could not see its own
+    repair).
+
+    The gross a fixture DECLARES is not derivable from its return series, and
+    that is faithful: in production the engine measures the book, and no
+    arithmetic on the equity curve can recover the weights behind it.
+    """
+    def ts(d: str) -> float:
+        return datetime.datetime.fromisoformat(
+            d + "T00:00:00+00:00").timestamp()
+    return {"Exposure": {"series": {
+        "Base - Long Ratio": {"values": [[ts(d), long_ratio] for d in dates]},
+        "Base - Short Ratio": {"values": [[ts(d), short_ratio] for d in dates]},
+    }}}
+
+
 def make_result(strategy: list[float], benchmark: list[float],
                 engine_leg: list[float] | None = None,
                 rf_pct: float | None = RF_TEST_PCT,
                 rf_bars: object = None,
+                gross: float | None = 1.0,
+                short_ratio: float = 0.0,
                 **over) -> dict:
     """A belt result carrying a measurable premia pair, everything else clean.
 
@@ -143,6 +172,11 @@ def make_result(strategy: list[float], benchmark: list[float],
     supply an odd-shaped feed (short, varying, absent) or ``rf_pct=None`` to
     supply none at all — which must fail the premia leg closed and must NOT
     take the volatility capture down with it.
+
+    ``gross`` is the book's MAX GROSS EXPOSURE, defaulting to a fully-invested
+    unlevered book. ``gross=None`` models a run whose exposure chart could not
+    be read at all — which must refuse, because absence is never zero and here
+    zero would be the most permissive answer there is.
     """
     n = len(strategy)
     # The benchmark leg is DERIVED from a level curve, exactly as the belt
@@ -163,6 +197,10 @@ def make_result(strategy: list[float], benchmark: list[float],
         "benchmark_dates": cdates(n),
         "benchmark_series_source": "recomputed_basket",
     }
+    if gross is not None:
+        res["exposure"] = gross_exposure(
+            exposure_chart(rdates(n), max(gross - short_ratio, 0.0),
+                           short_ratio))
     res.update(over)
     fetch = rf_bars if rf_bars is not None else (
         None if rf_pct is None else feed(rf_pct, dates=rdates(n)))
@@ -245,13 +283,14 @@ def test_no_premia_knob_leaked_into_the_alpha_bar():
         "premia_rf_symbol",
         "premia_rf_stress_pct",
         "premia_require_majority_window_coverage",
+        "premia_max_gross_exposure",
     }
 
 
 def test_the_two_version_stamps_are_pinned_and_move_together():
     """Hardcoded from both sides, per the D21 lesson about self-reading pins."""
-    assert PREMIA_VERSION == "v5r2"
-    assert GATE_VERSION_PREMIA == "v5r2-premia"
+    assert PREMIA_VERSION == "v5r3"
+    assert GATE_VERSION_PREMIA == "v5r3-premia"
     assert GATE_VERSION == "v4.3"
 
 
@@ -360,7 +399,7 @@ def test_the_cash_heavy_impersonator_fails_the_premia_bar():
     assert "no premium over owning the thing" in fails[0]
     assert "is CARRY" in fails[0], fails[0]
     assert "BIL paid 4.50%/yr" in fails[0], fails[0]
-    assert out["gate_version"] == "v5r2-premia"
+    assert out["gate_version"] == "v5r3-premia"
 
 
 def test_the_same_impersonator_PASSES_when_the_world_pays_less_than_it_earns():
@@ -451,7 +490,7 @@ def test_a_genuine_vol_scaler_clears_the_premia_bar():
     assert p["sharpe_advantage_raw"] > 0
     assert premia_failures(out) == [], out["failures"]
     assert out["passed"] is True
-    assert out["gate_version"] == "v5r2-premia"
+    assert out["gate_version"] == "v5r3-premia"
 
 
 def test_the_VOLSCALE_archetype_fails_the_rf_stress_AND_THAT_IS_THE_FINDING():
@@ -1050,7 +1089,7 @@ def test_a_schema_1_payload_from_the_killed_version_fails_closed():
     bench = series_with_moments(R600, 20.0, 24.0, seed=31)
     strat = series_with_moments(R600, 15.0, 12.0, seed=32)
     res = make_result(strat, bench)
-    assert res["premia_inputs"]["schema"] == 2
+    assert res["premia_inputs"]["schema"] == 3
     legacy = dict(res["premia_inputs"])
     legacy["schema"] = 1
     for k in ("rf", "strategy_excess", "benchmark_excess", "excess_measurable"):
@@ -1105,7 +1144,7 @@ def test_a_malformed_stored_payload_fails_the_leg_and_never_raises():
     assert "max_drawdown_pct" in out["checks"]["premia"]["reason"]
     assert out["passed"] is False
     # And the rest of the gauntlet still ran: this failed ONE criterion.
-    assert out["gate_version"] == "v5r2-premia"
+    assert out["gate_version"] == "v5r3-premia"
     assert out["checks"]["psr_pct"] == 92.0
     # The volatility field reads the SAME payload and must not raise either —
     # it runs on every verdict, alpha ones included, purely to be looked at.

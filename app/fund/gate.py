@@ -619,15 +619,32 @@ GATE_VERSION = "v4.3"
 #:
 #:      THAT IS NOT A FAILURE OF THE REPAIR, IT IS A DIFFERENT DEFECT, and the
 #:      distinction matters for whoever fixes it next. Those false passes are
-#:      SELECTION NOISE — a random long-only tilt across eight ETFs beats
-#:      equal-weight on Sharpe about a quarter of the time — and subtracting a
-#:      cash rate from BOTH legs cannot touch them. What v5r2 removes is the
-#:      CARRY illusion, and there the movement is total: on the reviewer's own
-#:      cells the advantage falls from +0.7208 to −0.0003, and the answer is now
+#:      SELECTION NOISE on the UNLEVERED census that measured them — a random
+#:      long-only tilt across eight ETFs beats equal-weight on Sharpe about a
+#:      quarter of the time — and subtracting a cash rate from BOTH legs cannot
+#:      touch them. (v5r2 also called every false pass selection noise, which was
+#:      wrong in the other direction: every levered construction in the review's
+#:      probeD is DETERMINISTIC, not a draw.) What v5r2 removed is the CARRY
+#:      illusion, and BELOW GROSS 1.0 the movement is total: on the reviewer's
+#:      own cells the advantage falls from +0.7208 to −0.0003, and the answer is
 #:      INVARIANT to the cash weight (a 10% risk blend and a 90% one score
 #:      identically, spread < 1e-6, where v5r1 spread them by an order of
-#:      magnitude). Closing the selection-noise half needs per-fold premia
-#:      consistency, which is note 1's belt change, not a gate change.
+#:      magnitude).
+#:
+#:      BOTH OF THOSE SENTENCES WERE SHIPPED UNSCOPED AND BOTH WERE FALSIFIED
+#:      BY EXECUTION (adversary D29, ground G1). "The movement is total" —
+#:      counterexample: a 1.25x book of 25% SPY and 75% BIL still scores
+#:      +0.153..+0.239 against SPY on all four belt windows where its financed
+#:      advantage is 0.0000 (scratchpad/adv29/probeD.py, re-run at this base).
+#:      "INVARIANT to the cash weight" — counterexample: one step across gross
+#:      1.0 the dependence INVERTS and grows, +0.153 / +0.318 / +0.952 / +2.494
+#:      at 1.25x / 1.5x / 2.0x / 3.0x on the 2021+ window, because an unfinanced
+#:      borrow adds rf/(G*sd) to the excess Sharpe. v5r3 closes that by refusing
+#:      above gross 1.0 rather than by re-deriving either sentence, so both are
+#:      true again WITHIN the scope this bar now judges.
+#:
+#:      Closing the selection-noise half needs per-fold premia consistency,
+#:      which is note 1's belt change, not a gate change.
 #:   3. **THE BENCHMARK-RELATIVE CLASS IS TWO CRITERIA WIDE — COUNTED, NOT
 #:      ASSERTED.** Enumerated because "the rest of the gauntlet stands beside
 #:      it" was the sentence the adversary struck, and a replacement sentence
@@ -658,10 +675,64 @@ GATE_VERSION = "v4.3"
 #:      `declared_by: "submitter"` for the audit that will eventually ask
 #:      whether candidates are shopping for the easier bar.
 #:   5. **The cash instrument is ONE ETF's total return, not a T-bill curve.**
-#:      BIL is what this fund's feed can serve; a financing spread on leverage
-#:      is still unmodelled. Named because the constitution's amendment asks for
-#:      both, and only the first half is here.
-PREMIA_VERSION = "v5r2"
+#:      BIL is what this fund's feed can serve. Financing is not modelled at
+#:      all — v5r3 REFUSES the books that would need it rather than pricing
+#:      them, see below.
+#:
+#: v5r3 (2026-08-23) — LEVERAGE IS REFUSED, AND THE SESSION DENOMINATOR MUST BE
+#: VOUCHED FOR. The adversary killed v5r2 blind on a hole v5r2's own notes
+#: denied (docs/reviews/ADVERSARY_D29_2026-08-23.md). The rf work above was
+#: CERTIFIED CORRECT in the same review — reproduced to four decimals on all
+#: twelve measurable cells — and is untouched here. Two grounds:
+#:
+#:   * **G1, the kill.** Subtracting a realised cash rate closes the carry
+#:     channel only for gross <= 100%. LEAN's default brokerage charges no
+#:     margin interest, so a levered book's excess is `sum(w_i r_i) - rf`, a
+#:     free gift of (1 - 1/G)*rf/sd that GROWS with the cash weight. Executed:
+#:     a 1.25x book (25% SPY, 75% BIL) passed all four belt windows at
+#:     +0.153..+0.239 with a financed advantage of 0.0000, and a degenerate
+#:     1.05x BIL book scored +11.4..+18.1 at 0.01% drawdown — clearing the
+#:     drawdown leg *because* it is cash-heavy. The largest GENUINE advantage
+#:     this fund has measured is +0.054.
+#:
+#:     v5r3 CAPTURES gross exposure from the engine's own chart
+#:     (`leanrunner.gross_exposure`) and refuses a premia claim above
+#:     `premia_max_gross_exposure`, in the fail-closed shape of an unreadable
+#:     cash rate. An ABSENT reading refuses too.
+#:
+#:     THE HONEST COST, measured rather than promised: NO STORED RESULT CARRIES
+#:     THE READING. Of the 55 enriched job results in the store, 0 have an
+#:     `exposure` block, because the belt discarded `charts` before this
+#:     version read them — so every stored candidate re-judged as premia now
+#:     refuses until it is re-run. The criterion is nevertheless CLEARABLE and
+#:     that was checked, not assumed: of 110 LEAN result files on disk, all 108
+#:     that carry a non-empty statistics block also carry the exposure chart,
+#:     and the two that do not carry zero statistics.
+#:
+#:     THE SHAPE IS THE CEO'S TO CHANGE, and this note must not read as though
+#:     it were settled. The reviewer's clearing condition was "refuse above
+#:     gross 1.0 OR charge financing in the engine"; the refusal is the
+#:     fail-closed half and is what a builder may ship. Pricing financing
+#:     instead would ADMIT levered books, which is a WIDENING and takes his
+#:     click. It is a live question, not a formality: the sleeve exists to
+#:     admit vol-scaled books and those lever by construction.
+#:
+#:   * **G2, supporting.** The session denominator is the union of the bar's
+#:     dates and the cash leg's, and both come through `fetch_daily_bars` — so
+#:     one vendor tail-lag truncates them together, the union degenerates onto
+#:     the shared window, and the majority test compares a window with itself.
+#:     Measured: with both cut at 15.6% of the run the test read 214 of 214 and
+#:     PASSED where v5r1 refused. The belt now reports `strategy_sessions` only
+#:     when the cash series REACHES both ends of the strategy's span, and this
+#:     gate's fallback to the calendar count — larger, therefore stricter — is
+#:     unchanged and is what now fires. Bar-only and rf-only truncation were
+#:     re-measured and neither moves.
+#:
+#: BOTH ARE TIGHTENINGS, and the falsifying arm was run before the word was
+#: written: across the reviewer's probeD every levered row that passed now
+#: refuses, no unlevered row changes verdict, and of probeF's seven truncation
+#: shapes exactly the two joint-truncation rows move — from pass to fail.
+PREMIA_VERSION = "v5r3"
 
 #: Derived, never restated. Two literals for one version is how the stamp on a
 #: stored verdict stops matching the bar that produced it.
@@ -748,6 +819,22 @@ PREMIA_CRITERIA: dict[str, Any] = {
     # `test_the_SESSION_denominator_changes_a_verdict_on_LEANs_real_shape`
     # is the verdict flip made explicit.
     "premia_require_majority_window_coverage": True,
+    # THE GROSS-EXPOSURE CEILING. A premia claim above this is REFUSED, not
+    # scored — see `_premia_leg`'s step (1b) for why an unfinanced borrow makes
+    # the excess pair the wrong arithmetic rather than a losing number.
+    #
+    # 1.0 IS NOT A TUNED THRESHOLD; it is the point at which the engine's
+    # financing model stops being harmless. Below it a book borrows nothing and
+    # `NullMarginInterestRateModel` costs the comparison nothing; above it the
+    # backtest lends free money and the gift is exactly (1 - 1/G)*rf/sd.
+    #
+    # AND IT IS APPLIED WITH NO EPSILON, measured rather than assumed: over
+    # every LEAN run this fund has on disk that produced a statistics block
+    # (108 of 108, scratchpad/d32/census_exposure2.py, 2026-08-23) the maximum
+    # per-timestamp gross is 1.0 on four runs, 0.9999 on most, 0.9782 at the
+    # lowest, and ZERO runs exceed 1.0. A tolerance would therefore buy no
+    # false refusals back and would be a loosening nobody asked for.
+    "premia_max_gross_exposure": 1.0,
 }
 
 #: The bar. Deliberately data, not code branches: it can be printed, argued
@@ -950,6 +1037,10 @@ def _premia_leg(result: dict[str, Any], pc: dict[str, Any]
 
           (1) both legs are measurable and that window covers a STRICT
               MAJORITY of the strategy's own SESSIONS;
+          (1b) the book's MAX GROSS EXPOSURE is known and is at most
+              ``premia_max_gross_exposure`` — a levered backtest borrows for
+              free, so above the ceiling the excess pair below is the wrong
+              arithmetic and the claim is refused rather than scored;
           (2) the strategy's annualised Sharpe on returns NET OF THE REALISED
               PER-OBSERVATION CASH RETURN exceeds the benchmark's, computed the
               same way; AND
@@ -1075,6 +1166,69 @@ def _premia_leg(result: dict[str, Any], pc: dict[str, Any]
             f"strategy's {denominator} {denominator_basis.replace('_', ' ')} "
             f"({total} calendar days in the run) — a comparison over a minority "
             f"of the run is not a comparison over the run")
+
+    # (1b) GROSS EXPOSURE, and this one REFUSES rather than scores.
+    #
+    # THE HOLE IT CLOSES (adversary D29, blind, 2026-08-23, ground G1). LEAN's
+    # default brokerage charges no margin interest, so a levered backtest's
+    # excess return is `sum(w_i r_i) - rf` and not `sum(w_i (r_i - rf))`: the
+    # borrow is free, and the gift in annualised Sharpe units is exactly
+    # (1 - 1/G) * rf / sd. It is not a losing number the inequality can catch —
+    # it is the WRONG ARITHMETIC, growing with the cash weight, and it is
+    # invisible to a reader because the payload carried no exposure field.
+    # Executed on the fund's own feed, a 1.25x book of 25% SPY and 75% BIL
+    # cleared this bar on all four belt windows at +0.153..+0.239 where the
+    # financed answer is 0.0000, against a largest GENUINE advantage the fund
+    # has ever measured of +0.054.
+    #
+    # SO THE REFUSAL IS `measurable: False`, THE SAME SHAPE AS AN UNREADABLE
+    # CASH RATE, and deliberately not a plain failure. A plain failure would
+    # assert that the comparison was made and lost; what actually happened is
+    # that this gate cannot form the comparison for a book whose financing the
+    # engine did not charge. And an ABSENT exposure reading refuses too:
+    # absence is never zero, and for gross exposure zero — or an assumed 1.0 —
+    # is the single most permissive answer available.
+    #
+    # THE OPEN POLICY QUESTION, recorded so this text does not foreclose it.
+    # The clearing condition the reviewer wrote is "refuse above gross 1.0 OR
+    # charge financing in the engine". This ships the refusal, which is the
+    # fail-closed half and the half a builder may ship. Replacing it with
+    # engine-priced financing would ADMIT levered books — a WIDENING of what
+    # this bar accepts, and therefore the CEO's click, not a code change. The
+    # sleeve exists to admit vol-scaled books, which lever by construction, so
+    # this is a live question and not a formality.
+    gross = p.get("max_gross_exposure")
+    ceiling = float(pc["premia_max_gross_exposure"])
+    out["exposure"] = p.get("exposure")
+    out["max_gross_exposure"] = gross
+    out["max_gross_exposure_allowed"] = ceiling
+    if not p.get("gross_measurable") or gross is None:
+        exposure = p.get("exposure")
+        why = ((exposure or {}).get("reason") if isinstance(exposure, dict)
+               else None) or "the belt captured no exposure reading for this run"
+        out["measurable"] = False
+        out["reason"] = why
+        failures.append(
+            f"the premia comparison could not be measured because the book's "
+            f"GROSS EXPOSURE is unknown: {why} — a backtest charges no margin "
+            f"interest, so above 100% gross the excess pair this bar reads is "
+            f"the wrong arithmetic, and an unknown leverage is not an absent "
+            f"one")
+        return out, failures
+    out["gross_within_ceiling"] = gross <= ceiling
+    if not gross <= ceiling:
+        out["measurable"] = False
+        out["reason"] = (
+            f"this book reached {gross:.4f}x gross exposure and the premia bar "
+            f"is defined only to {ceiling:.2f}x")
+        failures.append(
+            f"the premia comparison could not be measured: {out['reason']} — "
+            f"the engine charges no margin interest, so the borrowed "
+            f"{(gross - ceiling) * 100:.1f}% earned the cash rate for free and "
+            f"the excess pair overstates this book by "
+            f"(1 - 1/{gross:.4f}) x rf / sd. Judging it would certify financing "
+            f"the account never paid")
+        return out, failures
 
     # (2) THE INEQUALITY. Which pair of legs it runs on is the versioned choice
     # `premia_rf_basis` names, and an unreadable cash rate FAILS CLOSED — it

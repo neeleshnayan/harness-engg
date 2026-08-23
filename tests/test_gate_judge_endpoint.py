@@ -104,7 +104,7 @@ def test_a_premia_candidate_is_judged_by_the_PREMIA_bar_not_the_alpha_one(
     r = client.post(URL, params={"sweep_id": "S1", "claim_type": "premia"})
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["gate_version"] == "v5r2-premia"
+    assert body["gate_version"] == "v5r3-premia"
     assert body["checks"]["claim_type"] == "premia"
     assert body["checks"]["must_beat_benchmark_applied"] is False
     assert not any("expensive way to hold the underlying" in f
