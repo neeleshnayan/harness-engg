@@ -7,6 +7,7 @@ import { KT } from "../theme";
 import { processNaturalLanguageQuery } from "@/lib/agents_api";
 import { fundApiClient } from "@/lib/fund_api";
 import { ClarkMarkdown } from "./ClarkMarkdown";
+import { openByDefault, railLayout } from "./railLayout";
 
 /**
  * Clark, docked bottom-right, alongside the cockpit rather than over it.
@@ -56,20 +57,23 @@ const CONTEXT_REFRESH_MS = 30_000;
 /** Past this, the panel says the context is aging rather than implying it is live. */
 const STALE_AFTER_MS = 60_000;
 
-/** Width of the docked rail. Also the page's right inset while it is open. */
-const RAIL_W = 420;
-/** Below this the rail would leave no usable cockpit, so it overlays instead. */
-const PUSH_MIN_WIDTH = 1100;
 const PREF_KEY = "clark.rail.open";
 
 export function ClarkConsole() {
   // Open by default WHERE THE RAIL PUSHES — the point of a rail is that it is
-  // simply there, the way a terminal pane is. Below PUSH_MIN_WIDTH it cannot
-  // push, so "open by default" means a 420px panel overlaying the entire
-  // cockpit before the operator has asked for anything (CDO D1). The pill is
-  // the honest default there. Resolved once at mount, from the real viewport;
-  // a stated preference always wins over both.
+  // simply there, the way a terminal pane is. Where it cannot push, "open by
+  // default" would mean a full-viewport chat sheet over a cockpit the operator
+  // has not asked anything about yet (CDO D1). The pill is the honest default
+  // there. `openByDefault` derives that from the layout law rather than from a
+  // second breakpoint; a stated preference always wins over both.
   const [open, setOpen] = useState(true);
+  /* The LAYOUT viewport width, in px, or null before it has been read.
+     `documentElement.clientWidth`, never `innerWidth`: they differ by the
+     classic scrollbar (1009 against 1024 on the probe machine) and a `right:0`
+     fixed panel sits at the layout edge — deciding the layout with the larger
+     number is a 15px error in the direction that clips. null is UNREAD, and
+     `railLayout` refuses to dock against it. */
+  const [vw, setVw] = useState<number | null>(null);
   //: True once the mount effect has decided the default. Until then the
   //: persistence effect below must not write, or the computed default would be
   //: recorded as a preference the operator never expressed — and a phone visit
@@ -87,6 +91,8 @@ export function ClarkConsole() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
+    const width = document.documentElement.clientWidth;
+    setVw(width);
     let saved: string | null = null;
     try {
       saved = window.localStorage.getItem(PREF_KEY);
@@ -97,9 +103,9 @@ export function ClarkConsole() {
       setOpen(saved === "1");
     } else {
       // Width-derived, not device-sniffed: the question is whether this
-      // viewport can afford 420px beside the cockpit, which is exactly the
-      // question PUSH_MIN_WIDTH already answers for the reflow below.
-      setOpen(window.innerWidth >= PUSH_MIN_WIDTH);
+      // viewport can hold the rail BESIDE the cockpit, which is exactly the
+      // question the layout law answers for the reflow below.
+      setOpen(openByDefault(width));
     }
     settled.current = true;
   }, []);
@@ -113,25 +119,49 @@ export function ClarkConsole() {
     }
   }, [open]);
 
-  // Reflow the cockpit beside the rail rather than under it. A persistent
-  // panel that overlaps means the right edge of every page — where the risk
-  // numbers and the theme toggle live — is permanently hidden, and the
-  // operator never sees what they are missing.
+  // Track the layout viewport, because the rail's WIDTH is now a function of
+  // it and not only its mode. The old code only had to re-apply a padding, so
+  // a listener that wrote to the DOM directly was enough; a width that varies
+  // has to reach the render.
   //
-  // Narrow viewports overlay instead: pushing 380px off a 900px screen leaves
-  // a cockpit too cramped to read, which is worse than a temporary overlap.
+  // A ResizeObserver, NOT just `resize` — and that is a measured correction to
+  // my own first cut. The layout viewport shrinks by the scrollbar's width the
+  // moment the page grows tall enough to need one, and THAT FIRES NO RESIZE
+  // EVENT. Probed at an emulated 900px: the mount read 900, the desk's content
+  // loaded, `clientWidth` became 885, and the sheet rendered 900px wide with
+  // its left edge at −15. Harmless there; in the shrink band it would hold the
+  // cockpit 15px under its measured floor. The observer sees it because it
+  // watches the element, not the window.
   useEffect(() => {
-    const apply = () => {
-      const push = open && window.innerWidth >= PUSH_MIN_WIDTH;
-      document.body.style.paddingRight = push ? `${RAIL_W}px` : "";
-    };
-    apply();
-    window.addEventListener("resize", apply);
+    const read = () => setVw(document.documentElement.clientWidth);
+    read();
+    window.addEventListener("resize", read);
+    const ro = typeof ResizeObserver === "function" ? new ResizeObserver(read) : null;
+    ro?.observe(document.documentElement);
     return () => {
-      window.removeEventListener("resize", apply);
-      document.body.style.paddingRight = "";
+      window.removeEventListener("resize", read);
+      ro?.disconnect();
     };
-  }, [open]);
+  }, []);
+
+  const layout = railLayout(vw ?? Number.NaN, open);
+
+  // Reflow the cockpit BESIDE the rail rather than under it.
+  //
+  // THE DEFECT THIS CLOSES, measured by CDP probe at 1024px: the rail sat at
+  // x=589 over content running to x=1009 with NO inset, and 1,923 elements —
+  // the risk bar's breach sentence, the position ticker, the right half of
+  // every decision card — had their clicks intercepted by an opaque panel.
+  // The comment that used to sit here called that "a temporary overlap"; the
+  // probe says it is permanent for every 1024 laptop whose stored preference
+  // is open. `railLayout` now shrinks the rail instead, and covers the whole
+  // viewport only when even that will not fit. The inset is the rail's OWN
+  // width, read from the same object, so the two cannot drift apart.
+  useEffect(() => {
+    document.body.style.paddingRight =
+      layout.contentInset > 0 ? `${layout.contentInset}px` : "";
+    return () => { document.body.style.paddingRight = ""; };
+  }, [layout.contentInset]);
 
   const loadContext = useCallback(async () => {
     setLoadingCtx(true);
@@ -359,7 +389,10 @@ export function ClarkConsole() {
   // reliable fix; moving the component up the tree would only work until
   // someone adds a blur to whatever contains it next.
   const mounted = useMounted();
-  const dock = !open ? renderPill() : renderPanel();
+  // `pill` covers both "the operator closed it" and "the viewport could not be
+  // measured" — see railLayout: docking against an unread width is how content
+  // ends up under something that eats its clicks.
+  const dock = layout.mode === "pill" ? renderPill() : renderPanel();
   return mounted ? createPortal(dock, document.body) : null;
 
   // --- collapsed ----------------------------------------------------------
@@ -376,13 +409,25 @@ export function ClarkConsole() {
   }
 
   // --- docked -------------------------------------------------------------
-  // No backdrop: the cockpit stays clickable underneath, which is the whole
-  // reason for this shape.
+  // No backdrop in `push`: the cockpit stays clickable BESIDE the rail, which
+  // is the whole reason for this shape. In `sheet` the rail is the viewport,
+  // so there is nothing behind it to click and it announces itself as a dialog
+  // — offering covered content to a screen reader as though it were reachable
+  // is the same defect as offering it to a mouse.
+  //
+  // The width comes from `layout` and nowhere else. It used to be a constant
+  // beside a `max-w-[92vw]`, which is two owners of one edge: they agree only
+  // while neither binds, and in sheet mode the 92vw would leave exactly the
+  // 8% strip of half-clickable content this fix removes.
   function renderPanel() {
+    const sheet = layout.mode === "sheet";
     return (
       <aside
-        style={{ width: RAIL_W }}
-        className="fixed inset-y-0 right-0 z-40 flex max-w-[92vw] flex-col border-l border-[var(--kt-border)] bg-[var(--kt-surface)]"
+        style={{ width: layout.railWidth }}
+        role={sheet ? "dialog" : undefined}
+        aria-modal={sheet ? true : undefined}
+        aria-label={sheet ? "Clark" : undefined}
+        className="fixed inset-y-0 right-0 z-40 flex flex-col border-l border-[var(--kt-border)] bg-[var(--kt-surface)]"
       >
         {/* Header — the cockpit's idiom: uppercase mono label, muted second
             line, generous padding. Not a chat titlebar. */}
