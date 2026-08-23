@@ -21,7 +21,7 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { readFileSync } from "node:fs";
 
-import { awaitingHeadline } from "./deskAwaiting.ts";
+import { awaitingHeadline, chipShowsTotal } from "./deskAwaiting.ts";
 import { countCheck } from "./decisionList.ts";
 
 /* --------------------------------------------------- the served figure --- */
@@ -41,6 +41,26 @@ test("THE LIVE SHAPE: the served counter is what renders, less the known notes",
   assert.ok(h.note, "the subtraction must be stated, never silent");
   assert.match(h.note!, /97/, "the unadjusted served figure stays visible");
   assert.match(h.note!, /read rather than decided/);
+  // GRAMMAR IS PART OF THE CONTRACT HERE, and this pins a slip that reached a
+  // screenshot: the one-clause version rendered "1 row of that are Donna's
+  // notes". A count that can be 1 must not share a verb with a plural noun.
+  assert.match(h.note!, /one row this page does not: a note from Donna, which asks/);
+  assert.ok(!/rows? of that are/.test(h.note!));
+});
+
+test("the singular and plural adjustments both read as English", () => {
+  const one = awaitingHeadline({
+    deskReadable: true, servedTotal: 10, servedComplete: true,
+    divertedNotes: 1, cardCount: 9,
+  }).note!;
+  const many = awaitingHeadline({
+    deskReadable: true, servedTotal: 10, servedComplete: true,
+    divertedNotes: 3, cardCount: 7,
+  }).note!;
+  assert.match(one, /one row .* a note from Donna, which asks to be read/);
+  assert.match(many, /3 rows .* notes from Donna, which ask to be read/);
+  assert.ok(!/1 rows|one rows/.test(one));
+  assert.ok(!/3 row /.test(many));
 });
 
 test("no notes to divert: the served figure is rendered verbatim and needs no gloss", () => {
@@ -127,7 +147,7 @@ test("an adjustment exactly equal to the total is applied, and reaches zero hone
   });
   assert.equal(h.value, 0, "zero because it was measured, not because it was absent");
   assert.equal(h.reconciliation, null);
-  assert.match(h.note!, /3 rows/);
+  assert.match(h.note!, /3 rows this page does not/);
 });
 
 /* --------------------------------------------------- the reconciliation -- */
@@ -189,6 +209,20 @@ const code = (s: string) =>
 const PAGE = code(readFileSync(new URL("./ceo/page.tsx", import.meta.url), "utf8"));
 const CHIP = code(readFileSync(new URL("./components.tsx", import.meta.url), "utf8"));
 
+test("the UNKNOWN sentence appears exactly once on the page", () => {
+  /* Found by the dead-spine pass, in code written the same hour: the header's
+   * new `headline.note` and the decision section's pre-existing copy rendered
+   * the same sentence 300px apart. One sentence, one owner. */
+  const h = awaitingHeadline({
+    deskReadable: false, divertedNotes: 0, cardCount: 0,
+  });
+  const marker = "UNKNOWN, not none";
+  assert.ok(h.note!.includes(marker), "the fold owns the sentence");
+  const inPage = PAGE.split(marker).length - 1;
+  assert.equal(inPage, 0,
+    "the page must not carry its own copy — it renders headline.note");
+});
+
 test("the CEO desk renders the ONE fold and no second figure beside it", () => {
   assert.ok(/awaitingHeadline\(/.test(PAGE),
     "an unwired fold is the pattern this firm names in its own doctrine");
@@ -204,14 +238,26 @@ test("the CEO desk renders the ONE fold and no second figure beside it", () => {
     "the known divergence is measured from the live routing, never hardcoded");
 });
 
+test("chipShowsTotal: exactly one case prints a second figure", () => {
+  /* Found by mutation: inverting this condition inside the chip's JSX put the
+   * rival number back on the CEO's desk AND removed it from the CTO's, and
+   * every test still passed. There is no DOM test runner here, so the
+   * predicate lives in a module that can be called. Hardcoded on both sides
+   * of the boundary — a test parametrised by the value it pins pins nothing. */
+  assert.equal(chipShowsTotal("show"), true);
+  assert.equal(chipShowsTotal("already-on-screen"), false);
+});
+
 test("the chip can suppress its total, and does so only when asked", () => {
   // Default-on: the CTO console renders the chip alone and it is the only
   // count there. A fix applied to one file in a family and not its sibling is
   // its own failure mode.
   assert.ok(/total\s*=\s*"show"/.test(CHIP),
     "the chip's total stays on by default for surfaces with no figure of their own");
-  assert.ok(/already-on-screen/.test(CHIP),
+  assert.ok(/total\?:\s*ChipTotal/.test(CHIP),
     "and the suppression is a named case, not a bare boolean");
+  assert.ok(/chipShowsTotal\(total\)/.test(CHIP),
+    "the chip must call the tested predicate, not restate it inline");
   const CTO = code(readFileSync(new URL("./cto/page.tsx", import.meta.url), "utf8"));
   assert.ok(!/total="already-on-screen"/.test(CTO),
     "the CTO console has no headline of its own — its chip must keep the total");

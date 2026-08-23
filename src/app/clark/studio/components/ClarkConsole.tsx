@@ -7,7 +7,7 @@ import { KT } from "../theme";
 import { processNaturalLanguageQuery } from "@/lib/agents_api";
 import { fundApiClient } from "@/lib/fund_api";
 import { ClarkMarkdown } from "./ClarkMarkdown";
-import { openByDefault, railLayout } from "./railLayout";
+import { bodyPaddingRight, openByDefault, railLayout } from "./railLayout";
 
 /**
  * Clark, docked bottom-right, alongside the cockpit rather than over it.
@@ -157,11 +157,14 @@ export function ClarkConsole() {
   // is open. `railLayout` now shrinks the rail instead, and covers the whole
   // viewport only when even that will not fit. The inset is the rail's OWN
   // width, read from the same object, so the two cannot drift apart.
+  // Keyed on the STRING, not on `layout` — `railLayout` returns a fresh object
+  // every render, so depending on it would re-run this effect on every render
+  // for no change.
+  const padRight = bodyPaddingRight(layout);
   useEffect(() => {
-    document.body.style.paddingRight =
-      layout.contentInset > 0 ? `${layout.contentInset}px` : "";
+    document.body.style.paddingRight = padRight;
     return () => { document.body.style.paddingRight = ""; };
-  }, [layout.contentInset]);
+  }, [padRight]);
 
   const loadContext = useCallback(async () => {
     setLoadingCtx(true);
@@ -414,6 +417,15 @@ export function ClarkConsole() {
   // so there is nothing behind it to click and it announces itself as a dialog
   // — offering covered content to a screen reader as though it were reachable
   // is the same defect as offering it to a mouse.
+  //
+  // NOT DONE, and deliberately: the sheet does NOT lock the body's scroll.
+  // `overflow: hidden` on <body> removes the classic scrollbar, which changes
+  // `documentElement.clientWidth` by ~15px, which the ResizeObserver above
+  // feeds straight back into the mode decision. In a ~15px band either side of
+  // the sheet boundary that is a loop — sheet hides the bar, the width grows
+  // past the boundary, the mode becomes push, the bar returns, the width
+  // shrinks. Background scroll-chaining is the smaller defect. A focus trap is
+  // also absent; both are worth doing with a width source that does not move.
   //
   // The width comes from `layout` and nowhere else. It used to be a constant
   // beside a `max-w-[92vw]`, which is two owners of one edge: they agree only

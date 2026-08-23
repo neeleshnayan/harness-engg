@@ -19,6 +19,7 @@ import {
 import {
   SeatTelemetry, costLabel, telemetryNote, tokensLabel,
 } from "./deskTelemetry";
+import { ChipTotal, chipShowsTotal } from "./deskAwaiting";
 
 /**
  * The desk's shared rendering vocabulary.
@@ -298,7 +299,7 @@ export function WindowNote({ events, capped }: { events: number; capped: boolean
  * `total` — WHETHER THIS CHIP MAY PRINT THE COUNT, and it is a named case
  * rather than a boolean because the two situations are genuinely different.
  * On the CTO console the chip is the ONLY figure on screen and must carry it.
- * On the CEO's desk the served figure is already the headline eighteen pixels
+ * On the CEO's desk the served figure is already the headline on the line
  * above, and the chip printing its own made the desk render "96 awaiting your
  * decision" over "97 / 50 AWAITING YOU" — two numbers for one question, which
  * is the defect `deskAwaiting` exists to end. Everything else the chip says —
@@ -309,11 +310,14 @@ export function CooTriageChip(
   { load, total = "show" }: {
     load?: DeskView["desk_load"];
     /** `already-on-screen`: the surface renders the served figure itself. */
-    total?: "show" | "already-on-screen";
+    total?: ChipTotal;
   },
 ) {
   if (!load) return null;
   const over = load.coo_triage_due;
+  // The predicate lives in deskAwaiting, tested: inverted here it survived a
+  // mutation pass, because no runner in this repo can render this component.
+  const showTotal = chipShowsTotal(total);
   // Work that is real and is somebody else's. Rendered BESIDE the CEO's figure
   // and never folded into it: the counter stopped counting chair work on
   // 2026-08-22 because it was never the CEO's, and a surface that then dropped
@@ -332,7 +336,7 @@ export function CooTriageChip(
           : `border-[var(--kt-border)] ${KT.muted}`
       }`}
     >
-      {total === "show" ? (
+      {showTotal ? (
         <>
           <span className="tabular-nums">
             {load.total}

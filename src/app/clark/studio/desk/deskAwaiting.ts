@@ -7,7 +7,7 @@
  *     96 awaiting your decision · in 36 groups, 2 of them COO batches
  *     [ 97 / 50 AWAITING YOU · +9 ELSEWHERE · COO TRIAGE DUE ]
  *
- * **Two numbers, both labelled "awaiting you", eighteen pixels apart, with
+ * **Two numbers, both labelled "awaiting you", on consecutive lines, with
  * nothing on the page saying which one to believe.** 96 is this page's own
  * fold of the payload; 97 is the counter the spine serves. They differ by the
  * one row Donna filed as a note, which the page routes to read-only and the
@@ -54,6 +54,27 @@ import { countCheck } from "./decisionList.ts";
 
 /** Where the figure on screen came from. Never inferred by the reader. */
 export type AwaitingSource = "spine" | "page" | "unknown";
+
+/**
+ * Whether a surface's triage chip may print the served total.
+ *
+ * `show` — this chip is the only figure on screen (the CTO console).
+ * `already-on-screen` — the surface renders the served figure itself, so a
+ *   second one would be the 96-vs-97 defect again.
+ */
+export type ChipTotal = "show" | "already-on-screen";
+
+/**
+ * A one-line predicate, extracted for one measured reason: inverting it inside
+ * the chip's JSX put the rival number back on the CEO's desk AND removed it
+ * from the CTO's, and every test still passed — a mutant that SURVIVED,
+ * because there is no DOM test runner here and a source regex cannot tell
+ * `===` from `!==` in any way that means something. A decision that only
+ * exists inside a component is a decision nothing can check.
+ */
+export function chipShowsTotal(total: ChipTotal): boolean {
+  return total === "show";
+}
 
 export interface AwaitingHeadline {
   /** The one number to render. `null` means UNKNOWN — never 0. */
@@ -139,12 +160,17 @@ export function awaitingHeadline(input: AwaitingInput): AwaitingHeadline {
 
   const parts: string[] = [];
   if (adjustable) {
+    // Written as two clauses rather than one because the one-clause version
+    // shipped to a screenshot as "1 row of that are Donna's notes". A count
+    // that can be 1 cannot share a verb with a plural noun.
     parts.push(
-      `The fund's own counter says ${servedTotal}; ${rows(divertedNotes)} of `
-      + "that are Donna's notes, which ask to be read rather than decided, so "
-      + "they are not counted here. That is the one known difference between "
-      + "the two folds and it is subtracted by measurement, never by widening "
-      + "a tolerance.",
+      `The fund's own counter says ${servedTotal}. It counts `
+      + (divertedNotes === 1
+        ? "one row this page does not: a note from Donna, which asks"
+        : `${divertedNotes} rows this page does not: notes from Donna, which ask`)
+      + " to be read rather than decided. That is the one known difference "
+      + "between the two folds and it is subtracted by measurement, never by "
+      + "widening a tolerance.",
     );
   }
   if (divertedNotes > servedTotal) {

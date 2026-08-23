@@ -373,20 +373,45 @@ test("the decision list comes FIRST and the folded doors come after", () => {
 });
 
 test("the header count and the card count are ONE number in the source", () => {
-  /* Not a second computation. `decisionList` is built from the officer desk,
-   * and the page must not re-derive either half — that is how 11 and 6, and
-   * then 1 and 0, ended up eight pixels apart. */
-  const src = readFileSync(new URL("./ceo/page.tsx", import.meta.url), "utf8");
+  /* INTENT UNCHANGED, LETTER REWRITTEN (2026-08-23, D28) — and the rewrite is
+   * itself a finding. This test used to require the header to render
+   * `officers.awaitingTotal`, the PAGE's own fold. That is precisely the
+   * behaviour D28 was dispatched to remove: the header now renders the
+   * SERVED counter through `awaitingHeadline`, because rendering the page's
+   * fold beside the spine's chip put 96 and 97 on consecutive lines.
+   *
+   * Worse, the old assertions had stopped testing code. `officers.awaitingTotal`
+   * survived only inside a COMMENT explaining the invariant, and the test
+   * passed on prose — the same trap as grepping source text for a name (D20).
+   * Everything below reads comment-stripped source.
+   *
+   * The property is stronger now: exactly ONE call computes the figure,
+   * exactly ONE expression renders it, and the cards it is reconciled against
+   * are `decisionList`'s own total. That is how 11 and 6, then 1 and 0, then
+   * 96 and 97 ended up on one screen. */
+  const raw = readFileSync(new URL("./ceo/page.tsx", import.meta.url), "utf8");
+  const src = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
   assert.ok(src.includes("decisionList(officers,"),
     "the list must be built FROM the officer desk");
-  assert.ok(src.includes("officers.awaitingTotal"),
-    "the header number must come from the same object the list came from");
-  assert.ok(src.includes("const awaitingCount = officers.awaitingTotal;"),
-    "the header count must be exactly that binding and nothing else");
-  /* Assignments, not comparisons — `awaitingCount === 0` is a read. */
-  const assignments = [...src.matchAll(/awaitingCount\s*=(?!=)/g)];
-  assert.equal(assignments.length, 1,
-    `the header count is assigned ${assignments.length} times; it must have `
-    + "exactly one source, because computing one quantity twice is how this "
-    + "page rendered 11 and 6 for the same question");
+  const folds = [...src.matchAll(/awaitingHeadline\(\{/g)];
+  assert.equal(folds.length, 1,
+    `the figure is computed ${folds.length} times; it must have exactly one `
+    + "source, because computing one quantity twice is how this page rendered "
+    + "11 and 6 for the same question");
+  assert.ok(src.includes("cardCount: list.total"),
+    "the served figure must be reconciled against decisionList's own total, "
+    + "not against a third count");
+  // Every rendered figure reads the SAME fold. A second `officers.awaitingTotal`
+  // anywhere in the code is the old defect returning under a new name.
+  assert.ok(!/officers\.awaitingTotal/.test(src),
+    "the page must not read the officer desk's total directly any more — the "
+    + "served counter is the figure and headline.value is the only reader");
+  // Both rendered figures read the SAME fold, named site by site rather than
+  // tallied — a count of occurrences would move with an added `?:` and pin
+  // nothing.
+  assert.ok(src.includes(`{headline.value === null ? "unknown" : headline.value}`),
+    "the header figure must be headline.value, and UNKNOWN when it is null");
+  assert.ok(src.includes("needsYou={headline.value}"),
+    "the greeting must read the same fold, which is what makes the two agree "
+    + "by construction rather than by care");
 });

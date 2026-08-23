@@ -133,6 +133,21 @@ export function railLayout(viewportWidth: number, open: boolean): RailLayout {
 }
 
 /**
+ * The `padding-right` the page must carry, as a CSS value.
+ *
+ * A one-line function rather than an expression inside the effect, and the
+ * reason is measured: the mutation pass restored the shipped defect — writing
+ * `""` unconditionally, which is an inset of zero, which IS the 1,923-element
+ * clip — and every test still passed, because the expression lived in a React
+ * effect that no runner here can execute. There is no DOM test runner in this
+ * repo, so a decision that only exists inside a component is a decision
+ * nothing can check. Moving it out is how it gets checked.
+ */
+export function bodyPaddingRight(layout: RailLayout): string {
+  return layout.contentInset > 0 ? `${layout.contentInset}px` : "";
+}
+
+/**
  * Should the rail be open when the operator has never said?
  *
  * DERIVED from the layout law rather than from a second breakpoint constant.

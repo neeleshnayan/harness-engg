@@ -21,12 +21,18 @@ import { test } from "node:test";
 import { readFileSync } from "node:fs";
 
 import {
-  CONTENT_MIN, RAIL_MIN, RAIL_W, SHEET_BELOW, openByDefault, railLayout,
+  CONTENT_MIN, RAIL_MIN, RAIL_W, SHEET_BELOW, bodyPaddingRight, openByDefault,
+  railLayout,
 } from "./railLayout.ts";
 
 /** Every integer width from a phone to a 4K panel, plus the exact boundaries
- *  and the two widths the incident was measured at. Enumerated rather than
- *  sampled: the defect lived in a 140px band nobody had a case for. */
+ *  and the two widths the incident was measured at.
+ *
+ *  Enumerated rather than sampled, and the reason is the incident: the defect
+ *  was present at EVERY width below 1100 — not in a band — and it survived
+ *  because the widths anyone actually looks at are 1280 and up, where the old
+ *  code was correct. A handful of sampled widths would have missed it exactly
+ *  the way every previous pass did. */
 const DOMAIN: number[] = (() => {
   const w: number[] = [];
   for (let x = 240; x <= 3840; x += 1) w.push(x);
@@ -52,10 +58,10 @@ test("THE CLIP INVARIANT: content is never partly under the rail, at any width",
 });
 
 test("the incident's own widths: 1024 and 1099 inset the page by the rail's width", () => {
-  // The four widths the probe measured at 1,923 and 1,928 intercepted
-  // elements — two viewport widths and the two layout widths they resolve to
-  // on a classic-scrollbar machine. THE DEFECT WAS AN INSET OF ZERO at all
-  // four; that is what this pins.
+  // 1024 and 1099 are the two VIEWPORT widths the probe measured, at 1,923
+  // and 1,928 intercepted elements; 1009 and 1084 are the LAYOUT widths they
+  // resolved to on that machine and are what the code actually sees. The
+  // defect was an inset of ZERO at all four, and that is what this pins.
   for (const w of [1024, 1009, 1099, 1084]) {
     const l = railLayout(w, true);
     assert.equal(l.mode, "push", `width ${w} must dock beside, not over`);
@@ -130,6 +136,46 @@ test("the sheet boundary is exact and the modes do not oscillate", () => {
   }
 });
 
+test("a fractional width rounds DOWN — the safe direction", () => {
+  /* Found by mutation: `Math.floor` → `Math.ceil` SURVIVED, because every
+   * width in the domain above is an integer. It is not an equivalent mutant:
+   * rounding UP hands the rail a pixel of room the viewport does not have,
+   * and it flips the sheet boundary on a fractional viewport. `clientWidth`
+   * is an integer today, so this is a contract test, not a live one — which
+   * is exactly why nothing else was going to catch it. */
+  assert.equal(railLayout(959.9, true).mode, "sheet",
+    "959.9 is 959 of usable width and must not push");
+  assert.equal(railLayout(960.9, true).mode, "push");
+  assert.equal(railLayout(1024.9, true).railWidth, 384,
+    "the spare 0.9px is not room for the rail");
+  assert.equal(railLayout(1059.99, true).railWidth, 419);
+});
+
+test("bodyPaddingRight is the ONLY thing that decides the page's inset", () => {
+  /* Also from mutation: writing "" unconditionally — an inset of zero, which
+   * IS the 1,923-element clip — SURVIVED while the expression lived inside a
+   * React effect no runner here can execute. */
+  assert.equal(bodyPaddingRight(railLayout(1440, true)), "420px");
+  assert.equal(bodyPaddingRight(railLayout(1024, true)), "384px");
+  assert.equal(bodyPaddingRight(railLayout(1009, true)), "369px");
+  assert.equal(bodyPaddingRight(railLayout(900, true)), "",
+    "a sheet covers the page rather than insetting it");
+  assert.equal(bodyPaddingRight(railLayout(1440, false)), "",
+    "a closed rail insets nothing");
+  assert.equal(bodyPaddingRight(railLayout(Number.NaN, true)), "",
+    "an unmeasured viewport insets nothing");
+  // Over the whole domain: a push ALWAYS produces a non-empty inset.
+  for (const w of DOMAIN) {
+    const l = railLayout(w, true);
+    if (l.mode === "push") {
+      assert.equal(bodyPaddingRight(l), `${l.railWidth}px`,
+        `width ${w}: the inset must be the rail's own width in px`);
+    } else {
+      assert.equal(bodyPaddingRight(l), "");
+    }
+  }
+});
+
 test("an unreadable viewport does not dock — absence is not 'wide'", () => {
   for (const bad of [0, -1, -1024, Number.NaN, Number.POSITIVE_INFINITY]) {
     const l = railLayout(bad, true);
@@ -195,8 +241,15 @@ test("ClarkConsole consumes railLayout and holds no breakpoint of its own", () =
   // literal beside it is how the two owners got there in the first place.
   assert.ok(/width:\s*layout\.railWidth/.test(CONSOLE_CODE),
     "the aside's width must come from layout.railWidth");
-  assert.ok(/layout\.contentInset/.test(CONSOLE_CODE),
-    "the page's inset must come from layout.contentInset");
+  assert.ok(/bodyPaddingRight\(layout\)/.test(CONSOLE_CODE),
+    "the page's inset must come from the tested function, not an inline expression");
+  // SOURCE-LEVEL, and stated as such: the dock choice happens inside a React
+  // component and no runner here can render it. `!open` and
+  // `layout.mode === "pill"` differ only when the width is unreadable, where
+  // the second one refuses to dock and the first renders a zero-width rail.
+  assert.ok(/const dock = layout\.mode === "pill" \?/.test(CONSOLE_CODE),
+    "the dock choice must read the layout, not `open` — an unread width must "
+    + "not produce a docked panel of zero width");
 });
 
 test("the rail is measured against the LAYOUT viewport, not innerWidth", () => {

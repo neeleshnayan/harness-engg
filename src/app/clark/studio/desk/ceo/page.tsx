@@ -203,12 +203,12 @@ export default function CeoDeskPage() {
   );
   /* ONE FOLD FOR "WHAT AWAITS YOU".
      This page used to render its OWN count in the header and let the triage
-     chip render the SPINE's eighteen pixels below — measured live on
+     chip render the SPINE's on the line below — measured live on
      2026-08-23 as "96 awaiting your decision" over "97 / 50 AWAITING YOU",
      with nothing on screen saying which to believe, because the difference
      was the one divergence the drift check is designed to stay quiet about.
      `awaitingHeadline` folds once: the served counter is the figure, less the
-     measured read-only notes, with the substitution stated; the page's own
+     measured read-only notes, with the subtraction stated; the page's own
      fold survives only where the spine serves nothing, and says so when used.
      `list.total === officers.awaitingTotal` by construction, so the cards are
      the honest thing to reconcile the served figure against. */
@@ -223,7 +223,6 @@ export default function CeoDeskPage() {
     }),
     [desk, officers, list],
   );
-  const awaitingCount = officers.awaitingTotal;
 
   /* Coverage over the CARDS, not over the flat split — the sentence about what
      the ranking could not see must describe the rows on screen. */
@@ -413,12 +412,16 @@ export default function CeoDeskPage() {
         {/* ── 1 · THE DECISION LIST ────────────────────────────────────── */}
         {desk === null ? (
           <section className="mb-10">
+            {/* The "UNKNOWN, not none" sentence lives ONCE, under the figure
+                it describes — `headline.note`. This used to carry a second
+                copy of it, and the dead-spine pass rendered both, one under
+                the other. What belongs here is the different fact: why there
+                is nothing between this line and the foot of the page. */}
             <p className={`text-sm ${KT.sev.warn}`}>
-              The desk is unreadable, so what awaits you is UNKNOWN, not none.
-              Anything waiting is still waiting.
+              No decision cards can be built from a desk that cannot be read.
             </p>
           </section>
-        ) : awaitingCount === 0 ? (
+        ) : list.total === 0 ? (
           <section className="mb-10">
             {/* "Nothing awaits your decision" is a claim about the CARDS, and
                 it may only be made when the fund's own counter agrees. If the
