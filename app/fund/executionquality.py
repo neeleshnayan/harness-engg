@@ -394,10 +394,16 @@ def fold_order_lifecycles(events: Iterable[dict]) -> dict[str, dict]:
         if not oid:
             continue
         pay = e.get("payload") or {}
+        # NO submitted_seq / submitted_ts / venue_ref. The first draft carried
+        # all three, and an audit of this dispatch's own new code found that
+        # nothing read any of them - they were written on every fold and
+        # consumed by nobody. The facts are still in the event log a line away;
+        # a field with no reader is accretion, and this seat is scored on
+        # subtraction.
         rec = out.setdefault(oid, {
             "order_id": oid, "symbol": None, "side": None,
-            "arrival_price": None, "submitted_seq": None, "submitted_ts": None,
-            "venue_ref": None, "submitted_venue": None, "filled_venue": None,
+            "arrival_price": None,
+            "submitted_venue": None, "filled_venue": None,
             "was_submitted": False, "legs": [],
         })
         if rec["symbol"] is None and pay.get("symbol"):
@@ -408,9 +414,6 @@ def fold_order_lifecycles(events: Iterable[dict]) -> dict[str, dict]:
         kind = EVENT_KIND_OF_TYPE.get(etype)
         if kind == "submitted":
             rec["arrival_price"] = _num(pay.get("arrival_price"))
-            rec["submitted_seq"] = int(e.get("seq") or 0)
-            rec["submitted_ts"] = e.get("ts")
-            rec["venue_ref"] = pay.get("venue_ref")
             # THE SUBMITTED LEG, NOT THE FILLED ONE. OrderSubmitted.venue is
             # the handle the CONNECTOR THAT RAN THE ORDER handed back;
             # OrderFilled.venue is a string the proposer put on the request.
