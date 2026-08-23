@@ -21,7 +21,8 @@ from premia_feed import cash_feed, per_obs
 from app.fund import statistics as st
 from app.fund.factory import check_claim_type
 from app.fund.gate import evaluate
-from app.fund.leanrunner import _returns_from_curve, premia_inputs, psr_inputs
+from app.fund.leanrunner import (_returns_from_curve, invested_weights,
+                                 premia_inputs, psr_inputs)
 
 DAY0 = datetime.date(2021, 1, 4)
 
@@ -282,6 +283,29 @@ def test_the_window_is_the_intersection_and_the_coverage_is_reported():
 
 # --- the realised cash leg (gate v5r2, the D23 kill's belt half) ---------
 
+def _full_weight_chart(dates: list[str]) -> dict:
+    """A synthetic LEAN exposure chart with the book 100% long on every date.
+
+    Mirrors the real engine's ``Exposure`` chart shape — one "Base - Long
+    Ratio" point and one "Base - Short Ratio" point per day, each keyed by a
+    unix timestamp — so that running it through the real `invested_weights`
+    reader (rather than hand-writing its output dict) produces a weight of
+    1.0 for every date. Fed into `premia_inputs`, that book is fully
+    invested, so the cash credit it produces is exactly zero and every
+    existing assertion about the excess legs keeps its original meaning and
+    its original numbers.
+    """
+    long_pts, short_pts = [], []
+    for d in dates:
+        ts = datetime.datetime.fromisoformat(d + "T00:00:00+00:00").timestamp()
+        long_pts.append([ts, 1.0])
+        short_pts.append([ts, 0.0])
+    return {"Exposure": {"series": {
+        "Base - Long Ratio": {"values": long_pts},
+        "Base - Short Ratio": {"values": short_pts},
+    }}}
+
+
 def _lean_shaped(n_cal: int, rf_pct: float | None = 3.0, **kw):
     """A result in LEAN'S REAL SHAPE: a CALENDAR-day strategy series against a
     SESSION-day bar. This is what every stored candidate looks like — the engine
@@ -299,6 +323,10 @@ def _lean_shaped(n_cal: int, rf_pct: float | None = 3.0, **kw):
                           "n": n_cal},
         "benchmark_curve": levels(bar)[:len(sess)], "benchmark_dates": sess,
         "benchmark_series_source": "recomputed_basket",
+        # A FULLY INVESTED BOOK, built over the whole calendar span the
+        # strategy series uses so every date the comparison window can pick
+        # has a weight — the cash credit this produces is exactly zero.
+        "invested_weight": invested_weights(_full_weight_chart(cal)),
     }
     fetch = None if rf_pct is None else cash_feed(rf_pct, obs_per_year=261.0,
                                                   **kw)
@@ -397,9 +425,10 @@ def test_rounding_for_storage_keeps_an_ABSENCE_absent(given, expect):
 
 def test_the_stored_schema_says_3_so_an_OLDER_capture_is_distinguishable():
     """1 = the killed v5r1 shape, 2 = the realised cash leg, 3 = the gross
-    exposure the premia criterion now refuses without."""
+    exposure the premia criterion now refuses without, 4 = the cash-carry
+    credit the criterion now requires."""
     got, _c, _s = _lean_shaped(500)
-    assert got["schema"] == 3
+    assert got["schema"] == 4
 
 
 def test_the_cash_leg_is_fetched_over_the_STRATEGYS_span_not_the_bars():
@@ -518,7 +547,13 @@ def test_a_strategy_that_IS_cash_plus_a_spread_has_no_risk_adjusted_anything():
                           "benchmark": [], "benchmark_present": False,
                           "n": 300},
         "benchmark_curve": levels(bar)[:len(sess)], "benchmark_dates": sess,
-        "benchmark_series_source": "recomputed_basket"}, rf_bars=fetch)
+        "benchmark_series_source": "recomputed_basket",
+        # A FULLY INVESTED BOOK — the zero-dispersion excess leg this test
+        # requires must come from the cash rate itself, not from an uncredited
+        # cash weight forcing the excess pair unmeasurable for a different
+        # reason.
+        "invested_weight": invested_weights(_full_weight_chart(cal)),
+    }, rf_bars=fetch)
     assert got["measurable"] is True                    # the RAW pair is fine
     assert got["strategy"]["stdev"] > 0
     assert got["strategy_excess"]["measurable"] is False
@@ -548,7 +583,11 @@ def test_the_belt_READS_the_cash_symbol_from_the_bar_rather_than_naming_it():
                           "benchmark": [], "benchmark_present": False,
                           "n": 300},
         "benchmark_curve": levels(bar)[:len(sess)], "benchmark_dates": sess,
-        "benchmark_series_source": "recomputed_basket"}
+        "benchmark_series_source": "recomputed_basket",
+        # A FULLY INVESTED BOOK, so the excess leg this test checks stays
+        # measurable — the cash credit is exactly zero and does not disturb it.
+        "invested_weight": invested_weights(_full_weight_chart(cal)),
+    }
     calls: list = []
     with pytest.MonkeyPatch.context() as mp:
         mp.setitem(gate.PREMIA_CRITERIA, "premia_rf_symbol", "SHV")
@@ -589,7 +628,11 @@ def test_the_BELTS_OWN_CALL_SITE_supplies_a_cash_source(monkeypatch):
                           "benchmark": [], "benchmark_present": False,
                           "n": 300},
         "benchmark_curve": levels(bar)[:len(sess)], "benchmark_dates": sess,
-        "benchmark_series_source": "recomputed_basket"}
+        "benchmark_series_source": "recomputed_basket",
+        # A FULLY INVESTED BOOK, so the excess leg this test checks stays
+        # measurable — the cash credit is exactly zero and does not disturb it.
+        "invested_weight": invested_weights(_full_weight_chart(cal)),
+    }
     LeanRunner._add_premia_inputs(res)
     assert seen and seen[0][0] == "BIL"
     assert res["premia_inputs"]["excess_measurable"] is True

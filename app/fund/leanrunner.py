@@ -2285,27 +2285,51 @@ def premia_inputs(result: dict[str, Any], rf_bars: Any = None,
     out["cash_credit"] = credit
 
     # --- the EXCESS pair, which is what the criterion is judged on ---------
-    if rfmap and out["measurable"] and credit["measurable"]:
+    #
+    # TWO STAGES, deliberately. The UNCREDITED pair needs only the cash series,
+    # so it is captured whenever the cash series is readable — a credit outage
+    # must not delete the capture that would let a reader see what the previous
+    # version of this bar would have said. Only the CREDITED strategy leg, and
+    # with it `excess_measurable`, depends on the weights.
+    if rfmap and out["measurable"]:
         rf_leg = _stats.leg_moments([rfmap[d] for d in common], common)
-        # THE CREDITED LEG. `w_t * rf_t`, not `rf_t`: the book is charged the
-        # cash rate only on the part of it that was actually invested. The
-        # BENCHMARK is not credited, and that is not an oversight — every
+        # THE BENCHMARK IS NOT CREDITED, and that is not an oversight: every
         # benchmark leg this belt builds is a fully-invested buy-and-hold basket
         # or the engine's own single-name curve, so its invested weight is 1 by
-        # construction and `w_b * rf == rf`.
-        s_ex = _stats.leg_moments(
-            [smap[d] - wmap[d] * rfmap[d] for d in common], common)
+        # construction and `w_b * rf` IS `rf`.
         b_ex = _stats.leg_moments([bmap[d] - rfmap[d] for d in common], common)
         # KEPT FOR COMPARABILITY, never judged. This is the leg v5r3 judged, and
         # the gap between the two advantages is the size of the bias — a reader
         # who cannot see it cannot audit the correction that removed it.
         s_ex_unc = _stats.leg_moments(
             [smap[d] - rfmap[d] for d in common], common)
-        out["strategy_excess"] = s_ex
         out["benchmark_excess"] = b_ex
         out["strategy_excess_uncredited"] = s_ex_unc
-        out["excess_measurable"] = bool(s_ex.get("measurable")
-                                        and b_ex.get("measurable"))
+        if credit["measurable"]:
+            # THE CREDITED LEG: `w_t * rf_t`, not `rf_t`. The book is charged
+            # the cash rate only on the part of it that was actually invested.
+            #
+            # THE FORMULA IS SYMMETRIC AND THAT IS WORTH SAYING OUT LOUD. At
+            # w < 1 it CREDITS idle cash; at w > 1 it CHARGES the borrow, which
+            # is engine-priced financing — the thing v5r3's note named as the
+            # open policy question and as the CEO's click rather than a code
+            # change. It is not reachable here: `premia_max_gross_exposure`
+            # refuses any book whose MAXIMUM gross exceeds the ceiling before
+            # the gate reads a single one of these numbers, and a maximum at or
+            # below 1.0 means every w_t is too. No clamp is applied precisely
+            # because a clamp would be a SECOND copy of the ceiling's belief
+            # living in a different file, and two copies of one predicate is a
+            # defect this fund has already paid for. The ceiling owns leverage;
+            # this owns cash.
+            s_ex = _stats.leg_moments(
+                [smap[d] - wmap[d] * rfmap[d] for d in common], common)
+            out["strategy_excess"] = s_ex
+            out["excess_measurable"] = bool(s_ex.get("measurable")
+                                            and b_ex.get("measurable"))
+        else:
+            out["excess_absent_reason"] = (
+                f"the cash credit could not be measured, so no excess pair was "
+                f"formed: {credit.get('reason')}")
         rf_meta.update({
             "window": {"first": common[0], "last": common[-1],
                        "n": len(common)},
@@ -2326,16 +2350,13 @@ def premia_inputs(result: dict[str, Any], rf_bars: Any = None,
         })
     elif rfmap:
         # ON ITS OWN KEY, not on `rf["reason"]`. The cash leg WAS readable here;
-        # what failed is the raw pair or the weight series. Overwriting the rf
-        # block's reason would make a stored payload say the cash series was the
-        # problem when it was not — a diagnosis that names the wrong cause sends
-        # the next reader to the wrong place. THREE causes, named separately,
-        # for the same reason.
+        # what failed is the raw pair. Overwriting the rf block's reason would
+        # make a stored payload say the cash series was the problem when it was
+        # not — a diagnosis that names the wrong cause sends the next reader to
+        # the wrong place. The credit's own outage is reported on the same key
+        # from inside the branch above, with its own sentence.
         out["excess_absent_reason"] = (
-            "the raw pair was not measurable, so no excess pair was formed"
-            if not out["measurable"] else
-            f"the cash credit could not be measured, so no excess pair was "
-            f"formed: {credit.get('reason')}")
+            "the raw pair was not measurable, so no excess pair was formed")
     out.setdefault("strategy_excess", None)
     out.setdefault("benchmark_excess", None)
     out.setdefault("strategy_excess_uncredited", None)

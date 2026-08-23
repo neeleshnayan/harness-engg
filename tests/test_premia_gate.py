@@ -33,7 +33,8 @@ from app.fund import statistics as st
 from app.fund.gate import (CLAIM_TYPES, CRITERIA, GATE_VERSION,
                            GATE_VERSION_PREMIA, PREMIA_CRITERIA,
                            PREMIA_VERSION, RF_BASES, evaluate)
-from app.fund.leanrunner import gross_exposure, premia_inputs
+from app.fund.leanrunner import (gross_exposure, invested_weights,
+                                 premia_inputs)
 
 DAY0 = datetime.date(2021, 1, 4)
 
@@ -198,9 +199,13 @@ def make_result(strategy: list[float], benchmark: list[float],
         "benchmark_series_source": "recomputed_basket",
     }
     if gross is not None:
-        res["exposure"] = gross_exposure(
-            exposure_chart(rdates(n), max(gross - short_ratio, 0.0),
-                           short_ratio))
+        # ONE chart, both readers — the same construction the belt performs, so
+        # a fixture cannot declare a book whose maxima and whose dated weights
+        # disagree with each other.
+        chart = exposure_chart(rdates(n), max(gross - short_ratio, 0.0),
+                               short_ratio)
+        res["exposure"] = gross_exposure(chart)
+        res["invested_weight"] = invested_weights(chart)
     res.update(over)
     fetch = rf_bars if rf_bars is not None else (
         None if rf_pct is None else feed(rf_pct, dates=rdates(n)))
@@ -1089,10 +1094,11 @@ def test_a_schema_1_payload_from_the_killed_version_fails_closed():
     bench = series_with_moments(R600, 20.0, 24.0, seed=31)
     strat = series_with_moments(R600, 15.0, 12.0, seed=32)
     res = make_result(strat, bench)
-    assert res["premia_inputs"]["schema"] == 3
+    assert res["premia_inputs"]["schema"] == 4
     legacy = dict(res["premia_inputs"])
     legacy["schema"] = 1
-    for k in ("rf", "strategy_excess", "benchmark_excess", "excess_measurable"):
+    for k in ("rf", "strategy_excess", "benchmark_excess", "excess_measurable",
+              "cash_credit", "advantage", "strategy_excess_uncredited"):
         legacy.pop(k, None)
     res["premia_inputs"] = legacy
     out = judge(res, claim_type="premia")
@@ -1234,11 +1240,20 @@ def unfinanced_lever(rule: list[float], leverage: float) -> list[float]:
 
 
 def excess_advantage(res: dict) -> float:
-    """The advantage off the payload's own excess legs, computed here rather
-    than read from the verdict — the verdict REFUSES a levered book, and the
-    point of this helper is to show what it is refusing."""
+    """The advantage off the payload's UNCREDITED excess legs.
+
+    Computed here rather than read from the verdict, because the verdict REFUSES
+    a levered book and the point of this helper is to show what it is refusing.
+
+    AND OFF THE UNCREDITED LEG SPECIFICALLY, which is the whole subject of the
+    two tests below. The shipped leg subtracts `w_t * rf_t`, and at w > 1 that
+    IS charged financing — so reading it here would make the unfinanced fixture
+    and the financed one produce the same flat sweep and delete the very
+    contrast these tests exist to hold apart. `strategy_excess_uncredited` is
+    the leg v5r3 judged and is kept in the payload for exactly this comparison.
+    """
     p = res["premia_inputs"]
-    return (st.sharpe_at_rf(p["strategy_excess"], 0.0)
+    return (st.sharpe_at_rf(p["strategy_excess_uncredited"], 0.0)
             - st.sharpe_at_rf(p["benchmark_excess"], 0.0))
 
 
