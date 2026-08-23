@@ -33,6 +33,67 @@ maintain a day log for fable to review."***
 
 ---
 
+## 2026-08-23 (UTC)
+
+The first ~75 minutes of the UTC day, closing the night shift. The CEO left
+at ~00:05Z ("you too rest post closing these 5 items; will see you on
+Monday"). The five fan-out items all resolved; the floor rests until Monday.
+
+**DECIDED**
+- Nothing new — every decision tonight predates midnight UTC and lives in
+  the (banner-corrected) 2026-08-22 entry below. The CEO's parting
+  instructions: rest after the close; G1 (live account) starts Monday.
+
+**BUILT**
+- **The chair's filing debt CLEARED** (Donna's chair-directed finding: five
+  resolved run records named artifacts absent from disk). Seven docs filed
+  as operative summaries pointing at their primary run records:
+  `docs/reviews/ADVERSARY_{BATCH,D17,D18,ENTRY21}_2026-08-23.md`,
+  `docs/cfo/GRACE5_TOKEN_LEDGER_2026-08-23.md`,
+  `docs/riskofficer/RISKOFFICER_6_2026-08-23.md`,
+  `docs/research/LEADS_SHELF_2026-08-23_v1.md`.
+- Donna's 2026-08-22 archive committed (`docs/archives/2026-08-22.md` +
+  `.pdf`, 23,525 + 373,245 bytes, first cut under the midnight guard —
+  refused 23:57:48Z, passed 00:00:03Z). Run `run-secretary-4` recorded;
+  STATE appended; BINDS carried to Grace (§4 exec-table empiricist half)
+  and Vishesh (counter refilled to 101 within hours of triage #6 at 91).
+
+**MEASURED** (Donna's cut, the day-four reference)
+- 43 runs / 8.10M tokens / 159 UTC commits / six merges / 0 fills / no NAV
+  strike (last: $1,885.74, seq 844) / $0.00 deployed at venue vs the book's
+  $917.06 / ≥24 confirmed defects / zero clean gate passes by the fund's
+  own choice.
+- **Friction ledger day two, WORSENED**: approved-undispatched 28→37,
+  oldest tail 14h34m→38.5h — the tail is entirely on the chair's side.
+- Dating drift is now SYSTEMIC (chair banner, run `dispatched_at` fields,
+  six artifact filenames) — clock ticket `a0e640de` is the named owner.
+
+**OPEN FOR FABLE (= the Monday sheet, in order)**
+- **G1**: the CEO opens the live account (CEO-only, his word: Monday).
+- **R39 click sheet** (`docs/pm/PM_R39_PLAN_2026-08-23.md`): sync pre-open
+  12:30–13:25Z (fresh run_id, read+apply same sitting) → $4.50 INTC probe
+  13:35Z gates everything → six orphan sells GLD-first → four sleeve rebuys
+  after verifying exit rules live → acceptance ≤$3 residual. Custody
+  fixture already captured PRE-sync (`docs/pm/CUSTODY_FIXTURE_2026-08-22.json`).
+- **NBBO capture at each submit** — chair prepares the script before open;
+  quotes persist nowhere and exclusion 4 of the TCA pre-registration
+  (`docs/research/TCA_PREREG_2026-08-24.md`) is unrecoverable without it.
+- One-word CEO rulings queued: the "fired in anger" DRILL question (~14
+  days per Grace); the gate pair (fold-scaling THEN history floor,
+  `58c4fff5`); drift-severity signature (with named owner + reconcile-by
+  date); R20/R21/R22; H2 citation-scoping.
+- **R1 re-judge-or-void Entry 20 by 08-25** (benchmark population
+  `739b5ac9` runs first).
+- Builder queue ranked in cto.md; THE CLEANUP (`dce47670`) deferred six
+  times and owed.
+
+**ON FIRE**
+- Nothing burning money. Two dated items: R1's 08-25 deadline, and the
+  friction tail (38.5h and worsening) — a third worsening reading at
+  Donna's next cut is a chair problem with a trend line.
+
+---
+
 ### LATE EVENING 2026-08-22, 18:30–21:30Z — CHAIR DATING ERROR, CORRECTED IN PLACE
 
 **Everything below this banner through the next day-header was initially

@@ -415,3 +415,7 @@ Your filing-rule challenge: **remedy KILLED, finding SURVIVES.** (1) Desk status
 ## 2026-08-23 (~00:15Z) — CARRIED FROM THE RISKOFFICER (dispatch 6) BY THE CHAIR
 
 R22 (the limits guard) is DIRECTION-AWARE by design: the TIGHTENING half needs no adversary pass under clause 5; only the loosening half does. When you batch it for the CEO, SPLIT it so he can sign the tightening half without waiting on a blind review it does not require.
+
+## 2026-08-23 (~01:10Z) — CARRIED FROM DONNA (run-secretary-4) BY THE CHAIR
+
+The desk counter refilled to 101 (triage due) within hours of your #6 at 91 — and most of the 22 CEO-open rows are the night's own output, not staleness. If you challenge the trigger again, the new evidence is that the counter now cycles faster than a triage resolves.

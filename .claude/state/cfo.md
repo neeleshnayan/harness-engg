@@ -284,3 +284,7 @@ Precondition 1 ("controls fired in anger") needs a SECOND column beside VENUE: *
 **BINDING CONSTRAINT LINE: not tokens. SPECIFICATION** — a one-word CEO ruling (drill vs in-anger, worth 14 days) and a ticket that did not exist (now filed).
 
 **OWED NEXT**: the in-anger ruling + P1 re-fires at the real venue; the adversary's verdict on G5-2's attestation loosening (my own kill condition attached); R39's informative-fill count (19 or 20?); the four-dispatch queue-ranking measurement.
+
+## 2026-08-23 (~01:10Z) — CARRIED FROM DONNA (run-secretary-4) BY THE CHAIR
+
+§4 of the 08-22 archive is your empiricist half for the exec-table order — form your own allocation view FIRST, then price these three against the date: the builder queue's 4–8× generation/absorption mismatch, the chair-pen filing debt (cleared at resolve — verify, never assume), and the two unowned surfaces (time-keeping; evaluability). The one measured time-effect on the day remains your own ~14-day one-word ruling.
