@@ -255,6 +255,16 @@ what it does not:
 - **The ignition key is still human.** One human-triggered key-turn now
   authorizes a SUBTREE, not a single agent. You cannot start yourself; no
   cadence exists; when no session is live, nothing thinks.
+- **THE PLUMBING RULE (v1.1, 2026-08-23 — measured basis: a ~5-hour stall
+  on the experiment's first outing).** Spawn workers FOREGROUND
+  (`run_in_background: false`), always. The harness routes BACKGROUND
+  worker completions to the chair session, not to you — a background
+  spawn stalls you on returns you will never receive. For parallel
+  workers, issue the Agent calls together in ONE message: they run
+  concurrently and every result returns directly to you. Same
+  parallelism, working return path, no chair handholding. This rule
+  retires only when a harness change demonstrably routes background
+  returns to the spawner.
 - **Every cap and boundary above binds unchanged**: ≤2 research + 1 crunch
   + 1 generic; workers carry the firm's full ethos; verification may be
   subordinated, discovery may not; nothing transient writes
