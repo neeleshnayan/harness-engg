@@ -460,13 +460,30 @@ def load_env() -> None:
     load_dotenv(str(ROOT / ".env"))
 
 
-def main(argv: Optional[list[str]] = None) -> int:
-    load_env()
+def build_parser() -> argparse.ArgumentParser:
+    """The command line, as a value.
+
+    Separated from ``main`` so a test can assert on the OPTIONS THEMSELVES
+    without running the tool or monkeypatching argparse. The two-database split
+    below is a correctness property of this parser, not of the code that reads
+    it, and it deserves a test that does not have to boot anything.
+    """
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--spine", default=None,
                    help="read the log over HTTP instead of from Postgres; "
                         "capped at 1000 rows, so coverage is refused")
-    p.add_argument("--dsn", default=None)
+    # TWO STORES, TWO FLAGS. `--dsn` says where the EVENT LOG is read from;
+    # `--store-dsn` says where captured quotes are written. They defaulted to
+    # one flag and the first real `--store` run died on
+    # `relation "fund_events" does not exist`, because pointing the writer at a
+    # scratch database silently pointed the READER there too. A single flag
+    # naming two different databases is a configuration that can only ever be
+    # half right.
+    p.add_argument("--dsn", default=None,
+                   help="where fund_events is read from (default: the fund's)")
+    p.add_argument("--store-dsn", default=None,
+                   help="where fund_execution_quotes is written "
+                        "(default: the same place the log was read from)")
     p.add_argument("--quotes", action="store_true",
                    help="fetch the consolidated quote in force at each fill")
     p.add_argument("--store", action="store_true",
@@ -477,6 +494,12 @@ def main(argv: Optional[list[str]] = None) -> int:
     p.add_argument("--probe-delay", action="store_true",
                    help="re-measure the consolidated-data entitlement boundary")
     p.add_argument("--json", action="store_true")
+    return p
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    load_env()
+    p = build_parser()
     a = p.parse_args(argv)
 
     if a.probe_delay:
@@ -500,7 +523,7 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     store = None
     if a.store:
-        store = QuoteStore(a.dsn)
+        store = QuoteStore(a.store_dsn or a.dsn)
         store.ensure_schema()
     report = build_report(events, source, quotes=SipQuotes() if a.quotes else None,
                           store=store, run_id=a.run_id or "")

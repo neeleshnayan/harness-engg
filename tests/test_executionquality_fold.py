@@ -831,3 +831,50 @@ def test_coverage_matches_a_quote_row_whose_event_seq_is_zero():
     assert out["measured"] == 1
     assert out["uncaptured"] == 0
     assert out["pct_measured"] == 100.0
+
+
+def test_one_fill_captured_on_two_bases_is_still_a_single_leg_order():
+    """FOUND BY LOOKING AT THE SERVED PAYLOAD, NOT BY THE SUITE.
+
+    A fill can carry TWO rows: the live IEX row written at the moment of the
+    event, and the consolidated row written fifteen minutes later. They are two
+    measurements of ONE fill. Counting rows per order made every twice-captured
+    single fill look like a multi-leg order — seven simulated orders jumped
+    buckets and the single-leg sample, which is the headline, fell from nine to
+    two the first time the endpoint saw a store holding both bases.
+
+    The bug is invisible while only one basis exists, which is exactly the
+    state every test fixture was in.
+    """
+    rows = [
+        {"order_id": "o1", "event_seq": 100, "event_kind": "filled",
+         "symbol": "SPY", "submitted_venue": "alpaca", "was_submitted": True,
+         "feed": "iex", "effective_spread_bps": 2.0,
+         "signed_effective_spread_bps": 2.0},
+        {"order_id": "o1", "event_seq": 100, "event_kind": "filled",
+         "symbol": "SPY", "submitted_venue": "alpaca", "was_submitted": True,
+         "feed": "sip", "effective_spread_bps": 3.0,
+         "signed_effective_spread_bps": 3.0},
+    ]
+    ex = summarise_quote_rows(rows)["by_execution_class"]["executed"]
+    assert ex["single_leg"]["measured"] == 2, (
+        "two bases for one fill were counted as a multi-leg order")
+    assert ex["multi_leg"]["fills"] == 0
+    assert ex["multi_leg"]["effective_spread_bps"] is None
+
+
+def test_two_genuine_legs_of_one_order_are_still_multi_leg():
+    """The other side, so the fix cannot be "everything is single-leg"."""
+    rows = [
+        {"order_id": "o2", "event_seq": 200, "event_kind": "partially_filled",
+         "symbol": "SPY", "submitted_venue": "alpaca", "was_submitted": True,
+         "feed": "sip", "effective_spread_bps": 4.0,
+         "signed_effective_spread_bps": 4.0},
+        {"order_id": "o2", "event_seq": 201, "event_kind": "filled",
+         "symbol": "SPY", "submitted_venue": "alpaca", "was_submitted": True,
+         "feed": "sip", "effective_spread_bps": 6.0,
+         "signed_effective_spread_bps": 6.0},
+    ]
+    ex = summarise_quote_rows(rows)["by_execution_class"]["executed"]
+    assert ex["multi_leg"]["measured"] == 2
+    assert ex["single_leg"]["fills"] == 0

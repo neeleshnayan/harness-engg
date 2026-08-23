@@ -666,10 +666,20 @@ def summarise_quote_rows(rows: list[dict]) -> dict:
     # is coming, so a `multi_leg` column written live would be false on exactly
     # the row that most needs it. Counted here instead, where the whole set is
     # in hand.
-    per_order: dict[str, int] = {}
+    #
+    # COUNT DISTINCT EVENTS, NOT ROWS. One fill can carry TWO rows - the live
+    # IEX row and the consolidated row for the same instant - and counting rows
+    # made every twice-captured single fill look like a multi-leg order.
+    # Measured when the endpoint was first pointed at a store holding both
+    # bases: seven simulated single-fill orders jumped into the multi-leg
+    # bucket and the single-leg sample fell from nine to two. The bug is
+    # invisible until the second basis exists, which is why looking at the
+    # served payload found it and the tests did not.
+    legs_per_order: dict[str, set] = {}
     for r in fills:
-        oid = str(r.get("order_id"))
-        per_order[oid] = per_order.get(oid, 0) + 1
+        legs_per_order.setdefault(str(r.get("order_id")), set()).add(
+            r.get("event_seq"))
+    per_order = {oid: len(seqs) for oid, seqs in legs_per_order.items()}
 
     def _bucket(subset: list[dict]) -> dict:
         vals, signed_vals, absent = [], [], 0

@@ -381,3 +381,104 @@ def test_in_force_asks_only_for_the_window_it_will_use():
         return d.replace(tzinfo=None) if d.tzinfo else d
     assert naive(req.start) == naive(AT) - timedelta(seconds=2.0)
     assert timedelta(0) <= naive(req.end) - naive(AT) <= timedelta(seconds=1)
+
+
+# --- the two-stores flag split (found by the first real --store run) -------
+
+def test_the_event_log_dsn_and_the_quote_store_dsn_are_separate_flags():
+    """ONE FLAG NAMING TWO DATABASES CAN ONLY EVER BE HALF RIGHT.
+
+    ``--dsn`` used to feed both the ``fund_events`` reader and the
+    ``fund_execution_quotes`` writer. The first real ``--store`` run pointed
+    the writer at a scratch database and died on
+    ``relation "fund_events" does not exist`` — the reader had followed it.
+
+    Asserted on the parser rather than on prose: the two options exist, and
+    ``--store-dsn`` defaults to None so the single-database case still works
+    with one flag.
+    """
+    p = rs.build_parser()
+    both = p.parse_args(["--quotes", "--store", "--run-id", "r",
+                         "--dsn", "postgresql://a/log",
+                         "--store-dsn", "postgresql://b/quotes"])
+    assert both.dsn == "postgresql://a/log"
+    assert both.store_dsn == "postgresql://b/quotes"
+    one = p.parse_args(["--dsn", "postgresql://a/log"])
+    assert one.store_dsn is None, (
+        "--store-dsn must default to absent so it can fall back to --dsn")
+
+
+def test_store_without_a_run_id_or_without_quotes_is_refused():
+    """Two refusals with two different reasons, and neither is a silent no-op.
+
+    A stored row that cannot name the process that wrote it cannot be fenced
+    off later; and ``--store`` alone would look like it did something while
+    there was nothing to store, because the mark table is never stored.
+    """
+    for argv in (["--quotes", "--store"], ["--store", "--run-id", "r"]):
+        with pytest.raises(SystemExit):
+            rs.main(argv)
+
+
+def test_main_actually_builds_the_store_from_store_dsn(monkeypatch):
+    """A FLAG THAT NOTHING READS IS A FLAG THAT DOES NOTHING.
+
+    Mutation showed the parser test passing while ``main`` still built the
+    QuoteStore from ``--dsn``: the option existed, was documented, and was
+    ignored. Same family as a helper that is flawless and uncalled — drive the
+    real call site and assert which DSN arrived.
+    """
+    built = {}
+
+    class SpyStore:
+        def __init__(self, dsn=None):
+            built["dsn"] = dsn
+
+        def ensure_schema(self):
+            return True
+
+        def rows(self, limit=None, basis=None):
+            return [], False
+
+    monkeypatch.setattr(rs, "QuoteStore", SpyStore)
+    monkeypatch.setattr(rs, "read_events_from_store",
+                        lambda dsn=None: ([], {"source": "test",
+                                               "events_in_log": 0,
+                                               "order_events_read": 0,
+                                               "truncated": False}))
+    monkeypatch.setattr(rs, "SipQuotes", lambda: FakeSip({}))
+    monkeypatch.setattr(rs, "render", lambda report, out=None: None)
+
+    rs.main(["--quotes", "--store", "--run-id", "r",
+             "--dsn", "postgresql://a/log",
+             "--store-dsn", "postgresql://b/quotes"])
+    assert built["dsn"] == "postgresql://b/quotes", (
+        "main built the quote store from --dsn; --store-dsn is decoration")
+
+
+def test_store_dsn_falls_back_to_dsn_when_absent(monkeypatch):
+    """One database is still the normal case and must still work with one flag."""
+    built = {}
+
+    class SpyStore:
+        def __init__(self, dsn=None):
+            built["dsn"] = dsn
+
+        def ensure_schema(self):
+            return True
+
+        def rows(self, limit=None, basis=None):
+            return [], False
+
+    monkeypatch.setattr(rs, "QuoteStore", SpyStore)
+    monkeypatch.setattr(rs, "read_events_from_store",
+                        lambda dsn=None: ([], {"source": "test",
+                                               "events_in_log": 0,
+                                               "order_events_read": 0,
+                                               "truncated": False}))
+    monkeypatch.setattr(rs, "SipQuotes", lambda: FakeSip({}))
+    monkeypatch.setattr(rs, "render", lambda report, out=None: None)
+
+    rs.main(["--quotes", "--store", "--run-id", "r",
+             "--dsn", "postgresql://a/both"])
+    assert built["dsn"] == "postgresql://a/both"
