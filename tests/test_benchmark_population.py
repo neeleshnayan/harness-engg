@@ -181,6 +181,64 @@ def test_a_snapshot_that_does_not_cover_a_name_may_not_condemn_it(monkeypatch):
     assert result["benchmark_basket"] == ["AAA", "BBB"]
 
 
+def test_a_snapshot_that_judged_NOBODY_does_not_claim_the_correction(monkeypatch):
+    """THE ADVERSARY'S D19 REPAIR (kill1.py), reproduced end to end.
+
+    The fund has ONE as-of snapshot, 2025-01-01, holding types CS and ADRC. The
+    belt's own bars are ETFs, and 34 of the 41 stored candidates use exactly that
+    holdout date. So the reachable case is: the snapshot covers types, NOT ONE
+    of the wanted names is of a covered type, ZERO names are judged — and the
+    payload said ``listing_asof_applied: true``. A correction applied to nothing
+    is not applied, and the stored verdict said it was.
+
+    Two halves, both required: the label must be honest, and the honesty must
+    SURVIVE INTO ``checks``. A payload nobody keeps is not a record.
+    """
+    from app.fund.gate import evaluate
+    etfs = ["SPY", "TLT", "GLD", "IWM"]
+    pop = population_report(etfs, "2025-01-01", listed={"AAPL", "MSFT"},
+                            priced_delisted=set(),
+                            snapshot_types={"CS", "ADRC"}, types={})
+    assert pop["names_judged"] == 0
+    assert pop["listing_asof_applied"] is False
+    assert pop["basis"] == "survivor_only"
+    assert pop["unjudgeable_by_snapshot"] == etfs
+    assert "NOT ONE of the 4 name(s)" in pop["reason"]
+
+    stored = evaluate({"total_return_pct": 20.0, "benchmark_return_pct": 10.0,
+                       "benchmark_population": pop})["checks"]["benchmark_population"]
+    assert stored["listing_asof_applied"] is False
+    assert stored["names_judged"] == 0
+    assert stored["unjudgeable_by_snapshot"] == etfs
+    assert "absence there is not evidence" in stored["unjudgeable_note"]
+
+
+def test_a_snapshot_that_judged_SOMEBODY_still_claims_the_correction():
+    """The other side of the same branch, so the repair cannot pass by always
+    saying False. One covered name judged is a correction that happened."""
+    pop = population_report(["AAA", "SPY"], "2025-01-01", listed={"AAA"},
+                            priced_delisted=set(),
+                            snapshot_types={"CS"}, types={"AAA": "CS"})
+    assert pop["names_judged"] == 1
+    assert pop["listing_asof_applied"] is True
+    assert pop["basis"] == "listing_asof"
+    assert pop["unjudgeable_by_snapshot"] == ["SPY"]
+
+
+def test_the_stored_verdict_carries_the_unjudgeable_names_when_there_are_some():
+    """A partially-judged bar is the common case and must not read as clean."""
+    from app.fund.gate import evaluate
+    pop = population_report(["AAA", "SPY"], "2025-01-01", listed={"AAA"},
+                            priced_delisted=set(),
+                            snapshot_types={"CS"}, types={"AAA": "CS"})
+    stored = evaluate({"total_return_pct": 20.0, "benchmark_return_pct": 10.0,
+                       "benchmark_population": pop})["checks"]["benchmark_population"]
+    assert stored["listing_asof_applied"] is True
+    assert stored["names_judged"] == 1
+    assert stored["unjudgeable_by_snapshot"] == ["SPY"]
+    assert stored["unjudgeable_note"]
+
+
 def test_a_snapshot_with_unknown_type_coverage_judges_nobody():
     """Coverage we cannot read is coverage we cannot rely on."""
     out = population_report(["AAA", "BBB"], "2024-01-01", listed={"AAA"},

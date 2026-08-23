@@ -252,6 +252,40 @@ def effective_history_floor(code: Optional[str] = None,
     return out
 
 
+def _reach_report(algorithm: str, history: dict[str, Any],
+                  planned: list[dict[str, str]]) -> dict[str, Any]:
+    """How many planned folds start before the containers' bars do.
+
+    Not a failure and not silently swallowed: a starved leg is PARTIALLY fed, so
+    the fold still measures something, over a shorter series than it asked for.
+    Counted because a reader of a thin verdict must be able to tell "the
+    strategy had nothing to say" from "we asked the engine a question its data
+    path could not answer".
+
+    ABSENCE, NOT ZERO, when the reach is unknown. Until D20 the key was simply
+    left out, which reads as "no fold was starved" to a human and to the gate's
+    own history-floor block — an absence rendered as zero in a counter added to
+    report exactly that absence.
+    """
+    reach = history.get("data_path")
+    if not reach:
+        return {
+            "folds_before_data_path_reach": None,
+            "folds_before_data_path_reach_note": (
+                "UNCOUNTABLE: this algorithm declares no single lookback_days, "
+                "so how far back its containers reach is unknown and the number "
+                "of starved folds cannot be counted — this is not a count of "
+                "zero"),
+        }
+    short = [f for f in planned if f["train_start"] < reach]
+    if short:
+        logger.warning(
+            "%s: %d of %d planned folds begin before the container data-path "
+            "reach %s (lookback_days=%s)", algorithm, len(short), len(planned),
+            reach, history.get("data_path_lookback_days"))
+    return {"folds_before_data_path_reach": len(short)}
+
+
 def check_cost_grid(grid: Any,
                     criteria: Optional[dict[str, Any]] = None) -> dict[str, Any]:
     """Can this grid answer the cost question the gate is going to ask it?
@@ -615,6 +649,12 @@ class CandidateFactory:
                 logger.warning("fold requirement did not settle for %s "
                                "(need=%d, folds=%d)", algorithm, need,
                                len(plan["folds"]))
+            # Folds whose TRAIN leg begins before the candidate's containers can
+            # fetch — computed ONCE, for both exits. A NOT TESTABLE verdict
+            # needs it as much as a judged one: "we could not fit enough folds"
+            # and "the folds we fitted were starved" are different sentences,
+            # and the second was invisible on that path.
+            reach = _reach_report(algorithm, history, plan["folds"])
             if not plan["enough"]:
                 # Untestable is a verdict of its own; the gate must not read it as
                 # a failure of the strategy.
@@ -626,7 +666,7 @@ class CandidateFactory:
                         "requested_folds": plan["folds"],
                         "folds_required": need,
                         "fold_requirement_settled": settled,
-                        "history_floor": history,
+                        "history_floor": history, **reach,
                         "folds_measurable": 0, "folds_retained": 0}, None
             out = WalkForward(runner=self._lean()).evaluate(
                 algorithm, grid, plan["folds"])
@@ -641,35 +681,7 @@ class CandidateFactory:
             out["folds_required"] = need
             out["fold_requirement_settled"] = settled
             out["history_floor"] = history
-            # Folds whose TRAIN leg begins before the candidate's containers
-            # can fetch. Not a failure and not silently swallowed: those legs
-            # are partially fed, so the fold still measures something, over a
-            # shorter series than it asked for. Counted here because a reader
-            # of a starved verdict must be able to tell "the strategy had
-            # nothing to say" from "we asked the engine a question its data
-            # path could not answer".
-            reach = history.get("data_path")
-            if not reach:
-                # ABSENCE, NOT ZERO. An unknown data path means the count is
-                # UNCOUNTABLE, and leaving the key out entirely let a reader —
-                # and the gate's own history-floor block — render it as though
-                # nothing was starved. The count is the whole point of the
-                # field, so when it cannot be computed the field says so.
-                out["folds_before_data_path_reach"] = None
-                out["folds_before_data_path_reach_note"] = (
-                    "UNCOUNTABLE: this algorithm declares no single "
-                    "lookback_days, so how far back its containers reach is "
-                    "unknown and the number of starved folds cannot be "
-                    "counted — this is not a count of zero")
-            else:
-                short = [f for f in plan["folds"] if f["train_start"] < reach]
-                out["folds_before_data_path_reach"] = len(short)
-                if short:
-                    logger.warning(
-                        "%s: %d of %d planned folds begin before the "
-                        "container data-path reach %s (lookback_days=%s)",
-                        algorithm, len(short), len(plan["folds"]), reach,
-                        history.get("data_path_lookback_days"))
+            out.update(reach)
             return out, None
         except Exception as e:  # noqa: BLE001
             logger.warning("walk-forward unavailable for %s: %s", algorithm, e)
