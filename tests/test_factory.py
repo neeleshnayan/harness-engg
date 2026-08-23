@@ -433,3 +433,35 @@ def test_a_candidate_with_no_holdout_records_why_the_folds_are_missing():
     assert wf["present"] is False
     assert wf["reason"] == runanalytics.UNAVAILABLE
     assert "no holdout window was supplied" in wf["note"]
+
+
+# --- the belt plans exactly what the gate will ask for (gate v4.3) ----------
+
+
+@pytest.mark.parametrize("floor", ["2024-02-26", "1993-01-29"])
+def test_the_belt_plans_the_fold_count_the_gate_will_require(floor, monkeypatch):
+    """The requirement scales with the covered window and the covered window is
+    sized from the requirement, so the belt solves the pair by iterating to a
+    fixed point. If it stopped one pass early the gate would starve a candidate
+    for folds the belt never planned — a kill produced by our own arithmetic,
+    which is the exact failure ``window_for`` was written to remove.
+
+    Parameterised over both history floors deliberately: the invariant is
+    "planned == required", not a fold count, so it survives the floor moving.
+    """
+    from app.fund import factory as fac
+    from app.fund.gate import folds_required
+
+    monkeypatch.setattr(fac, "WALKFORWARD_HISTORY_FLOOR", floor)
+    runner = FakeRunner()
+    f = _factory(runner)
+    out, note = f._walkforward("a", {"fast": ["10"]}, {"test_end": "2026-08-04"})
+
+    assert note is None
+    planned = out["requested_folds"]
+    assert out["fold_requirement_settled"] is True
+    assert out["folds_required"] == folds_required({"requested_folds": planned})["required"]
+    assert len(planned) >= out["folds_required"], (
+        "the belt shipped a plan too small for the bar it will be judged by")
+    assert runner.sweeps_requested == len(planned), (
+        "the belt did not actually run the folds it planned")

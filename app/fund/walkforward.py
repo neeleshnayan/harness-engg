@@ -82,6 +82,34 @@ def _d(s: str) -> date:
     return date.fromisoformat(s)
 
 
+def cal_days(trading_days: int) -> int:
+    """Trading days as calendar days, at roughly 252/365.
+
+    Named once and called everywhere this conversion is needed. It used to be a
+    lambda redefined in two functions, which is two copies of one belief — and
+    the fold-count arithmetic below now depends on it agreeing with itself
+    exactly, because ``span_for_folds`` predicts what ``folds`` will produce.
+    """
+    return int(trading_days * 365 / 252)
+
+
+def span_for_folds(n_folds: int, test_days: int, train_days: int = 252) -> int:
+    """Calendar days ``n_folds`` folds occupy, for that train/test geometry.
+
+    NOT an estimate — it is the closed form of what ``folds()`` below actually
+    lays down, and it is used to decide how many folds a covered window must
+    supply. Fold *i* starts at ``S + (i-1)*cal(step)``; with the default
+    non-overlapping step the last test leg ends at
+    ``S + cal(train) + n*cal(test) + 1``.
+
+    Verified against the shipped generator 2026-08-23 for holds 1/2/3/5/10/21/
+    42/63 at both history floors: predicted span equalled the generated span in
+    every case (e.g. a 21-day hold gives 850 days at 4 folds and 971 at 5, and
+    the generator produced exactly those).
+    """
+    return cal_days(train_days) + n_folds * cal_days(test_days) + 1
+
+
 def folds(start: str, end: str, train_days: int = 252,
           test_days: int = 63, step_days: Optional[int] = None,
           max_folds: int = 6) -> list[dict[str, str]]:
@@ -96,7 +124,7 @@ def folds(start: str, end: str, train_days: int = 252,
     is what gets recorded.
     """
     step = step_days or test_days
-    cal = lambda d: int(d * 365 / 252)  # noqa: E731 — trading days to calendar
+    cal = cal_days
     s, e = _d(start), _d(end)
     out: list[dict[str, str]] = []
     train_start = s
@@ -114,11 +142,26 @@ def folds(start: str, end: str, train_days: int = 252,
     return out
 
 
-#: How many of a strategy's own decisions a test leg must contain before it is a
-#: test rather than a single draw. Four is a judgement, labelled as one: it is the
-#: point where one lucky trade stops dominating the leg's return, and it is not
-#: derived from any measurement here.
-DECISIONS_PER_TEST_LEG = 4
+def decisions_per_test_leg(criteria: Optional[dict[str, Any]] = None) -> int:
+    """How many of a strategy's own decisions a test leg must contain.
+
+    Four is a judgement, labelled as one: the point where one lucky trade stops
+    dominating the leg's return. It is not derived from any measurement here.
+
+    READ FROM THE GATE, not held here. Until 2026-08-23 this was a module
+    constant ``DECISIONS_PER_TEST_LEG = 4`` sitting beside
+    ``CRITERIA["min_decisions_per_test_leg"] = 4`` — two copies of one belief,
+    and the criterion was the copy NOBODY READ: grepping the repo, the gate's
+    key had zero consumers while the geometry used the constant. A declared
+    criterion that decides nothing is the register-of-notes failure at the
+    level of the bar itself, so the constant is gone and the criterion is the
+    value in force. That also makes it version-aware: ``CRITERIA_V2`` and
+    ``CRITERIA_V1`` set this to 0, and re-judging under them now really does
+    use their geometry instead of v4's.
+    """
+    from app.fund.gate import CRITERIA
+    c = {**CRITERIA, **(criteria or {})}
+    return int(c.get("min_decisions_per_test_leg") or 0)
 
 
 def declared_hold_days(code: Optional[str], grid: Optional[dict] = None,
@@ -164,9 +207,18 @@ def declared_hold_days(code: Optional[str], grid: Optional[dict] = None,
                      f"{default}-day hold — declare HOLD_DAYS to make this exact")}
 
 
+#: The test leg a bar with no decision requirement gets. Pre-v3 behaviour, kept
+#: reachable so a re-judge under CRITERIA_V1/V2 — both of which set
+#: ``min_decisions_per_test_leg`` to 0, meaning "this bar had no such concept" —
+#: gets the fixed calendar leg those versions were written against, rather than
+#: ``hold * 0`` collapsing every test leg to one day.
+DEFAULT_TEST_DAYS = 63
+
+
 def window_for_strategy(end: str, hold_days: int, min_folds: int,
                         train_days: int = 252,
-                        floor: Optional[str] = None) -> dict[str, Any]:
+                        floor: Optional[str] = None,
+                        criteria: Optional[dict[str, Any]] = None) -> dict[str, Any]:
     """Folds whose test legs are long enough for THIS strategy to act several times.
 
     Returns the folds AND, when the history cannot supply ``min_folds`` of them,
@@ -174,22 +226,26 @@ def window_for_strategy(end: str, hold_days: int, min_folds: int,
     different verdict from failed. Reporting it as failed is the same error as
     reading a no-trade holdout as a lost edge.
     """
-    test_days = max(1, hold_days * DECISIONS_PER_TEST_LEG)
+    decisions = decisions_per_test_leg(criteria)
+    test_days = max(1, hold_days * decisions) if decisions > 0 else DEFAULT_TEST_DAYS
     w = window_for(end, min_folds=min_folds, train_days=train_days,
                    test_days=test_days, floor=floor)
     return {
         "folds": w,
         "test_days": test_days,
         "hold_days": hold_days,
+        "decisions_per_test_leg": decisions,
+        "train_days": train_days,
         "enough": len(w) >= min_folds,
+        "min_folds": min_folds,
         "note": (f"{len(w)} fold(s) fit; a {hold_days}-day hold needs a "
                  f"{test_days}-day test leg to make "
-                 f"{DECISIONS_PER_TEST_LEG} decisions, and the available history "
+                 f"{decisions} decisions, and the available history "
                  f"does not supply {min_folds} of them — this strategy is NOT "
                  f"TESTABLE here, which is not the same as failing"
                  if len(w) < min_folds else
                  f"{len(w)} fold(s), each a {test_days}-day test leg giving the "
-                 f"{hold_days}-day hold about {DECISIONS_PER_TEST_LEG} decisions"),
+                 f"{hold_days}-day hold about {decisions} decisions"),
     }
 
 
@@ -221,7 +277,7 @@ def window_for(end: str, min_folds: int, train_days: int = 252,
     unmeasurable rather than failed — but it wastes engine time on runs that
     cannot say anything.
     """
-    cal = lambda d: int(d * 365 / 252)  # noqa: E731
+    cal = cal_days
     # K folds need train + test + (K-1) steps of room. One extra step is added as
     # slack: the trading-to-calendar conversion rounds down at every term, and
     # without it the last fold's test leg overshot the window by a single day and

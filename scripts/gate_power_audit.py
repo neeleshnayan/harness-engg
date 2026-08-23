@@ -53,11 +53,15 @@ sys.path.insert(0, ".")
 
 from app.fund.gate import CRITERIA, GATE_VERSION  # noqa: E402
 from app.fund.walkforward import (  # noqa: E402
-    DECISIONS_PER_TEST_LEG,
     MIN_TRAIN_RETURN_PCT,
     RETENTION_FLOOR,
+    decisions_per_test_leg,
     retention,
 )
+
+#: Read from the gate, not held here — the module constant this replaced was
+#: the second copy of `CRITERIA["min_decisions_per_test_leg"]`.
+DECISIONS_PER_TEST_LEG = decisions_per_test_leg()
 
 #: Sessions of history the fund actually holds (bars start 2024-02-26).
 SESSIONS = 630

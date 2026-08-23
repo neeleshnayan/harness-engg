@@ -356,9 +356,17 @@ def registry() -> list[Judgement]:
     return [
         Judgement(
             "DECISIONS_PER_TEST_LEG",
-            where="app/fund/walkforward.py",
+            # POINTER MOVED 2026-08-23, VALUE UNCHANGED. The number lived in
+            # two places — a module constant in walkforward.py and
+            # CRITERIA["min_decisions_per_test_leg"] in the gate — and the
+            # criterion was the copy nobody read. The constant is gone and the
+            # geometry now reads the criterion, so the register follows the
+            # value rather than the old address; a register still pointing at a
+            # deleted constant would report UNREADABLE, which is the register
+            # failing at the one job it has.
+            where="app/fund/gate.py CRITERIA (min_decisions_per_test_leg)",
             basis="judged", expected=4,
-            read=_module("app.fund.walkforward", "DECISIONS_PER_TEST_LEG"),
+            read=_gate("min_decisions_per_test_leg"),
             why="A test leg should contain enough of a strategy's own decisions "
                 "that one lucky trade cannot dominate it. Four is where that felt "
                 "true. It is not derived from anything measured here, and the "

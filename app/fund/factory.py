@@ -391,7 +391,7 @@ class CandidateFactory:
             return None, ("no holdout window was supplied, so no folds could be "
                           "built — the walk-forward leg was never attempted")
         try:
-            from app.fund.gate import CRITERIA
+            from app.fund.gate import CRITERIA, folds_required
             from app.fund.walkforward import (WalkForward, declared_hold_days,
                                               window_for_strategy)
 
@@ -410,6 +410,31 @@ class CandidateFactory:
             plan = window_for_strategy(holdout["test_end"], hold["hold_days"],
                                        min_folds=need,
                                        floor=WALKFORWARD_HISTORY_FLOOR)
+            # THE BELT PLANS WHAT THE GATE WILL ASK FOR, and the two are
+            # coupled: the requirement scales with the window covered, and the
+            # window covered is sized from the requirement. Solved by iterating
+            # to a fixed point rather than by keeping two numbers in step by
+            # hand — the same reason ``span_for_folds`` is a closed form of the
+            # generator instead of a second guess at it. The map contracts (a
+            # fold costs a whole test leg of span and buys well under one fold
+            # of requirement), so it settles in one or two passes on every
+            # geometry this fund runs; the bound exists so a future geometry
+            # that does NOT contract says so instead of spinning.
+            settled = True
+            for _ in range(4):
+                req = int(folds_required({"requested_folds": plan["folds"]})
+                          ["required"])
+                if req <= need:
+                    break
+                need = req
+                plan = window_for_strategy(holdout["test_end"],
+                                           hold["hold_days"], min_folds=need,
+                                           floor=WALKFORWARD_HISTORY_FLOOR)
+            else:
+                settled = False
+                logger.warning("fold requirement did not settle for %s "
+                               "(need=%d, folds=%d)", algorithm, need,
+                               len(plan["folds"]))
             if not plan["enough"]:
                 # Untestable is a verdict of its own; the gate must not read it as
                 # a failure of the strategy.
@@ -418,6 +443,9 @@ class CandidateFactory:
                 return {"not_testable": True, "note": plan["note"],
                         "hold_days": hold["hold_days"],
                         "hold_days_source": hold["source"],
+                        "requested_folds": plan["folds"],
+                        "folds_required": need,
+                        "fold_requirement_settled": settled,
                         "folds_measurable": 0, "folds_retained": 0}, None
             out = WalkForward(runner=self._lean()).evaluate(
                 algorithm, grid, plan["folds"])
@@ -425,6 +453,12 @@ class CandidateFactory:
             out["hold_days_source"] = hold["source"]
             out["requested_folds"] = plan["folds"]
             out["test_days"] = plan["test_days"]
+            # What the belt PLANNED against. The gate recomputes this from the
+            # fold windows rather than reading it — a criterion that trusts a
+            # number the payload asserts about itself is not a criterion — so
+            # this is here for a human comparing the two, not for the gate.
+            out["folds_required"] = need
+            out["fold_requirement_settled"] = settled
             return out, None
         except Exception as e:  # noqa: BLE001
             logger.warning("walk-forward unavailable for %s: %s", algorithm, e)
