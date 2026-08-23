@@ -2,8 +2,11 @@
 PSR's identifying inputs.
 
 The measurements these tests encode were taken on 2026-08-23 against the four
-stored candidates that carry analytics (`fund_candidates.analytics IS NOT
-NULL`), reproducible with:
+stored candidates that then carried analytics (`fund_candidates.analytics IS
+NOT NULL`). THAT POPULATION GROWS WITH THE BELT — it was six by the evening of
+the same day — so the invariant, not the snapshot: the four figures below
+belong to four NAMED candidates and do not move; the count of rows beside them
+does. Reproducible with:
 
     select candidate_id, analytics from fund_candidates where analytics is not null
 """
@@ -392,7 +395,9 @@ def test_rounding_for_storage_keeps_an_ABSENCE_absent(given, expect):
     assert (got is None) == (given is None)
 
 
-def test_the_stored_schema_says_2_so_a_v5r1_capture_is_distinguishable():
+def test_the_stored_schema_says_3_so_an_OLDER_capture_is_distinguishable():
+    """1 = the killed v5r1 shape, 2 = the realised cash leg, 3 = the gross
+    exposure the premia criterion now refuses without."""
     got, _c, _s = _lean_shaped(500)
     assert got["schema"] == 3
 
@@ -905,9 +910,10 @@ def test_the_belt_and_the_gate_read_ONE_vocabulary():
 # (docs/reviews/ADVERSARY_D29_2026-08-23.md). LEAN's default brokerage charges
 # no margin interest, so subtracting a realised cash rate closes the carry
 # channel only for gross <= 100%; above it the borrow is free and the gift
-# GROWS with the cash weight. A 1.25x book of 25% SPY and 75% BIL passed all
-# four belt windows at +0.153..+0.239 against a financed advantage of 0.0000.
-# The payload carried no exposure field at all, so no reader could see it.
+# GROWS with the cash weight. The measured figures live once, in
+# `gate.PREMIA_VERSION`'s v5r3 note. What matters on this side of the line is
+# that the payload carried no exposure field at all, so no reader could see
+# the borrow and no criterion could refuse it.
 
 def real_exposure_chart() -> dict:
     """A GENUINE LEAN exposure chart, trimmed to its first twelve points.
@@ -1087,7 +1093,14 @@ def test_the_premia_payload_carries_the_gross_even_when_the_pair_is_ABSENT():
 
 
 def test_a_stored_exposure_reading_is_carried_into_the_premia_payload():
-    """And it is carried as the ENGINE measured it, not re-derived."""
+    """And it is carried as the ENGINE measured it, not re-derived.
+
+    The block here is hand-built ON PURPOSE, and that is the layer it
+    models: `_premia_leg` reads a payload out of Postgres, not one this
+    process just produced, and 1.37 is a figure no chart in this file
+    generates. The reader itself is tested against genuine engine bytes
+    above.
+    """
     n = 40
     dates = trading_dates(n)
     strat = drifting(n, 0.0006, 0.01, seed=3)

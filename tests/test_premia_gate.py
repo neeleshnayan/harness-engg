@@ -28,8 +28,7 @@ import math
 
 import pytest
 
-from premia_feed import (cash_feed, no_feed, per_obs,
-                         weekdays_between)
+from premia_feed import cash_feed, no_feed, per_obs, weekdays_between
 from app.fund import statistics as st
 from app.fund.gate import (CLAIM_TYPES, CRITERIA, GATE_VERSION,
                            GATE_VERSION_PREMIA, PREMIA_CRITERIA,
@@ -1218,8 +1217,8 @@ def test_the_volatility_field_does_not_change_any_alpha_verdict():
 # the cash weight. Executed on the fund's own feed, a 1.25x book of 25% SPY and
 # 75% BIL cleared this bar on all four belt windows at +0.153..+0.239 with a
 # financing-charged advantage of 0.0000, and the degenerate 1.05x BIL book
-# scored +11.4..+18.1 at 0.01% drawdown. The largest GENUINE advantage this
-# fund has measured is +0.054.
+# scored +11.4..+18.1 at 0.01% drawdown. Those figures live once, in
+# `gate.PREMIA_VERSION`'s v5r3 note, and are not restated anywhere else.
 
 def unfinanced_lever(rule: list[float], leverage: float) -> list[float]:
     """``leverage`` times a rule's returns, with NO financing charged.
@@ -1290,8 +1289,13 @@ def test_the_SAME_sweep_with_financing_charged_stays_flat_past_1x():
     """
     bench = series_with_moments(R600, 12.0, 20.0, seed=21)
     rule = series_with_moments(R600, 18.0, 14.0, seed=22)
-    advs = [excess_advantage(make_result(cash_mix(rule, w, RF_TEST_PCT), bench,
-                                         gross=max(w, 1.0)))
+    # No exposure block: this test reads the payload's excess legs directly
+    # and never judges, so declaring a gross would be asserting a number
+    # about a book nothing here measures. (`cash_mix` at w=2 is 2x the rule
+    # against 1x borrowed cash, which is gross 3.0, not 2.0 — an easy
+    # fixture lie to write and a pointless one.)
+    advs = [excess_advantage(make_result(cash_mix(rule, w, RF_TEST_PCT),
+                                         bench, gross=None))
             for w in (0.3, 1.0, 2.0)]
     assert max(advs) - min(advs) < 1e-6, advs
 

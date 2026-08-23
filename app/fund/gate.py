@@ -692,8 +692,9 @@ GATE_VERSION = "v4.3"
 #:     a 1.25x book (25% SPY, 75% BIL) passed all four belt windows at
 #:     +0.153..+0.239 with a financed advantage of 0.0000, and a degenerate
 #:     1.05x BIL book scored +11.4..+18.1 at 0.01% drawdown — clearing the
-#:     drawdown leg *because* it is cash-heavy. The largest GENUINE advantage
-#:     this fund has measured is +0.054.
+#:     drawdown leg *because* it is cash-heavy. For scale, the largest advantage
+#:     this fund has measured on a real candidate is the +0.054 recorded once
+#:     below, against `premia_require_drawdown_not_worse`.
 #:
 #:     v5r3 CAPTURES gross exposure from the engine's own chart
 #:     (`leanrunner.gross_exposure`) and refuses a premia claim above
@@ -723,15 +724,24 @@ GATE_VERSION = "v4.3"
 #:     the shared window, and the majority test compares a window with itself.
 #:     Measured: with both cut at 15.6% of the run the test read 214 of 214 and
 #:     PASSED where v5r1 refused. The belt now reports `strategy_sessions` only
-#:     when the cash series REACHES both ends of the strategy's span, and this
-#:     gate's fallback to the calendar count — larger, therefore stricter — is
-#:     unchanged and is what now fires. Bar-only and rf-only truncation were
-#:     re-measured and neither moves.
+#:     when the UNION of the bar's dates and the cash leg's actually covers the
+#:     strategy's span — both ends and no internal hole — and this gate's
+#:     fallback to the calendar count, larger and therefore stricter, is
+#:     unchanged and is what now fires. The check is on the union rather than on
+#:     the cash leg alone, which is a stated departure from the review's wording
+#:     for a measured reason; `leanrunner._session_span` carries it.
 #:
 #: BOTH ARE TIGHTENINGS, and the falsifying arm was run before the word was
-#: written: across the reviewer's probeD every levered row that passed now
-#: refuses, no unlevered row changes verdict, and of probeF's seven truncation
-#: shapes exactly the two joint-truncation rows move — from pass to fail.
+#: written. probeD's seven levered books over four windows: 28 of 28 refuse
+#: (scratchpad/d32/probeD2.py — probeD's own fixture writes no exposure block,
+#: so unchanged it cannot tell a ceiling refusal from an absent reading).
+#: probeF's seven truncation shapes: exactly the two joint-truncation rows move,
+#: pass to fail, the other five byte-identical. And 28 UNLEVERED cells judged
+#: against the base commit leaf by leaf (scratchpad/d32/identity_unlevered.py):
+#: zero changed values, zero changed failure sentences, and exactly six added
+#: paths — `exposure`, `max_gross_exposure`, `max_gross_exposure_allowed`,
+#: `gross_within_ceiling`, `criteria.premia_max_gross_exposure` and
+#: `coverage.session_span`.
 PREMIA_VERSION = "v5r3"
 
 #: Derived, never restated. Two literals for one version is how the stamp on a
@@ -1200,8 +1210,8 @@ def _premia_leg(result: dict[str, Any], pc: dict[str, Any]
     # invisible to a reader because the payload carried no exposure field.
     # Executed on the fund's own feed, a 1.25x book of 25% SPY and 75% BIL
     # cleared this bar on all four belt windows at +0.153..+0.239 where the
-    # financed answer is 0.0000, against a largest GENUINE advantage the fund
-    # has ever measured of +0.054.
+    # financed answer is 0.0000. The figures live once, in the ``PREMIA_VERSION``
+    # note's v5r3 section, and are deliberately not restated here.
     #
     # SO THE REFUSAL IS `measurable: False`, THE SAME SHAPE AS AN UNREADABLE
     # CASH RATE, and deliberately not a plain failure. A plain failure would

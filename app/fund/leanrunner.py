@@ -1726,8 +1726,9 @@ def _shift_date(iso: str, days: int) -> str:
         return str(iso)[:10]
 
 
-#: How far the cash series may fall short of either end of the strategy's span
-#: and still be said to COVER it, in calendar days.
+#: How far the SESSION CALENDAR may fall short of either end of the strategy's
+#: span — or gap in the middle of it — and still be said to COVER it, in
+#: calendar days.
 #:
 #: THE MEASURED BASIS, and it is the same fact ``RF_FETCH_PAD_DAYS`` is sized
 #: from rather than a second guess at it: the longest run of consecutive CLOSED
@@ -1781,11 +1782,15 @@ def _session_span(session_days: list[str], first: str, last: str
     removed. The union form refuses exactly the correlated-truncation case the
     kill describes and nothing else.
 
-    AND IT CHECKS FOR A HOLE, which neither wording covers: a bar truncated at
-    the END beside a cash leg truncated at the START spans the run at both ends
-    while missing every session in between, and the union would undercount the
-    denominator exactly where it matters. The largest gap BETWEEN consecutive
-    session dates is therefore checked with the same tolerance as the two ends.
+    AND IT CHECKS FOR A HOLE, which neither wording covers: a vendor outage over
+    the same middle stretch of BOTH legs reaches the run's first and last dates
+    while covering none of its centre, and the union would then undercount the
+    denominator exactly where the comparison is thinnest. The largest gap
+    BETWEEN consecutive session dates is therefore checked with the same
+    tolerance as the two ends. (A bar cut at the END beside a cash leg starting
+    LATE is the shape one reaches for first and it cannot arrive here: with no
+    overlap the two legs share no common window and `premia_inputs` refuses
+    earlier — verified, not assumed.)
 
     Reports the gaps in days rather than a bare boolean, because the interesting
     question when this fires is *by how much* — a two-day lag and a five-year
