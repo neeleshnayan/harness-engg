@@ -201,3 +201,20 @@ size. The honest paths are (a) published quote/NBBO spread data as a
 versioned cost-model change with a written reason, or (b) the interim
 slip-band belt run (slip ∈ {1, 3, 5}bps, all three verdicts disclosed).
 Full measurement: validator run 8b863152, 2026-08-20.
+
+---
+
+## CORRECTION — 2026-08-23 (appended by the chair; findings docs are never edited)
+
+The Entry 11 figure this doc reports (~+80.7 bps/mo, t=1.85, 38 months) DOES
+NOT REPRODUCE under the frozen spec: batch #2 recomputed the identical rule on
+the identical window and measured +39.56 bps/mo (t=1.82, same n=38) — roughly
+half the mean at the same significance. The cycle-1 script is unrecoverable
+(session scratchpad); whatever it computed differs from the frozen spec. The
++39.56 figure stands as the number of record. On the full 282-month history the
+effect is +25.94 bps/mo (t=+2.98) with a dead mid-month placebo, and the
+magnitude-conditioning test this doc reported as FAILING reverses at n=282
+(terciles +14.83/+34.75/+79.95, top t=+4.74 — monotone as the mechanism
+requires). Primary record: run run-ed-batch2; docs/mechanism/ED_BATCH2_2026-08-23.md.
+Lesson (validator-bound): a desk-study number with no surviving script is
+unverified until recomputed.
