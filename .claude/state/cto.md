@@ -554,3 +554,7 @@ A wrong lesson costs more than the zigzag that made it, because it TRAVELS — i
 3. **Corrections ride the BINDS machinery with the same priority as findings.** A seat that corrects its own prior STATE names, in the correction, which seats consumed the original — and the chair carries the retraction at the same resolve, not at leisure. An uncorrected consumer is a bad learning still running.
 
 The episode store makes rule 1 mechanical when distillation lands: voided episodes trigger a sweep of everything that cited them. Until then it is chair discipline, on the record here.
+
+## 2026-08-24 — The stale-lamp lesson (CEO caught it on the new room within minutes of merge)
+
+The room showed the analyst "working" — a DESK_DISPATCHED event from 08-21 never closed. The UI was honest; the record was stale: lamps clear ONLY on a resolve of the dispatch's task_id (the three-state design working as built), and the chair's Agent-tool dispatch flow never posted dispatch/close pairs to the spine. Two stale lamps swept with citations (analyst ce572d30, builder e2812600 — both predate the trace convention). **STANDING HABIT UNTIL D33's live floor lands: the chair either posts the dispatch AND resolves it at close, or posts neither — a half-posted dispatch is a lamp that lies.** The new room's first week of value: it made a three-day-old bookkeeping gap visible to the CEO in one glance.
