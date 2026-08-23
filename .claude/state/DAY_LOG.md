@@ -123,6 +123,17 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   is fired and discharged by this work — the register cannot record
   either; recorded here, and the evaluability ticket (a26debb9 family)
   remains the owner.
+- **THE EPISODE STORE ticketed (92f98106) + CEO parameters same sitting**:
+  seat memories persist to Postgres as append-only EPISODES (never
+  deleted, void-swept, market-tagged); hot files become OPERATING
+  MEMORANDA at a **~50KB cap** (CEO: 1M context has headroom; the cap
+  serves prior-sharpness, not tokens). THE KEY DESIGN FACT, CEO's own:
+  because episodes persist in full, **the OM is a VIEW, re-derivable at
+  any future date** - if a current OM has drifted, re-distill from the
+  store. Same shape as NAV-from-the-event-log, applied to the firm's
+  memory. Distill: chair-triggered, done WITH the seat, chair-reviewed;
+  drift-review catches thin AND bloated OMs via measured misses.
+  Sequenced after THE CLEANUP; builder+validator files are the pilot.
 - **D20 DELIVERED - THE CEO'S CRITERION PASSES**: plan IDENTITY on the
   14 ratchet-floor algorithms (0 discordant of 20,000); FP 2.95%->2.90%
   on the 2 deep-floor ones with power 22%->40% (42 sigma); the killed
