@@ -10,6 +10,33 @@
  * the CSS variables in `studio-theme.css`, swapped via `data-kt-theme` on the
  * Studio root. Components stay theme-agnostic, which is what keeps the palettes
  * from drifting apart the way they did before.
+ *
+ * THE ILLUMINATION PRINCIPLE (CEO, 2026-08-24, verbatim: "I wont be hunting
+ * down JSON and codefiles with you on the seat so the UI needs to be designed
+ * in a way to illuminate beneath the surface"). The reader of these pages is
+ * a human who will never open the payload. Therefore every surface answers,
+ * ON the surface, the questions a reader of the raw record could answer:
+ *
+ *   1. WHERE FROM — every number's provenance is at most one click away
+ *      (lineage, the producing run, the as-of stamp). A figure with no path
+ *      back to the record is decoration.
+ *   2. WHAT IS MISSING — absence, unknown, unreadable and truncation render
+ *      as WORDS, never as zero, never as an empty region, never as omission.
+ *      "Showing nothing rather than a clear board" is the house sentence.
+ *   3. WHERE THEY DISAGREE — when two sources answer one question (the
+ *      fund's count vs the page's fold; live vs last-recorded), show BOTH
+ *      with the difference named. A surface that picks the prettier number
+ *      teaches the reader to distrust whichever they saw elsewhere.
+ *   4. HOW OLD — anything that can go stale carries its `since`/`as-of`
+ *      where it is read, so a three-day-old lamp reads as three days old
+ *      (the analyst's stale "working", caught by the CEO in one glance,
+ *      is this clause's founding measurement).
+ *   5. WHEN A CONTROL IS DOWN — a disclosure written for auditors
+ *      (`supersession_readable: false`, a dead store, a tripped guard)
+ *      renders where the CEO looks, in the warn tone, the moment it exists.
+ *
+ * Every KP brief cites this principle; the dead-spine CDP pass (all states
+ * read as words, never zeros) is its standing acceptance test.
  */
 
 export const KT = {
