@@ -74,17 +74,10 @@ export function Metric({
   );
 }
 
-export function MetricOrAbsent({
-  label, value, sub, tone,
-}: {
-  label: string;
-  value: React.ReactNode | Absent;
-  sub?: React.ReactNode;
-  tone?: string;
-}) {
-  if (isAbsent(value)) return <AbsentMetric a={value} />;
-  return <Metric label={label} value={value as React.ReactNode} sub={sub} tone={tone} />;
-}
+/* `MetricOrAbsent` was DELETED here (D31, cleanup ticket dce47670): a
+   component with no caller in this repo, prod or test, since it was written.
+   `AbsentMetric` and `Metric` are both live and are what callers reach for
+   directly; the union wrapper only ever moved the branch one level up. */
 
 /* ---------------------------------------------------------------- rows ---- */
 

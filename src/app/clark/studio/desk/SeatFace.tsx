@@ -63,17 +63,11 @@ export function SeatFace({
   );
 }
 
-/** A face-and-name pair, the way the office writes it everywhere. */
-export function SeatBadge({
-  actor, size = 20, className = "", mono = true,
-}: { actor: string | null | undefined; size?: number; className?: string; mono?: boolean }) {
-  return (
-    <span className={`inline-flex items-center gap-1.5 ${className}`}>
-      <SeatFace actor={actor} size={size} decorative />
-      <span className={mono ? "font-mono" : undefined}>{actor ?? "unnamed"}</span>
-    </span>
-  );
-}
+/* `SeatBadge` was DELETED here (D31, cleanup ticket dce47670). Its docstring
+   claimed it was "the way the office writes it everywhere"; measured, it had
+   no caller anywhere in the repo and every surface composes the face and the
+   name inline. A helper nobody uses whose comment says everybody does is worse
+   than no helper. */
 
 /* ------------------------------------------------------------------ parts -- */
 

@@ -1,102 +1,32 @@
 "use client";
 
 import React, { useState } from "react";
-import { ChevronDown, ChevronRight, Flame, ShieldCheck, TriangleAlert } from "lucide-react";
-import type {
-  CeoDeskView, DeskBriefingsShelf, DeskHygieneReport, DeskSupersessionEdge,
-} from "@/lib/fund_api";
+import { ChevronDown, ChevronRight, ShieldCheck } from "lucide-react";
+import type { DeskBriefingsShelf, DeskSupersessionEdge } from "@/lib/fund_api";
 import { KT } from "../theme";
-import { badgeView, hygieneLine, supersessionChip } from "./deskEngine";
+import { badgeView, supersessionChip } from "./deskEngine";
 
 /**
- * The desk engine's four small views: the greeting, the shelf, the lineage
- * chip, and the disclosure that stops a page becoming a scroll.
+ * The desk engine's three small views: the briefings shelf, the lineage chip,
+ * and the disclosure that stops a page becoming a scroll.
  *
  * Every sentence here comes from the spine's fold or from a pure helper in
- * `deskEngine.ts`. Nothing on this page composes a claim of its own — the
- * greeting in particular is GENERATED, because a hand-written "all quiet"
- * would be the one line on the desk that nobody could falsify.
+ * `deskEngine.ts`. Nothing in this file composes a claim of its own.
  */
 
-/* ------------------------------------------------------------ greeting --- */
-
-export function GreetingHeader({ view, needsYou }: {
-  view: CeoDeskView | null;
-  /** THE PAGE'S OWN COUNT, when the page has one.
-   *
-   *  Caught by looking at the rendered page: the greeting rendered the
-   *  spine's figure four lines above a header rendering the page's, and the
-   *  CEO's desk carried THREE numbers claiming to answer one question. It has
-   *  shipped that defect twice already (11 vs 6, then 1 vs 0), and adding a
-   *  third instance inside the instrument built to end it would be the worst
-   *  possible place for it.
-   *
-   *  So a page that computes its own total passes it here and the greeting
-   *  agrees with the header by construction. The page-vs-spine divergence is
-   *  a real thing and it already has its own warning banner — one warning,
-   *  not two numbers. Omit the prop and the spine's sentence is used verbatim,
-   *  which is right for any surface with no count of its own. */
-  needsYou?: number | null;
-}) {
-  if (!view) return null;
-  const g = view.greeting;
-  const halted = view.on_fire.risk_halted;
-  const needs = typeof needsYou === "number"
-    ? (needsYou ? `${needsYou} item(s) need you.`
-                : "Nothing is waiting on you right now.")
-    : g.needs_you;
-  return (
-    <div className={`${KT.card} mb-6`}>
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <p className={KT.label}>Good to see you</p>
-        <p className={`font-mono text-[10px] ${KT.muted}`}>
-          {g.since ? `since your last visit ${g.since}` : "no previous visit supplied"}
-        </p>
-      </div>
-      <p className="mt-2 text-sm leading-relaxed text-[var(--kt-text)]">{g.changed}</p>
-      <p className="mt-1 text-sm leading-relaxed text-[var(--kt-text-strong)]">
-        {needs}
-      </p>
-      <p className="mt-1 flex items-start gap-1.5 text-sm leading-relaxed">
-        {view.on_fire.total > 0 && (
-          <Flame size={13} className="mt-0.5 shrink-0 text-[var(--kt-warn)]" />
-        )}
-        <span className={view.on_fire.total > 0 ? KT.sev.warn : KT.body}>
-          {g.on_fire}
-        </span>
-      </p>
-      {/* THE HALT IS THREE-VALUED AND IS RENDERED THAT WAY. `null` is the risk
-          control being unreachable, and a desk that printed "not halted"
-          because it could not reach the monitor would be the absence-as-zero
-          error on the one control that stops losses. */}
-      {halted === null && (
-        <p className={`mt-1 text-[11px] italic ${KT.sev.warn}`}>
-          The risk control could not be read, so whether trading is halted is
-          UNKNOWN — not &ldquo;running&rdquo;.
-        </p>
-      )}
-      {halted === true && (
-        <p className={`mt-1 text-[11px] ${KT.sev.warn}`}>Trading is HALTED.</p>
-      )}
-      {g.hygiene && (
-        <p className={`mt-2 text-[11px] leading-relaxed ${KT.muted}`}>{g.hygiene}</p>
-      )}
-      {(!view.readable.recommendations || !view.readable.supersessions
-        || !view.readable.intray) && (
-        <p className={`mt-2 flex items-start gap-1.5 text-[11px] ${KT.sev.warn}`}>
-          <TriangleAlert size={12} className="mt-0.5 shrink-0" />
-          <span>
-            Part of the desk could not be read
-            {!view.readable.recommendations && " · recommendations"}
-            {!view.readable.supersessions && " · supersession lineage"}
-            {!view.readable.intray && " · in-trays"}
-            . What is below is incomplete, not empty.
-          </span>
-        </p>
-      )}
-    </div>
-  );
-}
+/* `GreetingHeader` was DELETED here (D31, cleanup ticket dce47670).
+ *
+ * NOT ONE OF ITS SENTENCES WAS LOST, and that is the condition on this
+ * deletion. The redesigned desk header is the answer, not a dashboard: the
+ * greeting card's own `changed` line is now the header's greeting, its
+ * `needs_you` figure is the header's hero number (which the card had to be
+ * handed as a prop to stop it disagreeing), and `on_fire`, the three-valued
+ * halt, the hygiene sentence and the readability warnings are in the Context
+ * panel under the lanes — all still read verbatim from `view.greeting` and
+ * `view.readable`, never composed by the page. What went is the CARD, its
+ * `needsYou` prop, and one of the two places a reader had to look for the
+ * same four facts.
+ */
 
 /* --------------------------------------------------------------- shelf --- */
 
@@ -182,13 +112,10 @@ export function SupersessionNotice({ edge }: { edge: DeskSupersessionEdge | null
   );
 }
 
-/* ------------------------------------------------------------ hygiene ---- */
-
-export function HygieneLine({ report }: { report: DeskHygieneReport | null }) {
-  const line = hygieneLine(report);
-  if (!line) return null;
-  return <p className={`text-[11px] leading-relaxed ${KT.muted}`}>{line}</p>;
-}
+/* `HygieneLine` was DELETED here (D31, cleanup ticket dce47670): a component
+   with no caller since it was written, composing a client-side hygiene
+   sentence that the spine now serves verbatim on `greeting.hygiene`. Its
+   helper `deskEngine.hygieneLine()` went with it. */
 
 /* ------------------------------------------------------------- a fold ---- */
 

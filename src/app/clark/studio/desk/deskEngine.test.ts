@@ -15,12 +15,11 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 import {
-  CATEGORY_LABELS, COLLAPSED_BY_DEFAULT, actionable, badgeView, blockedRecs,
-  cellKey, expandable, hygieneLine, matrixRows, sectionCounts,
-  supersessionChip, truncationNote,
+  CATEGORY_LABELS, actionable, badgeView, blockedRecs,
+  cellKey, expandable, matrixRows, supersessionChip, truncationNote,
 } from "./deskEngine.ts";
 import type {
-  CeoDeskView, DeskBriefing, DeskHygieneReport, DeskMatrix, DeskMatrixCell,
+  CeoDeskView, DeskBriefing, DeskMatrix, DeskMatrixCell,
   DeskSupersessionEdge,
 } from "@/lib/fund_api";
 
@@ -116,11 +115,11 @@ test("a capped cell says how much it is NOT showing, with both numbers", () => {
   assert.equal(truncationNote(cell(3)), null);
 });
 
-test("closed is the only column collapsed on first paint", () => {
-  assert.deepEqual(COLLAPSED_BY_DEFAULT, ["closed"]);
-  for (const c of ["open", "ticking", "blocking"] as const) {
-    assert.equal(COLLAPSED_BY_DEFAULT.includes(c), false);
-  }
+/* The COLLAPSED_BY_DEFAULT test was DELETED with the constant (D31,
+   cleanup dce47670): DeskMatrix never imported it. The label-order half
+   of it survives below, where it still pins something that ships. */
+
+test("the four columns are in the CEO's own order", () => {
   assert.deepEqual(Object.keys(CATEGORY_LABELS),
     ["open", "ticking", "blocking", "closed"]);
 });
@@ -224,45 +223,12 @@ function view(over: Partial<CeoDeskView> = {}): CeoDeskView {
   };
 }
 
-test("every section header carries a count, and an unreadable one is null not zero", () => {
-  const counts = sectionCounts(view());
-  const briefings = counts.find((c) => c.key === "briefings");
-  assert.equal(briefings!.n, null, "no shelf read is UNKNOWN, not 'no memos'");
-  assert.equal(counts.find((c) => c.key === "blocking")!.n, 1);
-  assert.equal(counts.find((c) => c.key === "kill_shelf")!.n, 1);
-  assert.deepEqual(sectionCounts(null), []);
-});
-
-/* ------------------------------------------------------------- hygiene --- */
-
-function hyg(over: Partial<DeskHygieneReport["counts"]>): DeskHygieneReport {
-  return {
-    policy_version: "hygiene v1 (2026-08-23)", rules: [], rules_evaluated: [],
-    rules_not_evaluated: [], proposals: [], flags: [], unlinkable: [],
-    linked_but_undelivered: [],
-    counts: { candidate_requests: 0, proposals: 0, flags: 0, unlinkable: 0,
-              linked_but_undelivered: 0, ...over },
-    note: "",
-  };
-}
-
-test("a policy that could not JOIN anything does not report a clean desk", () => {
-  const line = hygieneLine(hyg({ candidate_requests: 66, unlinkable: 66 }));
-  assert.ok(line!.includes("66"));
-  assert.ok(line!.toLowerCase().includes("unreadable, not clean"),
-    "MEASURED 2026-08-23: 66 of 66. '0 to close' here is absence-as-zero "
-    + "inside the instrument built to stop it");
-});
-
-test("a policy with closes ready says so, and says it approves nothing", () => {
-  const line = hygieneLine(hyg({ candidate_requests: 5, proposals: 2 }));
-  assert.ok(line!.includes("2") && line!.includes("nothing approved"));
-});
-
-test("no hygiene report renders no line at all", () => {
-  assert.equal(hygieneLine(null), null);
-  assert.equal(hygieneLine(hyg({})), null);
-});
+/* The `sectionCounts` and `hygieneLine` tests were DELETED with the
+   functions they pinned (D31, cleanup dce47670). Neither had a
+   production consumer: the desk header carries ONE number and a count
+   per lane, and the hygiene sentence is served by the spine on
+   `greeting.hygiene` and rendered verbatim. A test that keeps dead code
+   alive is the accretion this ticket exists to reverse. */
 
 /* ----------------------------------------------------------- actionable -- */
 

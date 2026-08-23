@@ -2,10 +2,10 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, OctagonX } from "lucide-react";
+import { AlertTriangle, Flame, OctagonX } from "lucide-react";
 import {
-  fundApiClient, ArchiveMemo, CeoDeskView, DeskView, PendingOrder,
-  RiskMonitorResponse, SpineEvent,
+  fundApiClient, ArchiveMemo, CeoDeskView, DeskSupersessionEdge, DeskView,
+  PendingOrder, RiskMonitorResponse, SpineEvent,
 } from "@/lib/fund_api";
 import { KT } from "../../theme";
 import { money } from "../../format";
@@ -29,9 +29,11 @@ import { CooTriageChip, ProvenanceChip } from "../components";
 import { cardStyle } from "../deskCardStyle";
 import { ClarkMarkdown } from "../../components/ClarkMarkdown";
 import { blockedRecs } from "../deskEngine";
-import {
-  BriefingsShelf, Fold, GreetingHeader, SupersessionNotice,
-} from "../EngineViews";
+import { BriefingsShelf, Fold, SupersessionNotice } from "../EngineViews";
+import { steeringSentence } from "../deskSteer";
+import { deskLanes } from "../deskLanes";
+import type { LineageSources } from "../lineage";
+import { LaneBlock, LineageInline } from "../DeskLaneViews";
 
 /**
  * The CEO's desk — A DECISION LIST, and everything else behind a named door.
@@ -106,6 +108,13 @@ export default function CeoDeskPage() {
      lineage is UNKNOWN rather than drawing rows as though none were blocked. */
   const [engine, setEngine] = useState<CeoDeskView | null>(null);
   const [engineErr, setEngineErr] = useState(false);
+  /* Supersession edges, read WHOLE and separately from the CEO fold.
+     `null` is the store being unreadable, and every lineage stage that reads
+     it then says UNKNOWN instead of "no edge" — the D22 review's own rule
+     about a capped or absent control query. */
+  const [edges, setEdges] = useState<DeskSupersessionEdge[] | null>(null);
+  const [edgesTruncated, setEdgesTruncated] = useState<
+    { shown: number; total: number } | null>(null);
   /* The client's own last visit, so the greeting can say what changed. Stamped
      by the BROWSER, never by the spine: a GET that writes is a GET that lies
      about being safe. Read once on mount, before this visit overwrites it. */
@@ -123,13 +132,14 @@ export default function CeoDeskPage() {
   }, []);
 
   const load = useCallback(async () => {
-    const [d, p, ev, rk, mm, en] = await Promise.allSettled([
+    const [d, p, ev, rk, mm, en, sp] = await Promise.allSettled([
       fundApiClient.getDesk(),
       fundApiClient.getPending(),
       fundApiClient.getEvents(1000, 0),
       fundApiClient.getRiskMonitor(),
       fundApiClient.getArchiveMemo(),
       fundApiClient.getCeoDesk(since, false),
+      fundApiClient.getDeskSupersessions(),
     ]);
     if (d.status === "fulfilled") { setDesk(d.value); setErr(null); }
     else { setDesk(null); setErr(d.reason instanceof Error ? d.reason.message : "unreachable"); }
@@ -141,6 +151,14 @@ export default function CeoDeskPage() {
     else { setMemo(null); setMemoErr(true); }
     if (en.status === "fulfilled") { setEngine(en.value); setEngineErr(false); }
     else { setEngine(null); setEngineErr(true); }
+    if (sp.status === "fulfilled") {
+      setEdges(sp.value.edges ?? []);
+      // FETCHING A PAGE IS NOT READING A TABLE. The endpoint caps at `limit`
+      // and reports `total` counted independently; a lineage view built on a
+      // truncated page would answer "no edge" for every row it did not reach.
+      setEdgesTruncated(sp.value.truncated === true
+        ? { shown: sp.value.shown, total: sp.value.total } : null);
+    } else { setEdges(null); setEdgesTruncated(null); }
   }, [since]);
 
   useEffect(() => {
@@ -179,6 +197,12 @@ export default function CeoDeskPage() {
   const velocity = useMemo(() => decisionVelocity(events, new Date()), [events]);
   const asks = useMemo(
     () => asksForCeo(queuedAsks(desk?.requests ?? [])), [desk]);
+  /* DECLINED ONLY, and separated here rather than at the render site so the
+     door's COUNT and its CONTENTS come from one expression. A door whose
+     label counts one population and whose body renders another is exactly the
+     kind of quiet mismatch this page has shipped before. */
+  const declinedAsks = useMemo(
+    () => asks.filter((a) => a.stage === "declined"), [asks]);
 
   const officers = useMemo(
     () => officerDesk({
@@ -231,6 +255,41 @@ export default function CeoDeskPage() {
   const gap = useMemo(() => moneyGap(cardItems), [cardItems]);
   const coverage = useMemo(() => rankCoverage(cardItems), [cardItems]);
 
+  /* THE ONE STEERING SENTENCE. Reads the spine's own ranking — `decisions`
+     is already ordered by due date then money, absent last on both — and
+     refuses to name a "most urgent" row when the top of that ranking states
+     neither. See `deskSteer`. */
+  const steer = useMemo(
+    () => steeringSentence({ view: engine, needsYou: headline.value }),
+    [engine, headline]);
+
+  /* THE FIVE LANES. Lane (a) is the decision list this page already builds;
+     the other four are folded here from the same payload, each carrying the
+     FUND's count beside the number of rows this page can render. */
+  const lanes = useMemo(
+    () => deskLanes({
+      desk,
+      awaitingShown: list.total,
+      awaitingServed: headline.value,
+      blocked,
+      // The FUND's clock, not the browser's: "resolved today" must mean the
+      // fund's UTC day. Falls back to the browser only when the spine sent no
+      // timestamp at all, and the lane is then a best effort rather than wrong.
+      now: engine?.at ?? new Date().toISOString(),
+    }),
+    [desk, list.total, headline.value, blocked, engine]);
+
+  /* Everything the lineage fold reads. Each field is independently nullable
+     and null means UNREADABLE — a chain drawn over an outage would make the
+     outage look like a tidy record. */
+  const lineageSources: LineageSources = useMemo(() => ({
+    desk,
+    events,
+    edges,
+    runsDeclaringService: engine?.hygiene?.runs_declaring_service ?? null,
+    runsRead: engine?.hygiene?.runs_read ?? null,
+  }), [desk, events, edges, engine]);
+
   const halted = risk?.halted === true;
   const drift = contractDrift(desk?.desk_load?.contract_digest);
 
@@ -238,86 +297,81 @@ export default function CeoDeskPage() {
     <div className="min-h-screen bg-[var(--kt-bg)] text-[var(--kt-text)]">
       <StudioHeader subtitle="The CEO's desk — everything awaiting your click" />
       <div className={KT.container}>
-        <header className="mb-6 flex items-center gap-4">
+        {/* ── THE HEADER IS THE ANSWER, NOT A DASHBOARD ───────────────────
+            CEO instruction for this redesign: a greeting line, THE one number,
+            and ONE steering sentence. What used to live here — the group
+            count, the folded-items count, the decision velocity, the triage
+            chip and a five-line greeting card — was six figures answering five
+            different questions above the first thing he had to decide. They
+            are not deleted: every one of them is under the lanes, where it is
+            context rather than a competitor for the eye.
+
+            HIERARCHY FROM TYPE AND SPACE. The number is the only hero-scale
+            thing on the page (`KT.hero`, 4xl light tabular), the greeting and
+            the steer are body text, and the label above them is the Studio's
+            10px mono. No colour is spent here at all unless something dated is
+            actually overdue. */}
+        <header className="mb-8 flex items-start gap-5">
           <SeatFace actor="ceo" size={64} />
-          <div>
+          <div className="min-w-0 flex-1">
             <p className={KT.label}>Krypton Fund · the corner office</p>
-            <h1 className="text-2xl font-medium tracking-tight">Neelesh · CEO</h1>
-            <p className={`mt-1 text-sm ${KT.body}`}>
-              <span className="font-mono tabular-nums text-[var(--kt-text-strong)]">
+            {/* THE GREETING IS THE SPINE'S, VERBATIM. A hand-written "all
+                quiet" would be the one line on this desk nobody could
+                falsify — the reason `GreetingHeader` was generated in the
+                first place, kept when the card it lived in was removed. */}
+            <p className={`mt-1 text-sm leading-relaxed ${KT.body}`}>
+              {engine?.greeting?.changed
+                ?? (engineErr
+                  ? "The desk engine could not be read, so what changed since "
+                    + "your last visit is unknown."
+                  : "Reading the desk…")}
+            </p>
+            <p className="mt-3 flex items-baseline gap-3">
+              <span className={KT.hero}>
                 {headline.value === null ? "unknown" : headline.value}
                 {headline.atLeast && "+"}
-              </span>{" "}
-              awaiting your decision
-              {/* The GROUP count, gated on there being more than one group —
-                  not on there being a COO batch, which is what the first cut
-                  did. Those are different conditions and the number rendered
-                  was the group count either way, so a desk with three
-                  unbatched groups said nothing while a desk with one batch
-                  said "in 1 group". One group is not a grouping worth naming;
-                  three are, batch or not. */}
-              {desk !== null && list.groups.length > 1 && (
-                <span className={KT.muted}>
-                  {" · "}in{" "}
-                  <span className="font-mono tabular-nums">{list.groups.length}</span>{" "}
-                  groups
-                  {list.batches > 0 && (
-                    <>
-                      {", "}
-                      <span className="font-mono tabular-nums">{list.batches}</span>
-                      {list.batches === 1 ? " a COO batch" : " of them COO batches"}
-                    </>
-                  )}
-                </span>
-              )}
-              {desk !== null && folded.total > 0 && (
-                <span className={KT.muted}>
-                  {" · "}
-                  <span className="font-mono tabular-nums">{folded.total}</span>{" "}
-                  more on file, at the foot
-                </span>
-              )}
-              {/* `already-on-screen`: the figure to its left IS the spine's
-                  own counter now, so the chip printing its own would put two
-                  numbers for one question back on the same line. It keeps the
-                  trigger, the elsewhere split and the partial flag, none of
-                  which the headline carries. */}
-              <CooTriageChip load={desk?.desk_load} total="already-on-screen" />
+              </span>
+              <span className={`${KT.label} pb-1`}>awaiting your decision</span>
+            </p>
+            {/* THE ONE STEERING SENTENCE. Overdue is the single condition on
+                this desk that earns a colour, because it is the only one that
+                is true whether or not anybody clicks. */}
+            <p className={`mt-2 max-w-3xl text-[15px] leading-relaxed ${
+              steer.overdue ? KT.sev.warn : "text-[var(--kt-text)]"}`}>
+              {steer.text}
+            </p>
+            <p className={`mt-1 text-xs ${KT.muted}`}>
+              {/* Kept from the old header: the spine's own ranking key, so a
+                  reader can disagree with the steer above rather than absorb
+                  it. */}
+              {engine?.decisions?.ranked_by
+                ? `ranked by ${engine.decisions.ranked_by}`
+                : "the spine stated no ranking key"}
             </p>
             {/* WHICH FOLD PRODUCED THAT NUMBER. A figure this build computed
                 and a figure the fund computed are different claims, and the
                 one time the reader must know is the one time nothing used to
-                say. */}
+                say. It stays in the header, under the number it qualifies:
+                moving it below the lanes would separate a caveat from the
+                figure it is about, which is how a caveat stops being read. */}
             {headline.note && (
-              <p className={`mt-1 max-w-3xl text-xs leading-relaxed ${KT.muted}`}>
+              <p className={`mt-2 max-w-3xl text-xs leading-relaxed ${KT.muted}`}>
                 {headline.note}
               </p>
             )}
-            <p className={`mt-0.5 text-xs ${KT.muted}`}>
-              decisions recorded{" "}
-              <span className="font-mono tabular-nums">
-                {velocity.today ?? "— (event log unreadable, not zero)"}
-              </span>{" "}
-              today
-              {velocity.week != null && (
-                <> · <span className="font-mono tabular-nums">{velocity.week}</span> this week</>
-              )}
-              {" "}· <Link href="/clark/studio/desk" className={`${KT.accent} hover:underline`}>back to the floor</Link>
+            <p className={`mt-2 text-xs ${KT.muted}`}>
+              <Link href="/clark/studio/desk" className={`${KT.accent} hover:underline`}>
+                back to the floor
+              </Link>
+              {" · "}
+              <Link href="/clark/studio/desk/floor"
+                    className={`${KT.accent} hover:underline`}>
+                the room, and the firm&apos;s ticket board
+              </Link>
             </p>
           </div>
         </header>
 
-        {/* ── THE GREETING ─────────────────────────────────────────────────
-            CEO instruction (ticket cec27460, absorbed into the desk engine):
-            each desk view opens with what changed since your last visit, what
-            needs you, and what is on fire — GENERATED from the same folds the
-            page renders, never hand-written. A hand-written "all quiet" would
-            be the one line here nobody could falsify. */}
-        {/* The SAME figure as the header — the greeting used to render the
-            spine's four lines above a header rendering the page's, which put
-            three numbers for one question on this desk. Now there is one fold
-            and all three read it. */}
-        <GreetingHeader view={engine} needsYou={headline.value} />
         {engineErr && (
           <div className={`${KT.card} mb-6 flex items-start gap-2 border-[var(--kt-warn)]`}>
             <AlertTriangle size={15} className="mt-0.5 shrink-0 text-[var(--kt-warn)]" />
@@ -409,47 +463,74 @@ export default function CeoDeskPage() {
           </div>
         )}
 
-        {/* ── 1 · THE DECISION LIST ────────────────────────────────────── */}
-        {desk === null ? (
-          <section className="mb-10">
-            {/* The "UNKNOWN, not none" sentence lives ONCE, under the figure
-                it describes — `headline.note`. This used to carry a second
-                copy of it, and the dead-spine pass rendered both, one under
-                the other. What belongs here is the different fact: why there
-                is nothing between this line and the foot of the page. */}
-            <p className={`text-sm ${KT.sev.warn}`}>
-              No decision cards can be built from a desk that cannot be read.
+        {/* ── THE LANES ───────────────────────────────────────────────────
+            CEO instruction for this redesign, verbatim: lanes, not a scroll.
+            Five named queues; only the first is open. Every lane renders its
+            count SHUT, so folding hides no quantity, and every lane's number
+            is the fund's own with the page's row count beside it where they
+            differ (`deskLanes.laneCount`).
+
+            The lanes replace a foot section of five `<details>` doors that had
+            grown to carry three of the five queues below and none of their
+            counts in a comparable form. Nothing that was behind those doors
+            has been dropped: the two READING doors (COO memos, Donna's daily)
+            are still doors, at the foot, because reading is not a queue. */}
+        {edgesTruncated && (
+          <div className={`${KT.card} mb-6 flex items-start gap-2 border-[var(--kt-warn)]`}>
+            <AlertTriangle size={15} className="mt-0.5 shrink-0 text-[var(--kt-warn)]" />
+            <p className="text-sm">
+              The supersession edge store returned a TRUNCATED page —{" "}
+              <span className="font-mono tabular-nums">{edgesTruncated.shown}</span>
+              {" "}of{" "}
+              <span className="font-mono tabular-nums">{edgesTruncated.total}</span>
+              . Lineage below can answer &ldquo;no edge&rdquo; for a row whose
+              edge simply did not fit on the page.
             </p>
-          </section>
-        ) : list.total === 0 ? (
-          <section className="mb-10">
-            {/* "Nothing awaits your decision" is a claim about the CARDS, and
-                it may only be made when the fund's own counter agrees. If the
-                served figure says otherwise, the banner above is already
-                shouting and this sentence must not contradict it. */}
-            <p className="text-[15px] leading-relaxed">
-              {headline.reconciliation
-                ? "This page has no decision cards to show — and the fund's own counter disagrees, above."
-                : "Nothing awaits your decision."}
-            </p>
-            <p className={`mt-1 text-sm ${KT.body}`}>
-              That is a measurement of this moment, not of the firm:{" "}
-              <span className="font-mono tabular-nums">{folded.total}</span>{" "}
-              item{folded.total === 1 ? " is" : "s are"} on file at the foot of
-              this page — decided work awaiting execution, open work owned by
-              the chair or a seat, and reading. None of it needs a click from
-              you.
-            </p>
-          </section>
-        ) : (
-          <section className="mb-10 space-y-7">
-            {list.groups.map((g) => (
-              <DecisionGroupBlock key={g.key} group={g} onChanged={load} />
-            ))}
-            <RankingNote gap={gap} coverage={coverage} batches={list.batches}
-                         hazard={orderingHazard(list.all)} />
-          </section>
+          </div>
         )}
+
+        <div className={`${KT.panel} mb-8 px-6`}>
+          <LaneBlock lane={lanes[0]} sources={lineageSources}>
+            {desk === null ? (
+              /* The "UNKNOWN, not none" sentence lives ONCE, under the figure
+                 it describes — `headline.note`. What belongs here is the
+                 different fact: why there is nothing in this lane. */
+              <p className={`text-sm ${KT.sev.warn}`}>
+                No decision cards can be built from a desk that cannot be read.
+              </p>
+            ) : list.total === 0 ? (
+              <>
+                {/* "Nothing awaits your decision" is a claim about the CARDS,
+                    and it may only be made when the fund's own counter agrees.
+                    If the served figure says otherwise, the banner above is
+                    already shouting and this sentence must not contradict it. */}
+                <p className="text-[15px] leading-relaxed">
+                  {headline.reconciliation
+                    ? "This page has no decision cards to show — and the fund's own counter disagrees, above."
+                    : "Nothing awaits your decision."}
+                </p>
+                <p className={`mt-1 text-sm ${KT.body}`}>
+                  That is a measurement of this moment, not of the firm — the
+                  lanes below hold what is decided, dispatched, owned elsewhere
+                  and closed today. None of it needs a click from you.
+                </p>
+              </>
+            ) : (
+              <div className="space-y-7">
+                {list.groups.map((g) => (
+                  <DecisionGroupBlock key={g.key} group={g} onChanged={load}
+                                      sources={lineageSources} />
+                ))}
+                <RankingNote gap={gap} coverage={coverage} batches={list.batches}
+                             hazard={orderingHazard(list.all)} />
+              </div>
+            )}
+          </LaneBlock>
+
+          {lanes.slice(1).map((lane) => (
+            <LaneBlock key={lane.id} lane={lane} sources={lineageSources} />
+          ))}
+        </div>
 
         {/* ── 1b · THE BRIEFINGS SHELF ─────────────────────────────────────
             Seat memos reach the CEO DIRECTLY (CEO instruction 3: "COO reaches
@@ -499,70 +580,16 @@ export default function CeoDeskPage() {
           </Fold>
         )}
 
-        {/* ── 2 · EVERYTHING ELSE, BEHIND NAMED DOORS ───────────────────── */}
+        {/* ── READING — NOT A QUEUE ───────────────────────────────────────
+            What is left behind doors is what asks to be READ. The two queues
+            that used to live here — decided-awaiting-execution and
+            open-elsewhere — are lanes now, with the fund's own counts; keeping
+            a second rendering of them here would put two numbers on one page
+            for one question, which is the defect this desk has shipped three
+            times. */}
         {desk !== null && (
           <div className="space-y-2 border-t border-[var(--kt-border)] pt-6">
-            <p className={`${KT.label} mb-1`}>On file — nothing here needs you</p>
-
-            <Folded
-              label="Decided by you, awaiting execution"
-              count={folded.decided}
-              blurb="You decided these; they are the chair's to stage through the ordinary propose path. They are listed so a decision cannot go quiet — and not counted above, because nothing here is waiting on you."
-            >
-              <div className="space-y-1.5">
-                {officers.all.flatMap((q) => q.decided).map((item) => (
-                  <div key={item.key} className={`${KT.card} p-3`}>
-                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                      <span className={`font-mono text-[10px] uppercase tracking-[0.1em] ${KT.accent}`}>
-                        {item.rec?.status}
-                      </span>
-                      <span className="min-w-0 flex-1 text-[13px] leading-snug">
-                        {item.rec?.text}
-                      </span>
-                      <span className={`font-mono text-[10px] ${KT.muted}`}>
-                        {item.rec?.seat}
-                      </span>
-                    </div>
-                    <p className={`mt-0.5 font-mono text-[10px] ${KT.muted}`}>
-                      {item.rec?.decided_by
-                        ? `decided by ${item.rec.decided_by}${item.rec.decided_at ? ` · ${fmtAt(item.rec.decided_at)}` : ""}`
-                        : "decided — the decision event recorded no actor"}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </Folded>
-
-            <Folded
-              label="Open, and not yours"
-              count={folded.elsewhere}
-              blurb="Nobody has decided these and nobody is waiting on you for them — engineering tickets, seat-to-seat handoffs. Each names the actor it went to and why. They stay on this page so that taking them off your count does not take them off your screen."
-            >
-              <div className="space-y-1.5">
-                {officers.all.flatMap((q) => q.elsewhere).map((item) => (
-                  <div key={item.key} className={`${KT.card} p-3`}>
-                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                      <span
-                        className={`font-mono text-[10px] uppercase tracking-[0.1em] ${KT.muted}`}
-                        title={item.rec?.next_actor_why ?? undefined}
-                      >
-                        {item.nextActor ?? "unrouted"}
-                      </span>
-                      <span className="min-w-0 flex-1 text-[13px] leading-snug">
-                        {item.rec?.text}
-                      </span>
-                      <span className={`font-mono text-[10px] ${KT.muted}`}>
-                        {item.rec?.seat}
-                      </span>
-                    </div>
-                    <p className={`mt-0.5 font-mono text-[10px] ${KT.muted}`}>
-                      {item.rec?.next_actor_why
-                        ?? "routed away from your desk; the spine stated no reason"}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </Folded>
+            <p className={`${KT.label} mb-1`}>On file — reading, not decisions</p>
 
             <Folded
               label="Vishesh · the COO's triage memos"
@@ -597,20 +624,105 @@ export default function CeoDeskPage() {
               )}
             </Folded>
 
+            {/* DECLINED ONLY. Cleared asks are the chair's dispatch queue and
+                are now a LANE with the fund's own figure beside them; leaving
+                a copy of them here as well would be the same queue counted
+                twice on one page. A decline is terminal and belongs to
+                neither the lanes nor your click, which is why it is here. */}
             <Folded
-              label="Bench asks already settled"
-              count={folded.settledAsks}
-              blurb="Cleared asks are the chair's to fire; declined ones are terminal. Neither can be moved by a click of yours, which is why neither is on the list above — a queue of these headed '0 awaiting you' was the single largest block on the old page, at 9,596px."
+              label="Bench asks declined — terminal"
+              count={declinedAsks.length}
+              blurb="A decline cannot be revived and carries its written reason verbatim. Cleared asks are not here: they are the chair's dispatch lane above, counted by the fund."
               seat="cto"
+              emptyNote="nothing has been declined in the window this page reads"
             >
               <div className="space-y-1.5">
-                {asks.filter((a) => a.stage !== "awaiting_ceo").map((a) => (
+                {declinedAsks.map((a) => (
                   <AskRow key={a.requestId} ask={a} onDecided={load} />
                 ))}
               </div>
             </Folded>
           </div>
         )}
+
+        {/* ── CONTEXT — the figures that are not the answer ────────────────
+            Everything the header used to carry beside the number. It is not
+            deleted and it is not hidden: it is BELOW the thing it is context
+            for. `on_fire`, the hygiene sentence and the readability warnings
+            come from the spine's own greeting fold, verbatim, because a
+            hand-written "all quiet" would be the one line on this desk nobody
+            could falsify. */}
+        <div className={`${KT.panel} mt-8 p-5`}>
+          <p className={`${KT.label} mb-3`}>Context</p>
+          <p className="flex items-start gap-1.5 text-sm leading-relaxed">
+            {(engine?.on_fire.total ?? 0) > 0 && (
+              <Flame size={13} className="mt-0.5 shrink-0 text-[var(--kt-warn)]" />
+            )}
+            <span className={(engine?.on_fire.total ?? 0) > 0 ? KT.sev.warn : KT.body}>
+              {engine?.greeting?.on_fire
+                ?? "The desk engine could not be read, so whether anything is on "
+                   + "fire is UNKNOWN — not no."}
+            </span>
+          </p>
+          {/* THREE-VALUED, and rendered that way: `null` is the risk control
+              being unreachable, and a desk printing "not halted" because it
+              could not reach the monitor would be the absence-as-zero error on
+              the one control that stops losses. */}
+          {engine?.on_fire.risk_halted === null && (
+            <p className={`mt-1 text-[11px] italic ${KT.sev.warn}`}>
+              The risk control could not be read, so whether trading is halted
+              is UNKNOWN — not &ldquo;running&rdquo;.
+            </p>
+          )}
+          <p className={`mt-2 text-xs ${KT.muted}`}>
+            decisions recorded{" "}
+            <span className="font-mono tabular-nums">
+              {velocity.today ?? "— (event log unreadable, not zero)"}
+            </span>{" "}
+            today
+            {velocity.week != null && (
+              <> · <span className="font-mono tabular-nums">{velocity.week}</span> this week</>
+            )}
+            {desk !== null && list.groups.length > 1 && (
+              <>
+                {" · "}the lane above is in{" "}
+                <span className="font-mono tabular-nums">{list.groups.length}</span>{" "}
+                groups
+                {list.batches > 0 && (
+                  <>
+                    {", "}
+                    <span className="font-mono tabular-nums">{list.batches}</span>
+                    {list.batches === 1 ? " a COO batch" : " of them COO batches"}
+                  </>
+                )}
+              </>
+            )}
+          </p>
+          {engine?.greeting?.hygiene && (
+            <p className={`mt-2 max-w-3xl text-[11px] leading-relaxed ${KT.muted}`}>
+              {engine.greeting.hygiene}
+            </p>
+          )}
+          {engine && (!engine.readable.recommendations
+            || !engine.readable.supersessions || !engine.readable.intray) && (
+            <p className={`mt-2 flex items-start gap-1.5 text-[11px] ${KT.sev.warn}`}>
+              <AlertTriangle size={12} className="mt-0.5 shrink-0" />
+              <span>
+                Part of the desk could not be read
+                {!engine.readable.recommendations && " · recommendations"}
+                {!engine.readable.supersessions && " · supersession lineage"}
+                {!engine.readable.intray && " · in-trays"}
+                . What is above is incomplete, not empty.
+              </span>
+            </p>
+          )}
+          {/* The triage trigger, the elsewhere split and the partial flag —
+              none of which the headline carries. `already-on-screen` keeps it
+              from printing a second copy of the figure in the header. */}
+          <div className="mt-2">
+            <CooTriageChip load={desk?.desk_load} total="already-on-screen" />
+          </div>
+        </div>
 
         <p className={`mt-6 text-[11px] italic leading-relaxed ${KT.muted}`}>
           Folded from {events?.length ?? 0} spine events
@@ -637,9 +749,10 @@ export default function CeoDeskPage() {
  * three decisions at 13px — which is how an already-read summary came to
  * outrank the thing it was summarising.
  */
-function DecisionGroupBlock({ group, onChanged }: {
+function DecisionGroupBlock({ group, onChanged, sources }: {
   group: DecisionGroup;
   onChanged: () => Promise<void> | void;
+  sources: LineageSources;
 }) {
   /* Only rows the spine will actually accept: open recommendations. An order
      is approved on Monitor and an ask has its own control, so neither can be
@@ -675,7 +788,8 @@ function DecisionGroupBlock({ group, onChanged }: {
 
       <div className="space-y-2">
         {group.decisions.map((d) => (
-          <DecisionCard key={d.key} d={d} onChanged={onChanged} />
+          <DecisionCard key={d.key} d={d} onChanged={onChanged}
+                        sources={sources} />
         ))}
       </div>
 
@@ -687,12 +801,16 @@ function DecisionGroupBlock({ group, onChanged }: {
 }
 
 /** One decision: the first sentence, why it is where it is, and the buttons. */
-function DecisionCard({ d, onChanged }: {
-  d: Decision; onChanged: () => Promise<void> | void;
+function DecisionCard({ d, onChanged, sources }: {
+  d: Decision;
+  onChanged: () => Promise<void> | void;
+  sources: LineageSources;
 }) {
-  if (d.kind === "ask") return <AskRow ask={d.ask} onDecided={onChanged} />;
+  if (d.kind === "ask") {
+    return <AskRow ask={d.ask} onDecided={onChanged} sources={sources} />;
+  }
   if (d.kind === "order") return <OrderCard item={d.item} />;
-  return <RecCard item={d.item} onDecide={onChanged} />;
+  return <RecCard item={d.item} onDecide={onChanged} sources={sources} />;
 }
 
 /**
@@ -712,12 +830,18 @@ function DueChip({ date }: { date: string }) {
   );
 }
 
-function RecCard({ item, onDecide }: {
-  item: DeskItem; onDecide: () => Promise<void> | void;
+function RecCard({ item, onDecide, sources }: {
+  item: DeskItem;
+  onDecide: () => Promise<void> | void;
+  sources: LineageSources;
 }) {
   const r = item.rec!;
   const parts = memoParts(r.text);
   const [open, setOpen] = useState(false);
+  /* Separate from `open`: the rest of a memo and the chain behind it are
+     different questions, and one toggle for both would make a reader open the
+     prose to see the provenance. */
+  const [chain, setChain] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const scale = cardStyle(item.reversibility);
@@ -773,12 +897,25 @@ function RecCard({ item, onDecide }: {
             {open ? "− less" : "+ the rest"}
           </button>
         )}
+        {/* THE CHAIN, on the row that carries the click. Where a decision
+            comes from is part of deciding it, and this desk previously made a
+            reader leave the page to find out. */}
+        <button type="button" onClick={() => setChain((v) => !v)}
+                aria-expanded={chain}
+                className={`font-mono text-[10px] ${KT.accent} hover:underline`}>
+          {chain ? "− lineage" : "+ lineage"}
+        </button>
       </div>
 
       {open && parts.rest && (
         <p className={`mt-2 border-t border-[var(--kt-border)] pt-2 text-[12px] leading-relaxed ${KT.body}`}>
           {parts.rest}
         </p>
+      )}
+      {chain && (
+        <LineageInline
+          anchor={{ kind: "rec", runId: r.run_id, recId: r.rec_id }}
+          sources={sources} />
       )}
       {err && (
         <p className={`mt-1.5 text-[11px] ${KT.down}`}>
@@ -1218,11 +1355,17 @@ function NoteRow({ item }: { item: DeskItem }) {
  * to stop an accidental YES and making a NO harder to give than a YES is the
  * wrong asymmetry on a control whose safe direction is refusal.
  */
-function AskRow({ ask, onDecided }: {
-  ask: QueuedAsk; onDecided: () => Promise<void> | void;
+function AskRow({ ask, onDecided, sources }: {
+  ask: QueuedAsk;
+  onDecided: () => Promise<void> | void;
+  /** Optional: a declined ask in the reading section has a chain too, and the
+   *  door that renders it has no sources to give. Absent = no toggle, rather
+   *  than a toggle that opens onto an empty fold. */
+  sources?: LineageSources;
 }) {
   const [busy, setBusy] = useState<"approve" | "decline" | null>(null);
   const [declining, setDeclining] = useState(false);
+  const [chain, setChain] = useState(false);
   const [reason, setReason] = useState("");
   const [err, setErr] = useState<string | null>(null);
 
@@ -1298,6 +1441,17 @@ function AskRow({ ask, onDecided }: {
             ? ` · declined by ${ask.declinedBy}${ask.declinedAt ? ` · ${fmtAt(ask.declinedAt)}` : ""}`
             : " · declined — the decline event recorded no actor")}
       </p>
+      {sources && (
+        <button type="button" onClick={() => setChain((v) => !v)}
+                aria-expanded={chain}
+                className={`mt-1 font-mono text-[10px] ${KT.accent} hover:underline`}>
+          {chain ? "− lineage" : "+ lineage"}
+        </button>
+      )}
+      {chain && sources && (
+        <LineageInline anchor={{ kind: "request", requestId: ask.requestId }}
+                       sources={sources} />
+      )}
       {ask.note && <p className={`mt-1 text-[11px] ${KT.body}`}>{ask.note}</p>}
       {ask.stage === "declined" && (
         <p className={`mt-1 text-[11px] ${KT.muted}`}>

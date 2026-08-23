@@ -327,48 +327,76 @@ test("a caller that predates the third stage still works", () => {
   assert.equal(d.awaitingTotal, 0);
 });
 
-test("the CEO page renders the routed-away rows and says why", () => {
-  const src = readFileSync(new URL("./ceo/page.tsx", import.meta.url), "utf8");
-  assert.ok(src.includes("ownedElsewhere: split.ownedElsewhere"),
+test("the routed-away rows are a LANE, named, with the spine's reason", () => {
+  /* SAME DEFECT, NEW HOME (D31). The routed-away rows used to be a folded
+   * door on the page; they are lane (d) now, and the guard follows them. The
+   * property it protects is unchanged and is the one sentence that matters:
+   * TAKING WORK OFF THE CEO'S NUMBER MUST NOT TAKE IT OFF HIS SCREEN.
+   *
+   * The lane's shape is asserted against the MODULE that builds it, not
+   * against the page's prose — a page can render a label without the rows
+   * behind it, and `deskLanes` is where the rows and the label are one
+   * expression. */
+  const page = readFileSync(new URL("./ceo/page.tsx", import.meta.url), "utf8");
+  const lanes = readFileSync(new URL("./deskLanes.ts", import.meta.url), "utf8");
+  assert.ok(page.includes("ownedElsewhere: split.ownedElsewhere"),
     "the page must pass the third queue through to the officer routing");
-  assert.ok(src.includes("Open, and not yours"),
-    "the routed-away rows need a door of their own");
-  assert.ok(src.includes("next_actor_why"),
+  assert.ok(lanes.includes(`id: "elsewhere"`)
+            && lanes.includes("Open elsewhere"),
+    "the routed-away rows need a lane of their own");
+  assert.ok(lanes.includes("next_actor_why"),
     "each routed row must carry the spine's reason, so a reader can disagree");
-  assert.ok(src.includes("more on file, at the foot"),
-    "the headline must say that the rows which left the count are still on "
-    + "the page — taking work off the number must not take it off the screen");
+  assert.ok(page.includes("lanes.slice(1).map"),
+    "every lane after the first must render — a lane built and not mounted is "
+    + "work taken off the number AND off the screen");
 });
 
-test("the decision list comes FIRST and the folded doors come after", () => {
-  /* THE RESTRUCTURE, pinned in source (2026-08-22). Measured on the page this
-   * replaces: the first Accept button sat 11,608px — 14.7 screenfuls — below
-   * the CEO's name, behind 49,549 characters, and the largest block on the
-   * page was a section headed "0 awaiting you".
+test("the awaiting lane comes FIRST and the reading section comes after", () => {
+  /* THE RESTRUCTURE, pinned in source (2026-08-22, landmarks updated 2026-08-23
+   * for the lanes). Measured on the page the 2026-08-22 version replaced: the
+   * first Accept button sat 11,608px — 14.7 screenfuls — below the CEO's name,
+   * behind 49,549 characters, and the largest block on the page was a section
+   * headed "0 awaiting you".
    *
    * A source-order assertion is a weak proxy for a layout and it is stated as
    * one; the strong check is the DOM measurement in the dispatch report. What
    * this catches is the cheap regression: somebody adding a section above the
-   * list because it seemed important, which is exactly how the old page grew.
+   * lanes because it seemed important, which is exactly how the old page grew.
    */
   const src = readFileSync(new URL("./ceo/page.tsx", import.meta.url), "utf8");
-  const list = src.indexOf("1 · THE DECISION LIST");
-  const doors = src.indexOf("2 · EVERYTHING ELSE, BEHIND NAMED DOORS");
+  const list = src.indexOf("── THE LANES ─");
+  const doors = src.indexOf("READING — NOT A QUEUE");
   assert.ok(list > 0 && doors > 0, "both landmarks must exist");
-  assert.ok(list < doors, "the decision list must precede the folded doors");
+  assert.ok(list < doors, "the lanes must precede the reading section");
 
-  /* The only things allowed above the list are the ones that change what a
-   * click on it DOES, or say the page cannot be trusted. */
+  /* The only things allowed above the lanes are the ones that change what a
+   * click on them DOES, or say the page cannot be trusted. */
   const above = src.slice(0, list);
   for (const allowed of ["THE HALT", "CONTRACT DRIFT"]) {
     assert.ok(above.includes(allowed),
-      `${allowed} is one of the two blocks that may sit above the list`);
+      `${allowed} is one of the two blocks that may sit above the lanes`);
   }
   for (const banned of ["MemoCard key=", "DailyMemoCard memo", "AskRow key"]) {
     assert.ok(!above.includes(banned),
-      `${banned} renders above the decision list — memos, the daily and the `
-      + "ask queue are the three blocks that were measured at 708, 951 and "
-      + "9,596 pixels of already-read text above the first Accept button");
+      `${banned} renders above the lanes — memos, the daily and the ask queue `
+      + "are the three blocks that were measured at 708, 951 and 9,596 pixels "
+      + "of already-read text above the first Accept button");
+  }
+  /* AND THE NEW ONE, from this redesign: the header is the ANSWER. The five
+   * figures that used to crowd the number are below the lanes now, and a
+   * regression here is somebody putting one of them back. */
+  /* THE HEADER ELEMENT, not the file above it. The first cut sliced from 0 and
+   * failed on the IMPORT line for `CooTriageChip` — a scope that swallows the
+   * imports would make this test unable to distinguish "rendered in the
+   * header" from "mentioned anywhere earlier in the file". */
+  const hStart = src.indexOf("<header");
+  const hEnd = src.indexOf("</header>");
+  assert.ok(hStart > 0 && hEnd > hStart, "the header element must be findable");
+  const header = src.slice(hStart, hEnd);
+  for (const banned of ["velocity.today", "CooTriageChip", "folded.total"]) {
+    assert.ok(!header.includes(banned),
+      `${banned} is back in the header — the header carries a greeting, ONE `
+      + "number and ONE steering sentence, and nothing else that is a figure");
   }
 });
 
@@ -411,7 +439,21 @@ test("the header count and the card count are ONE number in the source", () => {
   // nothing.
   assert.ok(src.includes(`{headline.value === null ? "unknown" : headline.value}`),
     "the header figure must be headline.value, and UNKNOWN when it is null");
-  assert.ok(src.includes("needsYou={headline.value}"),
-    "the greeting must read the same fold, which is what makes the two agree "
-    + "by construction rather than by care");
+  /* THE SECOND READER MOVED (D31), THE INVARIANT DID NOT. It used to be the
+   * greeting card, which is deleted; it is the steering sentence now. The
+   * steer says "N await you and the ranked list came back empty" in one
+   * branch, so it holds a copy of the figure and must read the SAME fold. */
+  assert.ok(src.includes("needsYou: headline.value"),
+    "the steering sentence must read the same fold, which is what makes the "
+    + "two agree by construction rather than by care");
+  assert.ok(!/needsYou:\s*(list\.total|officers|desk\?\.)/.test(src),
+    "the steer must not be handed a second count — a page with two folds for "
+    + "one question is how 11 and 6, then 96 and 97, reached one screen");
+  /* AND THE LANE'S COUNT IS THE SAME FIGURE. Lane (a) renders the cards this
+   * page builds; its header number must be the served one, or the desk shows
+   * a lane labelled 28 above 27 cards with nothing saying which is right. */
+  assert.ok(src.includes("awaitingServed: headline.value")
+            && src.includes("awaitingShown: list.total"),
+    "lane (a) must be given the SERVED figure and the CARD count separately, "
+    + "so `laneCount` can state the difference rather than pick one");
 });

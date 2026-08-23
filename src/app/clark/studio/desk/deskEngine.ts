@@ -19,7 +19,7 @@
  */
 
 import type {
-  CeoDeskView, DeskBriefing, DeskCategory, DeskEngineItem, DeskHygieneReport,
+  CeoDeskView, DeskBriefing, DeskCategory, DeskEngineItem,
   DeskMatrix, DeskMatrixCell, DeskSupersessionEdge,
 } from "@/lib/fund_api";
 
@@ -30,16 +30,6 @@ export const CATEGORY_LABELS: Record<DeskCategory, string> = {
   blocking: "Blocking",
   closed: "Closed",
 };
-
-/** Which column is collapsed on first paint.
- *
- *  CLOSED only. It is the one column whose rows need no action, and it is also
- *  the one that grows without bound — so leaving it open would rebuild the
- *  infinite scroll inside the instrument that replaced it. Everything else
- *  stays one click away and nothing is hidden: the count renders either way,
- *  which is the difference between disclosure and concealment.
- */
-export const COLLAPSED_BY_DEFAULT: DeskCategory[] = ["closed"];
 
 export interface MatrixRow {
   seat: string;
@@ -178,49 +168,25 @@ export function badgeView(b: DeskBriefing): BadgeView {
   return { text: "chair-unverified", tone: "unverified" };
 }
 
-/* ---------------------------------------------------------- the header ---- */
+/* THREE EXPORTS WERE DELETED HERE (D31, cleanup ticket dce47670), all
+   test-only and all superseded:
 
-export interface SectionCount { key: string; label: string; n: number | null; }
+   - `SectionCount` / `sectionCounts()` built a header strip of seven counts
+     for a design that never shipped. The desk now carries ONE number in its
+     header and a count per lane, and a second per-section count path is
+     exactly how this desk came to render 11 and 6 for one question.
+   - `COLLAPSED_BY_DEFAULT` named which matrix column starts shut; `DeskMatrix`
+     never imported it and decides expansion from `expandable(cell)` and its
+     own `open` state. A constant nothing reads is a specification pretending
+     to be a control.
+   - `hygieneLine()` composed a hygiene sentence CLIENT-SIDE. The spine now
+     serves one, verbatim, on `greeting.hygiene`, and the desk renders that.
+     Two sentences for one measurement is one sentence too many, and only the
+     spine's is generated from the fold it describes. Its only consumer was
+     `EngineViews.HygieneLine`, deleted in the same pass — also unrendered.
 
-/** The counts every section header carries, so nothing on the page is a
- *  surprise once opened. `null` is UNREADABLE and renders as a word, not a 0.
- */
-export function sectionCounts(v: CeoDeskView | null): SectionCount[] {
-  if (!v) return [];
-  const m = v.matrix;
-  return [
-    { key: "decisions", label: "need you", n: v.decisions.total },
-    { key: "on_fire", label: "on fire", n: v.on_fire.total },
-    { key: "briefings", label: "briefings", n: v.briefings ? v.briefings.total : null },
-    { key: "open", label: "open", n: m?.totals?.open ?? null },
-    { key: "ticking", label: "ticking", n: m?.totals?.ticking ?? null },
-    { key: "blocking", label: "blocking", n: m?.totals?.blocking ?? null },
-    { key: "kill_shelf", label: "on the kill shelf", n: v.kill_shelf.total },
-  ];
-}
-
-/** The one line a hygiene report deserves on a desk that is not about hygiene.
- *
- *  Three states, and the third is the one that matters: a policy proposing
- *  nothing because it could not JOIN anything is not a clean desk, and saying
- *  "0 to close" there would be the absence-as-zero error inside the instrument
- *  built to stop it.
- */
-export function hygieneLine(h: DeskHygieneReport | null | undefined): string | null {
-  if (!h) return null;
-  const c = h.counts;
-  if (c.proposals > 0) {
-    return `${c.proposals} bookkeeping close(s) ready — evidence-joined, one click, `
-      + `nothing approved. (${h.policy_version})`;
-  }
-  if (c.unlinkable > 0) {
-    return `Nothing can be auto-closed: ${c.unlinkable} of ${c.candidate_requests} `
-      + `open request(s) carry no evidence edge at all — no run holds their trace, `
-      + `no dispatch names them. That is unreadable, not clean.`;
-  }
-  if (c.candidate_requests === 0) return null;
-  return `${c.candidate_requests} open request(s), none currently closable by evidence.`;
-}
+   Together with `MetricOrAbsent` and `SeatBadge` this is 5 dead surfaces
+   removed; the tests that pinned them went with them. */
 
 /** Every recommendation carrying a live edge, keyed `<run_id>#<rec_id>`.
  *

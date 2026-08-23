@@ -11,15 +11,13 @@ import {
   Swords,
   Users,
 } from "lucide-react";
-import { CeoDeskView, fundApiClient, DeskView, SpineEvent } from "@/lib/fund_api";
+import { fundApiClient, DeskView, SpineEvent } from "@/lib/fund_api";
 import { KT } from "../theme";
 import { StudioHeader } from "../components/StudioHeader";
 import { faceFor } from "./faces";
 import {
-  Metric, ProductionShelf, RecRow, RunRow, SeatTelemetryChips, SectionHead,
-  WindowNote,
+  Metric, ProductionShelf, RecRow, RunRow, SeatTelemetryChips, WindowNote,
 } from "./components";
-import { DeskMatrix } from "./DeskMatrix";
 import { Fold } from "./EngineViews";
 import { SeatTelemetry, seatTelemetry } from "./deskTelemetry";
 import { MemoThread } from "./MemoThread";
@@ -72,11 +70,6 @@ const STATUS_CHIP: Record<string, string> = {
 export default function DeskPage() {
   const [d, setD] = useState<DeskView | null>(null);
   const [events, setEvents] = useState<SpineEvent[] | null>(null);
-  /** The ticket board's fold. A SEPARATE failure from the desk's: the board
-   *  can be unreadable while the rest of the office is fine, and rendering an
-   *  empty board for an unreachable endpoint would say "no tickets". */
-  const [ceo, setCeo] = useState<CeoDeskView | null>(null);
-  const [ceoErr, setCeoErr] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [eventsErr, setEventsErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -86,20 +79,17 @@ export default function DeskPage() {
   const [day, setDay] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const [desk, ev, board] = await Promise.allSettled([
+    // TWO READS, NOT THREE. The `GET /fund/desk/ceo` poll went with the ticket
+    // board to the room: this page had kept it running every ten seconds for a
+    // block it no longer renders, which is a cost with no consumer.
+    const [desk, ev] = await Promise.allSettled([
       fundApiClient.getDesk(),
       fundApiClient.getEvents(1000, 0),
-      // `git=false`: hygiene's commit-citation rule shells out to git, which
-      // does not belong in a 10-second poll. The payload reports H3 as NOT
-      // EVALUATED rather than as finding nothing.
-      fundApiClient.getCeoDesk(null, false),
     ]);
     if (desk.status === "fulfilled") { setD(desk.value); setErr(null); }
     else setErr(desk.reason instanceof Error ? desk.reason.message : "unreachable");
     if (ev.status === "fulfilled") { setEvents(ev.value.events || []); setEventsErr(null); }
     else setEventsErr(ev.reason instanceof Error ? ev.reason.message : "unreachable");
-    if (board.status === "fulfilled") { setCeo(board.value); setCeoErr(null); }
-    else setCeoErr(board.reason instanceof Error ? board.reason.message : "unreachable");
   }, []);
 
   useEffect(() => {
@@ -185,38 +175,22 @@ export default function DeskPage() {
         )}
         {!d && !err && <p className={`text-sm ${KT.muted}`}>Reading the desk…</p>}
 
-          {/* -------------------------------------------- the ticket board */}
-          {/* CEO instruction 2026-08-23, verbatim: "like put a matrix view
-              that shows intra-team ticket count -> I click it expands the
-              list; then different categories for whats closed, whats
-              ticking, whats blocking, whats open" — given after this page
-              earned "this feels like an infine scroll. We need better
-              organisation here too!"
-
-              IT SITS HERE, ABOVE EVERYTHING THAT SCROLLS, and everything
-              below it is now folded with its count in the header. The board
-              is the organising frame; the sections beneath are the detail
-              behind a named door. */}
-          <section className="mb-8">
-            <SectionHead
-              title="The ticket board"
-              lede="Every open thing at the firm, one row per seat. Click any number to read the rows behind it. Counts come from the spine's own fold, so a cell and its list can never disagree."
-            />
-            {ceoErr ? (
-              // KT.panel, not KT.card: `card` carries p-5 and Tailwind
-              // resolves by stylesheet order, so a p-4 beside it never
-              // renders. Pre-existing elsewhere on this page; not repeated
-              // in code written today.
-              <div className={`${KT.panel} p-4`}>
-                <p className={`text-sm ${KT.sev.warn}`}>
-                  The ticket board could not be read ({ceoErr}) — showing
-                  nothing rather than a clear board.
-                </p>
-              </div>
-            ) : (
-              <DeskMatrix matrix={ceo?.matrix ?? null} />
-            )}
-          </section>
+          {/* THE TICKET BOARD IS NOT HERE ANY MORE.
+              CEO instruction 2026-08-23, verbatim: "And put the matrix in the
+              room not the desk page." It moved WHOLE to
+              /clark/studio/desk/floor — the same component, the same spine
+              fold, one mount instead of two. A link, never a second copy:
+              rendering the board on both surfaces would give the firm two
+              places to read one number, which is how this desk came to show
+              11 and 6 for the same question. */}
+          <p className={`mb-8 text-sm ${KT.muted}`}>
+            The firm&apos;s ticket board — every open thing, one row per seat —
+            lives in{" "}
+            <Link href="/clark/studio/desk/floor"
+                  className={`${KT.accent} underline underline-offset-2`}>
+              the room
+            </Link>.
+          </p>
         {d && (
           <>
 

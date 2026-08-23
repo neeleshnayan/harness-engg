@@ -94,11 +94,26 @@ test("an unknown reversibility renders as the SMALLEST, and that is deliberate",
 });
 
 test("the page uses the tested scale and does not roll its own", () => {
+  /* LANDMARK RETARGETED (D31), PROPERTY UNCHANGED. The scoped region used to
+   * end at the "2 · EVERYTHING ELSE" heading; the desk is lanes now and that
+   * heading is gone. The bug this guards against is unchanged and so is the
+   * region it guards: everything above the reading section, which is where
+   * the decision cards live.
+   *
+   * THE LANDMARK IS ASSERTED TO EXIST FIRST, and that is the whole repair.
+   * `indexOf` on a missing string returns −1, `slice(0, −1)` is the WHOLE
+   * FILE, and the test then failed on a pre-existing `p-3` two hundred lines
+   * below the region it meant to check. A test whose scope silently becomes
+   * "everything" when a landmark is renamed is a test that reports the wrong
+   * defect at the worst moment. */
   const src = readFileSync(new URL("./ceo/page.tsx", import.meta.url), "utf8");
   assert.ok(src.includes("cardStyle(item.reversibility)"),
     "the decision cards must take their size from the tested table");
-  assert.ok(!/\$\{KT\.card\}\s+p-\d/.test(src.slice(
-    0, src.indexOf("2 · EVERYTHING ELSE"))),
+  const end = src.indexOf("READING — NOT A QUEUE");
+  assert.ok(end > 0,
+    "the reading section's landmark must exist — without it this test's "
+    + "scope silently widens to the whole file");
+  assert.ok(!/\$\{KT\.card\}\s+p-\d/.test(src.slice(0, end)),
     "a `${KT.card} p-N` on the decision list is the invisible-class trap: "
     + "KT.card already carries p-5 and Tailwind resolves by stylesheet order, "
     + "so the padding written here would not be the padding rendered");
