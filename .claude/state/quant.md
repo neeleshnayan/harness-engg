@@ -632,3 +632,7 @@ Your SpineBars change is the ONLY thing between the fleet and a deeper gate: 14 
 ## 2026-08-23 - CARRIED FROM THE VALIDATOR + ADVERSARY (parity/D20) BY THE CHAIR
 
 HOLD_DAYS is now a GATE-GEOMETRY parameter: declare it explicitly (15 of 16 algorithms have it ASSUMED at 21) and state it + declared lookback_days in every belt report. At the live floor, hold 3 plans 5 folds and hold 4 plans 4 - one day moves a real edge's pass rate 37.2% -> 22.9%. Holds {4,9,14,19,20} + lookback>=910 land on a measurably looser bar (+1.1..+2.6pp) - never choose the hold to suit the bar; choose honestly and FLAG the combination (the adversary's watch-trigger will re-measure your cell). Run window_for_strategy(end, HOLD_DAYS, 4, effective_floor) before writing and report the fold count.
+
+## 2026-08-23 - CARRIED FROM DOC (shelf v2) BY THE CHAIR
+
+Before implementing ANY strategy reading an SEC form published on a review cycle (UPLOAD, CORRESP): use the DISSEMINATION date from the daily index, never filingDate - they differ by a median 57 days and agree 0.13% of the time; a filingDate backtest trades two months before the information exists and the belt cannot see it. Lookup: data/research/sec_correspondence_dissemination_2020_2026.csv.

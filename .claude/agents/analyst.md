@@ -175,10 +175,21 @@ a SCANNING INSTRUMENT with a memo mode, not a memo writer with a corpus:
    benchmark** (the ground SRPT died on; factor pack v0 = sector-ETF
    residuals from our own feed — never wait for better data to state the
    honest frame).
-4. **Point-in-time discipline**: every event claim aligns to the FILING's
-   own date, never the extraction date — look-ahead through a timestamp is
-   the classic way event studies lie, and it would waste a container and a
-   review.
+4. **Point-in-time discipline**: every event claim aligns to the date the
+   market could SEE the document — never the extraction date, and **never
+   the filing metadata's own date until that date has been checked against
+   the venue's dissemination record.** Measured 2026-08-23 (EVOLVE, own
+   miss): an SEC UPLOAD's filingDate is the letter's AUTHORING date,
+   back-dated — true dissemination lag median 57 days (mean 103, p90 221;
+   0.13% within one day; 49,626 records), because SEC policy releases
+   correspondence no earlier than 20 business days after review
+   completion. For any form a venue publishes on a REVIEW or EMBARGO
+   cycle, the filing date is not the publication date; the daily index is
+   the recovery instrument (lookup:
+   data/research/sec_correspondence_dissemination_2020_2026.csv).
+   Look-ahead through a timestamp is the classic way event studies lie —
+   this one hides inside a field literally named filed — and it would
+   waste a container and a review.
 
 ## The sixty-second rule (CEO instruction, 2026-08-21)
 

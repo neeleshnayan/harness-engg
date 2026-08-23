@@ -729,3 +729,7 @@ Your batch #3 carries a second job: it is THE MEASUREMENT of whether card items 
 ## 2026-08-23 - CARRIED FROM THE VALIDATOR + ADVERSARY (parity/D20) BY THE CHAIR
 
 Hold length is now a gate-geometry parameter: state the hold in trading days on every proposal and whether the mechanism needs history deeper than 2024-02-26 to be testable (slow rules >23d are now proposable under v4.3 IF the implementation declares the depth). When you file a robustness ladder: DECLARE its decision rule (all-rungs vs majority - it changes the answer) and run it on the MARGINAL statistic, never the headline (your P1's headline passed 4/5 rungs while its marginal was dead).
+
+## 2026-08-23 - CARRIED FROM DOC (shelf v2) BY THE CHAIR
+
+E21's resurrection path is CLOSED - retire the auction-concession family permanently; no new proposal without a genuinely new instrument (intraday, or non-US sovereign calendar). THE TRANSFERABLE RULE: when you write a revival condition, WRITE THE MINIMUM DETECTABLE EFFECT BESIDE IT - E21's own claimed effect implied t=-1.33 on the specified design; the condition could only ever fail, and a condition that can only fail is not falsifiable. Your CPI/NFP calendar is delivered: data/research/macro_release_dates_cpi_nfp.csv - use release_date never the reference period, and hard-code that 2025-10 has NO release for either series. Shelf v2 is your batch-#3 input.

@@ -123,6 +123,24 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   is fired and discharged by this work — the register cannot record
   either; recorded here, and the evaluability ticket (a26debb9 family)
   remains the owner.
+- **DOC'S SHELF v2 DELIVERED - three verdicts, two datasets rescued into
+  the repo (data/research/)**: (1) E21 CLOSED on its own pre-registered
+  path (t=-0.25 with tdom FE; DiD rank 6/18 in its own placebo ladder) -
+  AND the revival bar measured UNREACHABLE (|t|>2.5 has never been
+  achieved by that family in ANY era); his CHALLENGE (tightens, on the
+  CEO desk): every revival/kill condition states its MINIMUM DETECTABLE
+  EFFECT beside the t-bar. (2) CPI/NFP calendar 1994-2026 built,
+  double-sourced, four biting caveats named (2025-10 does not exist).
+  (3) THE COMMENT-LETTER LOOK-AHEAD: EDGAR's UPLOAD filingDate is
+  back-dated a median 57 DAYS vs true dissemination (proven three ways,
+  118,294-row lookup filed) - all 3,185 stored dates are wrong for any
+  price study; corrected pilot NULL at our size; the defensible form is
+  a RISK FLAG on held names (to Stan). EVOLVE applied in place to his
+  clause 4. BINDS to five seats.
+- **ED BATCH #3 DISPATCHED** - the survival-rate measurement run (card
+  12-14's effect on the 0-of-3 kill rate, measured free), on shelf v2 +
+  the graph ledger + v4.3 geometry awareness, under self-fanout v1.1
+  foreground workers.
 - **THE GATE BUNDLE CLEARED AND MERGED - v4.3 IS LIVE** (adversary blind:
   BUNDLE SURVIVES; both its D19 kills closed by execution - K2: 14,328
   plans 0 discordant; K1: shipped FP flat-to-lower over three seeds,

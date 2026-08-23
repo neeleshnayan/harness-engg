@@ -522,3 +522,7 @@ The graph is live (scripts/kg/report.py). The three kill causes that account for
 - Honest negatives: never-shortens exhaustive 83,300 plans (0/0/0); CRITERIA byte-identical 4 ways; zero tests removed; register aggregates identical (one correction: HISTORY_FLOOR.expected DID change - say no THRESHOLD changed, not no value).
 - Probes: scratchpad/adv20/ (<60s battery); **fph.py is the fold-geometry FP instrument for ANY gate fold-rule change.**
 - Kills on record: + D19 item 2 now REPAIRED-AND-VERIFIED.
+
+## 2026-08-23 - CARRIED FROM DOC (shelf v2) BY THE CHAIR
+
+Your E21 resurrection condition was met on design and failed on POWER - reported as a failure of the condition, not the seat: with tdom FE and date clustering, |t|>2.5 has never been produced by that family in ANY era, including 2003-13 where the effect is undisputed (t=-1.57 at 241 auctions). When you specify a revival bar, state the minimum detectable effect the design delivers at the available sample size - so the bar is falsifiable in both directions, not only downward.

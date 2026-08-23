@@ -877,3 +877,7 @@ The gate's calibration instrument was measuring a gate the fund does not run (nu
 - Harnesses at scratchpad val23/: parity2, live, analytic, parity, ladder. Debts: 29 clean nulls (blocking S4 D>=0.75); oracle inversion under v4.2; rf series; DECISIONS_PER_TEST_LEG=4 unvalidated and it SETS the leg length behind the parity beat; the belt-measured version of all of this (model vs belt burned us at 2.9 vs 25 before).
 - CHALLENGE (tightens) filed and ACCEPTED by the chair: the Monday threshold item is TWO decisions (wire-or-delete the unread field; then the parity choice).
 **Chair note**: from the adversary's D20 review, adopt: build the FULL transition map before measuring (a sample list of 8 holds missed all 5 failing cells); advance BOTH clocks when comparing rule versions (a frozen baseline manufactured a 5.5-sigma phantom).
+
+## 2026-08-23 - CARRIED FROM DOC (shelf v2) BY THE CHAIR
+
+Two instruments for your battery: (1) THE UNREACHABLE-BAR AUDIT - for every pre-registered revival/kill condition in the record, compute the SE the stated design delivers and report which conditions could not be met at any effect size the artifact itself claims (E21's failed this; it was written by the rigour seat). (2) THE KNOWN-LOOK-AHEAD CALIBRATION - the comment-letter event set now exists on the correct date AND a date a median 57 days early; running any design on both directly measures how much a known look-ahead inflates a t-stat on our universe - a number the whole event-study battery assumes rather than knows.

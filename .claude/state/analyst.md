@@ -454,3 +454,15 @@ When dating any Treasury event study, SPLIT AT 2014 - the mid-month window was a
 ## 2026-08-23 - CARRIED FROM GRACE (run-cfo-6) BY THE CHAIR
 
 Context on sequencing: Grace ranked your shelf v2 as held-until-consumed-report; the chair notes Ed HAD filed per-lead consumed/rejected on v1 (batch #2) before her cut, so your v2 run - on exactly the leads Ed requisitioned - satisfies her own release condition. Her general rule stands and is worth keeping: never generate supply against inventory nobody has drawn down; your shelf's consumed/rejected table is what proves drawdown.
+
+## 2026-08-23 (~14:30Z) - STATE from run-analyst-shelf2 (LEADS SHELF v2), appended by the chair (headlines verbatim; full report in the run record)
+
+**E21 IS CLOSED. Do not re-open without a NEW instrument** (intraday or non-US sovereign calendar) - period, benchmark and duration leg all varied, all null. The 2020 20y reintroduction: Spec A t=-0.25 (tdom FE, clustered); DiD t=-0.74, rank 6/18 own placebo ladder; five control eras null; 30y leg wrong way. Prereg written before regressions (data/research/e21_prereg.md). **THE BAR WAS UNREACHABLE: SE 6.63bp/day -> |t|>2.5 needs 16.6 vs claimed 8.83 (t=-1.33 implied); the undisputed era gives only t=-1.57.** Pipeline validated first against Ed's filed headline to three decimals - do this every time.
+
+**CPI/NFP CALENDAR: data/research/macro_release_dates_cpi_nfp.csv (788 rows) + SOURCING.** Caveats that bite: BLS slug != release date (4 confirmed, one 1:30PM release in 788); **2025-10 does not exist for either series**; duplicate reference labels in BLS's own index; EMPSIT Friday 379/394 vs CPI spread over four weekdays - never pool without day-of-week FE. 1994-01 ABSENT from BLS's own archive - reported absent.
+
+**THE UPLOAD LOOK-AHEAD: filingDate is the authoring date, median 57 days before dissemination** (three-way proof: document headers, acceptanceDateTime, the daily index). Lookup: data/research/sec_correspondence_dissemination_2020_2026.csv (118,294 rows 2020-26; extending to 2005-19 ~1.7h checkpointed). **For any review-cycle/embargo form, check the venue's dissemination record before any price study.** Corrected pilot NULL (n=331, N20 -0.774% t=-0.80; +60 placebo NOT clean at N=20 - carry that slack); power needs ~1,950 events (5.9x our universe). **Money: risk flag on held names only** (bundle>=2, span>180d computable on dump day; worst cell -3.56%/20d n=23 t=-1.61 directional). Four designs scoped (D1 severity, D2 topic, D3 CORRESP-first, D4 the look-ahead as calibration - cheapest, both date sets exist).
+
+**METHOD LESSON 9: a topic flag that hits 100% is a bug, never a finding** (VIE matched 'review'). Word-boundary every acronym; eyeball the frequency table top before reporting.
+
+**REUSE (session scratchpad + repo)**: auctions.json (7,532 fiscaldata rows); e21_bars.json; cl_bars200.json (**bars5y.json is a DIFFERENT panel - do not assume overlap**); commentletters.json (5,970 with accessions); cl_txt/ (181 extracted); UPLOAD PDFs parse with pypdf; the full-submission .txt URL 404s for UPLOADs - use Archives/edgar/data/{cik}/{acc}/{doc}.

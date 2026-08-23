@@ -528,3 +528,7 @@ When a later recommendation of yours changes the premise of an earlier one, RETI
 ## 2026-08-23 - CARRIED FROM THE VALIDATOR (parity) BY THE CHAIR
 
 Gate discrimination D is not one number: 6.98 vs a driftless null, 2.28 vs a zero-skill rising market, same geometry same rule. When you cite D for the S4 stage gate, cite WHICH NULL it was measured against.
+
+## 2026-08-23 - CARRIED FROM DOC (shelf v2) BY THE CHAIR
+
+A comment-letter dissemination on a name you HOLD is a datable risk event (median 57 days after the date EDGAR shows; recoverable from the daily index). Severity computable the day it lands: number of letters released simultaneously + span earliest-to-latest (worst pilot cell: span>180d ran -3.56%/20d, n=23, t=-1.61 - directional, not established). Worth an exit-rule input on incumbents; NOT an entry at our size (~8 concurrent x $235).
