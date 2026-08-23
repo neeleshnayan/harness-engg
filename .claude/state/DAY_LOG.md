@@ -92,6 +92,24 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   account) starts Monday.
 
 **BUILT**
+- **BUILDER D19 delivered, routed to the adversary blind — NOT merged**
+  (`builder/d19-benchmark-gate` off `536b427`, tip `18a3d67`, +1739/−39,
+  suite 1939 passed, mutation 25/25). The benchmark is now LABELLED, not
+  corrected (the point-in-time population cannot be built: 23,307 delisted
+  names, 0 with prices) — and the ticket's own one-line prescription would
+  have DELETED EVERY ETF from every benchmark (snapshot holds CS+ADRC
+  only; verified live). Gate v4.3: fold floor becomes a density; history
+  floor RATCHETED to each candidate's declared lookback (11/16 algorithms:
+  700 days — the real 1993 unlock is a SpineBars start_date ticket on the
+  quant's surface). Measured: floor-flip alone loosens FP 3.03%→6.87% on
+  the SHIPPED geometry; with scaling 5.17%. NEW THRESHOLD DECISION FOR THE
+  CEO: the majority rule's PARITY oscillation (3-of-4=31.2% under noise,
+  3-of-5=50.0%) — the 2.14pp residual scaling cannot reach. Entry 20's
+  re-judge is unblocked either way (3-day hold).
+- **THE SELF-FANOUT EXPERIMENT is running live** (Ed batch #2R): two
+  research workers spawned by Ed himself, both returned with ethos intact
+  (contrary-facts-first, URLs, absences reported absent); FOMC families
+  hit by kill-grade prior art mid-run; Ed's crunch + memo pending.
 - **The chair's filing debt CLEARED** (Donna's chair-directed finding: five
   resolved run records named artifacts absent from disk). Seven docs filed
   as operative summaries pointing at their primary run records:

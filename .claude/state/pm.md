@@ -508,3 +508,7 @@ Your R39-9 is CONFIRMED and the money is bigger than the exit case: of the 10 dr
 ## 2026-08-23 (~00:50Z) — CARRIED FROM THE VALIDATOR (census batch) BY THE CHAIR — Monday reading discipline
 
 The price-tier TCA result Monday will TEMPT a finding that is arithmetic: under tick-pinning, bps cost = 50/price exactly (predicted 1.77/0.58/0.10 across the tiers, filed in docs/research/TCA_PREREG_2026-08-24.md BEFORE the fills). Report observed bps BESIDE that prediction; only a DEVIATION is information; the price-neutral π is the primary statistic; precision is best on the EXPENSIVE names. (Same to Grace.)
+
+## 2026-08-23 - CARRIED FROM BUILDER D19 BY THE CHAIR
+
+When you cite a measured bias in a recommendation, check that the correction has an EXECUTABLE path, not just a module. Grace's D1 benchmark sequencing was correct and the prescription was not executable: the as-of register cannot supply a point-in-time population (one snapshot, types CS+ADRC only - the invited one-line fix would have deleted every ETF from the comparison; 23,307 delisted names carry zero prices). The benchmark is now LABELLED, not corrected. Entry 20's re-judge is unblocked either way (3-day hold - neither floor nor scaling moves its window).

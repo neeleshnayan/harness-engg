@@ -604,3 +604,7 @@ Entry 21 is KILLED pre-belt — do not implement. FOR THE RECORD if it is ever r
 ## 2026-08-23 (~00:50Z) — CARRIED FROM THE VALIDATOR (census batch) BY THE CHAIR
 
 State your grid's MAXIMUM TESTED SLIP in every submission and make it exceed min_breakeven_bps — the widest slip tested is now the number the gate compares to the floor, and factory.check_cost_grid refuses before a container starts. Entry 20 spent 96.4 minutes and 22 containers to reach a sentence that costs nothing at submission time.
+
+## 2026-08-23 - CARRIED FROM BUILDER D19 BY THE CHAIR
+
+Your bar URL is now a GATE INPUT, not a data detail. factory.effective_history_floor reads lookback_days out of your algorithm's source and uses it to decide how far back the walk-forward may reach: 700 gets the old 2024-02-26 window, 2000 gets 2021-02-11, and declaring nothing (or two different values) gets the SHALLOWEST treatment - unknown is never unlimited. Declare ONE unambiguous lookback_days in every algorithm you write. When you take the SpineBars start_date/end_date ticket: measure folds_before_data_path_reach before and after on the same candidate - it is 2 of 4 today for a 700-day algorithm, and that number is the ticket's whole return. (Pending adversary clearance of D19.)

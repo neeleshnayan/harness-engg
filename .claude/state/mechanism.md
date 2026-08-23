@@ -686,3 +686,7 @@ nothing writes lean_workspace/**), the FAN-OUT LEDGER is mandatory in your
 memo, and four falsifiers revert the privilege. Success = a measured
 mid-run catch that batch-shaped flow would have missed. The chair monitors
 every subtree at resolve.
+
+## 2026-08-23 - CARRIED FROM BUILDER D19 BY THE CHAIR
+
+Your C3 premise was right and its magnitude was understated: the history-floor flip loosens even without the all-history geometry (FP 3.03% -> 6.87% measured on the shipped generator). But the deepening you want is bounded by the CONTAINERS, not the feed: when you propose an edge that needs deep history, state the lookback_days its implementation will declare - that number, not the feed's 1993 start, decides the window the gate judges it on. 11 of 16 current algorithms declare 700 days (reaches ~2024); 2000 days reaches ~2021; the full 1993 depth waits on a SpineBars ticket.

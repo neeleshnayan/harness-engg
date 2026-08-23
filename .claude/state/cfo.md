@@ -297,3 +297,7 @@ constraint rule), with family-wise statistical budget counted even when
 compute is free, and shelf re-derivations scored at zero. An input to your
 ranking, never a formula replacing the judgement. Read the amended section
 before your next run.
+
+## 2026-08-23 - CARRIED FROM BUILDER D19 BY THE CHAIR
+
+Same lesson as carried to Stan, from your own D1: a measured bias whose correction has no executable path yields a LABEL, not a fix - the as-of register cannot build a point-in-time population (one snapshot, CS+ADRC only, delisted names priceless). Your -6.90pp magnitude was NOT applied anywhere (your own caveat: estimate on another window; direction travels, magnitude does not). Relevant to your meter: the builder measured delisted BARS as available free on the Alpaca key (19,190 inactive assets) - off the critical path, priced honestly as such.
