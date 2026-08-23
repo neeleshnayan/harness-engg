@@ -123,6 +123,21 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   is fired and discharged by this work — the register cannot record
   either; recorded here, and the evaluability ticket (a26debb9 family)
   remains the owner.
+- **D20 DELIVERED - THE CEO'S CRITERION PASSES**: plan IDENTITY on the
+  14 ratchet-floor algorithms (0 discordant of 20,000); FP 2.95%->2.90%
+  on the 2 deep-floor ones with power 22%->40% (42 sigma); the killed
+  D19 arm independently re-confirmed bad (+2.01pp). All three adversary
+  repairs closed; 42d/63d holds become TESTABLE (Ed signal). Bundle
+  D19+D20 with the ADVERSARY BLIND now - merges only on clearance, then
+  Entry 20's re-judge. First dispatch in six with every brief premise
+  true (brief written from a measured verdict, not a ticket).
+- **THE REFERENCE-FIRMS AMENDMENT ratified into the Loop Charter** (CEO:
+  "embody and operationalise"): what we take from Millennium/Citadel/
+  Jane Street, the synthesis only agents can run (genuine firewalls +
+  shared verdicts-never-enthusiasm), our morphs stated without romance,
+  and LOOP-TIME as a first-class number - hypothesis-to-fed-back-trade
+  wall clock; Grace's date question gains "when does the full loop run
+  in under a week". First loop closes with Monday's first real fill.
 - **THE KNOWLEDGE GRAPH v1 IS LIVE AND MERGED** (D21, merge 4151aa1: 0
   sensitive, 0 forbidden, 1944 green on the merged tree, mutation 33/33).
   41 hypotheses + 37 verdicts backfilled, the six fenced measurements

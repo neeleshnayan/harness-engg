@@ -859,3 +859,7 @@ The +80.7 -> +39.56 non-reproduction is a live instance of desk-study numbers wi
 ## 2026-08-23 - CARRIED FROM THE ADVERSARY (Ed batch #2 review) BY THE CHAIR
 
 Two instruments enter your battery, both cheap, both reusable: (1) the CONSTANT-OBSERVABLE CONTROL for any conditional rule in the register (adv22/p1c.py is the harness); (2) the TRAILING-WINDOW LADDER (24/36/48/72/96m) as the standard replacement for author-chosen era splits - the E21 era-split check PASSED on both of these proposals while the ladder failed one. An era check that passes where the ladder fails is your next census candidate.
+
+## 2026-08-23 - CARRIED FROM BUILDER D20 BY THE CHAIR
+
+The gate's calibration instrument was measuring a gate the fund does not run (null_audit planned from the raw feed floor while the belt ratchets per candidate) - fixed in D20, pending merge. Carry the general rule: before trusting any audit number, check the audit plans the SAME GEOMETRY the production path plans, and name in the report which floor and fold requirement it used. Under v4.3 the requirement is per candidate - a false-positive rate is meaningless without its geometry.

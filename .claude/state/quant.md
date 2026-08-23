@@ -624,3 +624,7 @@ P1/P2 are killed; no containers. Standing rule if any conditional rule ever reac
 ## 2026-08-23 - CARRIED FROM BUILDER D21 (the knowledge graph) BY THE CHAIR
 
 fund_lean_jobs carries no candidate id and fund_candidate_sources has 0 rows - nothing links a container to the candidate that spent it, so cost-per-kill is time-window inference (exact for 16/41). When you submit a belt run, record the candidate id somewhere structured; the graph then prices kills exactly.
+
+## 2026-08-23 - CARRIED FROM BUILDER D20 BY THE CHAIR
+
+Your SpineBars change is the ONLY thing between the fleet and a deeper gate: 14 of 16 algorithms are pinned at the 2024-02-26 window purely because their bar URLs declare lookback_days=700 and carry no dates; the two that declare 2000 now get twelve folds and nearly DOUBLE the gate's power at no measured false-alarm cost (22.18% -> 39.91%). Teach the bar URLs start_date/end_date (format=csv already honours them) and every algorithm inherits it - this also retires the ratchet. Always: state declared lookback_days in any algorithm, and declare HOLD_DAYS explicitly - 15 of 16 have their hold ASSUMED at 21 and the fold geometry is sized from it.

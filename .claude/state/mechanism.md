@@ -717,3 +717,7 @@ RE-ENTRY PATHS, named by the reviewer: P1 - the s<=0 leg or the paired marginal 
 ## 2026-08-23 - CARRIED FROM BUILDER D21 (the knowledge graph) BY THE CHAIR
 
 THE GRAPH IS LIVE and your family counts now come from the record: before writing any family count in a grammar header, run `venv/Scripts/python.exe scripts/kg/report.py ledger <family>` (from ClarkHarness) and paste its citation line. An untested family returns the word UNTESTED - use that word, never zero. Read the SURVIVORS line critically: three null_random_smallcap variants survive the graph and all three passed only gate v1, the bar random strategies cleared half the time - A SURVIVOR IS ONLY AS GOOD AS THE INSTRUMENT THAT PASSED IT; name the instrument whenever you cite one. And the top three kill causes in firm history are psr_below_floor (21), cost_robustness_unmeasured (19), benchmark_not_beaten (12) = 52 of 86 causes - `report.py cheap` ranks the instruments; expect the adversary to attack those first and pre-empt them in your headers.
+
+## 2026-08-23 - CARRIED FROM BUILDER D20 BY THE CHAIR
+
+A slow rule is no longer automatically untestable: at the deep floor (pending the bundle's blind clearance), 42-day and 63-day holds fit enough folds to be judged where v4.2 returned NOT TESTABLE - the candidate died on our arithmetic, not its merits. If you shelved an edge for being too slow to test, it may be admissible now - but only if the proposal names a lookback_days deep enough to feed it.
