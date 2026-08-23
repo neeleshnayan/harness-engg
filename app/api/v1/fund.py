@@ -591,13 +591,36 @@ def verify_ledger_chain(limit: int = Query(100_000, ge=1)):
 
 
 @router.get("/fund/tca")
-def get_transaction_costs(limit: int = Query(500, ge=1, le=5000)):
+def get_transaction_costs(limit: int = Query(100_000, ge=1, le=1_000_000)):
     """What trading actually cost, against what the backtests assumed.
 
     Folded from the order lifecycle already in the log, so it applies
     retroactively to every order the fund has placed. Until this is measured,
     every Sharpe ratio in the system describes an assumption rather than a
     strategy.
+
+    ``limit`` COUNTS EVENTS, NOT ORDERS, AND IT USED TO DEFAULT TO 500. That
+    default silently truncated this whole report. ``tca.costs`` hands it to
+    ``EventStore.stream``, which serves the OLDEST ``limit`` events — so the
+    default view showed the HEAD of the log and dropped everything after it,
+    and the gap widened with every event the fund wrote.
+
+    Measured on the live log 2026-08-23 (1,254 events), before and after:
+
+        limit=500    20 orders, DBA absent from by_symbol entirely
+        limit=1254   22 orders, DBA present
+
+    The two missing rows were the fund's two most recent filled orders — the
+    2026-08-21 experimental deployment whose written learning goal was "the
+    fund's first informative execution-cost observations". Nothing in the
+    response said it had been cut. Reproduce:
+    ``curl -s '<spine>/api/v1/fund/tca?limit=500'  | jq .summary.orders``
+    ``curl -s '<spine>/api/v1/fund/tca?limit=99999'| jq .summary.orders``
+
+    The default now matches ``tca.costs``' own (100,000), which is what every
+    non-HTTP caller of that function has always used. A caller may still ask
+    for fewer; the response does not yet report that it was cut, and that
+    remains open work on ``tca.py`` rather than on this route.
     """
     from app.fund.tca import TransactionCosts
 
@@ -613,6 +636,126 @@ def get_transaction_costs(limit: int = Query(500, ge=1, le=5000)):
         "by_symbol": tca.by_symbol(limit=limit),
         "by_venue": tca.by_venue(limit=limit),
         "orders": [r.to_dict() for r in rows],
+    }
+
+
+#: The execution-quote store, built once per process. A module-level cache like
+#: the desk engine's, but its own variable rather than a fourth branch in
+#: ``_engine_store``'s name->cache mapping, which is additive by construction.
+_execquotes_cache = None
+
+
+def _execution_quotes():
+    """The quote store, or None off Postgres.
+
+    None means "this process has no quote store", which the endpoint reports as
+    an absence. It is not the same as a store with no rows, and the endpoint
+    keeps those two answers apart.
+    """
+    global _execquotes_cache
+    from app.fund.events import store_backend
+    if store_backend() != "postgres":
+        return None
+    if _execquotes_cache is None:
+        from app.fund.executionquality import QuoteStore
+        _execquotes_cache = QuoteStore()
+    return _execquotes_cache
+
+
+@router.get("/fund/execution/quality")
+def get_execution_quality(limit: int = Query(500, ge=1, le=5000)):
+    """What the quoted market looked like when the fund traded.
+
+    ``/fund/tca`` answers "what did the fill cost against the price we struck".
+    This answers the question a broker, a venue and a regulator all answer the
+    same way — "what did it cost against the MIDPOINT of the quoted market" —
+    and it is the P5 precondition's own number. See
+    ``app/fund/executionquality.py`` for why they are different measurements.
+
+    READ-ONLY AND OFFLINE. It serves what the capture service already stored
+    plus a fold of the event log; it issues no DDL, calls no vendor, and never
+    quotes anything itself. A quote arrives here only because
+    ``scripts/execution/nbbo_capture.py`` or ``scripts/execution/retro_spread.py
+    --store`` put it there.
+
+    THREE ABSENCES, KEPT APART, because collapsing any two of them is how a
+    fund learns nothing from a table of zeros:
+
+      * no Postgres in this process  -> ``readable: false``, rows null;
+      * Postgres but no such table   -> ``readable: false`` with the reason
+        naming the capture script, because "never captured here" and "captured
+        nothing" are different facts;
+      * table present, nothing in it -> ``readable: true`` with
+        ``coverage.measured = 0`` against a real ``fill_events_total``. THAT
+        zero is a measurement, and on 2026-08-23 it was the true state of the
+        fund: thirty four fill events, none of them ever quoted.
+    """
+    from app.fund.executionquality import (MARK_BASIS, SUMMARY_SCAN_LIMIT,
+                                           SchemaAbsent, coverage, fill_legs,
+                                           fold_order_lifecycles,
+                                           retro_mark_rows,
+                                           summarise_mark_rows,
+                                           summarise_quote_rows)
+    # The whole log, not a page: coverage is a claim about EVERY fill, and a
+    # denominator that quietly became "the newest page" is a silent off-switch.
+    events = _store.stream(limit=100_000)
+    legs = fill_legs(fold_order_lifecycles(events))
+    mark_rows = retro_mark_rows(events)
+
+    # TWO READS, TWO JOBS, AND THAT IS THE WHOLE POINT (D24).
+    #
+    # `rows` is a PAGE for a human to look at and may honestly be truncated.
+    # `all_rows` backs the SUMMARY and the COVERAGE, which are claims about
+    # every captured fill — computing them over the newest page would produce a
+    # mean and a percentage that describe the page while wearing the label of
+    # the fund. That is precisely the defect measured in `/fund/tca` the same
+    # day this was written, and the first draft of this endpoint had it too.
+    store = _execution_quotes()
+    rows: list | None = None
+    all_rows: list | None = None
+    truncated = False
+    summary_complete = True
+    total: int | None = None
+    unreadable: str | None = None
+    if store is None:
+        unreadable = "this process is not on Postgres; there is no quote store"
+    else:
+        try:
+            all_rows, over_scan = store.rows(limit=SUMMARY_SCAN_LIMIT)
+            summary_complete = not over_scan
+            total = store.count()
+            rows = all_rows[:limit]
+            truncated = len(all_rows) > limit
+        except SchemaAbsent as e:
+            unreadable = str(e)
+        except Exception as e:  # noqa: BLE001 - an unreachable store is an absence
+            unreadable = f"the quote store could not be read: {e}"
+
+    return {
+        "readable": rows is not None,
+        "reason": unreadable,
+        "rows": rows,
+        "shown": len(rows) if rows is not None else None,
+        "total": total,
+        "truncated": truncated,
+        "limit": limit,
+        # Computed over EVERY row, not over the page above. `summary_complete`
+        # is False only if the scan cap itself bit, and then the figures below
+        # describe a prefix and say so rather than pretending otherwise.
+        "summary_complete": summary_complete,
+        "summary_scan_limit": SUMMARY_SCAN_LIMIT,
+        "summary": (summarise_quote_rows(all_rows)
+                    if all_rows is not None else None),
+        "coverage": coverage(legs, all_rows),
+        # THE MARK TABLE IS SERVED BESIDE THE QUOTE TABLE AND NEVER INSIDE IT.
+        # It is implementation shortfall against the fund's own struck mark,
+        # not an effective spread, and it is computed here rather than stored
+        # so that no reader can pick it up believing a quote was behind it.
+        "retro_mark_basis": {
+            "basis": MARK_BASIS,
+            "summary": summarise_mark_rows(mark_rows),
+            "rows": mark_rows,
+        },
     }
 
 
