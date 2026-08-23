@@ -1,4 +1,5 @@
-"""The belt side of gate v5r1: the premia legs, and the PSR's identifying inputs.
+"""The belt side of gate v5r2: the premia legs, the REALISED cash leg, and the
+PSR's identifying inputs.
 
 The measurements these tests encode were taken on 2026-08-23 against the four
 stored candidates that carry analytics (`fund_candidates.analytics IS NOT
@@ -13,6 +14,7 @@ import math
 
 import pytest
 
+from premia_feed import cash_feed, per_obs
 from app.fund import statistics as st
 from app.fund.factory import check_claim_type
 from app.fund.gate import evaluate
@@ -259,10 +261,174 @@ def test_the_window_is_the_intersection_and_the_coverage_is_reported():
         "benchmark_series_source": "recomputed_basket"})
     assert got["window"]["n"] == 300
     assert got["window"]["last"] == dts[300]
-    assert got["coverage"] == {"common_days": 300, "strategy_days": 500,
-                               "fraction": 0.6}
+    cov = got["coverage"]
+    assert cov["common_days"] == 300
+    assert cov["strategy_days"] == 500
+    assert cov["fraction"] == 0.6
+    # NO CASH LEG WAS SUPPLIED, so no session count is claimed. The bar is the
+    # leg that truncated, and deriving a session calendar from it would let the
+    # truncation shrink its own denominator (300 of 300 clears a majority; 300
+    # of 500 does not). Absent, not assumed.
+    assert cov["strategy_sessions"] is None
+    assert cov["session_fraction"] is None
+    assert cov["session_basis"] is None
+    assert cov["rf_dropped_days"] == 0
     # Both legs measured over the SAME 300 days, not 300 against 500.
     assert got["strategy"]["n"] == got["benchmark"]["n"] == 300
+
+
+# --- the realised cash leg (gate v5r2, the D23 kill's belt half) ---------
+
+def _lean_shaped(n_cal: int, rf_pct: float | None = 3.0, **kw):
+    """A result in LEAN'S REAL SHAPE: a CALENDAR-day strategy series against a
+    SESSION-day bar. This is what every stored candidate looks like — the engine
+    emits an equity point every calendar day and pads the weekends with zeros —
+    and it is the shape in which the v5r1 coverage denominator was wrong.
+    """
+    cal = calendar_dates(n_cal + 1)
+    sess = [d for d in cal
+            if datetime.date.fromisoformat(d).weekday() < 5]
+    strat = drifting(n_cal, 0.0006, 0.012, 3)
+    bar = drifting(len(sess) - 1, 0.0002, 0.012, 5)
+    res = {
+        "daily_returns": {"present": True, "dates": cal[1:], "strategy": strat,
+                          "benchmark": [], "benchmark_present": False,
+                          "n": n_cal},
+        "benchmark_curve": levels(bar)[:len(sess)], "benchmark_dates": sess,
+        "benchmark_series_source": "recomputed_basket",
+    }
+    fetch = None if rf_pct is None else cash_feed(rf_pct, obs_per_year=261.0,
+                                                  **kw)
+    return premia_inputs(res, rf_bars=fetch), cal, sess
+
+
+def test_the_coverage_denominator_is_SESSIONS_not_calendar_days():
+    """THE ~19pp OF SLACK, measured and removed.
+
+    The adversary: "premia_inputs coverage divides trading days by calendar
+    days: 0.67-0.69 on all 15 real specimens, ~19pp of slack in the majority
+    check, and a reader cannot tell whether anything is missing."
+
+    Both numbers are reported, so a reader can see exactly what the calendar
+    denominator was hiding — and the fraction the majority test reads is the
+    session one. On a full-coverage run the calendar fraction sits near 252/365
+    while the session fraction is 1.0: the entire gap was weekends.
+    """
+    got, cal, sess = _lean_shaped(500)
+    cov = got["coverage"]
+    assert cov["strategy_days"] == 500                 # calendar days
+    assert cov["strategy_sessions"] == len(sess) - 1   # sessions in the span
+    assert cov["session_basis"] == "benchmark+cash"
+    # The v5r1 number, kept beside the new one rather than quietly replaced.
+    assert 0.66 < cov["fraction"] < 0.72, cov
+    # Nothing was actually missing, and only the session figure can say so.
+    assert cov["session_fraction"] == 1.0, cov
+    assert cov["session_fraction"] - cov["fraction"] > 0.28, cov
+
+
+def test_the_excess_legs_are_the_raw_legs_net_of_the_SAME_cash_return():
+    """One cash series, subtracted from both sides, on one window.
+
+    Checked against the arithmetic rather than against a stored number: for a
+    constant cash rate the excess mean is the raw mean minus the per-observation
+    rate and the dispersion is UNCHANGED, so both are closed form.
+    """
+    got, _cal, _sess = _lean_shaped(500, rf_pct=3.0)
+    assert got["excess_measurable"] is True
+    assert got["rf"]["measurable"] is True
+    assert got["rf"]["symbol"] == "BIL"
+    assert got["rf"]["basis"] == "realised_series"
+    assert got["rf"]["realised_annual_pct"] == pytest.approx(3.0, abs=0.05)
+    # The per-observation rate the FEED actually paid — not one re-derived from
+    # the leg's own clock, which differs by the window's holidays and would make
+    # this assertion agree with the code only to four decimals.
+    c = per_obs(3.0, 261.0)
+    for leg in ("strategy", "benchmark"):
+        raw, ex = got[leg], got[f"{leg}_excess"]
+        assert ex["n"] == raw["n"]
+        assert ex["mean"] == pytest.approx(raw["mean"] - c, abs=1e-12)
+        assert ex["stdev"] == pytest.approx(raw["stdev"], abs=1e-12)
+
+
+def test_no_cash_source_leaves_the_RAW_capture_intact_and_the_excess_absent():
+    """The two flags, at the belt. An rf outage must not delete the volatility
+    capture — a control losing its instrument because a different control failed
+    is the unwired-kill-switch family."""
+    got, _cal, _sess = _lean_shaped(500, rf_pct=None)
+    assert got["measurable"] is True
+    assert got["strategy"]["ann_vol_pct"] is not None
+    assert got["benchmark"]["ann_vol_pct"] is not None
+    assert got["excess_measurable"] is False
+    assert got["strategy_excess"] is None
+    assert got["benchmark_excess"] is None
+    assert "not a zero one" in got["rf"]["reason"]
+
+
+def test_the_stored_schema_says_2_so_a_v5r1_capture_is_distinguishable():
+    got, _c, _s = _lean_shaped(500)
+    assert got["schema"] == 2
+
+
+def test_the_cash_leg_is_fetched_over_the_STRATEGYS_span_not_the_bars():
+    """Written because the other choice was made first and was wrong.
+
+    Fetching over the strategy-and-bar intersection means a TRUNCATED BAR cuts
+    the cash leg to match, and then nothing in the payload can say how many
+    sessions the run contained — so the coverage majority would shrink its own
+    denominator exactly when a leg went missing. The request must span the
+    strategy.
+    """
+    calls: list = []
+    cal = calendar_dates(501)
+    sess = [d for d in cal if datetime.date.fromisoformat(d).weekday() < 5]
+    half = sess[:len(sess) // 2]
+    bar = drifting(len(half) - 1, 0.0002, 0.012, 5)
+    res = {
+        "daily_returns": {"present": True, "dates": cal[1:],
+                          "strategy": drifting(500, 0.0006, 0.012, 3),
+                          "benchmark": [], "benchmark_present": False,
+                          "n": 500},
+        "benchmark_curve": levels(bar)[:len(half)], "benchmark_dates": half,
+        "benchmark_series_source": "recomputed_basket",
+    }
+    got = premia_inputs(res, rf_bars=cash_feed(3.0, obs_per_year=261.0,
+                                               calls=calls))
+    _sym, start, end = calls[0]
+    assert start < cal[1] and end > cal[-1], calls
+    # The bar covers half the run; the denominator still counts the whole run.
+    assert got["coverage"]["strategy_sessions"] == len(sess) - 1
+    assert got["coverage"]["common_days"] == len(half) - 1
+    assert got["coverage"]["session_fraction"] < 0.55
+
+
+def test_a_cash_series_that_shares_no_dates_is_an_absence_not_a_zero():
+    """A feed that answers with a series from the wrong era.
+
+    The raw pair survives — it was measurable — and the excess pair does not,
+    with the reason naming the window rather than a bare False.
+    """
+    cal = calendar_dates(301)
+    sess = [d for d in cal if datetime.date.fromisoformat(d).weekday() < 5]
+    bar = drifting(len(sess) - 1, 0.0002, 0.012, 5)
+
+    def elsewhere(_sym, _start, _end):
+        from premia_feed import FakeBars
+        d = calendar_dates(30)
+        return FakeBars([x.replace("2021", "1999") for x in d],
+                        [100.0 + i for i in range(30)], "synthetic-cash")
+
+    got = premia_inputs({
+        "daily_returns": {"present": True, "dates": cal[1:],
+                          "strategy": drifting(300, 0.0006, 0.012, 3),
+                          "benchmark": [], "benchmark_present": False,
+                          "n": 300},
+        "benchmark_curve": levels(bar)[:len(sess)], "benchmark_dates": sess,
+        "benchmark_series_source": "recomputed_basket"}, rf_bars=elsewhere)
+    assert got["measurable"] is True
+    assert got["excess_measurable"] is False
+    assert "no window on which an excess return could be formed" in \
+        got["rf"]["reason"]
+    assert got["coverage"]["strategy_sessions"] is None
 
 
 def test_a_curve_with_a_bad_level_breaks_the_chain_rather_than_dividing():

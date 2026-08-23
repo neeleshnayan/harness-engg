@@ -1,11 +1,18 @@
-"""Gate v5r1: the premia bar, and the alpha bar's byte-identity beside it.
+"""Gate v5r2: the premia bar, and the alpha bar's byte-identity beside it.
 
 Every test here guards a specific way this criterion could be wrong, and the
-named incidents are in the docstrings. The two that matter most:
+named incidents are in the docstrings. The three that matter most:
 
   * THE CONSTITUTION'S OWN WORKED FAILURE (2026-08-21 amendment): "under rf=0
     with free leverage, T-bill carry impersonates edge". A cash-heavy mix must
     not certify as premia. ``test_the_cash_heavy_impersonator_*``.
+  * THE D23 KILL (adversary, blind, 2026-08-23 —
+    docs/reviews/ADVERSARY_D23_D24_2026-08-23.md): v5r1 stressed at a CONSTANT
+    4.0%/yr while the belt's own windows paid 4.05-4.57%, so eleven of sixteen
+    zero-skill cash/beta blends passed with a true excess-Sharpe advantage
+    between -0.0004 and +0.03. The rate is now READ, per observation, from the
+    candidate's own window — and every test that could pass by assuming a rate
+    instead of reading one is written to fail if it is ever assumed again.
   * THE DISCARDED BENCHMARK LEG (measured on four stored candidates,
     2026-08-23): ``daily_returns["benchmark"]`` is the series the belt threw
     away, and judging off it FLIPS the premia answer on three of the four.
@@ -18,10 +25,11 @@ import math
 
 import pytest
 
+from premia_feed import cash_feed, no_feed, per_obs
 from app.fund import statistics as st
 from app.fund.gate import (CLAIM_TYPES, CRITERIA, GATE_VERSION,
                            GATE_VERSION_PREMIA, PREMIA_CRITERIA,
-                           PREMIA_VERSION, evaluate)
+                           PREMIA_VERSION, RF_BASES, evaluate)
 from app.fund.leanrunner import premia_inputs
 
 DAY0 = datetime.date(2021, 1, 4)
@@ -101,14 +109,37 @@ def curve_from(returns: list[float], start: float = 100.0) -> list[float]:
     return out
 
 
+#: THE FIXTURE'S CASH RATE, and it is deliberately neither 0 nor 4.0. Zero would
+#: let a test pass under the assumption v5r2 exists to remove; 4.0 would let a
+#: test pass by agreeing with `premia_rf_stress_pct` — the criterion's own
+#: constant, which under the shipped basis is not read at all. A fixture that
+#: agrees with the number it is guarding cannot catch that number coming back.
+RF_TEST_PCT = 2.5
+
+
+def feed(annual_pct: float = RF_TEST_PCT, dates: list[str] | None = None,
+         **kw):
+    """A cash feed clocked on the SAME series the legs are, so the excess
+    Sharpe is exactly ``sharpe_at_rf(raw_moments, annual_pct)`` and a fixture's
+    expected value is closed form rather than approximate."""
+    return cash_feed(annual_pct, obs_per_year=_clock(dates or R600), **kw)
+
+
 def make_result(strategy: list[float], benchmark: list[float],
                 engine_leg: list[float] | None = None,
+                rf_pct: float | None = RF_TEST_PCT,
+                rf_bars: object = None,
                 **over) -> dict:
     """A belt result carrying a measurable premia pair, everything else clean.
 
     ``engine_leg`` is what ``daily_returns["benchmark"]`` holds. It defaults to
     the same series as the bar so a test that is not about the discarded-leg
     defect is not silently exercising it.
+
+    ``rf_pct`` is the cash rate the fixture's WORLD paid. Pass ``rf_bars`` to
+    supply an odd-shaped feed (short, varying, absent) or ``rf_pct=None`` to
+    supply none at all — which must fail the premia leg closed and must NOT
+    take the volatility capture down with it.
     """
     n = len(strategy)
     # The benchmark leg is DERIVED from a level curve, exactly as the belt
@@ -130,7 +161,9 @@ def make_result(strategy: list[float], benchmark: list[float],
         "benchmark_series_source": "recomputed_basket",
     }
     res.update(over)
-    res["premia_inputs"] = premia_inputs(res)
+    fetch = rf_bars if rf_bars is not None else (
+        None if rf_pct is None else feed(rf_pct, dates=rdates(n)))
+    res["premia_inputs"] = premia_inputs(res, rf_bars=fetch)
     return res
 
 
@@ -205,6 +238,8 @@ def test_no_premia_knob_leaked_into_the_alpha_bar():
     assert set(PREMIA_CRITERIA) == {
         "premia_min_sharpe_advantage",
         "premia_require_drawdown_not_worse",
+        "premia_rf_basis",
+        "premia_rf_symbol",
         "premia_rf_stress_pct",
         "premia_require_majority_window_coverage",
     }
@@ -212,9 +247,23 @@ def test_no_premia_knob_leaked_into_the_alpha_bar():
 
 def test_the_two_version_stamps_are_pinned_and_move_together():
     """Hardcoded from both sides, per the D21 lesson about self-reading pins."""
-    assert PREMIA_VERSION == "v5r1"
-    assert GATE_VERSION_PREMIA == "v5r1-premia"
+    assert PREMIA_VERSION == "v5r2"
+    assert GATE_VERSION_PREMIA == "v5r2-premia"
     assert GATE_VERSION == "v4.3"
+
+
+def test_the_shipped_rf_basis_is_the_realised_series_and_the_constant_is_4():
+    """The two values the D23 kill turned on, hardcoded from both sides.
+
+    The kill was ONE constant used as the DEFAULT. Its value has not moved —
+    moving a threshold is a human's act in either direction — and what changed
+    is which basis is selected. Both facts are pinned here so that reverting to
+    the constant, or quietly editing 4.0, costs a red test rather than a review.
+    """
+    assert PREMIA_CRITERIA["premia_rf_basis"] == "realised_series"
+    assert PREMIA_CRITERIA["premia_rf_symbol"] == "BIL"
+    assert PREMIA_CRITERIA["premia_rf_stress_pct"] == 4.0
+    assert RF_BASES == ("realised_series", "constant")
 
 
 @pytest.mark.parametrize("claim", [None, "alpha"])
@@ -280,27 +329,91 @@ def test_the_cash_heavy_impersonator_fails_the_premia_bar():
 
     Amendment of 2026-08-21, verbatim: "under rf=0 with free leverage, T-bill
     carry impersonates edge". A 30/70 mix of the benchmark and cash has ZERO
-    skill — it forecasts nothing — and under rf=0 it posts a materially higher
-    Sharpe than the benchmark, because the cash leg adds return at no
+    skill — it forecasts nothing — and on RAW returns it posts a materially
+    higher Sharpe than the benchmark, because the cash leg adds return at no
     volatility. It must not certify.
 
-    The failing sentence must be the RF one. If the mix ever fails on drawdown
-    or coverage instead, this test has stopped testing the thing it names.
+    The world's cash rate here is 4.5% and the mix earns 3.5%, so the failure is
+    strict rather than a float coin flip. Setting them equal would make the
+    excess advantage exactly zero in theory and +-1e-16 in binary, and a test
+    whose verdict is decided by the last bit tests nothing.
+
+    The failing sentence must be the NO-PREMIUM one carrying the CARRY clause.
+    If the mix ever fails on drawdown or coverage instead, this test has stopped
+    testing the thing it names.
     """
     bench = series_with_moments(R600, 12.0, 20.0, seed=21)
     mix = cash_mix(bench, weight=0.30, rf_true_pct=3.5)
-    out = judge(make_result(mix, bench), claim_type="premia")
+    out = judge(make_result(mix, bench, rf_pct=4.5), claim_type="premia")
     p = out["checks"]["premia"]
-    assert p["sharpe_advantage"] > 0.30, p           # looks like edge at rf=0
-    assert p["sharpe_advantage_at_stress"] < 0, p    # and is gone at 4%
-    assert p["rf_sensitive"] is True
+    assert p["sharpe_advantage_raw"] > 0.30, p       # looks like edge on raw
+    assert p["sharpe_advantage"] < 0, p              # and is gone net of cash
+    assert p["rf_realised_annual_pct"] == pytest.approx(4.5, abs=0.02)
     assert p["drawdown_not_worse"] is True, "must not fail on the wrong leg"
     assert p["coverage_majority"] is True, "must not fail on the wrong leg"
     assert out["passed"] is False
     fails = premia_failures(out)
     assert len(fails) == 1, fails
-    assert "DISAPPEARS at rf=4.0%" in fails[0]
-    assert out["gate_version"] == "v5r1-premia"
+    assert "no premium over owning the thing" in fails[0]
+    assert "is CARRY" in fails[0], fails[0]
+    assert "BIL paid 4.50%/yr" in fails[0], fails[0]
+    assert out["gate_version"] == "v5r2-premia"
+
+
+def test_the_same_impersonator_PASSES_when_the_world_pays_less_than_it_earns():
+    """The other half of the same arithmetic, and the D23 KILL in one test.
+
+    The advantage of a cash mix is exactly ``(1-w)(rf_earned - rf_charged) /
+    (w * sd_bench) * sqrt(K)``, so its SIGN is the sign of the gap between what
+    the cash leg earned and what the criterion charges. v5r1 charged a fixed
+    4.0% and the belt's windows paid 4.05-4.57%: the gap was positive, and the
+    impersonator walked through. Here the identical portfolio is judged in a
+    world paying 2.5% and it PASSES.
+
+    That is not a defect in v5r2, it is the fact v5r1 could not see: whether a
+    cash tilt is edge depends on the rate, so the rate must come from the window
+    and not from a constant. The failing test above and this passing one are the
+    same candidate, and the ONLY difference between them is the feed.
+    """
+    bench = series_with_moments(R600, 12.0, 20.0, seed=21)
+    mix = cash_mix(bench, weight=0.30, rf_true_pct=3.5)
+    out = judge(make_result(mix, bench, rf_pct=2.5), claim_type="premia")
+    p = out["checks"]["premia"]
+    assert p["sharpe_advantage"] > 0, p
+    assert p["rf_realised_annual_pct"] == pytest.approx(2.5, abs=0.02)
+    assert premia_failures(out) == []
+
+
+def test_the_cash_weight_does_not_move_the_answer_at_all():
+    """CASH-WEIGHT INVARIANCE — the property that proves the carry is gone.
+
+    A strategy that holds ``w`` of some rule and ``1-w`` in actual T-bills has
+    excess return ``w * (rule - cash)``, and a Sharpe is invariant to a positive
+    scale factor. So under v5r2 a 10% risk blend and a 90% one score IDENTICALLY
+    against the same bar: diluting with cash can no longer change a verdict in
+    either direction, which is exactly what the constitution's excess-returns
+    amendment asks for.
+
+    Under v5r1's raw arm they differed by an order of magnitude — the adversary
+    measured +0.7208 for a 20/80 blend against +0.1215 for 40/60 on the belt's
+    700-day window, the SAME two portfolios by every other measure.
+
+    The rule here is deliberately NOT the bar, so the invariant advantage is a
+    real non-zero number rather than a tie decided by the last bit.
+    """
+    bench = series_with_moments(R600, 12.0, 20.0, seed=21)
+    rule = series_with_moments(R600, 18.0, 14.0, seed=22)
+    advs, raws = [], []
+    for w in (0.1, 0.3, 0.5, 0.9):
+        out = judge(make_result(cash_mix(rule, w, RF_TEST_PCT), bench),
+                    claim_type="premia")
+        assert out["passed"] is True, (w, out["failures"])
+        advs.append(out["checks"]["premia"]["sharpe_advantage"])
+        raws.append(out["checks"]["premia"]["sharpe_advantage_raw"])
+    assert min(advs) > 0.05, advs
+    assert max(advs) - min(advs) < 1e-6, advs
+    # ... while the RAW advantage the killed version judged on spreads widely.
+    assert max(raws) - min(raws) > 0.5, raws
 
 
 def test_the_impersonators_breakeven_rate_is_the_rate_it_earned():
@@ -328,14 +441,13 @@ def test_a_genuine_vol_scaler_clears_the_premia_bar():
     """
     bench = series_with_moments(R600, 20.0, 24.0, seed=31)
     strat = series_with_moments(R600, 15.0, 12.0, seed=32)
-    out = judge(make_result(strat, bench), claim_type="premia")
+    out = judge(make_result(strat, bench, rf_pct=4.5), claim_type="premia")
     p = out["checks"]["premia"]
     assert p["sharpe_advantage"] > 0
-    assert p["sharpe_advantage_at_stress"] > 0
-    assert p["rf_sensitive"] is False
+    assert p["sharpe_advantage_raw"] > 0
     assert premia_failures(out) == [], out["failures"]
     assert out["passed"] is True
-    assert out["gate_version"] == "v5r1-premia"
+    assert out["gate_version"] == "v5r2-premia"
 
 
 def test_the_VOLSCALE_archetype_fails_the_rf_stress_AND_THAT_IS_THE_FINDING():
@@ -360,18 +472,20 @@ def test_the_VOLSCALE_archetype_fails_the_rf_stress_AND_THAT_IS_THE_FINDING():
     """
     bench = series_with_moments(R600, 23.76, 44.0, seed=41)
     strat = series_with_moments(R600, 15.39, 27.0, seed=42)
-    res = make_result(strat, bench)
+    # 3.97% is the rate the validator MEASURED on BIL over the gate's window
+    # (gate v5 round 5, G1). It is used here as the world the archetype lived
+    # in, not as a criterion constant — v5r2 reads no constant at all.
+    res = make_result(strat, bench, rf_pct=3.97)
     got = res["premia_inputs"]
     # The fixture really does carry the archetype's moments.
     assert got["strategy"]["ann_vol_pct"] == pytest.approx(27.0, abs=0.05)
     assert got["benchmark"]["ann_vol_pct"] == pytest.approx(44.0, abs=0.05)
     out = judge(res, claim_type="premia")
     p = out["checks"]["premia"]
-    assert p["sharpe_strategy"] == pytest.approx(0.57, abs=0.02)
-    assert p["sharpe_benchmark"] == pytest.approx(0.54, abs=0.02)
-    assert p["sharpe_advantage"] > 0                  # premia at rf=0
-    assert p["sharpe_advantage_at_stress"] < 0        # and not at 4%
-    assert p["rf_sensitive"] is True
+    assert p["sharpe_strategy_raw"] == pytest.approx(0.57, abs=0.02)
+    assert p["sharpe_benchmark_raw"] == pytest.approx(0.54, abs=0.02)
+    assert p["sharpe_advantage_raw"] > 0              # premia on raw returns
+    assert p["sharpe_advantage"] < 0                  # and not net of cash
     assert p["rf_breakeven_pct"] == pytest.approx(2.12, abs=0.02)
     assert out["passed"] is False
 
@@ -460,12 +574,19 @@ def test_exactly_half_the_window_is_not_a_majority_of_it():
     res = make_result(strat, bench)
     res["benchmark_curve"] = curve_from(bench[:300])
     res["benchmark_dates"] = cdates(300)
-    res["premia_inputs"] = premia_inputs(res)
-    assert res["premia_inputs"]["coverage"] == {
-        "common_days": 300, "strategy_days": 600, "fraction": 0.5}
+    res["premia_inputs"] = premia_inputs(res, rf_bars=feed(dates=R600))
+    cov = res["premia_inputs"]["coverage"]
+    assert cov["common_days"] == 300
+    assert cov["strategy_days"] == 600
+    # The CASH leg supplies the sessions the truncated bar no longer does, so
+    # the denominator does not shrink with the truncation — which is the whole
+    # point of taking the session calendar from the union of the two.
+    assert cov["strategy_sessions"] == 600
+    assert cov["session_fraction"] == 0.5
     out = judge(res, claim_type="premia")
     assert out["checks"]["premia"]["coverage_majority"] is False
-    assert any("share only 300 of the strategy's 600" in f
+    assert out["checks"]["premia"]["coverage_denominator"] == 600
+    assert any("share only 300 of the strategy's 600 sessions" in f
                for f in out["failures"])
 
 
@@ -475,23 +596,138 @@ def test_no_sharpe_advantage_fails_with_the_no_premium_sentence():
     out = judge(make_result(strat, bench), claim_type="premia")
     p = out["checks"]["premia"]
     assert p["sharpe_advantage"] < 0
-    # Not "rf sensitive": there was no premium to lose.
-    assert p["rf_sensitive"] is False
     assert any("no premium over owning the thing" in f for f in out["failures"])
+    # There was no premium to lose, so nothing is blamed on carry.
+    assert not any("is CARRY" in f for f in out["failures"])
 
 
-# --- the two endpoints ARE the interval ----------------------------------
+# --- the cash rate is READ from the window, not assumed -------------------
+
+def test_the_realised_rate_is_READ_not_assumed_and_moving_it_moves_the_verdict():
+    """THE D23 KILL, as a MOVE test (D16). The candidate never changes.
+
+    v5r1 could not have passed this: its answer was a function of the payload
+    and a constant, so no change to the WORLD the candidate lived in could move
+    it. Here the identical payload is judged in three cash worlds and the
+    verdict follows the world — which is what "read the rate from the feed over
+    the candidate's own window" means operationally.
+    """
+    bench = series_with_moments(R600, 12.0, 20.0, seed=21)
+    mix = cash_mix(bench, weight=0.30, rf_true_pct=3.5)
+    seen = {}
+    for world in (1.0, 3.5, 6.0):
+        out = judge(make_result(mix, bench, rf_pct=world), claim_type="premia")
+        p = out["checks"]["premia"]
+        seen[world] = (out["passed"], p["sharpe_advantage"],
+                       p["sharpe_advantage_raw"])
+        assert p["rf_realised_annual_pct"] == pytest.approx(world, abs=0.02)
+    assert seen[1.0][0] is True, seen        # cheap cash: the tilt is a premium
+    assert seen[6.0][0] is False, seen       # dear cash: it was carry
+    assert seen[1.0][1] > 0 > seen[6.0][1], seen
+    # The RAW advantage is a property of the payload alone and must NOT move
+    # with the world. If it does, the excess leg has leaked into the capture and
+    # a reader can no longer see how big the carry was.
+    assert len({round(v[2], 9) for v in seen.values()}) == 1, seen
+
+
+def test_the_rate_is_a_SERIES_not_its_average():
+    """A rate that MOVES inside the window gives a different answer to its mean.
+
+    This is the difference between "realised series" and "realised average", and
+    nothing else in the suite can tell them apart: a constant feed's excess
+    Sharpe equals ``sharpe_at_rf(raw, that constant)`` exactly, so a constant
+    test passes under either implementation. Here the cash leg pays 0% for the
+    first half of the window and 8% for the second. Its own compounded annual
+    rate is ~4%, and subtracting a flat 4% gives a MEASURABLY different Sharpe,
+    because the excess series has a different dispersion — a step in the cash
+    leg adds variance to the excess return that a constant cannot.
+    """
+    bench = series_with_moments(R600, 12.0, 20.0, seed=21)
+    strat = series_with_moments(R600, 18.0, 14.0, seed=22)
+    stepped = judge(make_result(strat, bench,
+                                rf_bars=feed(0.0, dates=R600,
+                                             second_half_pct=8.0)),
+                    claim_type="premia")["checks"]["premia"]
+    flat = judge(make_result(strat, bench,
+                             rf_pct=stepped["rf_realised_annual_pct"]),
+                 claim_type="premia")["checks"]["premia"]
+    # Same average rate, to within a rounding of it...
+    assert flat["rf_realised_annual_pct"] == pytest.approx(
+        stepped["rf_realised_annual_pct"], abs=0.02)
+    # ...and a different answer, which only a series-consuming implementation
+    # can produce.
+    assert abs(stepped["sharpe_advantage"] - flat["sharpe_advantage"]) > 1e-4, (
+        stepped["sharpe_advantage"], flat["sharpe_advantage"])
+
+
+def test_the_cash_leg_is_fetched_with_a_PAD_because_the_feed_end_is_exclusive():
+    """MEASURED 2026-08-23 against the live feed, and it bit at both ends.
+
+    ``fetch_daily_bars("BIL", start="2026-08-01", end="2026-08-21")`` returns 14
+    bars ending 2026-08-20 — the end is EXCLUSIVE — so an unpadded request drops
+    the last session of every candidate's window. And a return is keyed on its
+    LATER date, so the first date needs one session of reach behind it. Both
+    ends are therefore padded, and the pad cannot widen the measured window
+    because the series is intersected with the strategy's own dates.
+    """
+    from app.fund.leanrunner import RF_FETCH_PAD_DAYS
+    calls: list = []
+    bench = series_with_moments(R600, 12.0, 20.0, seed=21)
+    strat = series_with_moments(R600, 18.0, 14.0, seed=22)
+    res = make_result(strat, bench,
+                      rf_bars=feed(dates=R600, calls=calls))
+    assert len(calls) == 1
+    _sym, start, end = calls[0]
+    first, last = res["premia_inputs"]["window"]["first"], \
+        res["premia_inputs"]["window"]["last"]
+    assert start < first and end > last, calls
+    assert (datetime.date.fromisoformat(end)
+            - datetime.date.fromisoformat(last)).days >= RF_FETCH_PAD_DAYS
+    # And nothing was lost: the pad bought a window that covers every session.
+    assert res["premia_inputs"]["coverage"]["rf_dropped_days"] == 0
+
+
+def test_a_cash_series_that_stops_early_drops_days_and_SAYS_SO():
+    """Absence is reported, never absorbed.
+
+    A feed short at the end shortens the comparison window. v5r1 had no cash leg
+    so this could not happen; the honest behaviour is to measure on what is
+    shared and to report what that cost, so a reader can tell a 600-session
+    comparison from a 560-session one wearing the same label.
+    """
+    bench = series_with_moments(R600, 12.0, 20.0, seed=21)
+    strat = series_with_moments(R600, 18.0, 14.0, seed=22)
+    res = make_result(strat, bench, rf_bars=feed(dates=R600, short_by=40))
+    cov = res["premia_inputs"]["coverage"]
+    # 40 sessions are cut from the PADDED request, and five of those forty lie
+    # in the seven-calendar-day pad beyond the strategy's last date — so the
+    # measured window loses thirty-five. Stated as the arithmetic rather than as
+    # a round number, because the round number would have been wrong.
+    assert cov["rf_dropped_days"] == 35
+    assert cov["common_days"] == 600 - 35
+    # The sessions the cash leg no longer covers are still counted, because the
+    # BAR supplies them — so a short cash leg makes the majority test harder,
+    # not easier.
+    assert cov["strategy_sessions"] == 600
+    out = judge(res, claim_type="premia")
+    assert out["checks"]["premia"]["coverage_denominator"] == 600
+
+
+# --- the "constant" basis preserves v5r1 exactly --------------------------
+
+CONSTANT = {"premia_rf_basis": "constant"}
+
 
 @pytest.mark.parametrize("sv,bv", [(12.0, 24.0), (24.0, 12.0), (18.0, 18.0),
                                    (30.0, 8.0), (8.0, 30.0)])
 def test_checking_two_endpoints_checks_every_rate_between_them(sv, bv):
     """The affine argument, executed rather than asserted.
 
-    The premia rule evaluates the Sharpe advantage at rf=0 and rf=4 only, and
-    claims that this establishes it over the whole interval. If the difference
-    were not affine in the per-observation rate, a candidate could dip negative
-    in the middle and pass both ends — so the claim is checked at 41 rates
-    against the two the criterion actually evaluates.
+    This is what justifies the "constant" basis evaluating only rf=0 and rf=4:
+    if the difference were not affine in the per-observation rate, a candidate
+    could dip negative in the middle and pass both ends. Checked at 41 rates
+    against the two that basis evaluates. (The shipped basis needs no such
+    argument — it has no free parameter to sweep.)
     """
     s = st.leg_moments(series_with_moments(R600, 14.0, sv, seed=81), R600)
     b = st.leg_moments(series_with_moments(R600, 12.0, bv, seed=82), R600)
@@ -502,18 +738,41 @@ def test_checking_two_endpoints_checks_every_rate_between_them(sv, bv):
     assert interior == pytest.approx(ends, abs=1e-9)
 
 
+def test_the_constant_basis_still_runs_BOTH_arms():
+    """Dropping either arm would loosen the version this basis preserves.
+
+    The impersonator has an advantage at rf=0 and none at 4%. Under "constant"
+    it must fail on the DISAPPEARS sentence, exactly as v5r1 did — the basis is
+    kept selectable so a future CEO decision is a value on his desk, and a
+    selectable basis that is quietly weaker than the version it names is worse
+    than no option at all.
+    """
+    bench = series_with_moments(R600, 12.0, 20.0, seed=21)
+    res = make_result(cash_mix(bench, 0.30, 3.5), bench, rf_pct=1.0)
+    loose = judge(res, claim_type="premia")
+    assert loose["passed"] is True                    # cheap cash: it passes
+    out = judge(res, claim_type="premia", premia_criteria=CONSTANT)
+    p = out["checks"]["premia"]
+    assert p["sharpe_advantage"] > 0                  # arm 1 (rf=0) clears
+    assert p["sharpe_advantage_at_stress"] < 0        # arm 2 (rf=4) does not
+    assert p["rf_sensitive"] is True
+    assert any("DISAPPEARS at rf=4.0%" in f for f in out["failures"])
+    assert out["passed"] is False
+
+
 def test_the_stress_cannot_fail_a_candidate_at_or_above_its_bars_volatility():
-    """Why the stress is unconditional and needs no "materially below" number.
+    """Why the constant basis's stress is unconditional and needs no
+    "materially below" number.
 
     The slope of the advantage in rf is sqrt(K)*(1/sd_bench - 1/sd_strategy),
     so it is non-negative whenever the strategy is at least as volatile as its
     bar — the stress is then strictly weaker than the rf=0 check and cannot
-    fail anything. This is what lets the criterion drop the brief's
-    "materially below" condition instead of inventing a threshold for it.
+    fail anything.
     """
     bench = series_with_moments(R600, 10.0, 15.0, seed=91)
     strat = series_with_moments(R600, 24.0, 22.0, seed=92)
-    out = judge(make_result(strat, bench), claim_type="premia")
+    out = judge(make_result(strat, bench), claim_type="premia",
+                premia_criteria=CONSTANT)
     p = out["checks"]["premia"]
     assert p["strategy_ann_vol_pct"] > p["benchmark_ann_vol_pct"]
     assert p["sharpe_advantage_at_stress"] > p["sharpe_advantage"]
@@ -522,17 +781,81 @@ def test_the_stress_cannot_fail_a_candidate_at_or_above_its_bars_volatility():
 
 # --- the thresholds are READ, not copied ---------------------------------
 
-def test_moving_the_stress_rate_moves_the_verdict():
-    """D16: to prove a value is READ rather than COPIED, MOVE it."""
+def test_moving_the_stress_rate_moves_the_verdict_UNDER_THE_CONSTANT_BASIS():
+    """D16: to prove a value is READ rather than COPIED, MOVE it.
+
+    Under the SHIPPED basis this constant is not read at all, which is itself
+    the thing to pin — see the test below.
+    """
     bench = series_with_moments(R600, 12.0, 20.0, seed=21)
-    res = make_result(cash_mix(bench, 0.30, 3.5), bench)
-    assert judge(res, claim_type="premia")["passed"] is False
-    # Below the mix's own 3.5% cash rate the impersonation survives — which is
-    # exactly the loosening the shipped 4.0 is chosen to prevent.
+    res = make_result(cash_mix(bench, 0.30, 3.5), bench, rf_pct=1.0)
+    assert judge(res, claim_type="premia",
+                 premia_criteria=CONSTANT)["passed"] is False
     loose = judge(res, claim_type="premia",
-                  premia_criteria={"premia_rf_stress_pct": 1.0})
+                  premia_criteria={**CONSTANT, "premia_rf_stress_pct": 1.0})
     assert loose["checks"]["premia"]["rf_sensitive"] is False
     assert loose["passed"] is True
+
+
+def test_the_shipped_basis_does_not_read_the_stress_constant_at_all():
+    """MOVE it and nothing happens — which is the claim, so it is asserted.
+
+    If a future edit reintroduced the constant into the realised path, this is
+    the test that would go red; asserting only that the realised path WORKS
+    could not tell the difference between "reads the series" and "reads the
+    series and also charges 4%".
+    """
+    bench = series_with_moments(R600, 12.0, 20.0, seed=21)
+    res = make_result(cash_mix(bench, 0.30, 3.5), bench, rf_pct=1.0)
+    base = judge(res, claim_type="premia")
+    for moved in (0.0, 1.0, 99.0):
+        out = judge(res, claim_type="premia",
+                    premia_criteria={"premia_rf_stress_pct": moved})
+        assert out["passed"] == base["passed"]
+        assert (out["checks"]["premia"]["sharpe_advantage"]
+                == base["checks"]["premia"]["sharpe_advantage"])
+
+
+def test_moving_the_rf_symbol_refuses_rather_than_re_judging():
+    """Two cash instruments are not one comparison.
+
+    The belt measured the excess pair against ONE symbol and stored it. If the
+    bar later names a different one, the stored numbers do not answer the bar's
+    question — and silently comparing them would be the two-copies-of-one-belief
+    defect with the belief being "which cash instrument". Fail closed.
+    """
+    bench = series_with_moments(R600, 20.0, 24.0, seed=31)
+    strat = series_with_moments(R600, 15.0, 12.0, seed=32)
+    res = make_result(strat, bench)
+    assert judge(res, claim_type="premia")["passed"] is True
+    out = judge(res, claim_type="premia",
+                premia_criteria={"premia_rf_symbol": "SHV"})
+    p = out["checks"]["premia"]
+    assert p["measurable"] is False
+    assert "'BIL'" in p["reason"] and "'SHV'" in p["reason"]
+    assert any("two cash instruments are not one comparison" in f
+               for f in out["failures"])
+    assert out["passed"] is False
+
+
+@pytest.mark.parametrize("basis", ["", "realised", "REALISED_SERIES", "zero",
+                                   None, 4.0])
+def test_an_unrecognised_rf_basis_fails_closed(basis):
+    """A typo in the bar's own definition must not select a rate by accident.
+
+    Same shape and the same reason as the unrecognised claim type: the
+    permissive failure here would be to fall back on a default, and every
+    available default (0%, the old constant, the series) is a decision.
+    """
+    bench = series_with_moments(R600, 20.0, 24.0, seed=31)
+    strat = series_with_moments(R600, 15.0, 12.0, seed=32)
+    res = make_result(strat, bench)
+    out = judge(res, claim_type="premia",
+                premia_criteria={"premia_rf_basis": basis})
+    assert out["checks"]["premia"]["measurable"] is False
+    assert any("rf basis this gate does not implement" in f
+               for f in out["failures"])
+    assert out["passed"] is False
 
 
 def test_moving_the_sharpe_margin_moves_the_verdict():
@@ -576,6 +899,76 @@ def test_switching_off_the_coverage_condition_moves_the_verdict():
 
 
 # --- absence is never a pass ---------------------------------------------
+
+@pytest.mark.parametrize("how,mark", [
+    ("none", "no risk-free source was supplied"),
+    ("unreachable", "could not be fetched"),
+])
+def test_an_UNREADABLE_CASH_RATE_fails_closed_and_is_never_treated_as_zero(
+        how, mark):
+    """THE D23 KILL'S FAIL-CLOSED HALF, and both ways it can arrive.
+
+    rf=0 is the assumption most flattering to a cash-heavy mix — it is the exact
+    assumption the constitution's 2026-08-21 amendment exists to refuse — so an
+    absent rate must NOT fall back to it. Two distinct absences are tested
+    because they take different branches: nobody supplied a source at all, and a
+    source that was asked and had nothing.
+
+    The candidate below PASSES when the rate is readable, so a mutant that
+    treats absence as zero would flip this test's verdict rather than merely
+    change a message.
+    """
+    bench = series_with_moments(R600, 20.0, 24.0, seed=31)
+    strat = series_with_moments(R600, 15.0, 12.0, seed=32)
+    assert judge(make_result(strat, bench),
+                 claim_type="premia")["passed"] is True
+    res = (make_result(strat, bench, rf_pct=None) if how == "none"
+           else make_result(strat, bench, rf_bars=no_feed))
+    assert res["premia_inputs"]["excess_measurable"] is False
+    assert mark in res["premia_inputs"]["rf"]["reason"]
+    out = judge(res, claim_type="premia")
+    assert out["checks"]["premia"]["measurable"] is False
+    assert any("an unknown cash rate is NOT a zero one" in f
+               for f in out["failures"])
+    assert out["passed"] is False
+
+
+def test_an_unreadable_cash_rate_does_NOT_take_the_volatility_capture_with_it():
+    """Two measurability flags, and this is why there are two.
+
+    ``volatility_check`` is capture only and the adversary cleared it. Folding
+    the rf outage into the raw pair's ``measurable`` flag would have deleted the
+    12x lever's only recording as a side effect of a feed being down — a
+    control losing its instrument because a different control failed.
+    """
+    bench = series_with_moments(R600, 20.0, 24.0, seed=31)
+    strat = series_with_moments(R600, 15.0, 12.0, seed=32)
+    res = make_result(strat, bench, rf_pct=None)
+    assert res["premia_inputs"]["measurable"] is True
+    assert res["premia_inputs"]["excess_measurable"] is False
+    vol = judge(res, claim_type="premia")["checks"]["volatility"]
+    assert vol["strategy_ann_vol_pct"] == pytest.approx(12.0, abs=0.05)
+    assert vol["benchmark_ann_vol_pct"] == pytest.approx(24.0, abs=0.05)
+
+
+def test_a_schema_1_payload_from_the_killed_version_fails_closed():
+    """A stored v5r1 capture carries no cash leg and must not be re-judged as
+    though it did. There is no way to add one after the fact that is not an
+    invention: the window is in the past and the rate would be fetched today.
+    """
+    bench = series_with_moments(R600, 20.0, 24.0, seed=31)
+    strat = series_with_moments(R600, 15.0, 12.0, seed=32)
+    res = make_result(strat, bench)
+    assert res["premia_inputs"]["schema"] == 2
+    legacy = dict(res["premia_inputs"])
+    legacy["schema"] = 1
+    for k in ("rf", "strategy_excess", "benchmark_excess", "excess_measurable"):
+        legacy.pop(k, None)
+    res["premia_inputs"] = legacy
+    out = judge(res, claim_type="premia")
+    assert out["checks"]["premia"]["measurable"] is False
+    assert out["passed"] is False
+
 
 def test_a_premia_claim_with_no_captured_inputs_fails():
     """Every candidate judged before v5r1 is this case, and none of them pass."""
@@ -621,7 +1014,7 @@ def test_a_malformed_stored_payload_fails_the_leg_and_never_raises():
     assert "max_drawdown_pct" in out["checks"]["premia"]["reason"]
     assert out["passed"] is False
     # And the rest of the gauntlet still ran: this failed ONE criterion.
-    assert out["gate_version"] == "v5r1-premia"
+    assert out["gate_version"] == "v5r2-premia"
     assert out["checks"]["psr_pct"] == 92.0
     # The volatility field reads the SAME payload and must not raise either —
     # it runs on every verdict, alpha ones included, purely to be looked at.
