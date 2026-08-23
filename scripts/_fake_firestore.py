@@ -110,7 +110,11 @@ class _QueryConst:
 def install():
     db = _DB()
     fake_fs = types.SimpleNamespace(
-        client=lambda: db, transactional=lambda f: f, Query=_QueryConst
+        # client accepts any signature the real SDK grows (database_id=... today):
+        # a test that imports app.main pulls .env into os.environ mid-suite, and a
+        # set FIRESTORE_DATABASE_ID routes firebase.py through the kwarg call —
+        # measured 2026-08-23: 107 errors + 2 failures, all this, none the code.
+        client=lambda *a, **k: db, transactional=lambda f: f, Query=_QueryConst
     )
     fake_admin = types.ModuleType("firebase_admin")
     fake_admin.firestore = fake_fs
