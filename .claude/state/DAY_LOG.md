@@ -173,6 +173,20 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   DELEGATION v1 (run-quant-entry20-rejudge recs 1–2), second-look flagged.
 
 **MEASURED**
+- **THE THIRD INSTRUMENT-KILLS-MEASUREMENT EVENT OF THE DAY, caught live**:
+  the factory ORPHAN RECONCILER aged out the snapshot-off A/B arm at its
+  3.0h ceiling while the runner was ALIVE at fold 8/12 with containers
+  cycling normally (zero timeouts throughout). The ceiling was calibrated
+  for snapshot-era speeds; the first legitimate slow run tripped it
+  immediately. Same family as the 900s censor and the warm-up-blind
+  denominator. The run CONTINUES under the orphaned label; chair re-took
+  the belt lock the first monitor wrongly released, re-armed a
+  container-based watch, and filed two builder tickets (reconciler must
+  check runner LIVENESS never age; the store_backend NameError x476 in the
+  snapshot-skip path). Whatever the row finally says, the DIAGNOSTIC half
+  is already strong: ~8 folds of live-fetch containers with zero hangs vs
+  14/66 under the snapshot.
+
 - **THE ADVERSARY'S BATCH VERDICT: D23 KILLED, D24 SURVIVES**
   (`run-adversary-d23-d24`, doc
   `docs/reviews/ADVERSARY_D23_D24_2026-08-23.md`; chair re-ran probe3 at
