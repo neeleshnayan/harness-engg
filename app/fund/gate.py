@@ -19,6 +19,7 @@ threshold was fixed in advance.
 
 from __future__ import annotations
 
+import math
 from typing import Any, Optional
 
 # The two window constants the fold-density rule is calibrated on. Imported
@@ -761,6 +762,19 @@ CLAIM_TYPE_DEFAULT = "alpha"
 #: the check, so `PREMIA_CRITERIA["premia_rf_basis"]` can be read against it.
 RF_BASES = ("realised_series", "constant")
 
+#: The luck-filter statistics this gate implements. Anything else fails closed,
+#: for the same reason an unrecognised rf basis does. BOTH ARE REAL and both are
+#: exercised by tests: the chair's ruling set the level by measurement under a
+#: hard invariant and wrote its own falsifier — "if no level holds full-gauntlet
+#: zero-skill FP constant, the ~1.34 hurdle STAYS with its sentence corrected to
+#: say so" — and a falsifier whose alternative branch does not exist cannot fire.
+#:
+#:   "target_zero_module"  — P(true Sharpe > 0), or for a premia claim P(true
+#:     advantage > 0), from `statistics.psr_from_moments`. The documented job.
+#:   "engine_reported"     — LEAN's published figure verbatim: an undisclosed
+#:     skill hurdle, labelled as one, with its target inverted per candidate.
+PSR_BASES = ("target_zero_module", "engine_reported")
+
 PREMIA_CRITERIA: dict[str, Any] = {
     # NO MARGIN. A strict inequality and nothing added to it. The temptation is
     # to require the advantage to exceed some number, and the validator swept
@@ -845,14 +859,49 @@ PREMIA_CRITERIA: dict[str, Any] = {
     # lowest, and ZERO runs exceed 1.0. A tolerance would therefore buy no
     # false refusals back and would be a loosening nobody asked for.
     "premia_max_gross_exposure": 1.0,
+    # WHETHER IDLE CASH IS CREDITED THE RATE THE BAR SUBTRACTS. Ships OFF.
+    #
+    # THE BIAS IS REAL AND IT RUNS IN THE KILL DIRECTION: LEAN pays 0% on idle
+    # balances while this bar subtracts the realised cash return from both legs,
+    # so a cash-heavy book is charged a rate the engine never paid it. Measured
+    # on the four positive controls (2026-08-24): mean cash weights of 0.013,
+    # 0.543, 0.938 and 0.692, moving the advantage by +0.001, +0.089, +0.116 and
+    # +0.121 respectively.
+    #
+    # AND CORRECTING IT ADMITS CANDIDATES, WHICH IS WHY IT IS OFF. The adversary
+    # executed the correction blind against the Dirichlet zero-skill population
+    # and measured the false-pass rate going 36.0% -> 50.5% on the 700-day
+    # window and 30.5% -> 44.5% on the 2000-day one, with six of six zero-skill
+    # cash mixes moving from refused to passing. The cause is not the credit: it
+    # is that `premia_min_sharpe_advantage` is 0.0, a margin silently calibrated
+    # AGAINST the uncredited bias — remove the bias and the strict inequality
+    # has nothing left holding it up, at |advantage| around 0.01, five times
+    # inside the +/-0.05 noise band the same reviewer established.
+    #
+    # So the two move TOGETHER or neither moves. Turning this on without raising
+    # the margin in the same versioned change is a loosening wearing a bug fix's
+    # clothes, and the margin is a threshold — a human's, in either direction.
+    # The measured margin table that would support it is the D36 calibration
+    # deliverable; the capture (`cash_credit`, `advantage_credited`,
+    # `strategy_excess_credited`) ships regardless, because a bias nobody can
+    # see is the thing that let this sit here in the first place.
+    "premia_credit_idle_cash": False,
 }
 
 #: The bar. Deliberately data, not code branches: it can be printed, argued
 #: about on its own merits, and diffed when it changes.
 CRITERIA: dict[str, Any] = {
-    # Raised from 50%. Measured nulls reached ~57% on this history, so 50% was
-    # inside the noise. This is a floor, not the load-bearing test — see the
-    # walk-forward criteria, which is what actually separates signal here.
+    # WHICH LUCK STATISTIC. See `PSR_BASES` for the two and the `GATE_VERSION`
+    # note for the calibration that chose between them. Added as a criterion
+    # rather than a code branch so a stored verdict says which statistic judged
+    # it — the previous version could not, which is how a Sharpe hurdle passed
+    # for a luck filter across every candidate this fund has ever run.
+    "psr_basis": "target_zero_module",
+    # THE LEVEL IS CALIBRATED, NOT INHERITED. The old 65.0 was set against the
+    # engine's statistic and means something completely different against this
+    # one; carrying the number across unchanged would have been the quietest
+    # possible way to change a bar. See the `GATE_VERSION` v4.4 note for the
+    # sweep, the invariant it had to hold, and the row that was chosen.
     "min_psr_pct": 65.0,
     # Sharpe on a handful of trades is a story about a handful of trades.
     "min_orders": 20,
@@ -889,6 +938,12 @@ CRITERIA: dict[str, Any] = {
 #: above; it is preserved exactly so old verdicts can be re-read against the bar
 #: they were actually judged by, not against v4's.
 CRITERIA_V3: dict[str, Any] = {
+    # HISTORICALLY ACCURATE, not inherited. Every verdict this dict exists to
+    # keep readable was judged by the ENGINE's published statistic, so that is
+    # what it names. `evaluate` merges a supplied dict over today's defaults,
+    # so leaving the key out would silently re-judge an old candidate with the
+    # v4.4 statistic and call the result the old bar.
+    "psr_basis": "engine_reported",
     "min_psr_pct": 65.0,
     "min_orders": 20,
     "must_beat_benchmark": True,
@@ -906,6 +961,12 @@ CRITERIA_V3: dict[str, Any] = {
 
 #: Kept so a stored v2 verdict stays interpretable, on the same reasoning as v1.
 CRITERIA_V2: dict[str, Any] = {
+    # HISTORICALLY ACCURATE, not inherited. Every verdict this dict exists to
+    # keep readable was judged by the ENGINE's published statistic, so that is
+    # what it names. `evaluate` merges a supplied dict over today's defaults,
+    # so leaving the key out would silently re-judge an old candidate with the
+    # v4.4 statistic and call the result the old bar.
+    "psr_basis": "engine_reported",
     "min_psr_pct": 65.0,
     "min_orders": 20,
     "must_beat_benchmark": True,
@@ -925,6 +986,12 @@ CRITERIA_V2: dict[str, Any] = {
 #: was judged against; re-reading an old pass under today's criteria would
 #: rewrite history, and the point of versioning is that it cannot.
 CRITERIA_V1: dict[str, Any] = {
+    # HISTORICALLY ACCURATE, not inherited. Every verdict this dict exists to
+    # keep readable was judged by the ENGINE's published statistic, so that is
+    # what it names. `evaluate` merges a supplied dict over today's defaults,
+    # so leaving the key out would silently re-judge an old candidate with the
+    # v4.4 statistic and call the result the old bar.
+    "psr_basis": "engine_reported",
     "min_psr_pct": 50.0,
     "min_orders": 20,
     "must_beat_benchmark": True,
@@ -1033,6 +1100,234 @@ def _rf_breakeven_pct(s: dict[str, Any], b: dict[str, Any]
         return round(((1.0 + c) ** float(k) - 1.0) * 100.0, 4)
     except OverflowError:
         return None
+
+
+def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
+              pc: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    """"Is this distinguishable from luck?" — asked of the right quantity, in
+    units the sentence can state.
+
+    THE DEFECT THIS CLOSES (quant, run-quant-metacontrols, 2026-08-24; the
+    chair's calibration ruling, cto.md, same day). `min_psr_pct` read LEAN's
+    published ``Probabilistic Sharpe Ratio`` verbatim and failed the candidate
+    with the words "the edge is not distinguishable from luck on this much
+    history". Four positive controls with POSITIVE mean returns scored 2.128,
+    1.398, 0.051 and 0.315 percent on a statistic documented as P(true Sharpe >
+    0) — impossible against a target of zero at any sample size. Inverting the
+    engine's own number on each run's own series recovers its target: an
+    annualised Sharpe of 1.34 to 1.51 on the four controls, stable within a
+    window and moving when the window moves. It is a SKILL HURDLE wearing a luck
+    filter's sentence, and our own module at target zero disagrees with it by
+    about 40x on the identical series.
+
+    TWO REAL CONFIGURATIONS, and the shipped one is chosen by measurement:
+
+      * ``target_zero_module`` — the documented job. Our own
+        ``statistics.psr_from_series`` at target 0, scored on the run's own
+        return series. The level is calibrated so that FULL-GAUNTLET zero-skill
+        false passes do not rise (see the ``GATE_VERSION`` note).
+      * ``engine_reported`` — the engine's number, kept selectable and kept
+        HONEST. Whoever selects it gets a sentence that says it is a skill
+        hurdle and states the target inverted out of the run itself.
+
+    Anything else FAILS CLOSED, the same way an unrecognised rf basis does: a
+    typo in a bar's own definition must not select a statistic by accident.
+
+    THE SENTENCE STATES WHAT WAS TESTED. This is the half of the ruling that
+    ships unconditionally, and it is not decoration: a criterion that reports a
+    percentage without the target it was measured against, and without the
+    Sharpe that percentage demands at this sample size, is asking a question in
+    units nobody can check. Both are computed per candidate — never restated
+    from a table, which is how the previous four-number identification would
+    have gone stale the first time a window moved.
+
+    WHICH QUANTITY, by claim type. An ALPHA claim asserts an edge, so the filter
+    scores the strategy's own Sharpe. A PREMIA claim asserts a risk-adjusted
+    ADVANTAGE over the thing it replaces — "better risk-adjusted return than
+    holding the asset" — and a luck filter on its ABSOLUTE Sharpe answers a
+    question the claim never made. A low-volatility overlay with a real
+    advantage can carry a modest absolute Sharpe; a beta-heavy book with no
+    advantage at all can carry a large one. So the premia path scores the
+    advantage series the belt measured (``premia_inputs["advantage"]``), whose
+    mean IS ``SR_s - SR_b``, with the same statistic and the same level.
+
+    FAIL CLOSED, in both directions of absence. No series, no advantage block, a
+    degenerate sample: the criterion is UNMEASURED, and an unmeasured criterion
+    is not a passed one.
+    """
+    from app.fund import statistics as st
+
+    basis = str(c.get("psr_basis"))
+    level = float(c["min_psr_pct"])
+    rb = result.get("robustness") or {}
+    engine = rb.get("psr_pct")
+    out: dict[str, Any] = {
+        "basis": basis,
+        "level_pct": level,
+        "claim_scope": "premia advantage" if is_premia else "strategy sharpe",
+        # BOTH READINGS ON EVERY VERDICT, whichever one the criterion used.
+        # Comparability is the whole reason the disagreement was found at all,
+        # and a verdict that carries only the number it acted on cannot be
+        # re-read against the other when the question comes up again.
+        "engine_psr_pct": engine,
+        "luck_psr_pct": None,
+        "evaluated_pct": None,
+        "measurable": False,
+        "reason": None,
+    }
+    if basis not in PSR_BASES:
+        out["reason"] = (f"the bar names a luck-filter basis this gate does not "
+                         f"implement ({basis!r}); it knows "
+                         f"{' and '.join(sorted(PSR_BASES))}")
+        return out, [
+            f"the luck filter could not be applied: {out['reason']} — a "
+            f"criterion whose own statistic is unreadable has not been applied, "
+            f"and an unapplied criterion is not a passed one"]
+
+    # --- the series or moments this claim type is scored on ----------------
+    series: list[float] = []
+    moments: Optional[dict[str, Any]] = None
+    k: Optional[float] = None
+    absent: Optional[str] = None
+    if is_premia:
+        p = result.get("premia_inputs")
+        # THE ARM THE CRITERION IS JUDGING. A probability attached to an
+        # advantage the inequality is not testing is a confidence about the
+        # wrong number — the exact defect this leg exists to close, one level up.
+        key = ("advantage_credited" if pc.get("premia_credit_idle_cash")
+               else "advantage")
+        out["advantage_basis"] = key
+        adv = (p.get(key) if isinstance(p, dict) else None) or {}
+        if adv.get("measurable"):
+            moments = adv
+            k = ((p.get("strategy_excess") or {}).get("obs_per_year")
+                 if isinstance(p, dict) else None)
+        else:
+            absent = (adv.get("reason")
+                      or "this run carries no measured risk-adjusted advantage")
+    else:
+        daily = result.get("daily_returns")
+        if isinstance(daily, dict) and daily.get("present"):
+            series = [x for x in (daily.get("strategy") or [])
+                      if isinstance(x, (int, float))]
+            clock = st.observations_per_year(
+                [str(d)[:10] for d in (daily.get("dates") or [])], len(series))
+            k = clock.get("obs_per_year") if clock.get("usable") else None
+        if len(series) < 2:
+            absent = ("this run carries no undownsampled daily return series, "
+                      "so there is nothing to attach a probability to")
+    out["obs_per_year"] = None if k is None else round(float(k), 2)
+
+    # --- the luck reading, captured whether or not the criterion reads it ---
+    if absent is None:
+        reading = (st.psr_from_moments(moments["n"], moments["sharpe_per_obs"],
+                                       moments["skew"], moments["kurtosis"], 0.0)
+                   if moments is not None else st.psr_from_series(series, 0.0))
+        ok = reading.get("usable") if moments is not None else reading.get(
+            "measurable")
+        if ok:
+            out["luck_psr_pct"] = reading.get("psr_pct")
+            out["n_obs"] = reading.get("n_obs")
+            sr = (moments["sharpe_per_obs"] if moments is not None
+                  else reading.get("sharpe_per_obs"))
+            out["sharpe_per_obs"] = None if sr is None else round(float(sr), 8)
+            out["sharpe_annualised"] = (
+                None if sr is None or k is None
+                else round(float(sr) * math.sqrt(float(k)), 4))
+        else:
+            absent = reading.get("reason")
+
+    # --- WHAT THE LEVEL DEMANDS, in Sharpe units, at this sample's shape ----
+    bar = (st.sharpe_bar_for_psr(level, series, 0.0) if not is_premia
+           else _bar_from_moments(level, moments))
+    if bar.get("measurable") and k:
+        out["required_sharpe_annualised"] = round(
+            float(bar["sharpe_per_obs"]) * math.sqrt(float(k)), 4)
+
+    if basis == "engine_reported":
+        # THE IDENTIFICATION, per candidate. The engine publishes no target and
+        # no benchmark Sharpe, so the only honest way to say what this number
+        # tests is to invert it out of the run's own series.
+        ident = st.implied_target_sharpe(engine, series) if series else {}
+        if ident.get("measurable") and k:
+            out["engine_implied_target_annualised"] = round(
+                float(ident["target_per_obs"]) * math.sqrt(float(k)), 4)
+        out["evaluated_pct"] = engine
+        out["statistic"] = (
+            "LEAN's published Probabilistic Sharpe Ratio, whose target is not "
+            "zero and is not published")
+        if engine is None:
+            out["reason"] = ("the engine published no probabilistic Sharpe for "
+                             "this run")
+        else:
+            out["measurable"] = True
+    else:
+        out["evaluated_pct"] = out["luck_psr_pct"]
+        out["statistic"] = (
+            "P(true risk-adjusted advantage over the bar > 0)" if is_premia
+            else "P(true Sharpe > 0)")
+        out["target_sharpe"] = 0.0
+        if absent is not None:
+            out["reason"] = absent
+        else:
+            out["measurable"] = True
+
+    if not out["measurable"]:
+        return out, [
+            f"the luck filter could not be applied: {out['reason']} — an "
+            f"unmeasured criterion is not a passed one"]
+    if out["evaluated_pct"] >= level:
+        return out, []
+
+    # --- the failure sentence, which must say WHAT WAS TESTED --------------
+    #
+    # NO LEVEL MAY WEAR ANOTHER LEVEL'S WORDS. The words "not distinguishable
+    # from luck" are TRUE of a target-zero reading and FALSE of the engine's
+    # statistic, so the two bases get two sentences and neither can be reached
+    # by the other's configuration.
+    measured = ("" if out.get("sharpe_annualised") is None else
+                f"; this run measured {out['sharpe_annualised']:+.2f}")
+    if basis == "engine_reported":
+        target = out.get("engine_implied_target_annualised")
+        identified = ("" if target is None else
+                      f" Inverting the engine's own statistic on this run's "
+                      f"series puts its target at an annualised Sharpe of "
+                      f"{target:+.2f}, NOT at zero.")
+        luck_note = ("" if out.get("luck_psr_pct") is None else
+                     f" A target-zero reading of the same series is "
+                     f"{out['luck_psr_pct']}%.")
+        return out, [
+            f"the engine's probabilistic Sharpe {out['evaluated_pct']}% is "
+            f"below {level}%. THIS IS A SKILL HURDLE, NOT A LUCK TEST."
+            f"{identified}{luck_note}{measured}"]
+    demanded = ("" if out.get("required_sharpe_annualised") is None else
+                f", which on {out.get('n_obs')} observations of this shape "
+                f"demands an annualised "
+                f"{'advantage' if is_premia else 'Sharpe'} of about "
+                f"{out['required_sharpe_annualised']:+.2f}")
+    what = ("the risk-adjusted ADVANTAGE over the bar is above zero"
+            if is_premia else "the true Sharpe is above zero")
+    return out, [
+        f"the probability that {what} is {out['evaluated_pct']}%, below the "
+        f"{level}% this bar requires{demanded}{measured} — on this much history "
+        f"that is not distinguishable from luck"]
+
+
+def _bar_from_moments(level: float, moments: Optional[dict[str, Any]]
+                      ) -> dict[str, Any]:
+    """The level's Sharpe bar for a leg whose SERIES the payload does not hold.
+
+    The advantage is stored as moments (the series is deliberately not kept), so
+    the bar is solved from those by the same solver the alpha path uses. Absent
+    moments give an absent bar: a disclosure must never be able to break the
+    verdict it explains.
+    """
+    if not moments or not moments.get("measurable"):
+        return {"measurable": False}
+    from app.fund import statistics as st
+    return st.sharpe_bar_for_psr_from_moments(
+        level, int(moments["n"]), float(moments["skew"]),
+        float(moments["kurtosis"]), 0.0)
 
 
 def _premia_leg(result: dict[str, Any], pc: dict[str, Any]
@@ -1266,6 +1561,24 @@ def _premia_leg(result: dict[str, Any], pc: dict[str, Any]
         rf = p.get("rf") if isinstance(p.get("rf"), dict) else {}
         out["rf"] = rf
         got_symbol = rf.get("symbol")
+        # WHICH EXCESS PAIR, and it is a criterion rather than a code branch so
+        # a stored verdict says which one judged it. See
+        # `premia_credit_idle_cash` for why the default is the uncredited pair.
+        credit_on = bool(pc.get("premia_credit_idle_cash"))
+        out["idle_cash_credited"] = credit_on
+        out["cash_credit"] = p.get("cash_credit")
+        if credit_on and not p.get("credited_measurable"):
+            out["measurable"] = False
+            out["reason"] = (
+                (p.get("cash_credit") or {}).get("reason")
+                or p.get("credit_absent_reason")
+                or "the belt captured no credited excess pair for this run")
+            failures.append(
+                f"the premia comparison could not be measured with idle cash "
+                f"credited: {out['reason']} — the bar subtracts a cash return "
+                f"from a book whose cash weight is unknown, and an unknown "
+                f"weight is NOT a fully-invested one")
+            return out, failures
         if not p.get("excess_measurable"):
             out["measurable"] = False
             out["reason"] = (rf.get("reason")
@@ -1286,9 +1599,20 @@ def _premia_leg(result: dict[str, Any], pc: dict[str, Any]
                 f"— two cash instruments are not one comparison, and re-judging "
                 f"against a series the run never saw would be an invention")
             return out, failures
-        s_leg = p.get("strategy_excess") or {}
+        s_leg = ((p.get("strategy_excess_credited") if credit_on
+                  else p.get("strategy_excess")) or {})
         b_leg = p.get("benchmark_excess") or {}
         out["rf_realised_annual_pct"] = rf.get("realised_annual_pct")
+        # THE OTHER ARM, always reported. The gap between these two IS the size
+        # of the idle-cash bias on this candidate, and a reader who cannot see
+        # it cannot audit either the correction or the decision not to apply it.
+        other = ((p.get("strategy_excess") if credit_on
+                  else p.get("strategy_excess_credited")) or {})
+        alt_s = st.sharpe_at_rf(other, 0.0)
+        alt_b = st.sharpe_at_rf(b_leg, 0.0)
+        out["sharpe_advantage_other_arm"] = (
+            None if alt_s is None or alt_b is None else round(alt_s - alt_b, 5))
+        out["other_arm"] = "uncredited" if credit_on else "credited"
     else:
         # "constant": the v5r1 rule, unchanged and still two-armed. The Sharpe
         # difference is affine in a constant rate, so positivity at both ends of
@@ -1429,12 +1753,14 @@ def evaluate(result: dict[str, Any],
                         f"Sharpe describes a strategy rather than an anecdote")
 
     # --- distinguishable from luck ----------------------------------------
-    psr = rb.get("psr_pct")
-    checks["psr_pct"] = psr
-    if psr is None or psr < c["min_psr_pct"]:
-        failures.append(f"probabilistic Sharpe {psr if psr is not None else 'unknown'}% "
-                        f"is below {c['min_psr_pct']}% — the edge is not "
-                        f"distinguishable from luck on this much history")
+    # `psr_pct` KEEPS ITS KEY AND ITS MEANING: the engine's number, verbatim, on
+    # every verdict. It is no longer what the criterion reads, and a stored
+    # verdict must not have to be re-derived to say which of the two figures
+    # moved. `checks["luck"]` carries the whole leg, both readings included.
+    checks["psr_pct"] = rb.get("psr_pct")
+    luck, luck_failures = _luck_leg(result, c, is_premia, pc)
+    checks["luck"] = luck
+    failures.extend(luck_failures)
 
     # --- better than owning the thing -------------------------------------
     strat = result.get("total_return_pct")

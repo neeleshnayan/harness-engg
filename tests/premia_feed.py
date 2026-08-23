@@ -116,3 +116,60 @@ def no_feed(sym: str, start: str, end: str):
     which is 'nobody supplied a source at all' — the gate must fail closed on
     both, and a test that only exercises one has not tested the pair."""
     raise RuntimeError(f"the feed has no history for {sym} over {start}..{end}")
+
+
+def series_with_psr(target_pct: float, n: int = 400, seed: int = 7
+                    ) -> list[float]:
+    """A deterministic return series whose target-ZERO PSR is ``target_pct``.
+
+    The luck filter reads a run's own observations, so every fixture that judges
+    a candidate now has to carry a series — and a fixture that carries "some
+    returns" has an accidental PSR that quietly decides verdicts nobody wrote.
+    This makes the reading the INPUT: ask for 90% and the criterion sees 90%.
+
+    SOLVED FORWARD ONLY, by bisection on a mean shift, and that is deliberate.
+    `statistics.sharpe_bar_for_psr` would answer this in closed form and would
+    also make every fixture a function of the inverse the tests are supposed to
+    be checking independently — if the forward and the inverse were wrong the
+    same way, the pair would agree and the suite would prove nothing. Shifting
+    the mean leaves the standard deviation, the skew and the kurtosis untouched,
+    so the bisection is monotone in exactly one parameter.
+
+    The achieved value is ASSERTED before the series is handed back. A fixture
+    builder that silently misses its target is a test that is not testing what
+    its name says.
+    """
+    import random as _random
+    from app.fund import statistics as _st
+
+    rnd = _random.Random(seed)
+    base = [rnd.gauss(0.0, 0.01) for _ in range(n)]
+    mu0 = sum(base) / len(base)
+    base = [x - mu0 for x in base]                      # centred: PSR is 50%
+    lo, hi = -0.02, 0.02
+    for _ in range(200):
+        mid = (lo + hi) / 2.0
+        got = _st.psr_from_series([x + mid for x in base], 0.0)
+        if not got["measurable"]:                       # pragma: no cover
+            raise AssertionError("the fixture's own series is unmeasurable")
+        if got["psr_pct"] < target_pct:
+            lo = mid
+        else:
+            hi = mid
+    out = [x + (lo + hi) / 2.0 for x in base]
+    got = _st.psr_from_series(out, 0.0)
+    assert abs(got["psr_pct"] - target_pct) < 0.05, (
+        f"series_with_psr asked for {target_pct} and built {got['psr_pct']}")
+    return out
+
+
+def daily_returns_block(series: list[float], start: str = "2021-01-04") -> dict:
+    """``daily_returns`` in the belt's shape, on consecutive weekdays.
+
+    Sessions rather than calendar days: the alpha luck filter only needs a clock
+    it can read, and a weekday series keeps the fixture's annualisation near 252
+    so a Sharpe quoted in a failure sentence is in units a reader recognises.
+    """
+    dates = weekdays_between(start, "2099-12-31")[:len(series)]
+    return {"present": True, "dates": dates, "strategy": list(series),
+            "benchmark": [], "benchmark_present": False, "n": len(series)}

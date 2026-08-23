@@ -2303,8 +2303,18 @@ def premia_inputs(result: dict[str, Any], rf_bars: Any = None,
         # who cannot see it cannot audit the correction that removed it.
         s_ex_unc = _stats.leg_moments(
             [smap[d] - rfmap[d] for d in common], common)
+        # THE JUDGED PAIR IS THE UNCREDITED ONE AND `excess_measurable` KEEPS
+        # ITS v5r3 MEANING. The credit is CAPTURED here and SELECTED at judge
+        # time by `premia_credit_idle_cash`, which ships OFF — crediting admits
+        # candidates, and a loosening does not get to arrive as a parse-time
+        # default nobody voted on. Storing both pairs is what lets the criterion
+        # own the choice instead of the belt baking it in before anyone reads a
+        # threshold.
+        out["strategy_excess"] = s_ex_unc
         out["benchmark_excess"] = b_ex
         out["strategy_excess_uncredited"] = s_ex_unc
+        out["excess_measurable"] = bool(s_ex_unc.get("measurable")
+                                        and b_ex.get("measurable"))
         if credit["measurable"]:
             # THE CREDITED LEG: `w_t * rf_t`, not `rf_t`. The book is charged
             # the cash rate only on the part of it that was actually invested.
@@ -2321,15 +2331,26 @@ def premia_inputs(result: dict[str, Any], rf_bars: Any = None,
             # living in a different file, and two copies of one predicate is a
             # defect this fund has already paid for. The ceiling owns leverage;
             # this owns cash.
-            s_ex = _stats.leg_moments(
+            #
+            # THE PIN, AND IT IS STRUCTURAL RATHER THAN CHECKED. The credit uses
+            # `rfmap` — the SAME object, over the same dates, that the benchmark
+            # leg two lines above is subtracted with, and that the gate's
+            # `premia_rf_basis`/`premia_rf_symbol` selected. There is no second
+            # rate series anywhere in this function to drift from it. This
+            # matters because a credit applied at a DIFFERENT rate is the D23
+            # constant-rf kill re-entering from the other side: a flat 4.0%
+            # credited against a realised subtraction buys a book at w=0.2
+            # roughly +0.167 of Sharpe out of nothing. `test_the_credit_and_the_
+            # subtraction_are_ONE_series` fails if anyone introduces a second.
+            s_ex_cr = _stats.leg_moments(
                 [smap[d] - wmap[d] * rfmap[d] for d in common], common)
-            out["strategy_excess"] = s_ex
-            out["excess_measurable"] = bool(s_ex.get("measurable")
-                                            and b_ex.get("measurable"))
+            out["strategy_excess_credited"] = s_ex_cr
+            out["credited_measurable"] = bool(s_ex_cr.get("measurable")
+                                              and b_ex.get("measurable"))
         else:
-            out["excess_absent_reason"] = (
-                f"the cash credit could not be measured, so no excess pair was "
-                f"formed: {credit.get('reason')}")
+            out["credit_absent_reason"] = (
+                f"the cash credit could not be measured, so no credited pair "
+                f"was formed: {credit.get('reason')}")
         rf_meta.update({
             "window": {"first": common[0], "last": common[-1],
                        "n": len(common)},
@@ -2360,6 +2381,8 @@ def premia_inputs(result: dict[str, Any], rf_bars: Any = None,
     out.setdefault("strategy_excess", None)
     out.setdefault("benchmark_excess", None)
     out.setdefault("strategy_excess_uncredited", None)
+    out.setdefault("strategy_excess_credited", None)
+    out.setdefault("credited_measurable", False)
 
     # --- the ADVANTAGE, which is what a PREMIA luck filter must score -------
     #
@@ -2369,26 +2392,38 @@ def premia_inputs(result: dict[str, Any], rf_bars: Any = None,
     # reason `leg_moments` stores six numbers instead of a curve) and the gate
     # scores them with the same `psr_from_moments` the alpha bar uses.
     #
-    # BUILT ON THE CREDITED PAIR, deliberately. The advantage the fund wants a
-    # probability for is the one it would actually judge, and judging a
-    # probability of a quantity nobody is testing is worse than not having one.
-    adv: dict[str, Any] = {"measurable": False, "reason": None}
-    if out["excess_measurable"] and rfmap and wmap:
-        adv = _stats.sharpe_advantage_series(
-            [smap[d] - wmap[d] * rfmap[d] for d in common],
-            [bmap[d] - rfmap[d] for d in common])
+    # BOTH ARMS, because the criterion chooses between them at judge time and a
+    # probability attached to the quantity nobody is testing is worse than none.
+    # `advantage` is the SHIPPED one (uncredited); `advantage_credited` is what
+    # the same statistic says once idle cash is credited, and the pair is what
+    # makes the loosening auditable instead of arguable.
+    def _advantage(strategy_leg: list[float], basis: str) -> dict[str, Any]:
+        block = _stats.sharpe_advantage_series(
+            strategy_leg, [bmap[d] - rfmap[d] for d in common])
+        block["basis"] = basis
         # THE CROSS-CHECK, computed rather than asserted in a comment: the
         # advantage series' own mean, annualised, IS the Sharpe advantage the
         # criterion compares against its margin. If these two ever disagree, the
         # difference series is not measuring the inequality it is named after.
-        if adv.get("measurable"):
-            k = (out.get("strategy_excess") or {}).get("obs_per_year")
-            adv["advantage_annualised"] = (
-                None if not k else adv["mean_per_obs"] * math.sqrt(float(k)))
-    elif not out["excess_measurable"]:
-        adv["reason"] = ("no excess pair was formed, so the advantage between "
-                         "the two legs does not exist to be scored")
-    out["advantage"] = adv
+        if block.get("measurable"):
+            kk = (out.get("strategy_excess") or {}).get("obs_per_year")
+            block["advantage_annualised"] = (
+                None if not kk else block["mean_per_obs"] * math.sqrt(float(kk)))
+        return block
+
+    no_pair = {"measurable": False, "reason": (
+        "no excess pair was formed, so the advantage between the two legs does "
+        "not exist to be scored")}
+    out["advantage"] = (_advantage([smap[d] - rfmap[d] for d in common],
+                                   "uncredited")
+                        if out["excess_measurable"] and rfmap else dict(no_pair))
+    out["advantage_credited"] = (
+        _advantage([smap[d] - wmap[d] * rfmap[d] for d in common], "credited")
+        if out["credited_measurable"] and rfmap and wmap else
+        {"measurable": False,
+         "reason": (credit.get("reason")
+                    or "no credited pair was formed, so its advantage does not "
+                       "exist to be scored")})
 
     # THE DISAGREEMENT, measured on every run rather than rediscovered. When
     # the engine's leg was discarded, `daily_returns["benchmark"]` still holds

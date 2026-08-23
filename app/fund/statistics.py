@@ -510,13 +510,30 @@ def sharpe_bar_for_psr(level_pct: float, returns: Sequence[float] | None,
     ``measurable: False`` — this figure is a DISCLOSURE and must never be able to
     break the verdict it explains.
     """
-    out: dict[str, Any] = {"measurable": False, "sharpe_per_obs": None,
-                           "reason": None}
     m = _psr_moments(returns)
     if m is None:
-        out["reason"] = "no usable return series to state a bar against"
-        return out
+        return {"measurable": False, "sharpe_per_obs": None,
+                "reason": "no usable return series to state a bar against"}
     n, _sr, g3, g4 = m
+    return sharpe_bar_for_psr_from_moments(level_pct, n, g3, g4, target_sharpe)
+
+
+def sharpe_bar_for_psr_from_moments(level_pct: float, n_obs: int, skew: float,
+                                    kurt: float, target_sharpe: float = 0.0
+                                    ) -> dict[str, Any]:
+    """The level's Sharpe bar from the four sufficient statistics.
+
+    The same split as ``psr_from_moments``: a caller holding a SERIES uses
+    ``sharpe_bar_for_psr``, a caller holding only stored moments — the premia
+    advantage, whose series the payload deliberately does not keep — uses this.
+    One quadratic, one root check, one place.
+    """
+    out: dict[str, Any] = {"measurable": False, "sharpe_per_obs": None,
+                           "reason": None}
+    n, g3, g4 = int(n_obs), float(skew), float(kurt)
+    if n < 2:
+        out["reason"] = f"{n} observation(s) — no bar can be stated"
+        return out
     try:
         lv = float(level_pct) / 100.0
     except (TypeError, ValueError):

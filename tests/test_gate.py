@@ -8,18 +8,30 @@ approves everything.
 
 import pytest
 
+from premia_feed import daily_returns_block, series_with_psr
 from app.fund.gate import CRITERIA, evaluate
 
 
-def _good_result(**over):
+def _good_result(psr_pct: float = 80.0, **over):
+    """A clean alpha candidate.
+
+    ``psr_pct`` is the LUCK READING the criterion will take, and it is set by
+    building a series that measures it rather than by writing a number into
+    `robustness`. From v4.4 the criterion scores the run's own observations with
+    our own module at target zero; the engine's published figure is captured
+    beside it and is no longer what decides. Both are set here to the same value
+    so a fixture cannot accidentally depend on which one is read — a test that
+    wants them to DISAGREE says so explicitly (`test_the_two_psr_readings...`).
+    """
     r = {
         "total_return_pct": 20.0,
         "benchmark_return_pct": 10.0,
         "capacity_usd": None,
         "capacity": {"capacity_usd": 5_000_000.0},
+        "daily_returns": daily_returns_block(series_with_psr(psr_pct)),
         "robustness": {
             "total_orders": 40,
-            "psr_pct": 80.0,
+            "psr_pct": psr_pct,
             "costs": {"slippage_modelled": True},
         },
     }
@@ -63,9 +75,14 @@ def test_too_few_trades_fails():
 
 
 def test_low_psr_fails_even_with_a_great_return():
-    """The trap the whole system exists to catch: 100% win rate on 3 trades."""
-    r = _good_result(total_return_pct=500.0)
-    r["robustness"]["psr_pct"] = 22.0
+    """The trap the whole system exists to catch: 100% win rate on 3 trades.
+
+    From v4.4 the reading comes from the run's own observations, so a low PSR is
+    now expressed as a SERIES that measures 22% rather than as a number written
+    into `robustness` — which is the point of the change: the previous shape
+    could not tell a low probability from a low number somebody typed.
+    """
+    r = _good_result(psr_pct=22.0, total_return_pct=500.0)
     out = evaluate(r, GOOD_HOLDOUT, GOOD_SWEEP)
     assert any("distinguishable from luck" in f for f in out["failures"])
 
