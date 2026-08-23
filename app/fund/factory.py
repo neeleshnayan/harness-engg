@@ -29,6 +29,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+from app.fund.walkforward import HISTORY_FLOOR_RATCHET as _HISTORY_FLOOR_RATCHET
+
 logger = logging.getLogger(__name__)
 
 #: Earliest date with bars in this fund's feed. Folds are not built before it —
@@ -76,7 +78,13 @@ WALKFORWARD_HISTORY_FLOOR = os.getenv("FUND_HISTORY_FLOOR", "1993-01-29")
 #: already exists. The real unlock is teaching the algorithms' bar URLs to pass
 #: start_date/end_date — the other half of 58c4fff5, on the quant's surface and
 #: NOT in this change.
-HISTORY_FLOOR_RATCHET = "2024-02-26"
+#:
+#: THE VALUE MOVED HOUSE IN D20 AND DID NOT CHANGE. It now lives in
+#: ``walkforward`` because three modules need the same date — this ratchet, the
+#: fold-plan extension, and the gate's density calibration — and only
+#: ``walkforward`` is below all three in the import graph. Re-exported here so
+#: the register pointer, the tests and every existing caller keep resolving.
+HISTORY_FLOOR_RATCHET = _HISTORY_FLOOR_RATCHET
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS fund_candidates (
@@ -121,7 +129,8 @@ COST_PARAM = "slip"
 def effective_history_floor(code: Optional[str] = None,
                             end: Optional[str] = None,
                             floor: Optional[str] = None,
-                            ratchet: Optional[str] = None) -> dict[str, Any]:
+                            ratchet: Optional[str] = None,
+                            run_date: Optional[str] = None) -> dict[str, Any]:
     """How far back THIS candidate's folds may reach, and which leg decides it.
 
     Three legs, and the report names all three whether or not they bind,
@@ -132,7 +141,17 @@ def effective_history_floor(code: Optional[str] = None,
       * ``data_path`` — how far back the candidate's OWN containers can fetch.
         Read statically from its bar URL's ``lookback_days``; absent when the
         algorithm declares none or declares two, which is reported as UNKNOWN
-        and never as unlimited.
+        and never as unlimited. MEASURED FROM THE WALL CLOCK, NOT FROM THE
+        HOLDOUT (D20 repair). The bar URLs carry ``lookback_days`` and no end
+        date, so the window a container receives is the last N days ending WHEN
+        IT RUNS — ``format=csv`` honours ``start_date``/``end_date`` but no
+        algorithm passes them yet. Anchoring the reach on ``holdout.test_end``
+        made a backdated holdout look deeper than the data path really is: the
+        window opened before the first bar the container would ever see, and
+        ``folds_before_data_path_reach`` then counted zero starved folds
+        because it was comparing against a reach that does not exist. The
+        anchor is therefore the LATER of the run date and the holdout end,
+        which is the conservative side in both directions.
       * ``per_symbol`` — the first bar of each name in the universe. UNMEASURED
         at plan time and said so: the bar archive holds only what has been
         fetched, so its earliest row is a lower bound on availability and using
@@ -176,10 +195,19 @@ def effective_history_floor(code: Optional[str] = None,
         logger.info("declared lookback unreadable: %s", e)
     if lookback and end:
         try:
-            reach = (_date.fromisoformat(str(end)[:10])
-                     - timedelta(days=int(lookback)))
+            # The container's fetch window ends when the container RUNS, not
+            # when the holdout ends — see the docstring. Whichever of the two
+            # is later gives the shallower (honest) reach.
+            asof = max(_date.fromisoformat(str(end)[:10]),
+                       _date.fromisoformat(str(run_date)[:10]) if run_date
+                       else _now().date())
+            reach = asof - timedelta(days=int(lookback))
             out["data_path"] = reach.isoformat()
             out["data_path_lookback_days"] = int(lookback)
+            out["data_path_reach_asof"] = asof.isoformat()
+            out["data_path_reach_basis"] = (
+                "wall clock" if asof != _date.fromisoformat(str(end)[:10])
+                else "holdout end (it is not earlier than the run date)")
         except ValueError:
             out["data_path"] = None
     if out["data_path"] is None:
@@ -621,7 +649,19 @@ class CandidateFactory:
             # nothing to say" from "we asked the engine a question its data
             # path could not answer".
             reach = history.get("data_path")
-            if reach:
+            if not reach:
+                # ABSENCE, NOT ZERO. An unknown data path means the count is
+                # UNCOUNTABLE, and leaving the key out entirely let a reader —
+                # and the gate's own history-floor block — render it as though
+                # nothing was starved. The count is the whole point of the
+                # field, so when it cannot be computed the field says so.
+                out["folds_before_data_path_reach"] = None
+                out["folds_before_data_path_reach_note"] = (
+                    "UNCOUNTABLE: this algorithm declares no single "
+                    "lookback_days, so how far back its containers reach is "
+                    "unknown and the number of starved folds cannot be "
+                    "counted — this is not a count of zero")
+            else:
                 short = [f for f in plan["folds"] if f["train_start"] < reach]
                 out["folds_before_data_path_reach"] = len(short)
                 if short:

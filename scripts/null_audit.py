@@ -126,26 +126,56 @@ def preflight() -> None:
     the first second, not the last. So every hold in the grid is checked against
     the same fold geometry the gate uses, and a hold that cannot yield
     `min_walkforward_folds` aborts the run with the arithmetic shown.
+
+    IT RUNS THE BELT'S OWN FLOOR PATH, NOT THE RAW CONSTANT (D20 repair). Until
+    D20 this read `WALKFORWARD_HISTORY_FLOOR` directly, which since gate v4.3 is
+    the FEED's start (1993) and not the depth any candidate is allowed — the
+    belt ratchets that per candidate in `factory.effective_history_floor`. A
+    calibration instrument planning a window the belt would never plan measures
+    a gate the fund does not run, and the whole point of this preflight is that
+    the audit and the gate cannot disagree about what is testable. It also
+    iterates the SAME fold-requirement fixed point the belt iterates, because
+    under v4.3 the requirement and the window size each other.
     """
     from datetime import date
 
-    from app.fund.factory import WALKFORWARD_HISTORY_FLOOR
-    from app.fund.gate import CRITERIA, GATE_VERSION
+    from app.fund.factory import effective_history_floor
+    from app.fund.gate import CRITERIA, GATE_VERSION, folds_required
     from app.fund.walkforward import window_for_strategy
 
-    need = int(CRITERIA.get("min_walkforward_folds") or 0)
+    anchor = int(CRITERIA.get("min_walkforward_folds") or 0)
     today = date.today().isoformat()
-    print(f"preflight against gate {GATE_VERSION}: needs {need} measurable folds",
-          flush=True)
+    code = None
+    try:
+        with open(f"lean_workspace/algorithms/{ALGO}/main.py",
+                  encoding="utf-8") as fh:
+            code = fh.read()
+    except OSError as e:
+        print(f"  (could not read {ALGO}/main.py: {e} — the data-path leg will "
+              f"read UNKNOWN, which ratchets the floor rather than deepening "
+              f"it)", flush=True)
+    history = effective_history_floor(code, today)
+    print(f"preflight against gate {GATE_VERSION}: anchor is {anchor} measurable "
+          f"folds; window floor {history['effective']} "
+          f"(binding leg: {history['binding_leg']})", flush=True)
     bad = []
     for h in sorted({int(x) for x in GRID.get("hold_days", [])}):
+        need = anchor
         w = window_for_strategy(today, hold_days=h, min_folds=need,
-                                floor=WALKFORWARD_HISTORY_FLOOR)
+                                floor=history["effective"])
+        for _ in range(4):
+            req = int(folds_required({"requested_folds": w["folds"]})["required"])
+            if req <= need:
+                break
+            need = req
+            w = window_for_strategy(today, hold_days=h, min_folds=need,
+                                    floor=history["effective"])
         fits = len(w["folds"])
-        mark = "ok" if w["enough"] else "NOT TESTABLE"
-        print(f"  hold {h:>3}d -> {fits} fold(s) of {w['test_days']}d   {mark}",
-              flush=True)
-        if not w["enough"]:
+        enough = fits >= need
+        mark = "ok" if enough else "NOT TESTABLE"
+        print(f"  hold {h:>3}d -> {fits} fold(s) of {w['test_days']}d, "
+              f"needs {need}   {mark}", flush=True)
+        if not enough:
             bad.append((h, fits, w["test_days"]))
     if bad:
         detail = "; ".join(f"{h}-day hold fits {f} fold(s) of {t}d"

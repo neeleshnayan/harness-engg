@@ -93,6 +93,49 @@ def cal_days(trading_days: int) -> int:
     return int(trading_days * 365 / 252)
 
 
+#: The most folds ``window_for`` will ever plan for one candidate, and the
+#: reason it is a number rather than "as many as fit".
+#:
+#: TWELVE, because that is the only DEEP configuration whose false-positive rate
+#: and power have been MEASURED on this fund's own calendar — the single table
+#: is in ``gate.py`` beside ``GATE_VERSION`` and is not restated here. Shipping
+#: a fold count nobody has measured is how the D19 pair became a net loosening,
+#: and a second copy of a measured table is how D19 shipped two of them
+#: disagreeing.
+#:
+#: It is also a cost bound, and the cost is not tokens or CPU. FOLD COUNT IS
+#: CONTAINER COUNT — each fold is a whole grid sweep plus one test run — so the
+#: number multiplies engine wall-clock directly. Uncapped, a 1-day hold at the
+#: deepest floor this fund can reach would plan 326 folds
+#: (``python -c "from app.fund.walkforward import *;
+#: print(len(folds('2021-03-02','2026-08-23',test_days=4,max_folds=10**6)))"``),
+#: which is a workday of engine time for a question twelve folds already
+#: answers.
+MAX_WALKFORWARD_FOLDS = 12
+
+#: The most folds gate v4.2's planner could ever lay: its ceiling was
+#: ``max(min_folds, 6)``. Named because TWO rules now derive from it — the
+#: unextended plan below still uses it, and ``gate.folds_required`` uses it to
+#: bound how much slack the density may grant (v4.2's loosest reachable
+#: configuration was six folds requiring four, so carrying THAT ratio forward is
+#: the weakest fold-count bar that cannot be looser than v4.2).
+V42_MAX_FOLDS = 6
+
+#: The floor this fund enforced before gate v4.3 — the old value of
+#: ``WALKFORWARD_HISTORY_FLOOR``, and therefore the window every candidate
+#: judged under v4.2 was judged over.
+#:
+#: MOVED HERE FROM factory.py 2026-08-23 (D20). It is not a factory setting; it
+#: is the reference WINDOW, and three separate places need the same one: the
+#: factory ratchets a candidate's data-path reach against it, ``window_for``
+#: extends a plan only where the effective floor is DEEPER than it, and
+#: ``gate.folds_required`` calibrates the fold density on the window it
+#: supplies. Three consumers of one date is exactly the shape that must not
+#: become three literals. ``factory.HISTORY_FLOOR_RATCHET`` re-exports this name
+#: so the existing register pointer and callers keep resolving.
+HISTORY_FLOOR_RATCHET = "2024-02-26"
+
+
 def span_for_folds(n_folds: int, test_days: int, train_days: int = 252) -> int:
     """Calendar days ``n_folds`` folds occupy, for that train/test geometry.
 
@@ -274,6 +317,34 @@ def window_for(end: str, min_folds: int, train_days: int = 252,
     is not harmful — folds with no bars place no trades and are reported
     unmeasurable rather than failed — but it wastes engine time on runs that
     cannot say anything.
+
+    THE EXTENSION (D20, 2026-08-23, on the CEO's ruling after the adversary's
+    blind review killed the D19 pair). Until D20 the reach-back was
+    ``train + test*(min_folds+1)`` and the plan was capped at
+    ``max(min_folds, 6)`` folds, so a candidate whose containers could be fed a
+    five-year window still got six folds — and six folds requiring five was
+    MEASURED as a net loosening (5.00% zero-skill false-pass against v4.2's
+    3.33%, paired, n=6,000). The configuration that strictly dominates today is
+    twelve folds requiring nine, and it was unreachable under those two caps.
+    So a plan whose floor is deeper than the pre-v4.3 window now reaches back
+    until it has laid ``MAX_WALKFORWARD_FOLDS`` folds, or until it hits the
+    floor, whichever comes first.
+
+    IT EXTENDS AND NEVER SHORTENS, and the guard is structural rather than
+    hopeful: the start is the EARLIER of the old rule's start and the extended
+    one, so no window this function used to produce can get shallower. That is
+    the property the acceptance criterion rests on, and a test moves both
+    constants to prove the arithmetic is read rather than copied.
+
+    AND IT ONLY BITES WHERE THE DATA GOT DEEPER. The extension is gated on the
+    floor being strictly earlier than ``HISTORY_FLOOR_RATCHET`` — the window
+    v4.2 judged over. At that floor the plan is byte-identical to v4.2's for
+    every hold, which is what makes the identity claim in ``gate.folds_required``
+    true by construction rather than true for the eight holds someone happened
+    to parametrize. A deeper floor is only ever reached by a candidate whose own
+    declared ``lookback_days`` proves its containers can be fed there
+    (``factory.effective_history_floor``), so the extension applies exactly
+    where the evidence for it exists.
     """
     cal = cal_days
     # K folds need train + test + (K-1) steps of room. One extra step is added as
@@ -283,10 +354,21 @@ def window_for(end: str, min_folds: int, train_days: int = 252,
     # test" when the real cause was arithmetic.
     need = train_days + test_days * (min_folds + 1)
     start = _d(end) - timedelta(days=cal(need))
+    cap = max(min_folds, V42_MAX_FOLDS)
+    if floor and _d(floor) < _d(HISTORY_FLOOR_RATCHET):
+        deep_folds = max(min_folds, MAX_WALKFORWARD_FOLDS)
+        # The EXACT span those folds occupy, from the generator's own closed
+        # form, so the window ends flush with ``end`` and the most recent
+        # history is the part that gets tested. The old rule left the last test
+        # leg short of ``end`` by up to a whole test period.
+        deep = _d(end) - timedelta(
+            days=span_for_folds(deep_folds, test_days, train_days))
+        start = min(start, deep)
+        cap = max(cap, deep_folds)
     if floor and start < _d(floor):
         start = _d(floor)
     return folds(start.isoformat(), end, train_days=train_days,
-                 test_days=test_days, max_folds=max(min_folds, 6))
+                 test_days=test_days, max_folds=cap)
 
 
 def _annualise(total_pct: Optional[float], days: Optional[int]) -> Optional[float]:

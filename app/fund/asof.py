@@ -209,6 +209,9 @@ def population_report(wanted: list[str], as_of: str,
         out.update({
             "population": list(names),
             "usable": bool(names),
+            # Present in BOTH branches so a reader never has to infer the count
+            # from which keys happen to exist. No snapshot judges nobody.
+            "names_judged": 0,
             "listing_asof_applied": False,
             "point_in_time": False,
             "basis": "survivor_only",
@@ -235,17 +238,40 @@ def population_report(wanted: list[str], as_of: str,
                 # what stops the gap from being invisible.
                 unjudgeable.append(s)
                 kept.append(s)
+        # HOW MANY NAMES THE SNAPSHOT ACTUALLY JUDGED. A name is judged when
+        # the snapshot covers its security type: it is either present (kept and
+        # confirmed) or absent from a covering snapshot (dropped). Everything
+        # else was kept because the snapshot had nothing to say about it.
+        judged = len(names) - len(unjudgeable)
+        # THE LABEL FOLLOWS THE WORK DONE, NOT THE MACHINERY RUN (D20 repair).
+        # Until D20 this read ``bool(covered)`` — true whenever the snapshot
+        # declared ANY type coverage, even when every single name fell outside
+        # it. MEASURED and reachable today: the fund's only snapshot is
+        # 2025-01-01, 34 of 41 stored candidates use that holdout date, and the
+        # bars are ETFs — SPY, TLT, GLD, IWM are in neither the snapshot nor
+        # the ticker reference, so ALL FOUR are unjudgeable, ZERO names are
+        # judged, and the payload claimed the as-of correction had been
+        # applied. A correction applied to nothing is not applied.
         out.update({
             "population": kept,
             "usable": bool(kept),
-            "listing_asof_applied": bool(covered),
+            "names_judged": judged,
+            "listing_asof_applied": bool(covered) and judged > 0,
             "point_in_time": False,
-            "basis": "listing_asof" if covered else "survivor_only",
+            "basis": "listing_asof" if (covered and judged) else "survivor_only",
             "excluded_not_listed": dropped,
             "unjudgeable_by_snapshot": unjudgeable,
             "snapshot_types": sorted(covered),
             "listed_market_wide": len(listed),
         })
+        if covered and not judged:
+            out["reason"] = (
+                f"a snapshot exists for {as_of} and covers "
+                f"{', '.join(sorted(covered))}, but NOT ONE of the "
+                f"{len(names)} name(s) wanted here could be judged against it "
+                f"— every one is of a type the snapshot does not hold, so no "
+                f"look-ahead listing was closed and this bar is still the "
+                f"universe as it is screened TODAY")
         if unjudgeable:
             out["unjudgeable_note"] = (
                 f"{len(unjudgeable)} name(s) are absent from the {as_of} "
