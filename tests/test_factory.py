@@ -433,3 +433,58 @@ def test_a_candidate_with_no_holdout_records_why_the_folds_are_missing():
     assert wf["present"] is False
     assert wf["reason"] == runanalytics.UNAVAILABLE
     assert "no holdout window was supplied" in wf["note"]
+
+
+# --- the belt plans exactly what the gate will ask for (gate v4.3) ----------
+
+
+@pytest.mark.parametrize("lookback", [700, 2000])
+def test_the_belt_plans_the_fold_count_the_gate_will_require(lookback, monkeypatch):
+    """The requirement scales with the covered window and the covered window is
+    sized from the requirement, so the belt solves the pair by iterating to a
+    fixed point. If it stopped one pass early the gate would starve a candidate
+    for folds the belt never planned — a kill produced by our own arithmetic,
+    which is the exact failure ``window_for`` was written to remove.
+
+    Parameterised over the two declared lookbacks that exist in this repo, not
+    over the floor: since v4.3 the floor is per candidate, and a 700-day
+    container ratchets to the old floor while a 2000-day one deepens to 2021.
+    The invariant is "planned == required", not a fold count, so it holds on
+    both windows.
+    """
+    from app.fund.gate import folds_required
+
+    runner = FakeRunner()
+    runner.get_algorithm = lambda name: {  # type: ignore[method-assign]
+        "name": name,
+        "code": f'url = f"{{S}}/marketdata/bars?symbol=X'
+                f'&lookback_days={lookback}&format=csv"',
+    }
+    f = _factory(runner)
+    out, note = f._walkforward("a", {"fast": ["10"]}, {"test_end": "2026-08-04"})
+
+    assert note is None
+    assert out["history_floor"]["data_path_lookback_days"] == lookback
+    assert out["history_floor"]["deepened"] is (lookback == 2000)
+    planned = out["requested_folds"]
+    assert out["fold_requirement_settled"] is True
+    assert out["folds_required"] == folds_required({"requested_folds": planned})["required"]
+    assert len(planned) >= out["folds_required"], (
+        "the belt shipped a plan too small for the bar it will be judged by")
+    assert runner.sweeps_requested == len(planned), (
+        "the belt did not actually run the folds it planned")
+
+    # FOLDS THE CONTAINERS CANNOT FULLY FEED, counted rather than discovered
+    # later. Recomputed here from the payload's own evidence so the field
+    # cannot pass by being a constant: a reader of a starved verdict must be
+    # able to tell "the strategy had nothing to say" from "we asked the engine
+    # a question its data path could not answer".
+    reach = out["history_floor"]["data_path"]
+    expected = len([f for f in planned if f["train_start"] < reach])
+    assert out["folds_before_data_path_reach"] == expected
+    if lookback == 700:
+        # The live reading, and it was true BEFORE this change with nothing
+        # saying so: half the plan begins before a 700-day container's reach.
+        assert expected == 2, planned
+    else:
+        assert expected == 0, "a 2000-day container should feed its own window"

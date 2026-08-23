@@ -82,6 +82,87 @@ def _d(s: str) -> date:
     return date.fromisoformat(s)
 
 
+def cal_days(trading_days: int) -> int:
+    """Trading days as calendar days, at roughly 252/365.
+
+    Named once and called everywhere this conversion is needed. It used to be a
+    lambda redefined in two functions, which is two copies of one belief — and
+    the fold-count arithmetic below now depends on it agreeing with itself
+    exactly, because ``span_for_folds`` predicts what ``folds`` will produce.
+    """
+    return int(trading_days * 365 / 252)
+
+
+#: The most folds ``window_for`` will ever plan for one candidate, and the
+#: reason it is a number rather than "as many as fit".
+#:
+#: TWELVE, because that is the only DEEP configuration whose false-positive rate
+#: and power have been MEASURED on this fund's own calendar — the single table
+#: is in ``gate.py`` beside ``GATE_VERSION`` and is not restated here. Shipping
+#: a fold count nobody has measured is how the D19 pair became a net loosening,
+#: and a second copy of a measured table is how D19 shipped two of them
+#: disagreeing.
+#:
+#: It is also a cost bound, and the cost is not tokens or CPU. FOLD COUNT IS
+#: CONTAINER COUNT — each fold is a whole grid sweep plus one test run — so the
+#: number multiplies engine wall-clock directly. Uncapped, a 1-day hold at the
+#: deepest floor this fund can reach would plan 326 folds
+#: (``python -c "from app.fund.walkforward import *;
+#: print(len(folds('2021-03-02','2026-08-23',test_days=4,max_folds=10**6)))"``),
+#: which is a workday of engine time for a question twelve folds already
+#: answers.
+MAX_WALKFORWARD_FOLDS = 12
+
+#: Gate v4.2's DECLARED planner ceiling — its ``max(min_folds, 6)``. Named
+#: because TWO rules now derive from it: the unextended plan below still uses
+#: it, and ``gate.folds_required`` uses it to bound how much slack the fold
+#: density may grant (four folds required per six planned is the loosest ratio
+#: v4.2's own code PERMITTED, so carrying that forward is the weakest
+#: fold-count bar that cannot be stricter than v4.2 allowed).
+#:
+#: DECLARED, not observed, and the difference is measured: v4.2's reach-back
+#: rule meant the ceiling was NEVER REACHED. Over holds 1..199 at three floors
+#: (597 plans) it laid at most FIVE folds — reproduce on the v4.2 tree with
+#: ``python -c "from app.fund.walkforward import window_for_strategy as w;
+#: print(max(len(w('2026-08-23',h,min_folds=4,floor=f)['folds'])
+#: for h in range(1,200) for f in ('2024-02-26','2021-03-02','1993-01-29')))"``.
+#: Anchoring on the ceiling rather than on the observed maximum is deliberate
+#: and is the permissive choice: a bar derived from what v4.2 ALLOWED cannot
+#: retroactively tighten anything v4.2 would have passed.
+V42_MAX_FOLDS = 6
+
+#: The floor this fund enforced before gate v4.3 — the old value of
+#: ``WALKFORWARD_HISTORY_FLOOR``, and therefore the window every candidate
+#: judged under v4.2 was judged over.
+#:
+#: MOVED HERE FROM factory.py 2026-08-23 (D20). It is not a factory setting; it
+#: is the reference WINDOW, and three separate places need the same one: the
+#: factory ratchets a candidate's data-path reach against it, ``window_for``
+#: extends a plan only where the effective floor is DEEPER than it, and
+#: ``gate.folds_required`` calibrates the fold density on the window it
+#: supplies. Three consumers of one date is exactly the shape that must not
+#: become three literals. ``factory.HISTORY_FLOOR_RATCHET`` re-exports this name
+#: so the existing register pointer and callers keep resolving.
+HISTORY_FLOOR_RATCHET = "2024-02-26"
+
+
+def span_for_folds(n_folds: int, test_days: int, train_days: int = 252) -> int:
+    """Calendar days ``n_folds`` folds occupy, for that train/test geometry.
+
+    NOT an estimate — it is the closed form of what ``folds()`` below actually
+    lays down, and it is used to decide how many folds a covered window must
+    supply. Fold *i* starts at ``S + (i-1)*cal(step)``; with the default
+    non-overlapping step the last test leg ends at
+    ``S + cal(train) + n*cal(test) + 1``.
+
+    Verified against the shipped generator 2026-08-23 for holds 1/2/3/5/10/21/
+    42/63 at both history floors: predicted span equalled the generated span in
+    every case (e.g. a 21-day hold gives 850 days at 4 folds and 971 at 5, and
+    the generator produced exactly those).
+    """
+    return cal_days(train_days) + n_folds * cal_days(test_days) + 1
+
+
 def folds(start: str, end: str, train_days: int = 252,
           test_days: int = 63, step_days: Optional[int] = None,
           max_folds: int = 6) -> list[dict[str, str]]:
@@ -96,7 +177,7 @@ def folds(start: str, end: str, train_days: int = 252,
     is what gets recorded.
     """
     step = step_days or test_days
-    cal = lambda d: int(d * 365 / 252)  # noqa: E731 — trading days to calendar
+    cal = cal_days
     s, e = _d(start), _d(end)
     out: list[dict[str, str]] = []
     train_start = s
@@ -114,11 +195,26 @@ def folds(start: str, end: str, train_days: int = 252,
     return out
 
 
-#: How many of a strategy's own decisions a test leg must contain before it is a
-#: test rather than a single draw. Four is a judgement, labelled as one: it is the
-#: point where one lucky trade stops dominating the leg's return, and it is not
-#: derived from any measurement here.
-DECISIONS_PER_TEST_LEG = 4
+def decisions_per_test_leg(criteria: Optional[dict[str, Any]] = None) -> int:
+    """How many of a strategy's own decisions a test leg must contain.
+
+    Four is a judgement, labelled as one: the point where one lucky trade stops
+    dominating the leg's return. It is not derived from any measurement here.
+
+    READ FROM THE GATE, not held here. Until 2026-08-23 this was a module
+    constant ``DECISIONS_PER_TEST_LEG = 4`` sitting beside
+    ``CRITERIA["min_decisions_per_test_leg"] = 4`` — two copies of one belief,
+    and the criterion was the copy NOBODY READ: grepping the repo, the gate's
+    key had zero consumers while the geometry used the constant. A declared
+    criterion that decides nothing is the register-of-notes failure at the
+    level of the bar itself, so the constant is gone and the criterion is the
+    value in force. That also makes it version-aware: ``CRITERIA_V2`` and
+    ``CRITERIA_V1`` set this to 0, and re-judging under them now really does
+    use their geometry instead of v4's.
+    """
+    from app.fund.gate import CRITERIA
+    c = {**CRITERIA, **(criteria or {})}
+    return int(c.get("min_decisions_per_test_leg") or 0)
 
 
 def declared_hold_days(code: Optional[str], grid: Optional[dict] = None,
@@ -164,9 +260,18 @@ def declared_hold_days(code: Optional[str], grid: Optional[dict] = None,
                      f"{default}-day hold — declare HOLD_DAYS to make this exact")}
 
 
+#: The test leg a bar with no decision requirement gets. Pre-v3 behaviour, kept
+#: reachable so a re-judge under CRITERIA_V1/V2 — both of which set
+#: ``min_decisions_per_test_leg`` to 0, meaning "this bar had no such concept" —
+#: gets the fixed calendar leg those versions were written against, rather than
+#: ``hold * 0`` collapsing every test leg to one day.
+DEFAULT_TEST_DAYS = 63
+
+
 def window_for_strategy(end: str, hold_days: int, min_folds: int,
                         train_days: int = 252,
-                        floor: Optional[str] = None) -> dict[str, Any]:
+                        floor: Optional[str] = None,
+                        criteria: Optional[dict[str, Any]] = None) -> dict[str, Any]:
     """Folds whose test legs are long enough for THIS strategy to act several times.
 
     Returns the folds AND, when the history cannot supply ``min_folds`` of them,
@@ -174,22 +279,24 @@ def window_for_strategy(end: str, hold_days: int, min_folds: int,
     different verdict from failed. Reporting it as failed is the same error as
     reading a no-trade holdout as a lost edge.
     """
-    test_days = max(1, hold_days * DECISIONS_PER_TEST_LEG)
+    decisions = decisions_per_test_leg(criteria)
+    test_days = max(1, hold_days * decisions) if decisions > 0 else DEFAULT_TEST_DAYS
     w = window_for(end, min_folds=min_folds, train_days=train_days,
                    test_days=test_days, floor=floor)
     return {
         "folds": w,
         "test_days": test_days,
         "hold_days": hold_days,
+        "decisions_per_test_leg": decisions,
         "enough": len(w) >= min_folds,
         "note": (f"{len(w)} fold(s) fit; a {hold_days}-day hold needs a "
                  f"{test_days}-day test leg to make "
-                 f"{DECISIONS_PER_TEST_LEG} decisions, and the available history "
+                 f"{decisions} decisions, and the available history "
                  f"does not supply {min_folds} of them — this strategy is NOT "
                  f"TESTABLE here, which is not the same as failing"
                  if len(w) < min_folds else
                  f"{len(w)} fold(s), each a {test_days}-day test leg giving the "
-                 f"{hold_days}-day hold about {DECISIONS_PER_TEST_LEG} decisions"),
+                 f"{hold_days}-day hold about {decisions} decisions"),
     }
 
 
@@ -220,8 +327,36 @@ def window_for(end: str, min_folds: int, train_days: int = 252,
     is not harmful — folds with no bars place no trades and are reported
     unmeasurable rather than failed — but it wastes engine time on runs that
     cannot say anything.
+
+    THE EXTENSION (D20, 2026-08-23, on the CEO's ruling after the adversary's
+    blind review killed the D19 pair). Until D20 the reach-back was
+    ``train + test*(min_folds+1)`` and the plan was capped at
+    ``max(min_folds, 6)`` folds, so a candidate whose containers could be fed a
+    five-year window still got six folds — and six folds requiring five is a
+    measured net loosening (the killed row of the table in ``gate.py``). The
+    configuration that does not loosen is twelve folds requiring nine, and it
+    was unreachable under those two caps. So a plan whose floor is deeper than
+    the pre-v4.3 window now reaches back until it has laid
+    ``MAX_WALKFORWARD_FOLDS`` folds, or until it hits the floor, whichever comes
+    first.
+
+    IT EXTENDS AND NEVER SHORTENS, and the guard is structural rather than
+    hopeful: the start is the EARLIER of the old rule's start and the extended
+    one, so no window this function used to produce can get shallower. That is
+    the property the acceptance criterion rests on, and a test moves both
+    constants to prove the arithmetic is read rather than copied.
+
+    AND IT ONLY BITES WHERE THE DATA GOT DEEPER. The extension is gated on the
+    floor being strictly earlier than ``HISTORY_FLOOR_RATCHET`` — the window
+    v4.2 judged over. At that floor the plan is byte-identical to v4.2's for
+    every hold, which is what makes the identity claim in ``gate.folds_required``
+    true by construction rather than true for the eight holds someone happened
+    to parametrize. A deeper floor is only ever reached by a candidate whose own
+    declared ``lookback_days`` proves its containers can be fed there
+    (``factory.effective_history_floor``), so the extension applies exactly
+    where the evidence for it exists.
     """
-    cal = lambda d: int(d * 365 / 252)  # noqa: E731
+    cal = cal_days
     # K folds need train + test + (K-1) steps of room. One extra step is added as
     # slack: the trading-to-calendar conversion rounds down at every term, and
     # without it the last fold's test leg overshot the window by a single day and
@@ -229,10 +364,21 @@ def window_for(end: str, min_folds: int, train_days: int = 252,
     # test" when the real cause was arithmetic.
     need = train_days + test_days * (min_folds + 1)
     start = _d(end) - timedelta(days=cal(need))
+    cap = max(min_folds, V42_MAX_FOLDS)
+    if floor and _d(floor) < _d(HISTORY_FLOOR_RATCHET):
+        deep_folds = max(min_folds, MAX_WALKFORWARD_FOLDS)
+        # The EXACT span those folds occupy, from the generator's own closed
+        # form, so the window ends flush with ``end`` and the most recent
+        # history is the part that gets tested. The old rule left the last test
+        # leg short of ``end`` by up to a whole test period.
+        deep = _d(end) - timedelta(
+            days=span_for_folds(deep_folds, test_days, train_days))
+        start = min(start, deep)
+        cap = max(cap, deep_folds)
     if floor and start < _d(floor):
         start = _d(floor)
     return folds(start.isoformat(), end, train_days=train_days,
-                 test_days=test_days, max_folds=max(min_folds, 6))
+                 test_days=test_days, max_folds=cap)
 
 
 def _annualise(total_pct: Optional[float], days: Optional[int]) -> Optional[float]:

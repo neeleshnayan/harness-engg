@@ -211,7 +211,7 @@ def screen(spec: dict[str, Any], symbols: Sequence[str],
     """
     import numpy as np
 
-    from app.fund.walkforward import (DECISIONS_PER_TEST_LEG, RETENTION_FLOOR,
+    from app.fund.walkforward import (RETENTION_FLOOR, decisions_per_test_leg,
                                       retention)
 
     s = validate(spec)
@@ -248,7 +248,8 @@ def screen(spec: dict[str, Any], symbols: Sequence[str],
 
     # Folds, using the REAL retention rule so the sieve cannot disagree with the
     # gate about the meaning of the word.
-    test_days = s["hold_days"] * DECISIONS_PER_TEST_LEG
+    decisions = decisions_per_test_leg()
+    test_days = s["hold_days"] * decisions
     measurable = retained = 0
     k = 0
     while (k + 1) * test_days + train_days <= port.shape[0]:
@@ -256,7 +257,7 @@ def screen(spec: dict[str, Any], symbols: Sequence[str],
         t1 = t0 + train_days
         got = retention(_cum_pct(port[t0:t1], np),
                         _cum_pct(port[t1:t1 + test_days], np),
-                        test_orders=DECISIONS_PER_TEST_LEG,
+                        test_orders=decisions,
                         train_days=train_days, test_days=test_days)
         if got["measurable"]:
             measurable += 1

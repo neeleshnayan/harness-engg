@@ -38,8 +38,12 @@ from app.fund.prescreen import (  # noqa: E402
     MIN_FOLD_SHARE, MIN_SHARPE, MIN_TRADES, grid_to_specs, population,
 )
 from app.fund.walkforward import (  # noqa: E402
-    DECISIONS_PER_TEST_LEG, RETENTION_FLOOR, retention,
+    RETENTION_FLOOR, decisions_per_test_leg, retention,
 )
+
+#: Read from the gate, not held here — the module constant this replaced was
+#: the second copy of `CRITERIA["min_decisions_per_test_leg"]`.
+DECISIONS_PER_TEST_LEG = decisions_per_test_leg()
 
 SESSIONS = 630
 TRAIN = 252

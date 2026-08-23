@@ -25,9 +25,11 @@ import logging
 import os
 import threading
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
+
+from app.fund.walkforward import HISTORY_FLOOR_RATCHET as _HISTORY_FLOOR_RATCHET
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +38,53 @@ logger = logging.getLogger(__name__)
 #: reported unmeasurable) but spends engine time on runs that cannot speak.
 #: Widen as history accumulates; the number is a property of the data, not a
 #: preference.
-WALKFORWARD_HISTORY_FLOOR = os.getenv("FUND_HISTORY_FLOOR", "2024-02-26")
+#:
+#: MOVED 2024-02-26 -> 1993-01-29 on 2026-08-23, part (b) of the CEO-approved
+#: ordered pair (58c4fff5), and it ships BEHIND the fold-scaling half because
+#: alone it is a gate loosening arriving as a data improvement — measured, see
+#: the v4.3 note in gate.py.
+#:
+#: MEASURED, not inherited: ``GET /fund/marketdata/bars?symbol=SPY&
+#: start_date=1990-01-01&end_date=2026-08-23&format=csv`` returns 8,448 rows
+#: beginning 1993-01-29 (SPY's inception), served by Yahoo — the start/end route
+#: falls to Yahoo by construction (marketdata.py: Alpaca is used only for a
+#: trailing lookback). The old value was never the feed's start; it was the
+#: reach of a trailing window nobody re-measured.
+WALKFORWARD_HISTORY_FLOOR = os.getenv("FUND_HISTORY_FLOOR", "1993-01-29")
+
+#: THE RATCHET: a per-candidate floor may move the window BACKWARD and never
+#: forward past this date, which is the floor this fund enforced before v4.3.
+#:
+#: Written because the honest per-candidate floor is LATER than the old constant
+#: for most algorithms, not earlier. COUNTED, not eyeballed: of the sixteen
+#: algorithms in this repo, ELEVEN fetch ``lookback_days=700``, three fetch 900
+#: and two fetch 2000 — and the bars endpoint caps that parameter at
+#: 2000 (fund.py, ``Query(180, gt=1, le=2000)``) — so a 700-day container cannot
+#: see before roughly today minus 700 days whatever the fold plan asks for.
+#: Enforcing that as a floor would take the available span for a 21-day hold
+#: from 850 days to 700, which fits 2 folds against a requirement of 4, and
+#: EVERY 21-day-hold candidate would return NOT TESTABLE. That is not a
+#: tightening, it is a gate that can only say no, and it would block the Entry
+#: 20 re-judge this pair was sequenced in front of.
+#:
+#: The legs before that date are not empty either — they are PARTIALLY fed, so
+#: the fold still produces a measurement, just over a shorter series than it
+#: asked for. Discarding a partial measurement is a different (and unmandated)
+#: decision from not planning an impossible one.
+#:
+#: So the reach is REPORTED, loudly, per candidate, and the floor ratchets: it
+#: deepens where the candidate's own declared data path can serve the depth
+#: (``lookback_days=2000`` reaches 2021), and it never shortens a window that
+#: already exists. The real unlock is teaching the algorithms' bar URLs to pass
+#: start_date/end_date — the other half of 58c4fff5, on the quant's surface and
+#: NOT in this change.
+#:
+#: THE VALUE MOVED HOUSE IN D20 AND DID NOT CHANGE. It now lives in
+#: ``walkforward`` because three modules need the same date — this ratchet, the
+#: fold-plan extension, and the gate's density calibration — and only
+#: ``walkforward`` is below all three in the import graph. Re-exported here so
+#: the register pointer, the tests and every existing caller keep resolving.
+HISTORY_FLOOR_RATCHET = _HISTORY_FLOOR_RATCHET
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS fund_candidates (
@@ -76,6 +124,166 @@ def _now() -> datetime:
 #: `submit_backtest` fills it from the fund's own cost assumption when a caller
 #: leaves it out.
 COST_PARAM = "slip"
+
+
+def effective_history_floor(code: Optional[str] = None,
+                            end: Optional[str] = None,
+                            floor: Optional[str] = None,
+                            ratchet: Optional[str] = None,
+                            run_date: Optional[str] = None) -> dict[str, Any]:
+    """How far back THIS candidate's folds may reach, and which leg decides it.
+
+    Three legs, and the report names all three whether or not they bind,
+    because a window is bounded by its LEAST CAPACIOUS leg and a reader who
+    cannot see which leg that is cannot act on it:
+
+      * ``configured`` — the feed's earliest bar (``WALKFORWARD_HISTORY_FLOOR``).
+      * ``data_path`` — how far back the candidate's OWN containers can fetch.
+        Read statically from its bar URL's ``lookback_days``; absent when the
+        algorithm declares none or declares two, which is reported as UNKNOWN
+        and never as unlimited. MEASURED FROM THE WALL CLOCK, NOT FROM THE
+        HOLDOUT (D20 repair). The bar URLs carry ``lookback_days`` and no end
+        date, so the window a container receives is the last N days ending WHEN
+        IT RUNS — ``format=csv`` honours ``start_date``/``end_date`` but no
+        algorithm passes them yet. Anchoring the reach on ``holdout.test_end``
+        made a backdated holdout look deeper than the data path really is: the
+        window opened before the first bar the container would ever see, and
+        ``folds_before_data_path_reach`` then counted zero starved folds
+        because it was comparing against a reach that does not exist. The
+        anchor is therefore the LATER of the run date and the holdout end,
+        which is the conservative side in both directions.
+      * ``per_symbol`` — the first bar of each name in the universe. UNMEASURED
+        at plan time and said so: the bar archive holds only what has been
+        fetched, so its earliest row is a lower bound on availability and using
+        it would shorten windows on the strength of our own fetch history. The
+        spread is real — measured 2026-08-23 off this fund's own feed, SPY
+        serves from 1993-01-29 and UUP from 2007-03-01, fourteen years apart —
+        and a fold that starts before a leg's first bar simply contributes
+        nothing for that leg. What CATCHES it downstream is the benchmark's
+        truncation detector (``_add_benchmark``, ``benchmark_truncated``),
+        which reports a short leg rather than quietly cutting the bar to it.
+
+    THE RATCHET CAPS THE DATA PATH, NOT THE FEED. A data-path reach later than
+    ``HISTORY_FLOOR_RATCHET`` is recorded and refused — see that constant for
+    the measured reason, which is that enforcing it would return NOT TESTABLE
+    for every 21-day hold in this repo. A CONFIGURED floor later than the
+    ratchet is a different thing entirely and wins over everything: no
+    container can serve a bar that does not exist.
+    """
+    from datetime import date as _date
+
+    conf = floor or WALKFORWARD_HISTORY_FLOOR
+    cap = ratchet or HISTORY_FLOOR_RATCHET
+    out: dict[str, Any] = {
+        "configured": conf,
+        "ratchet": cap,
+        "data_path": None,
+        "data_path_lookback_days": None,
+        "per_symbol": None,
+        "per_symbol_note": (
+            "UNMEASURED at plan time: the bar archive holds only what has been "
+            "fetched, so its earliest row is a LOWER BOUND on availability and "
+            "would shorten windows on the strength of our own fetch history. "
+            "A leg that starts before a symbol's first bar is caught "
+            "downstream by the benchmark truncation detector."),
+    }
+    lookback = None
+    try:
+        from app.fund.leanrunner import _declared_lookback_days
+        lookback = _declared_lookback_days(code)
+    except Exception as e:  # noqa: BLE001
+        logger.info("declared lookback unreadable: %s", e)
+    if lookback and end:
+        try:
+            # The container's fetch window ends when the container RUNS, not
+            # when the holdout ends — see the docstring. Whichever of the two
+            # is later gives the shallower (honest) reach.
+            asof = max(_date.fromisoformat(str(end)[:10]),
+                       _date.fromisoformat(str(run_date)[:10]) if run_date
+                       else _now().date())
+            reach = asof - timedelta(days=int(lookback))
+            out["data_path"] = reach.isoformat()
+            out["data_path_lookback_days"] = int(lookback)
+            out["data_path_reach_asof"] = asof.isoformat()
+            out["data_path_reach_basis"] = (
+                "wall clock" if asof != _date.fromisoformat(str(end)[:10])
+                else "holdout end (it is not earlier than the run date)")
+        except ValueError:
+            out["data_path"] = None
+    if out["data_path"] is None:
+        out["data_path_note"] = (
+            "the algorithm declares no single lookback_days in its bar URL, so "
+            "how far back its containers can fetch is UNKNOWN — reported "
+            "absent rather than treated as unlimited")
+
+    # HOW DEEP THIS CANDIDATE IS ALLOWED TO GO. The ratchet is the default and
+    # the data path is the only thing that can beat it — in EITHER direction:
+    #
+    #   * a reach EARLIER than the ratchet is proof the containers can serve a
+    #     deeper window, so the window deepens;
+    #   * a reach LATER than the ratchet is recorded and refused, because a
+    #     floor may deepen a window and never shorten one (see the constant);
+    #   * a reach that is UNKNOWN deepens NOTHING. The note above says an
+    #     unknown reach is "never treated as unlimited", and treating it as
+    #     non-binding here would be exactly that — an algorithm declaring no
+    #     lookback gets the endpoint's 180-day default, which is the shallowest
+    #     data path in the repo, not the deepest.
+    reach = out.get("data_path")
+    if reach is None:
+        allowed, binding = cap, "ratchet (data-path reach unknown)"
+    elif reach > cap:
+        out["ratcheted_from"] = reach
+        out["ratchet_note"] = (
+            f"the container data path reaches only {reach}, LATER than the "
+            f"{cap} floor this fund already enforces — a floor may deepen a "
+            f"window and never shorten one, so {cap} stands and the reach is "
+            f"reported instead. Legs before {reach} are PARTIALLY fed, not "
+            f"empty")
+        allowed, binding = cap, "ratchet (data-path reach refused)"
+    else:
+        allowed, binding = reach, "data_path"
+    # The configured floor is a fact about the feed and wins over everything:
+    # no container can serve a bar that does not exist.
+    effective = max(conf, allowed)
+    out["binding_leg"] = "configured" if effective == conf and conf > allowed \
+        else binding
+    out["effective"] = effective
+    out["deepened"] = effective < cap
+    return out
+
+
+def _reach_report(algorithm: str, history: dict[str, Any],
+                  planned: list[dict[str, str]]) -> dict[str, Any]:
+    """How many planned folds start before the containers' bars do.
+
+    Not a failure and not silently swallowed: a starved leg is PARTIALLY fed, so
+    the fold still measures something, over a shorter series than it asked for.
+    Counted because a reader of a thin verdict must be able to tell "the
+    strategy had nothing to say" from "we asked the engine a question its data
+    path could not answer".
+
+    ABSENCE, NOT ZERO, when the reach is unknown. Until D20 the key was simply
+    left out, which reads as "no fold was starved" to a human and to the gate's
+    own history-floor block — an absence rendered as zero in a counter added to
+    report exactly that absence.
+    """
+    reach = history.get("data_path")
+    if not reach:
+        return {
+            "folds_before_data_path_reach": None,
+            "folds_before_data_path_reach_note": (
+                "UNCOUNTABLE: this algorithm declares no single lookback_days, "
+                "so how far back its containers reach is unknown and the number "
+                "of starved folds cannot be counted — this is not a count of "
+                "zero"),
+        }
+    short = [f for f in planned if f["train_start"] < reach]
+    if short:
+        logger.warning(
+            "%s: %d of %d planned folds begin before the container data-path "
+            "reach %s (lookback_days=%s)", algorithm, len(short), len(planned),
+            reach, history.get("data_path_lookback_days"))
+    return {"folds_before_data_path_reach": len(short)}
 
 
 def check_cost_grid(grid: Any,
@@ -391,7 +599,7 @@ class CandidateFactory:
             return None, ("no holdout window was supplied, so no folds could be "
                           "built — the walk-forward leg was never attempted")
         try:
-            from app.fund.gate import CRITERIA
+            from app.fund.gate import CRITERIA, folds_required
             from app.fund.walkforward import (WalkForward, declared_hold_days,
                                               window_for_strategy)
 
@@ -407,9 +615,46 @@ class CandidateFactory:
             except Exception:  # noqa: BLE001
                 pass
             hold = declared_hold_days(code, grid)
+            # HOW FAR BACK THIS CANDIDATE MAY REACH, per candidate rather than
+            # per fund. The configured floor is the feed's; the binding leg is
+            # whichever of the candidate's own constraints is least capacious,
+            # and the report names all of them so a reader never has to guess
+            # which one produced a short window.
+            history = effective_history_floor(code, holdout["test_end"])
             plan = window_for_strategy(holdout["test_end"], hold["hold_days"],
                                        min_folds=need,
-                                       floor=WALKFORWARD_HISTORY_FLOOR)
+                                       floor=history["effective"])
+            # THE BELT PLANS WHAT THE GATE WILL ASK FOR, and the two are
+            # coupled: the requirement scales with the window covered, and the
+            # window covered is sized from the requirement. Solved by iterating
+            # to a fixed point rather than by keeping two numbers in step by
+            # hand — the same reason ``span_for_folds`` is a closed form of the
+            # generator instead of a second guess at it. The map contracts (a
+            # fold costs a whole test leg of span and buys well under one fold
+            # of requirement), so it settles in one or two passes on every
+            # geometry this fund runs; the bound exists so a future geometry
+            # that does NOT contract says so instead of spinning.
+            settled = True
+            for _ in range(4):
+                req = int(folds_required({"requested_folds": plan["folds"]})
+                          ["required"])
+                if req <= need:
+                    break
+                need = req
+                plan = window_for_strategy(holdout["test_end"],
+                                           hold["hold_days"], min_folds=need,
+                                           floor=history["effective"])
+            else:
+                settled = False
+                logger.warning("fold requirement did not settle for %s "
+                               "(need=%d, folds=%d)", algorithm, need,
+                               len(plan["folds"]))
+            # Folds whose TRAIN leg begins before the candidate's containers can
+            # fetch — computed ONCE, for both exits. A NOT TESTABLE verdict
+            # needs it as much as a judged one: "we could not fit enough folds"
+            # and "the folds we fitted were starved" are different sentences,
+            # and the second was invisible on that path.
+            reach = _reach_report(algorithm, history, plan["folds"])
             if not plan["enough"]:
                 # Untestable is a verdict of its own; the gate must not read it as
                 # a failure of the strategy.
@@ -418,6 +663,10 @@ class CandidateFactory:
                 return {"not_testable": True, "note": plan["note"],
                         "hold_days": hold["hold_days"],
                         "hold_days_source": hold["source"],
+                        "requested_folds": plan["folds"],
+                        "folds_required": need,
+                        "fold_requirement_settled": settled,
+                        "history_floor": history, **reach,
                         "folds_measurable": 0, "folds_retained": 0}, None
             out = WalkForward(runner=self._lean()).evaluate(
                 algorithm, grid, plan["folds"])
@@ -425,6 +674,14 @@ class CandidateFactory:
             out["hold_days_source"] = hold["source"]
             out["requested_folds"] = plan["folds"]
             out["test_days"] = plan["test_days"]
+            # What the belt PLANNED against. The gate recomputes this from the
+            # fold windows rather than reading it — a criterion that trusts a
+            # number the payload asserts about itself is not a criterion — so
+            # this is here for a human comparing the two, not for the gate.
+            out["folds_required"] = need
+            out["fold_requirement_settled"] = settled
+            out["history_floor"] = history
+            out.update(reach)
             return out, None
         except Exception as e:  # noqa: BLE001
             logger.warning("walk-forward unavailable for %s: %s", algorithm, e)

@@ -1185,7 +1185,8 @@ class LeanRunner:
 
     @staticmethod
     def _add_benchmark(result: dict[str, Any],
-                       code: Optional[str] = None) -> None:
+                       code: Optional[str] = None,
+                       population: Optional[dict[str, Any]] = None) -> None:
         """Buy & hold of what the strategy could have held, from the fund's own bars.
 
         LEAN's own Benchmark series is unusable for these algorithms: the data
@@ -1220,6 +1221,28 @@ class LeanRunner:
             usable = all(isinstance(v, (int, float)) and v > 0
                          for v in engine_curve)
             if usable and len(traded_syms) <= 1:
+                # Labelled too, so no benchmark leaves here unlabelled. This
+                # one bar genuinely carries no CROSS-SECTIONAL survivor
+                # selection — it is the single name the strategy itself traded,
+                # so the question is "did the timing add anything", not "were
+                # these the right names". The name still came out of a
+                # today-screened universe at research time, which is a
+                # selection this payload cannot see and does not claim to.
+                result["benchmark_population"] = {
+                    "as_of": (result.get("equity_dates") or [None])[0],
+                    "basis": "engine_single_name",
+                    "population": sorted(traded_syms),
+                    "wanted_count": len(traded_syms),
+                    "usable": True,
+                    "listing_asof_applied": False,
+                    "survivorship_corrected": False,
+                    "point_in_time": False,
+                    "reason": (
+                        "the engine's own bar for the one name this strategy "
+                        "traded — no cross-sectional survivor selection is "
+                        "possible in a single-name bar, but the name itself "
+                        "was picked from a universe screened TODAY"),
+                }
                 return
             logger.info("discarding engine benchmark (%d points, %d distinct, "
                         "%d symbols traded): %s", len(engine_curve),
@@ -1246,6 +1269,31 @@ class LeanRunner:
         wanted = declared or traded
         if not wanted:
             return
+
+        # WHICH POPULATION, not just which names. Both candidate sources above
+        # are screened as of TODAY — `universe.py:115` builds the hunting ground
+        # with `AssetStatus.ACTIVE`, and a strategy's UNIVERSE constant is a
+        # frozen page of that screen — so a 2024 backtest is benchmarked against
+        # the names that made it to 2026. This fund MEASURED that bias and never
+        # wired the correction in (docs/SURVIVORSHIP_2026-08-17.md; the error
+        # runs in the KILL direction, because the vanished names gained LESS
+        # than the survivors rather than dying).
+        #
+        # The correction is only half available and the payload says which half:
+        # look-ahead listing is closable where an as-of snapshot exists, and
+        # survivorship is not closable at all while the delisted names carry no
+        # bars. So the bar is still computed — an absent benchmark helps nobody —
+        # and it now travels with a population label instead of arriving as a
+        # bare number nothing can interrogate.
+        population = population or _population_report(wanted, dates[0])
+        result["benchmark_population"] = population
+        if not population.get("usable"):
+            result["benchmark_unavailable"] = (
+                f"no name in the intended bar was listed on {dates[0]}, so "
+                f"there is no population to hold — reported absent rather than "
+                f"served from the survivor screen")
+            return
+        wanted = list(population["population"])
 
         # The right bar depends on the SHAPE of the strategy, and getting this
         # wrong quietly rigs the gate.
@@ -1704,6 +1752,23 @@ def _usable(curve: list[float]) -> bool:
     """
     return len(curve) >= 2 and any(v != 0.0 for v in curve)
 
+
+
+def _population_report(wanted: list[str], as_of: str) -> dict[str, Any]:
+    """The benchmark's population label. Never absent, never assumed clean.
+
+    A one-line seam, kept for two reasons: the suite monkeypatches it so a unit
+    test never reaches Postgres, and the import stays lazy so an install with
+    no psycopg still enriches a benchmark.
+
+    It carries no try/except of its own. ``read_population`` already degrades
+    every failed read DOWNWARD to "unknown" — a register nobody could read
+    reports membership UNKNOWN and the bar keeps its survivor-only label — so
+    a second guard here would be a branch nothing can reach, and an unreachable
+    branch cannot be shown to work.
+    """
+    from app.fund.asof import read_population
+    return read_population(wanted, as_of)
 
 
 def _declared_universe(code: Optional[str]) -> list[str]:

@@ -21,6 +21,14 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+# The two window constants the fold-density rule is calibrated on. Imported
+# rather than restated: the ratchet date and v4.2's planner ceiling each have
+# more than one consumer now, and a criterion that keeps its own copy of a
+# number the planner also holds is the two-copies-of-one-belief defect at the
+# level of the bar. ``walkforward`` imports this module only from inside
+# functions, so this direction is the safe one.
+from app.fund.walkforward import HISTORY_FLOOR_RATCHET, V42_MAX_FOLDS
+
 
 def _window_days(window: Any) -> Optional[int]:
     """Calendar days a leg actually covered, from its [first, last] dates.
@@ -64,6 +72,185 @@ def max_tested_bps(tested_range: Any) -> Optional[float]:
         return max(float(v) for v in tested_range) * 10_000.0
     except (TypeError, ValueError):
         return None
+
+
+def _fold_windows(wf: Any) -> list[dict[str, Any]]:
+    """The fold PLAN inside a walk-forward payload, from whichever key holds it.
+
+    The plan is the denominator that matters: it is how many independent
+    chances the candidate was given, which is the thing that grows when the
+    history floor moves. ``requested_folds`` is preferred over ``folds``
+    because it is the plan as declared, before the engine shortened anything.
+    """
+    if not isinstance(wf, dict):
+        return []
+    for key in ("requested_folds", "folds"):
+        rows = wf.get(key)
+        if isinstance(rows, list) and rows:
+            ok = [r for r in rows if isinstance(r, dict)
+                  and r.get("train_start") and r.get("test_end")]
+            if ok:
+                return ok
+    return []
+
+
+def covered_window(wf: Any) -> dict[str, Any]:
+    """The calendar span a walk-forward plan covered, read from its own folds.
+
+    Read from the EVIDENCE rather than from a field the payload asserts about
+    itself: ``test_days`` is a number the belt writes down, and a criterion
+    that scales with a self-reported number scales with whatever the submitter
+    says. The fold dates are the measurement.
+
+    Returns ``readable: False`` with a reason when the windows are absent or
+    malformed. Absence is never zero here either — the caller falls back to the
+    unscaled anchor and SAYS it could not read the span, rather than quietly
+    treating an unreadable plan as a short one.
+    """
+    rows = _fold_windows(wf)
+    if not rows:
+        return {"readable": False, "reason": "no fold windows in the evidence"}
+    first, last = rows[0], rows[-1]
+    a = _window_days([first.get("train_start"), last.get("test_end")])
+    train = _window_days([first.get("train_start"), first.get("train_end")])
+    test = _window_days([first.get("test_start"), first.get("test_end")])
+    if not a or not train or not test:
+        return {"readable": False,
+                "reason": "the fold windows could not be parsed as dates"}
+    return {"readable": True, "covered_days": a, "train_cal_days": train,
+            "test_cal_days": test, "folds_planned": len(rows),
+            # The plan's own end date, needed to size the window the PRE-v4.3
+            # floor would have supplied for this same candidate. Read from the
+            # last fold rather than from any field the payload asserts, for the
+            # same reason the span is.
+            "last_test_end": str(last.get("test_end"))}
+
+
+def folds_required(wf: Any, criteria: Optional[dict[str, Any]] = None
+                   ) -> dict[str, Any]:
+    """How many measurable folds THIS covered window must supply.
+
+    THE DEFECT THIS CLOSES, registered as blocking since 2026-08-18
+    (``judgement.py``, ``min_walkforward_folds``): the fold floor is FIXED
+    while the folds a window can hold grow with history, so a candidate handed
+    more history gets more independent chances and still has to win only four
+    of them — and the four it wins are POST-SELECTED, because a fold only
+    becomes measurable when its train leg cleared MIN_TRAIN_RETURN_PCT. The
+    register's words: "a null can end up with a handful of measurable folds and
+    win a majority of that small subset".
+
+    MEASURED — the single table for this criterion lives in the ``GATE_VERSION``
+    note below, is labelled with the configurations that actually SHIP, and is
+    not repeated here. Two copies of one measurement is how D19 shipped a
+    docstring claiming five folds beside one claiming six.
+
+    THE RULE, in two terms, and the requirement is the larger:
+
+        required = max(anchor,
+                       round_half_up(anchor * covered_days / anchor_span),
+                       ceil(anchor * folds_planned / V42_MAX_FOLDS))
+
+    TERM ONE — DENSITY OVER DAYS. The anchor is whatever
+    ``min_walkforward_folds`` currently says, and ``anchor_span`` is the window
+    THE PRE-v4.3 FLOOR would have supplied for this same candidate: the folds
+    that fit between ``walkforward.HISTORY_FLOOR_RATCHET`` and this plan's own
+    last test date, at this strategy's own clock.
+
+    Anchoring on the strategy's clock rather than on the calendar is
+    deliberate. A "folds per year" rule is unsatisfiable for a slow rule — a
+    63-day hold needs a one-year test leg, so it can never produce 1.6
+    independent folds a year — and imposing one would re-introduce the fixed
+    calendar window that gate v3 removed for exactly that reason.
+
+    ANCHORING ON THE PRE-v4.3 WINDOW rather than on "the span four folds
+    occupy" is the D20 repair, and it is what makes the identity claim TRUE
+    rather than nearly true. Under D19 the anchor span was
+    ``train + 4*test + 1`` regardless of what the old floor actually supplied,
+    so any hold whose 30-month window fitted FIVE folds priced at exactly
+    ``4 * 5/4.5 = 4.5`` and rounded UP: holds 16, 17 and 18 required five where
+    v4.2 required four. The adversary found it by widening the acceptance
+    test's own parametrization to ``range(1,70)``; it failed in 0.21s. Now the
+    numerator and the denominator are the same window whenever the plan is the
+    pre-v4.3 plan, so the ratio is exactly 1 and the requirement is exactly the
+    anchor — for EVERY positive integer hold, by construction rather than by
+    enumeration. ``test_fold_scaling`` enumerates ``range(1,200)`` anyway,
+    because a claim of universality should cost a test that can fail.
+
+    TERM TWO — DENSITY OVER FOLDS, and it exists because term one is weak for
+    fast rules. Folds are cheap in CALENDAR days when the test leg is short: at
+    a 1-day hold a fold costs five days against a 365-day train leg, so a
+    window barely deeper than the anchor's can hold three times the folds while
+    term one barely moves. More chances at an unmoved bar is the exact defect
+    this function was written to close, so the requirement also carries the
+    LOOSEST fold-count density v4.2 could reach — its planner ceiling of
+    ``V42_MAX_FOLDS`` folds against the anchor's four. It is non-binding on
+    every plan v4.2's planner could produce — its ceiling was six folds, which
+    price at exactly four, and the deepest it was ever measured actually laying
+    was five — so it binds only where the D20 extension has bought folds that
+    term one does not price.
+
+    NEITHER TERM MOVES A THRESHOLD. ``min_walkforward_folds`` is untouched at
+    4; both terms are ``max``-ed against it, so both can only ever ask for MORE
+    folds than v4.2 did, never fewer.
+    """
+    c = {**CRITERIA, **(criteria or {})}
+    anchor = int(c.get("min_walkforward_folds") or 0)
+    win = covered_window(wf)
+    out: dict[str, Any] = {"anchor_folds": anchor, "required": anchor,
+                           "scaled": False, "covered_days": None,
+                           "anchor_span_days": None,
+                           "basis": "anchor (covered window unreadable)"}
+    if not win.get("readable"):
+        out["reason"] = win.get("reason")
+        return out
+    covered = int(win["covered_days"])
+    planned = int(win["folds_planned"])
+    train_cal, test_cal = win["train_cal_days"], win["test_cal_days"]
+    # THE ANCHOR SPAN: the window the floor this fund enforced BEFORE v4.3
+    # would have supplied for this candidate, in the same calendar units the
+    # covered span is measured in and from the same closed form the fold
+    # generator obeys — so a rounding artefact in the conversion cannot
+    # masquerade as extra history.
+    anchor_folds = anchor
+    ratchet_days = _window_days([HISTORY_FLOOR_RATCHET, win["last_test_end"]])
+    if ratchet_days and test_cal > 0:
+        # How many folds fitted between the old floor and this plan's end. At
+        # least the anchor: a window too short for four folds does not get a
+        # SMALLER denominator (that would scale the requirement UP on a
+        # candidate the old floor could barely test at all).
+        anchor_folds = max(anchor, (ratchet_days - train_cal - 1) // test_cal)
+    anchor_span = train_cal + anchor_folds * test_cal + 1
+    out.update({"covered_days": covered, "anchor_span_days": anchor_span,
+                "anchor_window_folds": anchor_folds,
+                "anchor_window_floor": HISTORY_FLOOR_RATCHET,
+                "folds_planned": planned,
+                "basis": "scaled to the covered window"})
+    if anchor <= 0 or anchor_span <= 0:
+        # A bar that asks for no folds is not scaled up into asking for some.
+        out["basis"] = "anchor (no fold requirement in force)"
+        return out
+    # round-half-up in integers. Python's round() is banker's rounding and
+    # would send 4.5 down and 5.5 up, which is not a rule anyone can predict
+    # from the docstring above.
+    by_days = (2 * anchor * covered + anchor_span) // (2 * anchor_span)
+    # ceil in integers, for the same reason.
+    by_folds = -((-anchor * planned) // max(1, V42_MAX_FOLDS))
+    out["required_by_days"] = int(by_days)
+    out["required_by_folds"] = int(by_folds)
+    out["required"] = max(anchor, int(by_days), int(by_folds))
+    out["scaled"] = out["required"] > anchor
+    # Which term decided it, named so a candidate can see WHY its bar moved. A
+    # TIE is reported as a tie: saying "days" when both terms landed on the
+    # same number would let a reader conclude the other one is slack.
+    out["binding_term"] = ("anchor" if out["required"] == anchor else
+                           "days and folds" if by_days == by_folds else
+                           "days" if by_days > by_folds else "folds")
+    # The calendar lengths above come from the evidence, so this needs no
+    # conversion back to trading days. ``walkforward.span_for_folds`` is the
+    # trading-day twin of the same closed form and is what the BELT plans
+    # against; a test pins the two agreeing on the shipped geometry, because
+    # two expressions of one law is how the law stops holding.
+    return out
 
 
 def fmt_bps(x: float) -> str:
@@ -243,7 +430,84 @@ def fmt_bps(x: float) -> str:
 #: change, listed as item 1 of docs/GATE_V5_DESIGN_2026-08-19.md, not a gate
 #: change — and until they do, a computed active breakeven here would be a
 #: fabricated number wearing a criterion's name.
-GATE_VERSION = "v4.2"
+#:
+#: v4.2 -> v4.3 (2026-08-23, CEO-approved ordered pair, ticket 58c4fff5;
+#: REBUILT the same day as builder D20 after the adversary's blind review killed
+#: the first attempt — run `run-adversary-d19`, docs/reviews/
+#: ADVERSARY_D19_2026-08-23.md). NO THRESHOLD MOVED and `CRITERIA` is
+#: byte-identical to v4.2.
+#:
+#: THE CEO'S RULING, which is what this version is shaped by: the pair ships
+#: ONLY in the configuration that honours "not a net loosening on ANY window"
+#: literally. D19 shipped a six-fold configuration whose zero-skill false-pass
+#: was 3.33% -> 5.00% on the two algorithms it reached, disclosed by its author
+#: and killed on the criterion. It bought power with false passes; that trade is
+#: the CEO's to take and he declined it.
+#:
+#: The pair, and (b) may never ship without (a):
+#:
+#:   (a) `folds_required` scales `min_walkforward_folds` with the covered
+#:       window. The defect is registered as blocking since 2026-08-18
+#:       (judgement.py, `min_walkforward_folds`): the floor is fixed while the
+#:       folds a window can hold grow with history, so a candidate handed more
+#:       history gets more independent chances and still has to win four — and
+#:       the four it wins are POST-SELECTED, since a fold only becomes
+#:       measurable when its train leg cleared MIN_TRAIN_RETURN_PCT.
+#:   (b) `factory.WALKFORWARD_HISTORY_FLOOR` moves to the feed's true start,
+#:       ratcheted per candidate at the depth its own containers can be fed.
+#:
+#: WHAT D20 ADDED so that (a)+(b) could clear the ruling: the fold plan now
+#: REACHES. Under D19 `window_for` capped the reach-back at
+#: `train + test*(min_folds+1)` and the plan at `max(min_folds, 6)` folds, so a
+#: candidate whose containers can be fed a five-year window still got six folds
+#: — and the twelve-fold configuration that dominates today was unreachable.
+#: See `walkforward.MAX_WALKFORWARD_FOLDS`.
+#:
+#: THE MEASURED TABLE. This is the only copy in the repo; anything else citing
+#: these figures points here. Method: the adversary's own paired harness
+#: (`scratchpad/adv19/fp2.py`, generalised to
+#: `scratchpad/d20_fp.py` — one arm per geometry the fleet actually ships),
+#: common random numbers, the real `retention()`, the real strict-majority rule,
+#: the real belt fixed point, over SPY's own 8,448-session calendar. Every
+#: algorithm in this repo holds 21 days, so there are exactly two shipped
+#: geometries and the survey that says so is `scratchpad/d20_fleet.py`.
+#: Reproduce: `python ../d20_fp.py 20000 7717` from the worktree root.
+#:
+#:   geometry             algos  v4.2 plan  v4.3 plan   FP v4.2  FP v4.3   diff
+#:   floor 2024-02-26      14      4f/4       4f/4       2.95%    2.95%   +0.00pp
+#:   floor 2021-03-02       2      4f/4      12f/9       2.95%    2.90%   -0.05pp
+#:   ...the same pair as D19 shipped it, KILLED, not in this code:
+#:   floor 2021-03-02       2      4f/4       6f/5       2.95%    4.96%   +2.01pp
+#:
+#:   power at Sharpe 1.0: 22.18% -> 22.18% (unchanged), 22.18% -> 39.91%
+#:   (shipped) and 22.18% -> 32.46% (the killed arm — it bought less power for
+#:   a real cost in false passes). n=20,000 paired draws, seed 7717; paired SE
+#:   0.16pp on the false-pass differences and 0.42pp on the power difference.
+#:   An independent run at n=6,000 seed 2026 agreed on the shipped rows:
+#:   +0.00pp and -0.13pp on false-pass, 22.63% -> 39.88% on power. The killed
+#:   row also reproduces the adversary's own independent figure for it (they
+#:   measured 3.33% -> 5.00% on a different seed; the +2pp is the finding, and
+#:   two harnesses agree on it).
+#:
+#: HOW TO READ IT, precisely, because the honest claim is narrower than "we
+#: lowered the false-pass rate". On the 14-algorithm geometry the plan is
+#: IDENTICAL — 0 discordant pairs out of 20,000, which is identity rather than
+#: agreement. On the 2-algorithm geometry the false-pass difference (-0.05pp)
+#: is INDISTINGUISHABLE FROM ZERO at this sample; what is decisive is that it is
+#: not HIGHER, in two independent runs, which is exactly the criterion. The
+#: power gain is not marginal: +17.7pp, forty times its paired standard error.
+#: So v4.3 buys power at no measurable cost in false passes, which is the trade
+#: D19 failed to make.
+#:
+#: WHAT v4.3 STILL DOES NOT FIX, stated so the pass is not over-read. The
+#: strict-majority rule's strictness OSCILLATES WITH PARITY: three of four is
+#: 31.2% under noise and three of five is 50.0%, so an odd fold count is a
+#: looser bar than the even one below it at every scale. Moving that means
+#: changing `min_walkforward_folds_retained_share` or replacing the majority
+#: with a binomial test at a declared alpha — both are THRESHOLD changes and
+#: belong to a human, so this version reports the parity effect and does not
+#: touch it.
+GATE_VERSION = "v4.3"
 
 #: The bar. Deliberately data, not code branches: it can be printed, argued
 #: about on its own merits, and diffed when it changes.
@@ -399,6 +663,46 @@ def evaluate(result: dict[str, Any],
     strat = result.get("total_return_pct")
     bench = result.get("benchmark_return_pct")
     checks["return_pct"], checks["benchmark_pct"] = strat, bench
+    # WHICH POPULATION the bar was built from, recorded in the verdict rather
+    # than left in the belt's result payload. A stored verdict already says
+    # which THRESHOLD it cleared; a benchmark criterion that cannot say which
+    # POPULATION it cleared is half a record. The bias is measured and it runs
+    # in the kill direction (docs/SURVIVORSHIP_2026-08-17.md), so a reader must
+    # be able to tell a survivor-only comparison from a corrected one without
+    # re-deriving it. No threshold reads this: labelling is what the evidence
+    # supports, and failing every candidate that predates the label would be
+    # judging strategies for a defect in our own data.
+    pop = result.get("benchmark_population")
+    if isinstance(pop, dict):
+        unjudgeable = pop.get("unjudgeable_by_snapshot")
+        checks["benchmark_population"] = {
+            "basis": pop.get("basis"),
+            "point_in_time": pop.get("point_in_time"),
+            "listing_asof_applied": pop.get("listing_asof_applied"),
+            "survivorship_corrected": pop.get("survivorship_corrected"),
+            "as_of": pop.get("as_of"),
+            "names": len(pop.get("population") or []),
+            # HOW MANY OF THOSE NAMES THE SNAPSHOT COULD ACTUALLY JUDGE, and
+            # which ones it could not. Dropped from the stored verdict until
+            # D20, which made the two most reachable cases indistinguishable:
+            # a bar of four ETFs on the fund's only snapshot date judges ZERO
+            # of them (the snapshot holds CS and ADRC and nothing else) and
+            # read exactly like a bar the snapshot had checked and cleared.
+            # The honesty fields have to survive into the stored record or the
+            # label is honest only in the payload nobody keeps.
+            "names_judged": pop.get("names_judged"),
+            "unjudgeable_by_snapshot": list(unjudgeable) if unjudgeable else [],
+            "unjudgeable_note": pop.get("unjudgeable_note"),
+        }
+    elif bench is not None:
+        # A benchmark with no population label. Absent, and said so — an
+        # unlabelled bar is not a corrected one.
+        checks["benchmark_population"] = {
+            "basis": None,
+            "note": ("this benchmark carries NO population label, so the "
+                     "verdict cannot say which universe it was measured "
+                     "against — unlabelled is not corrected"),
+        }
     if c["must_beat_benchmark"]:
         if strat is None or bench is None:
             failures.append("no benchmark to compare against — 'better than "
@@ -573,6 +877,41 @@ def evaluate(result: dict[str, Any],
     checks["walkforward_folds_measurable"] = measurable
     checks["walkforward_folds_retained"] = retained
     checks["walkforward_median_retention"] = wf.get("median_retention")
+    # HOW MANY folds this window had to supply, scaled to the window it
+    # actually covered. Identical to the constant at 30 months and stricter in
+    # proportion beyond it — see ``folds_required`` for the measured table and
+    # the reason the anchor is the strategy's clock rather than the calendar.
+    need = folds_required(wf, criteria)
+    checks["walkforward_folds_required"] = need
+    required_folds = int(need["required"])
+    # HOW DEEP the belt was allowed to look, and how much of that depth the
+    # candidate's own containers could actually be fed. Recorded rather than
+    # recomputed — the gate cannot know an algorithm's bar URL — and recorded
+    # as an ABSENCE when the belt did not say, because a verdict that cannot
+    # state its window is not interpretable later.
+    hist = wf.get("history_floor")
+    if isinstance(hist, dict):
+        checks["walkforward_history_floor"] = {
+            "effective": hist.get("effective"),
+            "binding_leg": hist.get("binding_leg"),
+            "data_path": hist.get("data_path"),
+            "deepened": hist.get("deepened"),
+            "folds_before_data_path_reach":
+                wf.get("folds_before_data_path_reach"),
+            # Carried so an UNCOUNTABLE reach cannot be read as "no fold was
+            # starved" — the count above is None in that case, and a None with
+            # no sentence beside it is exactly how an absence becomes a zero
+            # in the next reader's head.
+            "folds_before_data_path_reach_note":
+                wf.get("folds_before_data_path_reach_note"),
+        }
+    elif wf:
+        checks["walkforward_history_floor"] = {
+            "effective": None,
+            "note": ("this walk-forward does not say how far back it was "
+                     "allowed to reach — judged before the per-candidate "
+                     "floor existed, so the window is UNSTATED, not default"),
+        }
     if c.get("require_walkforward"):
         if not wf:
             failures.append("no walk-forward test — a single held-out window is "
@@ -588,13 +927,17 @@ def evaluate(result: dict[str, Any],
                 f"is not a judgement about the strategy — it says the fund cannot "
                 f"yet examine a rule this slow, and the answer is a faster rule or "
                 f"more history, not a different threshold")
-        elif (measurable or 0) < c["min_walkforward_folds"]:
+        elif (measurable or 0) < required_folds:
             # Distinct from failing it. Too few measurable folds means the test
             # did not happen, which is not the same as happening and going badly.
             failures.append(
                 f"only {measurable or 0} fold(s) could be measured, below the "
-                f"{c['min_walkforward_folds']} required — the consistency test "
-                f"did not run, which is not the same as passing it")
+                f"{required_folds} required — the consistency test "
+                f"did not run, which is not the same as passing it"
+                + (f" (the floor is {need['anchor_folds']} folds per "
+                   f"{need['anchor_span_days']} days of covered window and this "
+                   f"candidate covered {need['covered_days']})"
+                   if need.get("scaled") else ""))
         else:
             share = (retained or 0) / measurable
             checks["walkforward_retained_share"] = round(share, 3)

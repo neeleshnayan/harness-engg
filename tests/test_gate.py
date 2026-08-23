@@ -42,7 +42,7 @@ def test_a_clean_candidate_passes():
     out = evaluate(_good_result(), GOOD_HOLDOUT, GOOD_SWEEP,
                    walkforward=GOOD_WALKFORWARD)
     assert out["passed"] is True, out["failures"]
-    assert out["gate_version"] == "v4.2"
+    assert out["gate_version"] == "v4.3"
     # Passing is not deployment, and the wording says so.
     assert "different claim from" in out["verdict"]
 
@@ -411,10 +411,15 @@ def test_the_version_records_which_bar_was_applied():
     # the `min_breakeven_bps` floor became reachable, and Entry 20's evidence
     # no longer clears it. Two different bars must never share one name, so the
     # version moves even though `CRITERIA` is byte-identical to v4.1's.
-    assert GATE_VERSION == "v4.2"
+    #
+    # v4.3 (2026-08-23) is the same shape again: `CRITERIA` is byte-identical to
+    # v4.2's and the 30-month verdict is unchanged, but the fold floor became a
+    # DENSITY over the covered window, so a candidate judged on a longer window
+    # is judged against a different bar. Same name would be the lie.
+    assert GATE_VERSION == "v4.3"
     out = evaluate(_good_result(), GOOD_HOLDOUT, GOOD_SWEEP,
                    walkforward=GOOD_WALKFORWARD)
-    assert out["gate_version"] == "v4.2"
+    assert out["gate_version"] == "v4.3"
     # v1 is kept intact so an old verdict remains interpretable.
     assert CRITERIA_V1["min_psr_pct"] == 50.0
     # v1 must state what it did NOT require, not merely omit it: `evaluate`

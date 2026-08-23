@@ -108,6 +108,33 @@ def _clear_event_stream_cache():
 
 
 @pytest.fixture(autouse=True)
+def _benchmark_population_register_absent(monkeypatch):
+    """The benchmark's as-of register is OFF by default in the suite.
+
+    ``_add_benchmark`` consults ``fund_universe_asof`` to strip names that were
+    not listed on the window's first date. That read is SELECT-only and points
+    at whatever database ``pgstore.dsn()`` resolves to — which in a unit-test
+    process is the developer's live one. Two problems, and the second is the
+    real one: the read is I/O in a pure unit test, and a benchmark test's
+    outcome would then depend on which snapshots someone happened to capture.
+    A future capture at a date a fixture uses would fail the seven
+    ``_add_benchmark`` call sites in tests/test_benchmark_truncation.py for a
+    reason that has nothing to do with truncation.
+
+    So the default is "no register", which is the honest state of this fund on
+    every date but one, and tests that care pass a ``population=`` report in.
+    ``tests/test_benchmark_population.py`` drives the real reader explicitly.
+    """
+    from app.fund import asof, leanrunner
+    monkeypatch.setattr(
+        leanrunner, "_population_report",
+        lambda wanted, as_of: asof.population_report(
+            wanted, as_of, listed=None, priced_delisted=None,
+            read_error="the as-of register is not consulted in the test suite"))
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _clear_active_mode():
     """The active fund mode is process state; a test must not leak it.
 
