@@ -462,9 +462,22 @@ def evaluate(*, requests: Iterable[dict[str, Any]],
 
     n_req = sum(1 for r in requests
                 if str(r.get("status") or "").lower() in ("open", "approved"))
+    # WHICH RULES ACTUALLY RAN. H3 needs a git ancestry oracle; a caller that
+    # cannot supply one (the desk read, which must not shell out to git on
+    # every page load) gets H3 NOT EVALUATED — and says so, rather than
+    # reporting zero flags. "No flags" and "the rule did not run" are
+    # different facts and only one is about the desk.
+    not_evaluated = ([] if is_ancestor is not None
+                     else [{"rule_id": "H3",
+                            "why": "no git ancestry oracle was supplied, so "
+                                   "commit citations were not checked"}])
+    evaluated = [r.rule_id for r in HYGIENE_RULES
+                 if r.rule_id not in {x["rule_id"] for x in not_evaluated}]
     return {
         "policy_version": POLICY_VERSION,
         "rules": [r.as_dict() for r in HYGIENE_RULES],
+        "rules_evaluated": evaluated,
+        "rules_not_evaluated": not_evaluated,
         "proposals": proposals,
         "flags": flags,
         "unlinkable": unlinkable,
@@ -486,6 +499,9 @@ def evaluate(*, requests: Iterable[dict[str, Any]],
                if unlinkable else "")
             + (f"; {len(flags)} recommendation(s) flagged for a chair click"
                if flags else "")
+            + ("; H3 was NOT evaluated (no git oracle supplied), so commit "
+               "citations are UNCHECKED rather than clean"
+               if not_evaluated else "")
             + "."),
     }
 

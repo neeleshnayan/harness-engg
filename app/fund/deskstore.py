@@ -350,7 +350,24 @@ class DeskStore:
                          # falls back to the kind table.
                          "reversibility": _reversibility(
                              r.get("reversibility") if isinstance(r, dict)
-                             else None)})
+                             else None),
+                         # ROUTING AT BIRTH (desk engine v1). Carried because
+                         # the row is rebuilt here field by field, and without
+                         # these two the normalisation would be invisible the
+                         # instant it was stored. `routed_from` is the ONE
+                         # measurement that says whether the undecided->chair
+                         # default is being leaned on or genuinely used: a
+                         # chair queue full of `routed_from: undecided` is a
+                         # bench that stopped thinking about ownership, and a
+                         # queue without it is real delegation. Both absent on
+                         # rows filed before the engine, which is correct —
+                         # they were not routed at birth.
+                         **({"routed_from": r["routed_from"]}
+                            if isinstance(r, dict) and r.get("routed_from")
+                            else {}),
+                         **({"routing_rules_version": r["routing_rules_version"]}
+                            if isinstance(r, dict)
+                            and r.get("routing_rules_version") else {})})
         st = _run_status(status)
         with self._connect() as conn:
             with conn.cursor() as cur:
@@ -401,9 +418,15 @@ class DeskStore:
         ``run_id`` was added so ``run()`` could stop scanning a capped list in
         Python to find a row the database can look up directly — see ``run``.
         """
+        # `meta` is selected because the desk engine's `declared` evidence
+        # join reads `meta.serves_requests` — the ids a run says it served.
+        # It was omitted here until 2026-08-23, which would have made that
+        # join silently unfireable: the rule would have been shipped, tested
+        # against fixtures, and dead on the live path. A join that can never
+        # find anything is an unwired control.
         cols = ("run_id, seat, task, model, tokens, tool_uses, dispatched_at, "
                 "resolved_at, artifact_path, verdict, reasoning, trace_id, "
-                "status, recommendations"
+                "status, recommendations, meta"
                 + (", output" if with_output else ""))
         where, params = "", ()
         if run_id:
@@ -432,9 +455,10 @@ class DeskStore:
                  # What became of the dispatch. None means the chair recorded
                  # no outcome — `unrecorded`, never `delivered`.
                  "status": r[12],
-                 "recommendations": r[13] or []}
+                 "recommendations": r[13] or [],
+                 "meta": r[14] or {}}
             if with_output:
-                d["output"] = r[14]
+                d["output"] = r[15]
             out.append(d)
         return out
 
@@ -676,5 +700,13 @@ class DeskStore:
                                 "task": run["task"],
                                 "trace_id": r.get("trace_id")
                                             or run.get("trace_id"),
+                                # WHEN THE ROW WAS FILED. A recommendation
+                                # carries no timestamp of its own — measured
+                                # 2026-08-20, and it is why staleness on this
+                                # desk has always had to be inferred. The
+                                # producing run's resolution IS the filing
+                                # time, and the desk's tie-break and its
+                                # "since your last visit" fold both need it.
+                                "resolved_at": run.get("resolved_at"),
                                 "artifact_path": run["artifact_path"]})
         return out

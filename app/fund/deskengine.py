@@ -221,6 +221,55 @@ SHELVED_MODES = ("superseded", "killed")
 BRIEFING_ACTIONS = ("verified", "correction")
 
 
+def approval_refusal(ref: Optional[str],
+                     edges_by_target: Optional[dict[str, dict[str, Any]]],
+                     ) -> Optional[dict[str, Any]]:
+    """Why this row may not be approved, or None.
+
+    SERVER-SIDE, NOT A DISABLED BUTTON. The spec asks for the button to be
+    disabled with the lineage rendered; a disabled button is a hint, and the
+    thing that must not happen — R37 being clicked after the event that made
+    it wrong — has to be impossible through the API, not merely awkward
+    through the UI. The UI reads the same refusal to draw the disabled state,
+    so the two cannot disagree.
+
+    ``edges_by_target`` of None means the edge store could not be read. That
+    returns None — NO refusal — and it is the one place in this module where
+    an absence fails permissive, so it is stated out loud: refusing every
+    approval whenever Postgres hiccups would take the CEO's whole approval
+    path down for a bookkeeping table. The caller reports the degradation
+    (``supersession_readable: false`` in the payload) so a click during an
+    outage is visible in the record rather than silent.
+    """
+    if not ref or not edges_by_target:
+        return None
+    edge = edges_by_target.get(ref)
+    if not edge or edge.get("retracted_at"):
+        return None
+    if edge.get("mode") not in UNAPPROVABLE_MODES:
+        return None
+    lineage = (f" It is superseded by {edge['superseder_ref']}."
+               if edge.get("superseder_ref") else "")
+    when = (f" Its premise dies at: {edge['dies_at_event']}."
+            if edge.get("dies_at_event") else "")
+    revive = (f" Revival branch: {edge['revives_if']}."
+              if edge.get("revives_if") else "")
+    return {
+        "refused": True,
+        "edge_id": edge.get("edge_id"),
+        "mode": edge.get("mode"),
+        "superseder_ref": edge.get("superseder_ref"),
+        "dies_at_event": edge.get("dies_at_event"),
+        "revives_if": edge.get("revives_if"),
+        "reason": edge.get("reason"),
+        "detail": (
+            f"{ref} carries a live {edge.get('mode')} edge and cannot be "
+            f"approved.{lineage}{when}{revive} Reason on file: "
+            f"{edge.get('reason')}. To approve it anyway, retract the edge "
+            f"first — with a written reason, as its own act."),
+    }
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -555,6 +604,14 @@ class Supersessions(_Table):
                  "retract_reason": r[11], "confirmed_by": r[12],
                  "confirmed_at": r[13].isoformat() if r[13] else None}
                 for r in rows]
+
+    def by_target(self, include_retracted: bool = False) -> dict[str, dict[str, Any]]:
+        """Live edges keyed by the row they act on — what every reader wants.
+
+        At most one live edge per target is enforced by a partial unique index,
+        so this mapping cannot silently drop a second edge that exists.
+        """
+        return {e["target_ref"]: e for e in self.edges(include_retracted)}
 
     def retract(self, edge_id: str, actor: str, reason: str) -> dict[str, Any]:
         """The revival branch: the named event did not happen, so the row lives.
