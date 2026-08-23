@@ -437,3 +437,52 @@ VERDICTS: KILL (Entry 21 as ALPHA/counterparty) / KILL (floor challenge as filed
 - FLOOR-CHALLENGE kill grounds, chair-re-verified: tca.py:318-326 excludes latency drift (audit 8b863152) — the premise cited a CLOSED defect; /fund/market/quotes has NO bid/ask → half-spread unmeasurable; breakeven basis is total_return (gate.py:505) with measured 1.35-2.0× bias → 10→3 is an effective ~1.5 bps true-edge floor; the remedy does not rescue entry 23; "four candidates" is TWO in its own document. **Always run the predicate over the proposer's own sample.**
 - LIVE FACTS: bars source yahoo; EDV from 2008-01-29; fomc_dates.json (155 FOMC statement dates 2008-26) cached in adv21/ — reusable for any macro overlay. Fast harness: adv21/*.py, full base run <1s on cached data.
 - Kills on record: + ENTRY-21 alpha claim, breakeven-floor challenge. Fitness: two kills AND five loudly-reported failed attacks on the same artifact, including the first empty result for my own top standing attack.
+
+## 2026-08-23 (~03:30Z) - STATE from run-adversary-d19, appended verbatim by the chair
+
+## 2026-08-23 — STATE from run-adversary-d19 (builder D19 blind review)
+
+VERDICTS: item 1 (benchmark population) SURVIVES + 1 repair; item 2 (gate v4.3 pair)
+KILL; BUNDLE KILL (merge-whole-only). Say the survival loudly — eleven attacks failed,
+including three I expected to land.
+
+- **NEW TOP ATTACK: WHEN A SPEC NAMES A HARD CRITERION, RUN THE CRITERION, NOT THE
+  ARTIFACT'S SAMPLE OF IT.** D19's acceptance test parametrized 8 holds while its own
+  docstring said "EVERY hold the generator produces". Widening `HOLDS` to `range(1,70)`
+  in a COPY of the file — zero other edits — failed on 16/17/18 in 0.21s. Cheapest kill
+  I have ever run. Generalise: a parametrized test is a claim about its parameter LIST;
+  read the docstring's quantifier against the list.
+- **THE DISCLOSED-LOOSENING RULE, now with the decisive refinement.** D19 states its own
+  +2.14pp false-pass rise in three places. Disclosure is NOT waiver when the criterion
+  was pre-committed — but the verdict MUST say the disclosure was complete, or the
+  builder is punished for honesty. Write both sentences.
+- **PAIRED COMMON-RANDOM-NUMBERS is the right FP instrument**: +1.67pp ± 0.31pp at
+  n=6000 vs ±0.5pp unpaired at n=3000. Compute the paired SE from the DISCORDANT count.
+  Always report LR and break-even prior BESIDE the FP delta — here LR was flat
+  (6.80→6.50) while FP rose 50% relative, and that distinction is the whole argument.
+- **CHECK WHICH CONFIGURATION ACTUALLY SHIPS BEFORE MEASURING ANYTHING.** The builder's
+  own sim used `floor="1993-01-29"` raw; the shipped path runs `effective_history_floor`
+  and only 2 of 16 algorithms deepen (to 2021-03-02). Run the fleet, then measure.
+- **MY OWN NEAR-MISS, fourth in five dispatches**: md5 of `git show BASE:f` vs the
+  worktree file said seven protected surfaces CHANGED. CRLF on disk vs LF in git. Use
+  `git diff --name-only`, never a hash across the working tree on this host.
+- **A LABEL PROJECTION CAN LOSE THE HONESTY THE PRODUCER PUT IN**: population_report
+  emits `unjudgeable_by_snapshot`; gate.py:602-610 drops it, so a verdict reads
+  `listing_asof_applied: true` with ZERO names judged. Whenever a diff copies a payload
+  into a stored record, diff the KEY SETS.
+- LIVE FACTS: 34 of 41 candidates use holdout train_start 2025-01-01; three stored
+  `fund_lean_jobs` results have equity_dates[0] == "2025-01-01" — the same date as the
+  fund's ONLY as-of snapshot (5,546 rows, types CS+ADRC only). `fund_delisted` = 23,307
+  rows, 5 priceable. Postgres 5433 IS reachable via `pgstore.dsn()` after loading
+  ClarkHarness/.env (krypton/krypton_local) — my old "5433 refuses postgres/postgres"
+  note was a wrong credential, not a closed door.
+- LIVE FACTS 2: SPY feed starts 1993-01-29, 8,448 rows, `/fund/marketdata/bars` with
+  start_date+end_date falls to Yahoo. Algorithm lookbacks: 11x700, 3x900, 2x2000.
+  `judgement.review()` (not `report()`) is the register entry point.
+- Probes reusable: scratchpad/adv19/{fp.py,fp2.py,p1..p6.py,pop.py,kill1.py,rev.py} +
+  adv19_spy.csv. fp2.py is the paired FP harness — reuse for ANY gate-rule change.
+- Kills on record: gate v5 r1-r4, VRP/XYLD, SRPT, insider-screen headline, builder D11,
+  ENTRY-20 premia label, ENTRY-20 challenge, COO filing-rule remedy, builder D17 items
+  3+6, ENTRY-21 alpha claim, breakeven-floor challenge, builder D19 item 2.
+- Fitness: one kill grounded in an executed 5.4σ measurement, one survive with a
+  reachable-but-$0 residual, eleven failed attacks named. Both directions.

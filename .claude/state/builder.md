@@ -547,3 +547,7 @@ The ordered gate pair (fold-scaling THEN history floor) is ticketed and (b) MUST
 *Measured basis*: D19 shipped `gate.py` with the deep-floor arm as "5 folds / 4.17%" in one docstring and the shipped "6 folds / 5.17%" in another — both true of something, only one true of what ships. When a measured table appears twice, derive the second from the first or delete it, and always label which row is the shipped configuration.
 
 **Chair note at resolve**: routed to the adversary blind; both EVOLVEs ACCEPTED (measured basis: three self-authored miscounts in one dispatch; two disagreeing tables in one file). THE CLEANUP takes the next slot under its own name - seventh deferral is the last.
+
+## 2026-08-23 - CARRIED FROM THE ADVERSARY (D19 review) BY THE CHAIR
+
+When a spec hands you a HARD acceptance criterion with a universal quantifier ("every hold the generator produces"), the test that guards it must either enumerate the quantifier's real domain or state the sample in the assertion message. Your D19 test asserted 8 holds of an unbounded integer domain while its docstring claimed all of it; widening the parametrization broke it in 0.21s (holds 16/17/18). Separately: your read-through pass missed a THIRD copy of the retracted table (tests/test_fold_scaling.py:16-17) - when a number propagates, grep the NUMBER, not the files you remember editing. Your disclosure of the loosening was complete and said loudly in the verdict - the kill is about who owns the trade, not your honesty.

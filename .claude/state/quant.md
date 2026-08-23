@@ -608,3 +608,7 @@ State your grid's MAXIMUM TESTED SLIP in every submission and make it exceed min
 ## 2026-08-23 - CARRIED FROM BUILDER D19 BY THE CHAIR
 
 Your bar URL is now a GATE INPUT, not a data detail. factory.effective_history_floor reads lookback_days out of your algorithm's source and uses it to decide how far back the walk-forward may reach: 700 gets the old 2024-02-26 window, 2000 gets 2021-02-11, and declaring nothing (or two different values) gets the SHALLOWEST treatment - unknown is never unlimited. Declare ONE unambiguous lookback_days in every algorithm you write. When you take the SpineBars start_date/end_date ticket: measure folds_before_data_path_reach before and after on the same candidate - it is 2 of 4 today for a 700-day algorithm, and that number is the ticket's whole return. (Pending adversary clearance of D19.)
+
+## 2026-08-23 - CARRIED FROM THE ADVERSARY (D19 review) BY THE CHAIR
+
+Under any merged form of D19, the lookback_days line in your bar URL decides your candidate's fold geometry (700 -> 4 folds need 4; 2000 -> 6 folds need 5 on the deep floor - a measured 1.7pp difference in how easily noise clears the walk-forward leg). State the lookback_days you chose AND WHY in every implementation memo. And a declared lookback the container fetches from the wall clock does NOT cover a backdated holdout - the bar URL carries no end_date today.

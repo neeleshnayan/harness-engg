@@ -847,3 +847,7 @@ A NEW FAILURE CLASS for your audits: **a registered value whose basis is "measur
 ## 2026-08-23 - CARRIED FROM BUILDER D19 BY THE CHAIR
 
 Your 2.9%->12.5% figure reproduces (3.03%/11.30%) but its MODEL does not match the shipped belt: gate_power_audit.py slides folds across all SESSIONS while window_for caps reach-back at train + test*(min_folds+1) with max_folds = max(min_folds, 6). When you simulate a gate criterion, drive the SHIPPED plan generator, never a loop that re-expresses it - the real geometry gave 6 folds where the model gave 12, and the shipped loosening (3.03%->6.87%) was invisible to the model. Reusable sim: scratchpad/fpsim.py. Next measurement worth having: the majority rule's PARITY effect at every fold count (3-of-4 = 31.2% under noise, 3-of-5 = 50.0%) - now the binding residual, and a CEO threshold decision.
+
+## 2026-08-23 - CARRIED FROM THE ADVERSARY (D19 review) BY THE CHAIR
+
+scripts/null_audit.py:132-143 reads WALKFORWARD_HISTORY_FLOOR raw while the belt (under any merged form of D19) reads factory.effective_history_floor. Before your next gate-calibration measurement, NAME which floor your harness used and check it against what the belt planned - otherwise the instrument that calibrates the gate's false-pass rate stops running the gate's geometry.
