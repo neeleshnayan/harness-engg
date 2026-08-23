@@ -584,3 +584,44 @@ CEO, verbatim, on the PSR fork: **"not my decision per v2; its something you nee
 THE RULING: (1) the PSR sentence fix ships unconditionally — a criterion may not test Sharpe~1.34 while saying "luck". (2) PSR reverts to its DOCUMENTED job (target-0 luck filter) with the LEVEL set by measurement under a hard constraint: **full-gauntlet zero-skill FP may not rise above today's measured rate** — relocating discrimination to correctly-labeled criteria, system FP held constant by construction (the controls proved the other eleven criteria refused all four nulls even where PSR-at-0 passed them). (3) Premia claims get the coherent statistic: the luck filter on the EXCESS-SHARPE ADVANTAGE, not absolute Sharpe. (4) FALSIFIER AT DECISION TIME: if no level holds full-gauntlet FP constant, the ~1.34 hurdle STAYS with its sentence corrected to say so. D36 implements (builder + the validator's census instruments as calibration), adversary blind before merge, via-cto click with second-look.
 
 The judgment principle for future calibration rulings, written so I get good at this deliberately: **fix labels unconditionally; move levels only by measurement under a system-level invariant; give every ruling its falsifier; and when a criterion's job differs by claim type, split the statistic rather than compromise the level.**
+
+
+---
+
+## 2026-08-24 — THE SWITCH-ON CHECK adopted (Grace C1, a tightening, accepted at resolve of run-cfo-8)
+
+**At every resolve of a dispatch that delivered an INSTRUMENT (a store, a
+route, a reader, a capture service), record three facts on the run record
+before closing:**
+
+- **served?** — does the RUNNING spine answer it (not: is it in HEAD)
+- **filled?** — does its store hold rows, or is the absence explained
+- **read?** — name the consumer, by file:line, that reads it
+
+An explained absence is an acceptable answer for any of the three; an
+unexamined one is not. Measured cause: D35 (592,322 tokens) resolved and
+closed at 0-of-3 — store empty, route 404 on the running spine, zero
+consumers. The constitution already said the obligation existed ("a seat
+finishing and its work being ACCEPTED are different facts"); this names the
+missing step. In an agentic firm the author's context is destroyed at
+return, so the resolve pass is the last moment anyone knows what a build
+needs to be alive.
+
+**Companion rule, same run: an approved-but-undispatched item that unblocks
+a precondition OUTRANKS a fresh dispatch of the same seat.** a26debb9 sat
+8.8h while three adversary batches ran at near-zero marginal artifact cost.
+And the drain must be REAL: my "batch at next review" routing note on
+a26debb9 was a note nobody evaluated — the exact written-trigger class
+Grace keeps finding. When batching a seat, QUERY the desk for everything
+serving that seat; do not trust memory of what is queued. The 2026-08-24
+drain found FOUR approved blinds where the chair remembered one.
+
+**Blind hygiene, restated from practice**: a seat's BIND addressed to the
+adversary about the seat's own artifact is struck at resolve — pre-verified
+facts from the author contaminate the envelope. The adversary verifies for
+itself; that is the product.
+
+**Retro backfill numbers (run-cto-retro-0824, second-look flagged)**: INTC
+308bps mean / SOFI 38bps vs the 5bps assumption; SPY median 4.0bps. The
+flat cost assumption flatters small names. The D36/D34 family must consume
+the measured table or record why not.

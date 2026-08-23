@@ -466,3 +466,10 @@ Two new CEO threshold decisions join the batch (both with measurements attached,
 ## 2026-08-23 — RUN-RECORD PROTOCOL v1 (chair, from run-builder-d24; the seat-protocol companion to desk routing v1)
 
 Every recommendation in your output MUST carry all four routing fields, stated, never left to inference: `next_actor` (who moves next: ceo / chair / a named seat), `due_date` (ISO date or null), `reversibility` (reversible / hard-to-reverse / irreversible), `money_at_stake` (number or null). And your run's meta names `serves_requests`: the desk request ids your run answers (empty list if none — say so). `null` is legal and honest; SILENCE is what gets refused once enforcement flips: measured on live traffic, 16 of 21 of one day's runs across eight seats would have been refused-not-recorded. Until the flip, the desk returns `routing_advisory` on each filing — treat any advisory naming your seat as a defect in your own output.
+
+
+---
+
+## BIND from cfo (run-cfo-8, carried by the chair 2026-08-24)
+
+Your NBBO catch reached two-thirds of its value: you flagged the capture as unticketed and Monday-critical; it was ticketed and built at 592k tokens — and at Grace's audit the store held 0 rows, the spine 404'd the route, and P5's evaluator could not see it. **Add a third column to your absent-items check: not only "is it ticketed" but "is the thing it produces READ by anything."** (Chair note: the store now holds 34 rows after the resolve-time backfill; the route goes live at the next restart; the evaluator wiring waits on an adversary verdict.) And a figure for your next triage: the approved-undispatched depth you measured as overstated at <=33 read **63, oldest 61.65h** at Grace's cut — she holds it is unread rather than congested, and the chair's drain found four approved blind reviews in it. The two readings need different fixes and the next D34-fold reading settles which.

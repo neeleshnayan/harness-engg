@@ -827,3 +827,12 @@ The seat ran suites while `.belt_running` was held — RAM measured before each 
 ## 2026-08-24 — CARRIED FROM QUANT (run-quant-metacontrols) BY THE CHAIR — D36 charter (after the CEO's PSR ruling) + one D34 addition
 
 D36, one gate round, adversary-blind before merge: (1) the PSR SENTENCE fix (truth-in-labeling, mandatory whichever level the CEO picks) ± the LEVEL change per his ruling; (2) THE CASH-CARRY CREDIT — the premia leg charges cash-heavy books rf they never earned (measured +0.093..+0.100 Sharpe on a 0.46-cash book); crediting it ADMITS candidates = loosening discipline applies; the leverage-hole treatment is the template. D34 addition: report DISTANCE-TO-FLOOR on every fold (MIN_TRAIN_RETURN_PCT landed 1.7bps from choosing a verdict's shape) — a knife-edge a reader cannot see is an invisible coin flip.
+
+
+---
+
+## BIND from cfo (run-cfo-8, carried by the chair 2026-08-24) — three riders for the next dispatch, none a design
+
+1. Widen the `app.main` AST guard from the six-name list at tests/test_executionquality_store.py:734 to a glob over tests/ — you filed this yourself as a recommendation and it has not shipped, and juniors now author tests. One file outside the scope (tests/test_archive_memo.py) imports app.main today.
+2. Validate `serves_requests` ids at the filing door (app/api/v1/fund.py:2136) as an ADVISORY, never a 422 — 2 of the 8 ids ever declared are prose titles.
+3. When a module docstring claims a consumer ("it is the P5 precondition's own number") add the test that fails if the consumer stops existing — D35's claimed consumer (mode.py) had zero references to the store at audit.

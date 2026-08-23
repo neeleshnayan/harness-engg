@@ -33,6 +33,67 @@ maintain a day log for fable to review."***
 
 ---
 
+## 2026-08-24 (UTC)
+
+The Monday of the click sheet (~12:30Z) and the first real-venue fills
+(13:30Z open). Opened by resolving Grace's growth-mandate audition.
+
+**DECIDED**
+- **Grace's C1 challenge ACCEPTED (a tightening): THE SWITCH-ON CHECK joins
+  the chair's resolve protocol** — a dispatch delivering an instrument
+  records served? / filled? / read? before it closes; an explained absence
+  is an acceptable answer. Measured cause: D35 (592k tokens) read closed at
+  0-of-3. Recorded in cto.md.
+- Grace's EVOLVE amendments 1–3 applied to her seat file (unevaluable_reason
+  is a written trigger; falsifiers name executable states, never decisions;
+  the reader audit on thrice-repeated headline figures).
+- Her BIND to the adversary STRUCK at resolve — author's pre-verified facts
+  do not enter a blind envelope.
+
+**BUILT**
+- **The adversary blind backlog CLEARED in one batch**: the batch-by-seat
+  drain found FOUR approved undispatched blind reviews — a26debb9 (G5-2
+  precondition evaluators), b6f4a407 (PDT retirement), 1c53589f (COO filing
+  rule), 9fb82050 (the cash-carry rf credit — the very change D36 is
+  building; the blind rules on the proposal while the builder finishes the
+  diff; nothing merges until it clears). Grace found one; the drain found
+  four. Dispatched ~04:0xZ.
+- **O2 step 1 EXECUTED: the retro spread backfill ran** —
+  `run-cto-retro-0824`, 34 rows stored in fund_execution_quotes, 31/34
+  fills measured against real consolidated quotes (91.2%; 3 quote-absent
+  recorded absent, never zero).
+
+**MEASURED**
+- **First cross-name execution numbers, SECOND-LOOK flagged: small-name
+  effective spread is an order of magnitude above the assumption.** INTC
+  mean 308bps (n=6), SOFI 38bps (n=7) vs ASSUMED_COST_BPS_PER_SIDE=5. The
+  liquid names behave (SPY median 4.0bps, XLE 1.6bps, MSFT 0.9bps). The
+  cost model's flat 5bps is wrong in the exact direction that flatters
+  small-name candidates.
+- Grace's scoreboard finding verified by the chair: P3's evidence in-tree
+  27h while the gate read `unchecked` (107 passed, 3.66s, live tree); P4's
+  wired half reads measured:true at /fund/judgement; 6(c) decided and
+  unwired at three points. Her dates: n_blocking 4→2 by Mon (falsifier:
+  a26debb9 undispatched at 12:00Z — now dispatched at ~04:0xZ, falsifier
+  cannot fire); $10k ask 09-04 → 08-26 conditional on Monday's fill count.
+
+**OPEN FOR FABLE** *(chair IS Fable this session — standing here as the
+morning desk)*
+- Premia run a9db39fdfab5 still on final legs (4 containers); restart HELD
+  until it lands; restart then brings /fund/execution/quality live.
+- D36 (PSR ruling + cash-carry credit) in flight; adversary re-blind on its
+  diff when it returns; the 9fb82050 proposal verdict arrives alongside.
+- Adversary 4-batch verdict due; then the builder pass for P3/P4 evaluators
+  (if a26debb9 survives) — Grace predicts n_blocking 4→2.
+- CEO's Monday desk: the data-buy reminder (he asked), R39 click sheet
+  ~12:30Z, capture running for the 13:30Z open, retro --run-id pass after
+  close, Grace's adoption scorecard (S1) for his read.
+
+**ON FIRE**
+- Nothing new. The 5bps cost assumption vs 308bps INTC measurement is the
+  closest thing — it is a belief with money behind it and it is now dated:
+  the D36/D34 family must consume the measured spread table or say why not.
+
 ## 2026-08-23 (UTC)
 
 The first ~75 minutes of the UTC day, closing the night shift. The CEO left

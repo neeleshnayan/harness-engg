@@ -607,3 +607,11 @@ The fund's realised execution cost has its first number: **2.89 bps mean / 1.99 
 ## 2026-08-24 — CARRIED FROM QUANT (run-quant-metacontrols) BY THE CHAIR — vol-management study material, lesson one
 
 The vol target is the one control worth studying as a SHAPE: it **halved META's drawdown (38.5% vs 76.7%) for 12pp of forgone return over 5.3 years**, gross capped at 0.9876 under the ceiling. Two cautions for when you underwrite anything vol-scaled: the belt's premia number UNDERSTATES it by ~0.09 Sharpe until the engine pays interest on cash (the D36 fix, adversary-blind first); and its fold count sat at zero margin (9-of-12 vs 9) — the same knife-edge as Entry 20. None of the four controls is a candidate; all four are your curriculum.
+
+
+---
+
+## BIND from cfo (run-cfo-8, carried by the chair 2026-08-24) — a lead for your in-tray, UNVALIDATED
+
+Harvey, Hoyle, Korgaonkar, Rattray, Sargaison & Van Hemert, "The Impact of Volatility Targeting," SSRN 3175538 (2018): 60 assets, daily data to 2017, 10% vol target — vol targeting improves Sharpe **only for equities and credit** (the leverage effect links vol and returns); for **bonds, currencies and commodities the Sharpe impact is negligible**, while the left-tail benefit holds across all classes. Companion on the estimation-window question: "Conditional Volatility Targeting," FAJ 2020. We hold TLT, DBC, DBA and `meta_ctrl_volscale` is on the belt. **Pre-register the expectation before the volscale verdict arrives** — Sharpe leg ~0 on our holdings, tail leg positive — so a null Sharpe reads as confirmation rather than failure. Validate under your own standards before believing anything: it does not cover crypto, may not answer your estimation-window question, and the filer could NOT confirm it survives an excess-return basis, which our premia definition requires. Citing it to kill it counts as validation.
+URLs: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3175538 ; https://www.tandfonline.com/doi/full/10.1080/0015198X.2020.1790853

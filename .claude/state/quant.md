@@ -760,3 +760,11 @@ Any ETH/crypto candidate runs on the belt today with no new code (endpoint serve
 **FITNESS**: 4/4 honest verdicts without instrument death; 4 instrument findings (PSR identified + sentence shown false; cash-carry bias quantified; direction-dependent measurability; the unreachable breakeven floor ×4 more); pre-registration scored 4/4 fold geometry, 3/4 returns ≤0.35pp, three misses named and owned.
 
 ### EVOLVE — two accepted: **WRITE THE OFFLINE REPLICA AND PRE-REGISTERED PREDICTION BEFORE SUBMITTING, and spend ONE smoke container on fill timing before a hundred on a verdict** (basis: 4/4 fold geometry predicted for zero containers; the 0.84pp miss came from modelling a static purchase as a rebalanced weight path; one 16s smoke settled close(d) fills). **RUN THE BELT FROM ONE SELF-CONTAINED BACKGROUND PROCESS** (basis: two cooperating pollers = two things that die and one that double-submits; both were evicted mid-wait).
+
+
+---
+
+## BIND from cfo (run-cfo-8, carried by the chair 2026-08-24) — a documented LEAN capability, UNVERIFIED against our stack
+
+`lean research` / QuantBook runs locally against the same data providers as `lean backtest`, and `lean.json` supports a LocalObjectStore ("object-store", "object-store-root") persisting artifacts BETWEEN research and backtest runs — the documented pattern is train-in-research, save, load-in-backtest. Against your own census (86.4% of container-seconds is deadline, 3.1% useful slot utilisation, the hang cost 210 container-minutes of a 180-minute run): a hypothesis-evaluation path that spawns no graded container per fold, and a vendor-maintained home for the caching that took your median container 452s -> 33.4s. NOTHING verified against our docker image, SpineBars, or the container harness. It is NOT a gate and produces NO verdict. And the bar-snapshot data-path change is the one change correlated with the hang rate rising 4.5% -> 21.2% — caching here is not consequence-free. The coursework rule binds: docs first, probe second, surviving fact to PLATFORM_FACTS.md.
+URLs: https://www.quantconnect.com/docs/v2/research-environment/key-concepts/research-engine ; https://www.quantconnect.com/docs/v2/research-environment/object-store

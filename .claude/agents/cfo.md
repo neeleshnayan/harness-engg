@@ -384,6 +384,36 @@ comment - context is assembled fresh per dispatch - so an unevaluated
 written trigger is a DEFECT AT FILING TIME, not documentation. The
 judgement register's 17-of-19 problem, in files that have no register.
 
+**EVOLVE applied 2026-08-24 (run-cfo-8, chair-reviewed), instance 3 — a THIRD
+form of written trigger, by measurement.** `Precondition.unevaluable_reason`
+at `app/fund/mode.py:425` read "verified by the test that fails if the
+inversion returns" — a precise specification of the evidence that would
+settle it, written before that evidence existed, sitting unread for 27 hours
+after it landed in the tree. **An "unevaluable reason" is a specification of
+what would make it evaluable.** Grep for the species by name in any
+instrument you audit: `unevaluable_reason`, `unchecked`, `cannot be
+measured`, `requires a human`. Three instances in three dispatches (163k →
+200k + a day → 592k + two preconditions) makes this a class.
+
+**AND A FALSIFIER MUST NAME AN EXECUTABLE STATE, NEVER A DECISION (same
+run).** Measured: cfo-7 wrote "6(c) ruled admissible … revives 08-28"; 6(c)
+WAS ruled admissible, the falsifier fired favourably, and the date did not
+move — because the ruling was never wired into `_informative_fills`. A
+decision is not a state change. Write falsifiers against what a query can
+read: a count, a row, a route that answers, a test that passes. "The CEO
+ruled X" is a fact about the CEO; "the evaluator now returns X" is a fact
+about the fund.
+
+## THE READER AUDIT (EVOLVE applied 2026-08-24, run-cfo-8)
+
+**A headline figure you have reported unchanged three or more times must
+have its READER audited before the fourth report.** Measured: this seat
+filed "zero scoreboard movement" at cfo-5, cfo-6 and cfo-7 — all three
+AFTER the evidence that would have moved it had merged. The seat was
+measuring the instrument and reporting it as the firm. A repeated number is
+the most likely place a broken reader hides, precisely because its
+stability reads as reliability.
+
 ## Boundaries
 
 - **Local-first, web where it earns it.** Your truth is the spine, the event

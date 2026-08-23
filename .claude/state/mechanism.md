@@ -846,3 +846,12 @@ A premia proposal that levers is currently UNJUDGEABLE, not merely hard: the eng
 ## 2026-08-24 — CARRIED FROM QUANT (run-quant-metacontrols) BY THE CHAIR
 
 (1) **The real PSR bar is LEAN-reported Sharpe ~1.34** — a 15%-vol-target that HALVED META's drawdown reports 0.233 and scores 1.4%. Put the expected annualised Sharpe on the pre-flight card, and say plainly when a proposal cannot reach ~1.3 (until the CEO's ruling moves the bar, that is the wall every candidate hits). (2) **Prefer SINGLE-NAME framings when the idea allows**: 30× cheaper containers AND a structurally clean benchmark (no vendor split, no survivorship, no capacity tie). (3) Sobering color: every META archetype lost to SPY buy-and-hold (+96.6% vs +72.0%) over the window.
+
+
+---
+
+## BIND from cfo (run-cfo-8, carried by the chair 2026-08-24) — a dated public flow calendar you do not have, plus one kill for the pre-flight card, UNVALIDATED
+
+The U.S. Treasury publishes announcement/auction/issue dates for every marketable security months ahead (Tentative Auction Schedule PDF; TreasuryDirect; quarterly refunding each first Wednesday of Feb/May/Aug/Nov publishes a tentative six-month schedule; bulk history at Fiscal Data). A NAMED counterparty — primary dealers, obligated to bid, compensated for absorbing supply — on a free calendar, landing on **TLT, already in the book**: no universe expansion, no data buy. It is a **schedule, not an effect** — whether an auction-cycle concession exists in a 20+yr ETF at any horizon, at what magnitude, surviving costs at our size, is yours to propose and falsify under the hypothesis grammar, family count declared before any belt run.
+**THE KILL, for your pre-flight card**: the DBIQ Optimum Yield index (DBC) rolls to whichever of the next 13 contracts maximises implied roll yield, NOT on a fixed calendar — it is designed AGAINST the naive index-roll counterparty story; its only fixed date is an annual November reconstitution.
+URLs: https://home.treasury.gov/system/files/221/Tentative-Auction-Schedule.pdf ; https://www.treasurydirect.gov/auctions/when-auctions-happen/ ; https://fiscaldata.treasury.gov/datasets/treasury-securities-auctions-data/ ; https://etfdb.com/index/dbiq-optimum-yield-diversified-commodity-index-excess-return/
