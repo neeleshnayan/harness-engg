@@ -179,3 +179,82 @@ loop gets faster; the brakes do not get lighter.**
   the standing falsifier.
 - Grace or Vishesh files a `## WHERE I DIFFER` that survives the CEO's read →
   this document gets a dated amendment, not a quiet edit.
+
+---
+
+## AMENDMENT 2026-08-23 — THE REFERENCE FIRMS, OPERATIONALIZED
+
+**CEO direction, same day (verbatim): "firms like Janestreet and Citadel and
+Millenium... one thing I like is the process of information extraction and
+flow from research to execution that they have nailed. our benefit should
+leverage the pieces that make them great and morph our benefits on top" —
+and, on the chair's distillation: "Agree we need to embody and
+operationalise it."**
+
+### What each nailed, and what we take
+
+- **Millennium — isolation + ruthless reallocation.** Independent bet
+  generators; information flows UP (risk, P&L), never ACROSS; capital
+  follows measured edge fast and unsentimentally. WE TAKE: the up-never-
+  across flow (blind review; independent origination) and the reallocation
+  reflex (the incumbency rule — nothing on the book is grandfathered).
+- **Citadel — the shared platform.** Point-in-time data as a firm asset;
+  a standard pipeline from idea to testable implementation; execution
+  measured to the basis point feeding research. WE TAKE: the pipeline
+  (grammar → adversary → belt → gate) and the single shared substrate
+  (the measurement shelf, the bar cache, the knowledge graph — nobody
+  re-derives).
+- **Jane Street — knowledge compounds in the firm, not in heads.** No
+  stars; one obsessively improved machine; "we could be wrong"
+  institutionalized. WE TAKE: the compounding machine (the knowledge
+  graph, the experience layer, BINDS/EVOLVE) and the institutional
+  humility (every artifact falsifiable; the gate exists so we do not
+  repent).
+
+### THE SYNTHESIS ONLY WE CAN RUN
+
+Millennium's edge (isolation) and Jane Street's edge (sharing) are
+opposites, because humans cannot share data without leaking conviction —
+two PMs who compare notes end up correlated. **Agent seats can be
+genuinely firewalled while sharing a graph that carries verdicts-with-
+citations and never enthusiasm.** Independent origination + shared
+measured truth is this firm's structural edge, and it is why the KG guard
+(verdicts, never recommendations) and the exec-table order are not
+etiquette — they are the moat.
+
+### Our morphs, stated without romance
+
+We cannot out-buy their data, out-hire their quants, or out-execute their
+microstructure. What we have that they structurally cannot: **perfect
+institutional memory** (no alumni carry the edge out; every kill queryable
+forever), **true blind review** (zero social cost, structurally enforced),
+**reallocation without ego** (killing a family is a Tuesday, not a
+firing — so it happens on time), and **process iteration at commit speed**
+(their org changes take quarters; our seat files changed four times today,
+each on a measured basis). At their scale, data advantage means buying
+feeds; at ours, **the proprietary dataset is our own experiment history**,
+plus the one raw corner where we can be first readers (the unread
+filings/letters corpus).
+
+### THE OPERATIONAL METRIC THIS AMENDMENT ADDS
+
+Every reference firm is defined by a research→execution loop that runs
+millions of cycles a day. Ours has run ZERO — the book is paper, the
+fills are none, the TCA loop is a pre-registered instrument that has
+never taken a measurement. Therefore:
+
+**LOOP-TIME becomes a first-class number: the wall-clock from hypothesis
+filed to executed, measured, fed-back trade.** Grace's date question
+gains its sharper form — not only "when do we deserve $10k" but **"when
+does the full loop run in under a week."** Every build from here is
+judged partly on whether it shortens loop-time; the first loop closes
+with Monday's first real fill. The chair records loop-time per candidate
+in the knowledge graph once candidates begin reaching execution.
+
+### What would change this amendment's mind
+
+A measured case where loop-time optimization pressures a control (a
+verification skipped, a blind compromised, a click bypassed to go
+faster) — the brakes clause above already answers it: the loop gets
+faster, the brakes do not get lighter. Any such event strikes the
+loop-time metric back to advisory pending a written re-decision.
