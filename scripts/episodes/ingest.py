@@ -130,7 +130,23 @@ def plan_file(path: pathlib.Path, seat: str, known: Optional[set[str]],
     for s in split_sections(text):
         cited, rejected = run_ids_in(s.text, known)
         body = s.text[len(s.heading):].strip() if s.heading else s.text.strip()
-        digest = hashlib.sha256(s.text.encode("utf-8")).hexdigest()[:16]
+        # IDENTITY IS THE RSTRIPPED TEXT; THE STORED COPY IS VERBATIM.
+        #
+        # Measured while writing the test for this: appending a section to a
+        # file writes TWO rows, not one. The previously-last section gains the
+        # blank line that now separates it from the new heading, so its bytes
+        # change and its key changes — and a store that duplicates its tail
+        # section on every append accumulates one junk row per file per
+        # append. Hashing the rstripped text is the right question ("is this
+        # the same episode?"); a newline that arrived because the NEXT section
+        # did is not a new episode.
+        #
+        # THE CONSEQUENCE, stated because it is the surprising half: the
+        # stored ``episode_md`` for a file's last section keeps the trailing
+        # bytes it had when first copied, and a later append does not rewrite
+        # it. The store is a copy taken at a moment, not a mirror.
+        digest = hashlib.sha256(
+            s.text.rstrip().encode("utf-8")).hexdigest()[:16]
         rows.append({
             "seat": seat,
             "kind": kind_for_heading(s.heading),

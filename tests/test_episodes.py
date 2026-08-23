@@ -805,6 +805,14 @@ def test_the_ingest_is_IDEMPOTENT(store, tmp_path):
 
 
 def test_an_APPENDED_section_is_the_only_thing_a_re_ingest_writes(store, tmp_path):
+    """MEASURED DEFECT, fixed and pinned: this wrote TWO rows.
+
+    Appending a section gives the previously-last section the blank line that
+    now separates it from the new heading. Its bytes change, so a key hashed
+    over the verbatim text changes too — and the store would accumulate one
+    duplicate tail row per file per append, forever. Identity is now the
+    rstripped text; the stored copy stays verbatim.
+    """
     d = _corpus(tmp_path)
     _ingest(d)
     p = d / "pm.md"

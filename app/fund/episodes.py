@@ -311,7 +311,11 @@ CREATE TABLE IF NOT EXISTS fund_seat_episodes (
     -- the enforcement; the other half is in Python, because NOT NULL accepts
     -- the empty string.
     cited_run     TEXT NOT NULL,
-    -- .claude/state/<seat>.md#L120-L188 — where this text was copied from.
+    -- Where this text was copied from, as "state/<seat>.md#L120-L188".
+    -- Built by scripts/episodes/ingest.py, which is the only thing in the
+    -- firm that opens a seat memorandum; nothing under app/ names that
+    -- directory, and tests/test_knowledge_isolation.py enforces it over
+    -- string literals (which is why this comment does not spell the path).
     source_ref    TEXT,
     provenance    TEXT NOT NULL DEFAULT 'seat',
     -- The date the heading states, if it states one. NULL is "undated in the
