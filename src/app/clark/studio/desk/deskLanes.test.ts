@@ -230,15 +230,31 @@ test("open-elsewhere excludes the CEO's own rows and the unrouted ones", () => {
 /* --------------------------------------------------------- e. resolved --- */
 
 test("resolved-today is the FUND's UTC day, not the browser's", () => {
+  /* THE `now` HERE IS DELIBERATELY NOT THE WALL CLOCK, and that is the whole
+   * test. A mutation swapping `utcDay(now)` for `utcDay(new Date()...)`
+   * SURVIVED the first version of this test, because the fixture's day
+   * happened to be the day the suite ran: the assertion could not tell the
+   * fund's clock from the machine's. The spine's `at` is the fund's day, a
+   * desk read at 23:50Z is a different day from the same desk read ten
+   * minutes later, and a browser west of Greenwich is a day behind for
+   * several hours of every day. */
+  const FIXED = "2020-02-29T12:00:00+00:00";
+  assert.notEqual(utcDay(FIXED), utcDay(new Date().toISOString()),
+    "this fixture's day must differ from the day the suite runs, or the "
+    + "assertion below cannot distinguish the two clocks");
   const ls = lanes({
     requests: [
       req({ request_id: "y", status: "resolved",
-            resolved_at: "2026-08-23T00:00:01+00:00", resolution: "did it" }),
+            resolved_at: "2020-02-29T00:00:01+00:00", resolution: "did it" }),
       req({ request_id: "n", status: "resolved",
-            resolved_at: "2026-08-22T23:59:59+00:00", resolution: "yesterday" }),
-    ] });
+            resolved_at: "2020-02-28T23:59:59+00:00", resolution: "yesterday" }),
+      req({ request_id: "t", status: "resolved",
+            resolved_at: new Date().toISOString(),
+            resolution: "closed on the machine's today, not the fund's" }),
+    ] }, { now: FIXED });
   const r = laneById(ls, "resolved");
-  assert.deepEqual(r.rows.map((x) => x.key), ["req:y"]);
+  assert.deepEqual(r.rows.map((x) => x.key), ["req:y"],
+    "only the row closed on the FUND's day belongs in this lane");
   assert.equal(r.rows[0].detail, "did it");
   assert.equal(r.count.source, "page",
     "`desk_load` counts what is OPEN; there is no served figure for what "

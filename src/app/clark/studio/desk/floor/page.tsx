@@ -13,6 +13,8 @@ import { SeatTelemetryChips, SectionHead } from "../components";
 import { seatTelemetry } from "../deskTelemetry";
 import { DeskMatrix } from "../DeskMatrix";
 import { routingFootprint } from "../routingFootprint";
+import type { SeatFanout } from "../fanout";
+import { seatFanout } from "../fanout";
 import { Floor } from "./Floor";
 import { floorEnabled, roomState } from "./floorPlan";
 
@@ -232,7 +234,15 @@ export default function FloorPage() {
                     colleague.
                   </p>
                 ) : (
-                  <SeatTelemetryChips t={seatTelemetry(desk, spot.id)} />
+                  <>
+                    <SeatTelemetryChips t={seatTelemetry(desk, spot.id)} />
+                    {/* THE FAN-OUT, from the record. CEO 2026-08-23: "would be
+                        good to see agents w sub-agents fanned out in the rooms
+                        UI too!". It mounts on the DETAIL prop, not inside the
+                        room's geometry — the floor plan is coupled four ways
+                        and this needed none of it. */}
+                    <FanoutTree f={seatFanout({ kind: "record", desk }, spot.id)} />
+                  </>
                 )
               }
             />
@@ -246,6 +256,89 @@ export default function FloorPage() {
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * THE FAN-OUT TREE — the workers a seat fired, FROM THE RECORD.
+ *
+ * IT SAYS "LAST RECORDED RUN" ON EVERY CARD, and that sentence is the feature
+ * as much as the tree is. The CEO asked for the floor to change shape in
+ * real time; the spine has no dispatch-state store, agents run inside the
+ * chair's session, and nothing streams their shape. A tree drawn from the
+ * flight recorder that let itself read as live would be a floor that looks
+ * like it is breathing while showing yesterday — strictly worse than no tree.
+ *
+ * THE D33 SEAM IS `f.basis`, and it is one word. `seatFanout` takes a SOURCE,
+ * not a desk; when a live endpoint exists, D33 adds a `live` source, this
+ * component renders "live" instead of "last recorded run", and neither the
+ * card nor the room moves.
+ *
+ * Four shapes, four different facts, and the tree is only ever drawn for the
+ * first — see `fanout.ts` for why prose is never parsed into workers.
+ */
+function FanoutTree({ f }: { f: SeatFanout }) {
+  if (f.shape === "no_run" || f.shape === "none") {
+    return (
+      <p className={`mt-2 text-[10px] leading-relaxed ${KT.muted}`}>{f.note}</p>
+    );
+  }
+  return (
+    <div className="mt-2">
+      <p className={`${KT.label} flex flex-wrap items-baseline gap-x-2`}>
+        <span>fan-out</span>
+        <span className="font-mono tabular-nums text-[var(--kt-text-strong)]">
+          {f.count === null ? "unstated" : f.count}
+        </span>
+        {/* The honesty word, always on screen, never inferred by the reader. */}
+        <span className="normal-case tracking-normal">{f.basis}</span>
+      </p>
+      {f.shape === "structured" && (
+        <ul className="mt-1 space-y-0.5 border-l border-[var(--kt-border)] pl-2.5">
+          {f.workers.map((w) => (
+            <li key={w.worker} className="text-[11px] leading-snug">
+              <span className="flex flex-wrap items-baseline gap-x-1.5">
+                {/* A MID-RUN CATCH IS THE ONE THING THAT EARNS THE ACCENT.
+                    It is the only outcome that changed what the run did while
+                    it was running; used and discarded are bookkeeping. */}
+                {w.outcome === "catch" && <span className={KT.dot} />}
+                <span className="font-mono text-[var(--kt-text-strong)]">
+                  {w.worker}
+                </span>
+                <span className={`font-mono text-[10px] uppercase tracking-[0.1em] ${
+                  w.outcome === "catch" ? KT.accent : KT.muted}`}>
+                  {w.outcome === "unstated" ? "outcome unstated" : w.outcome}
+                </span>
+                {w.kind && (
+                  <span className={`font-mono text-[10px] ${KT.muted}`}>{w.kind}</span>
+                )}
+                {w.tokens !== null && (
+                  <span className={`font-mono text-[10px] tabular-nums ${KT.muted}`}>
+                    {w.tokens.toLocaleString("en-US")} tok
+                  </span>
+                )}
+              </span>
+              {w.brief && (
+                <span className={`block text-[11px] leading-snug ${KT.muted}`}>
+                  {w.brief}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {f.shape === "prose" && (
+        <p className={`mt-1 border-l border-[var(--kt-border)] pl-2.5 text-[11px] leading-snug ${KT.body}`}>
+          {f.prose}
+        </p>
+      )}
+      <p className={`mt-1 text-[10px] leading-relaxed ${KT.muted}`}>{f.note}</p>
+      {f.runId && (
+        <p className={`font-mono text-[10px] ${KT.muted}`}>
+          {f.runId}{f.at ? ` · ${f.at.slice(0, 10)}` : ""}
+        </p>
+      )}
     </div>
   );
 }

@@ -81,6 +81,29 @@ function scan(re: RegExp, opts: { skipThemeCss?: boolean } = {}) {
   return hits;
 }
 
+/**
+ * THE ONLY FILES ALLOWED TO HOLD A LITERAL COLOUR.
+ *
+ * One entry, and it is a design decision with a written reason: charting
+ * libraries PARSE colour strings in JavaScript, where `var(--kt-accent)`
+ * throws "Cannot parse color". `chartColors.test.ts` holds that file to a
+ * STRICTER rule than this one — it parses `studio-theme.css` and asserts every
+ * literal against its token.
+ *
+ * Declared as a constant rather than inlined into the filter so that widening
+ * it fails a test. A mutant that widened the inline predicate survived.
+ */
+const HEX_EXEMPT = new Set(["chartColors.ts"]);
+
+/** Every line in the Studio holding a colour literal, outside the stylesheet. */
+function hexLiterals(): string[] {
+  return scan(/#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?\b/, { skipThemeCss: true })
+    // An `#rec-id` style anchor or a `#` in prose is not a colour; only a
+    // literal that parses as one, in a styling position, counts.
+    .filter((h) => /(?:color|background|border|fill|stroke|shadow)[^;]*#[0-9a-fA-F]{3}/i.test(h)
+                || /["'`][^"'`]*#[0-9a-fA-F]{6}\b/.test(h));
+}
+
 test("the Studio has at least one file to police", () => {
   /* THE INSTRUMENT'S OWN NULL TEST. Every assertion below is "this scan found
    * nothing", and a scan over an empty file list finds nothing too. Without
@@ -126,26 +149,29 @@ test("no new hex colours outside studio-theme.css and the ONE named bridge", () 
    * asserts every literal against its token, in both themes, and that test
    * exists because every dark value HAD drifted (accent #34d399 vs #79a98c).
    * So the file is exempt from THIS rule and held to a stricter one. */
-  const hits = scan(/#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?\b/, { skipThemeCss: true })
-    // An `#rec-id` style anchor or a `#` in prose is not a colour; only a
-    // literal that parses as one, in a styling position, counts.
-    .filter((h) => /(?:color|background|border|fill|stroke|shadow)[^;]*#[0-9a-fA-F]{3}/i.test(h)
-                || /["'`][^"'`]*#[0-9a-fA-F]{6}\b/.test(h))
-    .filter((h) => !h.startsWith("chartColors.ts:"));
+  const hits = hexLiterals().filter((h) => !HEX_EXEMPT.has(h.split(":")[0]));
   assert.deepEqual(hits, [],
     "every colour is a --kt-* variable in studio-theme.css, which is what "
     + "keeps light and dark from drifting apart");
 });
 
 test("the hex exemption covers exactly ONE file, and that file is still policed", () => {
-  /* A guard whose scope is a literal has a quiet off-switch (D27): if someone
-   * adds a second exemption above, this fails. And if the stricter test that
-   * justifies the exemption is ever deleted, this fails too. */
-  const exempted = scan(/#[0-9a-fA-F]{6}\b/, { skipThemeCss: true })
-    .filter((h) => /["'`][^"'`]*#[0-9a-fA-F]{6}\b/.test(h))
-    .map((h) => h.split(":")[0]);
-  assert.deepEqual([...new Set(exempted)], ["chartColors.ts"],
-    "exactly one file may hold literal colours, and it is the charting bridge");
+  /* THE EXEMPTION IS A CONSTANT, NOT A PREDICATE, and the reason is a mutant
+   * that SURVIVED the first version of this file: widening the filter from
+   * "chartColors.ts" to "any .ts/.tsx" changed nothing, because after the
+   * repairs no other file held a literal. The guard could not detect its own
+   * loosening — the D27 lesson (a guard whose scope is a maintained literal
+   * has a quiet off-switch) applied to a guard I had just written.
+   *
+   * So the scope is `HEX_EXEMPT`, asserted here by VALUE. Widening it fails
+   * this test whether or not any file currently exploits the widening. */
+  assert.deepEqual([...HEX_EXEMPT], ["chartColors.ts"],
+    "exactly one file may hold literal colours, and it is the charting "
+    + "bridge; adding a second is a design decision, not a lint tweak");
+  /* And the file itself must actually BE the one holding literals — an
+   * exemption for a file that no longer needs it is scope nobody is using. */
+  const holders = [...new Set(hexLiterals().map((h) => h.split(":")[0]))];
+  assert.deepEqual(holders, ["chartColors.ts"]);
   const guard = readFileSync(join(HERE, "chartColors.test.ts"), "utf8");
   assert.match(guard, /studio-theme\.css/,
     "the exemption is only legitimate while a test pins those literals to the "
