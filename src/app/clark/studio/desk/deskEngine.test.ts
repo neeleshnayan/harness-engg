@@ -130,6 +130,28 @@ test("cellKey is stable and distinguishes seats from categories", () => {
   assert.notEqual(cellKey("pm", "open"), cellKey("builder", "open"));
 });
 
+test("no source file in this module carries a control character", () => {
+  /* A LITERAL NUL SHIPPED IN THIS FILE and the suite could not see it.
+   * `cellKey` was written with a NUL where a separator was meant; every
+   * behavioural assertion above still passed, because a NUL separates two
+   * strings perfectly well. What it does NOT do is survive review: git
+   * classified the whole module as BINARY (`Bin 0 -> 10787 bytes` in
+   * `diff --stat`), so the file would have reached the CTO as an unreadable
+   * blob — a diff nobody can review is a diff nobody did.
+   *
+   * Caught by reading the diff summary at bundling time, eleven dispatches
+   * running that the late pass finds what the tests cannot. This is the test
+   * that could have. */
+  for (const f of ["deskEngine.ts", "DeskMatrix.tsx", "EngineViews.tsx"]) {
+    const src = readFileSync(join(HERE, f), "utf8");
+    const bad = [...src].filter(
+      (ch) => ch.charCodeAt(0) < 32 && ch !== "\n" && ch !== "\r" && ch !== "\t");
+    assert.deepEqual(bad.map((c) => c.charCodeAt(0)), [],
+      `${f} carries a control character — git will treat it as binary and the `
+      + `diff becomes unreviewable`);
+  }
+});
+
 /* -------------------------------------------------------- supersession --- */
 
 test("a pending chip carries BOTH halves — the named event and the revival branch", () => {
