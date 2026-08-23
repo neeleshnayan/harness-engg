@@ -40,6 +40,15 @@ at ~00:05Z ("you too rest post closing these 5 items; will see you on
 Monday"). The five fan-out items all resolved; the floor rests until Monday.
 
 **DECIDED**
+- **THE ILLUMINATION PRINCIPLE (CEO, verbatim: he will not be hunting JSON
+  and codefiles, so the UI must illuminate beneath the surface).** Five
+  clauses now in theme.ts where every KP brief reads: provenance one click
+  away; absence renders as WORDS never zero/omission; disagreements shown
+  with the difference named; staleness stamped where read; a down control
+  renders where the CEO looks, in warn tone, the moment it exists. The
+  stale analyst lamp he caught is clause 4'''s founding measurement; the
+  dead-spine CDP pass is the standing acceptance test.
+
 - **THE GAUNTLET (CEO proposal, ~20:2xZ): the builder's standing QA worker,
   spec v1** — the Recount pattern applied to code: six standing checks,
   each born from a measured miss (null tests, shared-word audit, CALL-vs-
