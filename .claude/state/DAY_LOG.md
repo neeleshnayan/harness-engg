@@ -401,6 +401,22 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   premia certification in a single run.**
 
 **BUILT**
+- **THE TWO-BLINDSPOT MITIGATION (CEO: honest discussion -> mitigate and
+  close before Monday). Both dispatched within the hour.** (1) D35, the
+  EXECUTION-REALITY INSTRUMENT, Monday-critical 13:30Z deadline: NBBO
+  capture at every order event (ticket 788caa72) + the 6(c) retro
+  effective-spread reader + a GET for the desk - so Monday'''s R39 fills
+  land as MEASUREMENTS (effective spread vs mid-at-submit), not
+  anecdotes. First live outing of the junior trial + the Gauntlet. (2)
+  THE POSITIVE CONTROL: the quant implements four known-good META
+  archetypes (buyhold / volscale gross-capped premia / earnings-window /
+  PEAD) and belts them after the premia run frees the lock - the
+  machinery measured against ground truth instead of co-evolving with
+  its only candidate. The deliverable is the per-criterion table with a
+  judgement column: true-statement-about-the-archetype vs
+  false-refusal-of-known-good (= machinery defect). Controls are never
+  tuned to pass.
+
 - **THE PREMIA STACK IS LIVE AND THE FIRST PREMIA-JUDGED CANDIDATE IS
   RUNNING (~20:5xZ→).** Adversary D32: SURVIVES (sixth loop; both D29
   grounds closed by execution; rf work re-derived to 6dp; eight residuals
