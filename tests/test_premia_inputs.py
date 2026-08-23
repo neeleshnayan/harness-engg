@@ -401,6 +401,168 @@ def test_the_cash_leg_is_fetched_over_the_STRATEGYS_span_not_the_bars():
     assert got["coverage"]["session_fraction"] < 0.55
 
 
+def test_the_cash_leg_does_NOT_consult_the_bar_snapshot_and_says_it_is_unpinned():
+    """A consult site that can never hit is worse than none.
+
+    The first version of ``_default_rf_bars`` called ``barcache.serve`` before
+    the feed. A candidate's snapshot pins the legs its ALGORITHM declares and
+    the cash symbol is never one of them, so that consult would have MISSED on
+    every candidate ever run — and a recorded miss is what sets
+    ``uniform_data_path`` False. It is the `_add_capacity` defect (a 120-day
+    request against legs pinned at 700/900/2000) on a new symbol, and
+    ``test_barcache.test_the_consult_sites_are_exactly_the_two_belt_side_ones``
+    caught it. Two facts are pinned here so it cannot come back quietly: the
+    production fetcher touches no snapshot, and the payload SAYS the leg is
+    unpinned rather than leaving a reader to assume it is.
+    """
+    import inspect
+
+    from app.fund.leanrunner import _default_rf_bars
+    src = inspect.getsource(_default_rf_bars)
+    body = src.split('"""')[-1]
+    assert "barcache" not in body, body
+    got, _c, _s = _lean_shaped(300)
+    assert got["rf"]["pinned"] is False
+    assert "not pinned" in got["rf"]["pinned_note"] or \
+        "fetched live" in got["rf"]["pinned_note"]
+
+
+def test_a_cash_series_with_ONE_usable_return_is_refused_with_that_reason():
+    """Two fail-closed paths, and the reason must say WHICH.
+
+    A one-point cash series cannot form a return, and the downstream
+    intersection would refuse it anyway — so the guard looked redundant, and
+    mutation N03 (`len(rmap) < 0`) survived. It is not redundant: the two paths
+    give a reader different information ("the feed had nothing" against "the
+    feed and the run do not overlap"), and a diagnosis that names the wrong
+    cause sends the next person to the wrong place.
+    """
+    cal = calendar_dates(301)
+    sess = [d for d in cal if datetime.date.fromisoformat(d).weekday() < 5]
+    bar = drifting(len(sess) - 1, 0.0002, 0.012, 5)
+
+    def one_bar(_sym, _start, _end):
+        from premia_feed import FakeBars
+        return FakeBars([cal[10]], [100.0], "synthetic-cash")
+
+    got = premia_inputs({
+        "daily_returns": {"present": True, "dates": cal[1:],
+                          "strategy": drifting(300, 0.0006, 0.012, 3),
+                          "benchmark": [], "benchmark_present": False,
+                          "n": 300},
+        "benchmark_curve": levels(bar)[:len(sess)], "benchmark_dates": sess,
+        "benchmark_series_source": "recomputed_basket"}, rf_bars=one_bar)
+    assert got["excess_measurable"] is False
+    assert got["rf"]["measurable"] is False
+    assert "yielded 0 usable return(s)" in got["rf"]["reason"], got["rf"]
+    assert "no window on which" not in got["rf"]["reason"]
+
+
+def test_a_strategy_that_IS_cash_plus_a_spread_has_no_risk_adjusted_anything():
+    """The excess pair can be unmeasurable while the raw pair is fine.
+
+    A strategy whose return is the cash rate plus a fixed spread has a POSITIVE
+    raw dispersion — the cash rate itself moves — and ZERO excess dispersion. It
+    is not a low-volatility premium; it has no risk-adjusted return at all,
+    because there is no risk in it. Mutation N15 (assert `excess_measurable`
+    instead of computing it) survived until this existed, and the live cost of
+    that mutant would be a Sharpe of order 1e16 certifying a savings account.
+    """
+    cal = calendar_dates(301)
+    sess = [d for d in cal if datetime.date.fromisoformat(d).weekday() < 5]
+    # A cash leg that MOVES, so the raw strategy leg has real dispersion. The
+    # step is keyed on a DATE, so the padded series `premia_inputs` fetches
+    # agrees with the one built here on every date they share.
+    fetch = cash_feed(0.0, obs_per_year=261.0, later_pct=9.0,
+                      switch_on=cal[150])
+    rf_bars = fetch("BIL", cal[0], cal[-1])
+    rf_ret = _returns_from_curve(rf_bars.closes, rf_bars.dates)
+    spread = 0.00002
+    strat = [rf_ret.get(d, 0.0) + spread for d in cal[1:]]
+    bar = drifting(len(sess) - 1, 0.0002, 0.012, 5)
+    got = premia_inputs({
+        "daily_returns": {"present": True, "dates": cal[1:], "strategy": strat,
+                          "benchmark": [], "benchmark_present": False,
+                          "n": 300},
+        "benchmark_curve": levels(bar)[:len(sess)], "benchmark_dates": sess,
+        "benchmark_series_source": "recomputed_basket"}, rf_bars=fetch)
+    assert got["measurable"] is True                    # the RAW pair is fine
+    assert got["strategy"]["stdev"] > 0
+    assert got["strategy_excess"]["measurable"] is False
+    assert got["excess_measurable"] is False
+    out = evaluate(got and {
+        "total_return_pct": 40.0, "benchmark_return_pct": 20.0,
+        "capacity": {"capacity_usd": 5e6},
+        "robustness": {"psr_pct": 92.0, "total_orders": 300,
+                       "costs": {"slippage_modelled": True}},
+        "premia_inputs": got}, claim_type="premia")
+    assert out["checks"]["premia"]["measurable"] is False
+    assert out["passed"] is False
+
+
+def test_the_belt_READS_the_cash_symbol_from_the_bar_rather_than_naming_it():
+    """MOVE it (D16). Asserting the belt fetches "BIL" cannot distinguish a read
+    from a hardcoded literal that happens to agree — mutation N17 proved it, by
+    replacing the criteria read with the string and surviving.
+    """
+    import app.fund.gate as gate
+    cal = calendar_dates(301)
+    sess = [d for d in cal if datetime.date.fromisoformat(d).weekday() < 5]
+    bar = drifting(len(sess) - 1, 0.0002, 0.012, 5)
+    res = {
+        "daily_returns": {"present": True, "dates": cal[1:],
+                          "strategy": drifting(300, 0.0006, 0.012, 3),
+                          "benchmark": [], "benchmark_present": False,
+                          "n": 300},
+        "benchmark_curve": levels(bar)[:len(sess)], "benchmark_dates": sess,
+        "benchmark_series_source": "recomputed_basket"}
+    calls: list = []
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setitem(gate.PREMIA_CRITERIA, "premia_rf_symbol", "SHV")
+        got = premia_inputs(res, rf_bars=cash_feed(3.0, obs_per_year=261.0,
+                                                   symbol="SHV", calls=calls))
+    assert [c[0] for c in calls] == ["SHV"]
+    assert got["rf"]["symbol"] == "SHV"
+    assert got["excess_measurable"] is True
+
+
+def test_the_BELTS_OWN_CALL_SITE_supplies_a_cash_source(monkeypatch):
+    """Drive the real producer, not the helper (D17: a helper can be flawless
+    and uncalled).
+
+    Mutation N18 removed the fetcher from `_add_premia_inputs` — the ONE
+    production wiring of the rf source — and survived every test, because every
+    test called `premia_inputs` directly with its own feed. The live effect
+    would be that every candidate the belt ever runs reports its premia leg
+    unmeasurable: a criterion shipped and permanently unclearable, which looks
+    like rigour and is a bug.
+    """
+    import app.fund.leanrunner as lr
+    from app.fund.leanrunner import LeanRunner
+
+    seen: list = []
+
+    def fake(symbol, start, end):
+        seen.append((symbol, start, end))
+        return cash_feed(3.0, obs_per_year=261.0)(symbol, start, end)
+
+    monkeypatch.setattr(lr, "_default_rf_bars", fake)
+    cal = calendar_dates(301)
+    sess = [d for d in cal if datetime.date.fromisoformat(d).weekday() < 5]
+    bar = drifting(len(sess) - 1, 0.0002, 0.012, 5)
+    res = {
+        "daily_returns": {"present": True, "dates": cal[1:],
+                          "strategy": drifting(300, 0.0006, 0.012, 3),
+                          "benchmark": [], "benchmark_present": False,
+                          "n": 300},
+        "benchmark_curve": levels(bar)[:len(sess)], "benchmark_dates": sess,
+        "benchmark_series_source": "recomputed_basket"}
+    LeanRunner._add_premia_inputs(res)
+    assert seen and seen[0][0] == "BIL"
+    assert res["premia_inputs"]["excess_measurable"] is True
+    assert res["premia_inputs"]["rf"]["realised_annual_pct"] is not None
+
+
 def test_a_cash_series_that_shares_no_dates_is_an_absence_not_a_zero():
     """A feed that answers with a series from the wrong era.
 

@@ -645,8 +645,8 @@ def test_the_rate_is_a_SERIES_not_its_average():
     bench = series_with_moments(R600, 12.0, 20.0, seed=21)
     strat = series_with_moments(R600, 18.0, 14.0, seed=22)
     stepped = judge(make_result(strat, bench,
-                                rf_bars=feed(0.0, dates=R600,
-                                             second_half_pct=8.0)),
+                                rf_bars=feed(0.0, dates=R600, later_pct=8.0,
+                                             switch_on=R600[len(R600) // 2])),
                     claim_type="premia")["checks"]["premia"]
     flat = judge(make_result(strat, bench,
                              rf_pct=stepped["rf_realised_annual_pct"]),
@@ -797,6 +797,82 @@ def test_moving_the_stress_rate_moves_the_verdict_UNDER_THE_CONSTANT_BASIS():
     assert loose["passed"] is True
 
 
+def test_the_SESSION_denominator_changes_a_verdict_on_LEANs_real_shape():
+    """Item 3 as a VERDICT difference, not a field difference — and it is a
+    LOOSENING relative to v5r1, said plainly.
+
+    LEAN emits an equity point every CALENDAR day, so a 500-day run carries ~357
+    sessions and 143 weekends nobody could ever have compared. v5r1 divided the
+    comparison by 500. A bar covering 200 of the 357 sessions therefore read as
+    40% and FAILED the majority; it is in fact 56% of the run and passes.
+
+    Both readings are here, and the direction is disclosed: in the band
+    179 <= common <= 250 this criterion now passes candidates v5r1 refused. That
+    is the correct answer — the old denominator was comparing trading days with
+    weekends — and it is still a control moving in the permissive direction, so
+    it is written down rather than buried in a fraction.
+
+    Mutation N29 is what demanded this test: reverting the gate's denominator to
+    `total` survived the entire suite, because every other premia fixture uses
+    weekday-only dates where the two denominators are equal.
+    """
+    cal = [(DAY0 + datetime.timedelta(days=i)).isoformat() for i in range(501)]
+    sess = [d for d in cal if datetime.date.fromisoformat(d).weekday() < 5]
+    strat = series_with_moments(cal[1:], 15.0, 12.0, seed=32)
+    covered = sess[:201]
+    bar = series_with_moments(covered[1:], 20.0, 24.0, seed=31)
+    res = {
+        "total_return_pct": 40.0, "benchmark_return_pct": 20.0,
+        "capacity": {"capacity_usd": 5_000_000.0},
+        "robustness": {"psr_pct": 92.0, "total_orders": 300,
+                       "costs": {"slippage_modelled": True}},
+        "daily_returns": {"present": True, "dates": cal[1:], "strategy": strat,
+                          "benchmark": [], "benchmark_present": False,
+                          "n": 500},
+        "benchmark_curve": curve_from(bar), "benchmark_dates": covered,
+        "benchmark_series_source": "recomputed_basket",
+    }
+    res["premia_inputs"] = premia_inputs(
+        res, rf_bars=cash_feed(RF_TEST_PCT, obs_per_year=261.0))
+    cov = res["premia_inputs"]["coverage"]
+    assert cov["strategy_days"] == 500                     # calendar
+    assert cov["strategy_sessions"] == len(sess) - 1       # sessions
+    common = cov["common_days"]
+    assert common * 2 > cov["strategy_sessions"], cov      # a majority of the run
+    assert common * 2 <= cov["strategy_days"], cov         # not of the calendar
+    p = judge(res, claim_type="premia")["checks"]["premia"]
+    assert p["coverage_denominator_basis"] == "sessions"
+    assert p["coverage_denominator"] == cov["strategy_sessions"]
+    assert p["coverage_majority"] is True
+
+
+def test_with_no_session_count_the_fallback_is_CALENDAR_not_zero():
+    """The strict fallback must be strict, not impossible.
+
+    With no cash leg there is no session count. The documented fallback is the
+    calendar figure — larger, therefore harder — and mutation N30 showed that
+    falling back to ZERO instead survived every test while making the coverage
+    leg unpassable for any payload without a session count. "Fails everything"
+    is not the same as "fails closed", and a control that can never be satisfied
+    gets switched off by the next person who needs to ship.
+
+    Reachable only under the constant basis, which is the one that does not
+    require a cash leg — so that is where it is tested.
+    """
+    bench = series_with_moments(R600, 20.0, 24.0, seed=31)
+    strat = series_with_moments(R600, 15.0, 12.0, seed=32)
+    res = make_result(strat, bench, rf_pct=None)
+    assert res["premia_inputs"]["coverage"]["strategy_sessions"] is None
+    p = judge(res, claim_type="premia",
+              premia_criteria=CONSTANT)["checks"]["premia"]
+    assert p["coverage_denominator_basis"] == "calendar_days"
+    assert p["coverage_denominator"] == 600
+    assert p["coverage_majority"] is True
+    assert not any("minority of the run" in f for f in
+                   judge(res, claim_type="premia",
+                         premia_criteria=CONSTANT)["failures"])
+
+
 def test_the_shipped_basis_does_not_read_the_stress_constant_at_all():
     """MOVE it and nothing happens — which is the claim, so it is asserted.
 
@@ -925,6 +1001,11 @@ def test_an_UNREADABLE_CASH_RATE_fails_closed_and_is_never_treated_as_zero(
     res = (make_result(strat, bench, rf_pct=None) if how == "none"
            else make_result(strat, bench, rf_bars=no_feed))
     assert res["premia_inputs"]["excess_measurable"] is False
+    # The rf block's OWN flag, not only the derived one. Mutation (N02) showed
+    # that flipping `rf.measurable` to True on an unreachable feed changed no
+    # verdict and no test — leaving a stored payload free to claim a cash rate
+    # was measured when the feed had errored. Absence rendered as presence.
+    assert res["premia_inputs"]["rf"]["measurable"] is False
     assert mark in res["premia_inputs"]["rf"]["reason"]
     out = judge(res, claim_type="premia")
     assert out["checks"]["premia"]["measurable"] is False

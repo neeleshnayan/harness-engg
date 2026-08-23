@@ -1712,16 +1712,29 @@ def _shift_date(iso: str, days: int) -> str:
 
 
 def _default_rf_bars(symbol: str, start: str, end: str) -> Any:
-    """The fund's own feed, pinned leg first — the ``_add_benchmark`` pattern.
+    """The fund's own feed. Kept as a NAMED function, not a lambda, so a caller
+    can substitute it and a test can assert which one ran.
 
-    Kept as a named function rather than a lambda so a caller can substitute it
-    and a test can assert which one ran.
+    IT DOES NOT CONSULT THE BAR SNAPSHOT, and that is deliberate — the first
+    version did, and `test_the_consult_sites_are_exactly_the_two_belt_side_ones`
+    caught it within the hour. A candidate's snapshot pins the legs the
+    ALGORITHM declares; the cash instrument is never one of them, so the consult
+    would MISS on every candidate that ever ran, and a recorded miss is what
+    makes `uniform_data_path` False. That is the `_add_capacity` defect
+    (leanrunner, 2026-08-22: a 120-day request against legs pinned at 700/900/
+    2000, guaranteed to miss, marking every candidate's data path non-uniform)
+    arriving a second time on a different symbol. A consult site that can never
+    hit is worse than none.
+
+    THE HONEST CONSEQUENCE, and it is reported rather than hidden: the cash leg
+    is NOT pinned to the candidate's snapshot, so it is fetched live and its
+    vendor is whatever `fetch_daily_bars` resolves for a start+end window
+    (Yahoo, measured 2026-08-23). `rf.pinned` is therefore False on every run
+    today, and `rf.source` names the vendor. Pinning it properly means adding
+    the cash symbol to the snapshot the belt takes, which is a belt change and
+    is not in this diff.
     """
-    from app.fund import barcache
     from app.fund.marketdata import fetch_daily_bars
-    pinned = barcache.serve(symbol, start=start, end=end)
-    if pinned is not None:
-        return pinned
     return fetch_daily_bars(symbol, start=start, end=end)
 
 
@@ -1743,7 +1756,18 @@ def rf_series(symbol: str, first: str, last: str,
         "symbol": symbol,
         "measurable": False,
         "reason": None,
+        # STATED, not detected. The first version wrote
+        # `bool(getattr(bars, "taken_at", None))` — and `SnapshotLeg` has no
+        # `taken_at` (it lives on `BarSnapshot`), so the field could never have
+        # been True. A flag that can only report one value is not a measurement;
+        # it is a decoration that a reader will eventually believe. The cash leg
+        # is not pinned today, for the reason in `_default_rf_bars`, and this
+        # says so in every stored payload until that changes.
         "pinned": False,
+        "pinned_note": ("the cash leg is fetched live, not served from the "
+                        "candidate's bar snapshot — the snapshot pins the "
+                        "algorithm's declared legs and the cash symbol is never "
+                        "one of them"),
         "source": None,
         "requested_window": {"first": first, "last": last},
     }
@@ -1766,7 +1790,6 @@ def rf_series(symbol: str, first: str, last: str,
         meta["reason"] = (f"the feed returned no cash series for {symbol} over "
                           f"{start}..{end}")
         return {}, meta
-    meta["pinned"] = bool(getattr(bars, "taken_at", None))
     meta["source"] = getattr(bars, "source", None) or "unknown"
     rmap = _returns_from_curve(list(getattr(bars, "closes", None) or []),
                                [str(d)[:10] for d in
@@ -1902,7 +1925,14 @@ def premia_inputs(result: dict[str, Any], rf_bars: Any = None,
     if rf_symbol is None:
         from app.fund.gate import PREMIA_CRITERIA as _PC
         rf_symbol = str(_PC["premia_rf_symbol"])
-    rfmap, rf_meta = rf_series(rf_symbol, pair_days[0], pair_days[-1],
+    # OVER THE STRATEGY'S OWN SPAN, not the strategy-and-bar intersection.
+    # Fetching over the intersection looked equivalent and is not: when the BAR
+    # is the short leg — the Entry 20 truncation, 11.85pp — the cash leg would
+    # be cut to match it, and then neither series could say how many sessions
+    # the strategy's run actually contained. The coverage denominator below
+    # depends on exactly that, and a denominator that shrinks with the leg it is
+    # measuring is a majority test that gets EASIER the more is missing.
+    rfmap, rf_meta = rf_series(rf_symbol, s_dates[0], s_dates[-1],
                                fetcher=rf_bars)
     out["rf"] = rf_meta
 
@@ -1929,16 +1959,23 @@ def premia_inputs(result: dict[str, Any], rf_bars: Any = None,
     # 252/365 — leaving ~19pp of slack in a majority test and telling a reader
     # nothing about whether anything was actually missing.
     #
-    # The session calendar is taken from the UNION of the bar's dates and the
-    # cash series' dates, restricted to the strategy's own span. Both come from
-    # the same feed and both are session series, so the union can only move the
-    # count TOWARD the truth: if the bar was truncated (the Entry 20 defect,
-    # 11.85pp) the cash leg still supplies those sessions, and vice versa. A
-    # short leg therefore makes this test HARDER, never easier.
-    span = (s_dates[0], s_dates[-1]) if s_dates else (common[0], common[-1])
-    session_days = {d for d in (set(bmap) | set(rfmap))
-                    if span[0] <= d <= span[1]}
-    sessions = len(session_days)
+    # The session calendar is the UNION of the bar's dates and the cash series'
+    # dates over the strategy's own span. Both are session series from the same
+    # feed, so the union can only move the count TOWARD the truth: if the bar
+    # was truncated, the cash leg — fetched over the strategy's span, above —
+    # still supplies those sessions.
+    #
+    # WITH NO CASH LEG THERE IS NO SESSION COUNT, and this is not a detail. The
+    # bar alone is exactly the leg that gets truncated, so deriving the
+    # denominator from it lets a truncation shrink its own test: a bar covering
+    # 180 of 600 sessions would report 180 of 180 and clear a strict majority.
+    # That defect was written here, and an EXISTING coverage test caught it. So
+    # the count is reported only when the cash leg vouches for the span, and the
+    # gate's fallback is the CALENDAR figure, which is larger and therefore
+    # stricter.
+    session_days = ({d for d in (set(bmap) | set(rfmap))
+                     if s_dates[0] <= d <= s_dates[-1]} if rfmap else set())
+    sessions = len(session_days) or None
     coverage: dict[str, Any] = {
         "common_days": len(common),
         "strategy_days": len(s_dates),
@@ -1946,11 +1983,12 @@ def premia_inputs(result: dict[str, Any], rf_bars: Any = None,
         "strategy_sessions": sessions,
         "session_fraction": (None if not sessions
                              else round(len(common) / sessions, 4)),
-        "session_basis": ("benchmark+cash" if rfmap else "benchmark"),
+        "session_basis": ("benchmark+cash" if sessions else None),
         "rf_dropped_days": len(pair_days) - len(common),
         "note": ("`fraction` divides sessions by CALENDAR days and is kept only "
                  "so the two are comparable; `session_fraction` is the one the "
-                 "majority test reads"),
+                 "majority test reads, and it is absent — never assumed — when "
+                 "no cash leg vouched for the session calendar"),
     }
     out.update({
         "measurable": bool(strat.get("measurable") and bench.get("measurable")),
