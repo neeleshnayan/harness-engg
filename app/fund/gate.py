@@ -399,6 +399,34 @@ def evaluate(result: dict[str, Any],
     strat = result.get("total_return_pct")
     bench = result.get("benchmark_return_pct")
     checks["return_pct"], checks["benchmark_pct"] = strat, bench
+    # WHICH POPULATION the bar was built from, recorded in the verdict rather
+    # than left in the belt's result payload. A stored verdict already says
+    # which THRESHOLD it cleared; a benchmark criterion that cannot say which
+    # POPULATION it cleared is half a record. The bias is measured and it runs
+    # in the kill direction (docs/SURVIVORSHIP_2026-08-17.md), so a reader must
+    # be able to tell a survivor-only comparison from a corrected one without
+    # re-deriving it. No threshold reads this: labelling is what the evidence
+    # supports, and failing every candidate that predates the label would be
+    # judging strategies for a defect in our own data.
+    pop = result.get("benchmark_population")
+    if isinstance(pop, dict):
+        checks["benchmark_population"] = {
+            "basis": pop.get("basis"),
+            "point_in_time": pop.get("point_in_time"),
+            "listing_asof_applied": pop.get("listing_asof_applied"),
+            "survivorship_corrected": pop.get("survivorship_corrected"),
+            "as_of": pop.get("as_of"),
+            "names": len(pop.get("population") or []),
+        }
+    elif bench is not None:
+        # A benchmark with no population label. Absent, and said so — an
+        # unlabelled bar is not a corrected one.
+        checks["benchmark_population"] = {
+            "basis": None,
+            "note": ("this benchmark carries NO population label, so the "
+                     "verdict cannot say which universe it was measured "
+                     "against — unlabelled is not corrected"),
+        }
     if c["must_beat_benchmark"]:
         if strat is None or bench is None:
             failures.append("no benchmark to compare against — 'better than "

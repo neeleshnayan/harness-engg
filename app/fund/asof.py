@@ -73,6 +73,216 @@ CREATE INDEX IF NOT EXISTS fund_delisted_when_idx
 """
 
 
+#: The measurement this fund holds on what a survivor-only population costs a
+#: benchmark, named here so the payload can cite it instead of restating it.
+#: -6.90pp +/- 2.40 over 20 months (n=26, PIT membership from
+#: ``fund_universe_asof``, band eligibility decided on prior information). The
+#: MAGNITUDE is deliberately NOT applied anywhere: it was measured on a
+#: different window and a different band snapshot, so transferring it to a
+#: candidate would be a fabricated correction wearing a measurement's name. The
+#: DIRECTION is what travels — the survivor bar is too HIGH, so the error runs
+#: in the kill direction.
+SURVIVORSHIP_MEASUREMENT = "docs/SURVIVORSHIP_2026-08-17.md"
+
+#: Named once and used by both readers below, so the class method and the
+#: SELECT-only path cannot drift into asking two different questions.
+_PRICED_DELISTED_SQL = (
+    "SELECT DISTINCT d.ticker FROM fund_delisted d "
+    "WHERE EXISTS (SELECT 1 FROM fund_bars b WHERE b.symbol = d.ticker)")
+
+
+def read_population(wanted: list[str], as_of: str,
+                    dsn_str: Optional[str] = None) -> dict[str, Any]:
+    """``population_report`` with the register read for you. SELECT ONLY.
+
+    Deliberately NOT ``AsOfUniverse.population_for``: that constructor runs
+    ``_ensure_schema``, and a benchmark enrichment must never issue DDL against
+    whatever database the process happens to point at. This path opens a short
+    connection, reads three facts, and closes.
+
+    Best effort DOWNWARD only. Every read that fails degrades to "unknown",
+    which ``population_report`` renders as an explicit absence; it never
+    degrades to "no correction was needed". An unreadable register is not a
+    clean one, and this payload is the only place a reader learns which
+    population a verdict was computed against.
+    """
+    listed: Optional[set[str]] = None
+    priced: Optional[set[str]] = None
+    snaps: list[str] = []
+    snap_types: Optional[set[str]] = None
+    types: dict[str, str] = {}
+    note: Optional[str] = None
+    names = [str(s).strip().upper() for s in (wanted or []) if str(s).strip()]
+    try:
+        import psycopg
+
+        from app.fund.pgstore import dsn as _dsn
+        with psycopg.connect(dsn_str or _dsn(), connect_timeout=3) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT ticker, type FROM fund_universe_asof "
+                            "WHERE as_of = %s", (as_of,))
+                rows = cur.fetchall()
+                # None, never an empty set: an as-of screen intersected with an
+                # empty set excludes every name and looks like a finding.
+                listed = {r[0] for r in rows} if rows else None
+                # The snapshot's OWN type coverage, read from the snapshot
+                # rather than assumed from ``snapshot()``'s default argument —
+                # the default can change and an old snapshot keeps whatever it
+                # captured.
+                snap_types = {r[1] for r in rows if r[1]} if rows else None
+                cur.execute("SELECT DISTINCT as_of FROM fund_universe_asof "
+                            "ORDER BY as_of")
+                snaps = [r[0].isoformat() for r in cur.fetchall()]
+                cur.execute(_PRICED_DELISTED_SQL)
+                priced = {r[0] for r in cur.fetchall()}
+                if names:
+                    cur.execute("SELECT ticker, type FROM fund_ticker_reference "
+                                "WHERE ticker = ANY(%s)", (names,))
+                    types = {r[0]: r[1] for r in cur.fetchall() if r[1]}
+    except Exception as e:  # noqa: BLE001
+        logger.info("as-of register unreadable for %s: %s", as_of, e)
+        note = (f"the as-of register could not be read ({type(e).__name__}) — "
+                f"membership is UNKNOWN for {as_of}, which is not the same as "
+                f"'every name was listed'")
+    return population_report(wanted, as_of, listed=listed, priced_delisted=priced,
+                             snapshots=snaps, read_error=note,
+                             snapshot_types=snap_types, types=types)
+
+
+def population_report(wanted: list[str], as_of: str,
+                      listed: Optional[set[str]] = None,
+                      priced_delisted: Optional[set[str]] = None,
+                      snapshots: Optional[list[str]] = None,
+                      read_error: Optional[str] = None,
+                      snapshot_types: Optional[set[str]] = None,
+                      types: Optional[dict[str, str]] = None) -> dict[str, Any]:
+    """Which names a benchmark may hold on ``as_of``, and what it cannot fix.
+
+    A benchmark population has TWO point-in-time defects and this fund can
+    currently close only one of them. They are reported separately because
+    collapsing them would let half a correction be read as a whole one:
+
+      * LOOK-AHEAD LISTING — the bar holds a name that was not listed yet.
+        Closable wherever an as-of snapshot exists AND covers that name's
+        security type: the name is dropped and named. This is the half
+        ``membership()`` was written for.
+      * SURVIVORSHIP — the bar omits the names that were listed then and have
+        since died. NOT closable by a membership read, because a benchmark
+        needs PRICES and a delisted name that returns no bars has none.
+        Counting the dead is not the same as being able to hold them.
+
+    So ``point_in_time`` is the conjunction and is False whenever either half
+    is open. Nothing here silently serves the biased number as though it were
+    corrected: the survivor-only case is the loudest branch in the payload,
+    which is the whole reason this function exists rather than an intersection
+    written inline at the call site.
+
+    THE TYPE-COVERAGE RULE, and it is the reason this is not a one-line
+    intersection. MEASURED 2026-08-23 against the register on this machine: the
+    only snapshot (2025-01-01, 5,546 rows) holds types ``CS`` (5,144) and
+    ``ADRC`` (402) and NOTHING ELSE, because ``snapshot()`` captures exactly
+    those two — and ``fund_ticker_reference`` covers the same two, so SPY, TLT,
+    GLD and IWM appear in neither. A naive ``wanted & membership(as_of)``
+    therefore DROPS EVERY ETF as "not listed", which is a silent, total failure
+    dressed as a correction. So a name is only judged absent when the snapshot
+    demonstrably covers its type; anything else is UNJUDGEABLE, kept, and
+    named. Same rule ``universe.hunting_ground`` already applies to its own
+    reference join: unclassified is not confirmed-anything.
+    """
+    names = [str(s).strip().upper() for s in (wanted or []) if str(s).strip()]
+    snaps = sorted(snapshots or [])
+    tmap = {str(k).strip().upper(): v for k, v in (types or {}).items()}
+    out: dict[str, Any] = {
+        "as_of": as_of,
+        "wanted": len(names),
+        "snapshots_available": snaps,
+        "survivorship_corrected": False,
+        "survivorship_measurement": SURVIVORSHIP_MEASUREMENT,
+    }
+
+    if listed is None:
+        # No snapshot for this date. NOT "everything was listed" — the whole
+        # population is unverified, and the payload says which dates could
+        # have answered so the gap is actionable rather than atmospheric.
+        out.update({
+            "population": list(names),
+            "usable": bool(names),
+            "listing_asof_applied": False,
+            "point_in_time": False,
+            "basis": "survivor_only",
+            "excluded_not_listed": [],
+            "reason": read_error or (
+                f"no as-of listing snapshot exists for {as_of}"
+                + (f" (the register holds {', '.join(snaps)})" if snaps else
+                   " (the register holds no snapshots at all)")
+                + " — membership is UNKNOWN, so this bar is the universe as it "
+                  "is screened TODAY"),
+        })
+    else:
+        covered = set(snapshot_types) if snapshot_types else set()
+        kept, dropped, unjudgeable = [], [], []
+        for s in names:
+            if s in listed:
+                kept.append(s)
+            elif tmap.get(s) in covered and covered:
+                dropped.append(s)
+            else:
+                # Absent from a snapshot that does not cover this name's type
+                # (or whose type we do not know) says NOTHING about whether it
+                # was listed. Keeping it is the only honest move; naming it is
+                # what stops the gap from being invisible.
+                unjudgeable.append(s)
+                kept.append(s)
+        out.update({
+            "population": kept,
+            "usable": bool(kept),
+            "listing_asof_applied": bool(dropped) or bool(covered),
+            "point_in_time": False,
+            "basis": "listing_asof" if covered else "survivor_only",
+            "excluded_not_listed": dropped,
+            "unjudgeable_by_snapshot": unjudgeable,
+            "snapshot_types": sorted(covered),
+            "listed_market_wide": len(listed),
+        })
+        if unjudgeable:
+            out["unjudgeable_note"] = (
+                f"{len(unjudgeable)} name(s) are absent from the {as_of} "
+                f"snapshot, which covers only {', '.join(sorted(covered)) or 'an unknown set of'} "
+                f"security types — absence there is not evidence of not being "
+                f"listed, so they were KEPT: {', '.join(unjudgeable[:12])}"
+                + ("…" if len(unjudgeable) > 12 else ""))
+        if not covered:
+            out["reason"] = (
+                f"a snapshot exists for {as_of} but its security-type coverage "
+                f"is UNKNOWN, so no name could be judged absent — the bar is "
+                f"still the universe as it is screened TODAY")
+
+    # The survivorship half, stated in both branches because it is open in
+    # both. Two facts decide it and neither is assumed: are there delisted
+    # names at all, and can any of them be PRICED.
+    if priced_delisted is None:
+        out["delisted_priceable"] = None
+        out["survivorship_note"] = (
+            "whether any delisted name could be priced is UNKNOWN (the "
+            "register could not be read), so no survivorship correction was "
+            "attempted and none may be inferred")
+    else:
+        out["delisted_priceable"] = len(priced_delisted)
+        out["survivorship_note"] = (
+            f"{len(priced_delisted)} delisted name(s) carry bars this fund "
+            f"could price; no as-of BAND screen exists to say which of them "
+            f"belonged in this bar, so none were added"
+            if priced_delisted else
+            "no delisted name in the register carries a single bar this fund "
+            "can price, so the dead cannot be put into any benchmark here — "
+            "counting them is not holding them")
+    out["survivorship_direction"] = (
+        "the surviving-names bar is too HIGH, so the error runs in the KILL "
+        f"direction — measured in {SURVIVORSHIP_MEASUREMENT}, magnitude NOT "
+        f"applied here because it was measured on another window")
+    return out
+
+
 class AsOfUniverse:
     """Point-in-time listing membership, and the cost of not having had it."""
 
@@ -211,6 +421,23 @@ class AsOfUniverse:
         return out
 
     # --- reads --------------------------------------------------------------
+
+    def priced_delisted(self, tickers: Optional[list[str]] = None) -> set[str]:
+        """Delisted names this fund can actually put a price on.
+
+        The gate between "we know who died" and "we can put them in a
+        benchmark". A name in ``fund_delisted`` with no bars is a name we can
+        count and cannot include: adding it to an equal-weight bar would need a
+        return series nobody holds, and assuming one is exactly the fabrication
+        this module's docstring forbids.
+        """
+        sql = (_PRICED_DELISTED_SQL + " AND d.ticker = ANY(%s)") if tickers \
+            else _PRICED_DELISTED_SQL
+        params: tuple = ([t.strip().upper() for t in tickers],) if tickers else ()
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql, params)
+                return {r[0] for r in cur.fetchall()}
 
     def membership(self, as_of: str) -> Optional[set[str]]:
         """Tickers listed on that date, or None if never captured.
