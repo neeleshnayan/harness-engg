@@ -544,3 +544,13 @@ Cadence: at every day-log close, and immediately whenever a friction pattern rea
 4. **Backtick/quoting failures in chair shellwork** — three incidents (heredoc mangling, day-log backtick eating), each ~5 min + a repair commit. RULE: markdown with backticks goes through Write/Edit or a file-append script, NEVER through bash -c python strings.
 
 **The structural read**: the funnel's cost has inverted — generation and review are now cheap and sharp (10-of-10 self-kills at zero container cost); the expensive tail is INSTRUMENTS and the CHAIR'S OWN SERIAL WORK. The team gets faster from here by making the chair's resolve mechanical and the instruments trustworthy, not by making the seats smarter — they are already outrunning the harness.
+
+### THE BAD-LEARNING CLAUSE (CEO, same instruction, verbatim: "And bad learnings hurt more")
+
+A wrong lesson costs more than the zigzag that made it, because it TRAVELS — into briefs, seat memories, and other seats' premises — while a missing lesson just waits. Measured today, three times: the quant's "no timeouts" STATE (false, inherited by the next dispatch's brief before a Postgres check caught it); the review's "12 of 16" (11 on re-run, propagated into a stricter-than-source acceptance criterion); Ed's vol-ratio falsifier without a named computation (a candidate's claim-type flipped on the one computation the pre-commitment never specified). So the review carries three standing rules:
+
+1. **Every efficiency review includes a LESSON AUDIT**: which lessons written in the period were later falsified, and did the correction reach EVERY consumer of the original? "When a number propagates, grep the NUMBER" generalizes: when a lesson is corrected, grep the CLAIM across every seat memory and brief it touched, and append the correction there too — loudly, never by edit.
+2. **Every lesson carries its n.** A lesson from one run is written as n=1 and holds provisionally; it hardens only when a second independent run agrees. The self-fanout plumbing rule waited for n=3 catches before I called it working; the hybrid-quant split reverted the day n=2 said it cost more than it saved. That is the pattern.
+3. **Corrections ride the BINDS machinery with the same priority as findings.** A seat that corrects its own prior STATE names, in the correction, which seats consumed the original — and the chair carries the retraction at the same resolve, not at leisure. An uncorrected consumer is a bad learning still running.
+
+The episode store makes rule 1 mechanical when distillation lands: voided episodes trigger a sweep of everything that cited them. Until then it is chair discipline, on the record here.
