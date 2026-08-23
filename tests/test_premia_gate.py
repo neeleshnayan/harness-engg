@@ -1568,3 +1568,103 @@ def test_a_session_calendar_with_unreadable_dates_is_UNVOUCHED_not_perfect():
     assert got["vouched"] is False
     assert got["head_shortfall_days"] is None
     assert "could not be read as dates" in got["reason"]
+
+
+def test_a_session_calendar_that_starts_LATE_does_not_vouch_either():
+    """The head is checked as well as the tail, and the two are reported apart.
+
+    A tail-lag and a late start are different feed faults with the same
+    consequence for the denominator, and a check written only against the end
+    would pass the second one silently.
+    """
+    from app.fund import leanrunner
+    days = weekdays_between("2021-01-04", "2021-02-01")
+    got = leanrunner._session_span(days[6:], "2021-01-04", "2021-02-01")
+    assert got["head_shortfall_days"] == 8
+    assert got["tail_shortfall_days"] == 0
+    assert got["vouched"] is False
+    assert "8 day(s) missing at the start" in got["reason"]
+
+
+def test_a_session_calendar_WIDER_than_the_run_reports_no_shortfall_not_a_negative():
+    """The cash series is fetched with a pad, so it routinely starts before the
+    strategy's first date and ends after its last. That is complete coverage,
+    and it must be reported as a shortfall of ZERO — a negative number here
+    would read as "eight days of extra coverage" to anything that sums or
+    charts these fields, and would let a real gap at the other end be cancelled
+    out by slack at this one.
+    """
+    from app.fund import leanrunner
+    days = weekdays_between("2021-01-04", "2021-02-01")
+    got = leanrunner._session_span(days, "2021-01-11", "2021-01-25")
+    assert got["head_shortfall_days"] == 0
+    assert got["tail_shortfall_days"] == 0
+    assert got["vouched"] is True
+
+
+def test_a_stored_exposure_block_that_claims_measurable_with_NO_number_refuses():
+    """The gate reads STORED payloads, not only ones this belt just wrote.
+
+    A block round-tripped through JSON, truncated, or written by a future belt
+    can say `measurable: True` and carry no figure. Trusting the flag over the
+    number would put `None` into a comparison; the pair is checked, and the
+    claim refuses.
+    """
+    bench = series_with_moments(R600, 12.0, 20.0, seed=21)
+    rule = series_with_moments(R600, 18.0, 14.0, seed=22)
+    res = make_result(rule, bench, gross=None)
+    res["exposure"] = {"measurable": True, "max_gross": None,
+                       "reason": None}
+    res["premia_inputs"] = premia_inputs(
+        res, rf_bars=feed(RF_TEST_PCT, dates=R600))
+    assert res["premia_inputs"]["gross_measurable"] is False
+    p = judge(res, claim_type="premia")["checks"]["premia"]
+    assert p["measurable"] is False
+    assert "GROSS EXPOSURE is unknown" in premia_failures(
+        judge(res, claim_type="premia"))[0]
+
+
+def test_a_STORED_payload_claiming_a_measurable_gross_with_no_number_never_raises():
+    """A GATE MUST RETURN A VERDICT, NEVER RAISE — and this is the path that
+    would have.
+
+    The belt's own `premia_inputs` never emits `gross_measurable: True` beside a
+    null figure, so the belt-side test of that pair
+    (`..._claims_measurable_with_NO_number_refuses`) cannot reach this branch.
+    But `_premia_leg` reads a STORED payload — round-tripped through JSON and
+    Postgres, possibly written by an older or newer belt — and there the pair
+    can disagree. Dropping the `gross is None` half of the guard leaves
+    `None <= 1.0`, a TypeError inside `evaluate` that takes out the whole
+    judgement rather than failing one criterion. Hand-derived, then pinned:
+    the mutant raises `TypeError: '<=' not supported between instances of
+    'NoneType' and 'float'`.
+
+    It also exercises the fallback REASON, which no other test reaches: an
+    exposure block with no `reason` of its own must still produce a sentence.
+    """
+    stored = {
+        "measurable": True, "excess_measurable": True,
+        "gross_measurable": True, "max_gross_exposure": None,
+        "strategy": {"ann_vol_pct": 10.0, "max_drawdown_pct": 5.0,
+                     "total_return_pct": 10.0, "stdev": 0.01,
+                     "measurable": True, "mean": 0.0005,
+                     "obs_per_year": 252.0},
+        "benchmark": {"ann_vol_pct": 12.0, "max_drawdown_pct": 6.0,
+                      "total_return_pct": 8.0, "stdev": 0.012,
+                      "measurable": True, "mean": 0.0004,
+                      "obs_per_year": 252.0},
+        "strategy_excess": {"measurable": True, "stdev": 0.01,
+                            "mean": 0.0004, "obs_per_year": 252.0},
+        "benchmark_excess": {"measurable": True, "stdev": 0.012,
+                             "mean": 0.0003, "obs_per_year": 252.0},
+        "rf": {"symbol": "BIL", "realised_annual_pct": 2.5},
+        "coverage": {"common_days": 500, "strategy_days": 500,
+                     "strategy_sessions": 500},
+    }
+    out = evaluate({"premia_inputs": stored}, CLEAN_HOLDOUT, CLEAN_SWEEP,
+                   walkforward=CLEAN_WALK, claim_type="premia")
+    p = out["checks"]["premia"]
+    assert p["measurable"] is False
+    assert p["reason"] == "the belt captured no exposure reading for this run"
+    assert out["passed"] is False
+    assert any("GROSS EXPOSURE is unknown" in f for f in out["failures"])
