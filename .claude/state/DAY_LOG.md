@@ -59,7 +59,24 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   at target and the funnel still starves on generation (not absorption), a
   bounded generative engine with family-wise correction in its selection
   criterion becomes worth pricing.
-- The CEO's parting instructions stand: rest after the close; G1 (live
+- **SUNDAY SESSION (CEO returned): "how I want to close this week is one
+  strategy that genuinely sticks."** The stated discipline against the
+  goal's own risk: instrument fixes land BEFORE any re-judge result exists
+  (pre-registration), every gate-touching diff goes adversary-blind, and
+  an honest fail is a keepable result.
+- **THE GATE PAIR APPROVED (CEO ruling, before any result existed):**
+  ticket `58c4fff5` — scale min_folds/min_decisions FIRST, then flip the
+  2024-02-26 history floor to the full feed (SPY from 1993). Ordered
+  because floor-alone loosens (FP 2.9%→12.5%); the pair tightens
+  discrimination while adding 33 years. Would change its mind: a measured
+  FP rate on the scaled criteria worse than the current 2.9%.
+- **THE DRILL RULING (CEO, the ~14-day one-word ruling per Grace): a
+  DRILL COUNTS as "fired in anger" for prod-gate P1** — if deliberately
+  triggered, fully evented, verified end-to-end, and labeled as a drill
+  in the record. The drill set gets scheduled this week at $0 risk.
+  Would change its mind: any drill-satisfied control later failing to
+  fire on a real incident — that voids the drill's credit and reopens P1.
+- The CEO's parting instructions from the night stand otherwise; G1 (live
   account) starts Monday.
 
 **BUILT**
