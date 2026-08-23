@@ -401,6 +401,21 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   premia certification in a single run.**
 
 **BUILT**
+- **THE PREMIA STACK IS LIVE AND THE FIRST PREMIA-JUDGED CANDIDATE IS
+  RUNNING (~20:5xZ→).** Adversary D32: SURVIVES (sixth loop; both D29
+  grounds closed by execution; rf work re-derived to 6dp; eight residuals
+  named+bounded → D34; the reviewer'''s probe-classification EVOLVE paid
+  three times in one dispatch). Chair merged D23+D29+D32 whole
+  (), **full suite 3,902 passed zero failures on the live
+  tree**, spine restarted (snapshot still off pending the hang fix), and
+  **Entry 20 submitted as ** — candidate
+  , four-point grid, identical holdout, exposure captured
+  by design, belt lock held, container-based monitor armed (orphan-aware:
+  the 3h reconciler will mislabel mid-run again; final-write-wins is the
+  proven recovery). ~5h to the verdict. The leverage-shape decision
+  already made under delegation (refusal stands); the adversary'''s
+  duplicate policy rec closed with citation. adv32 instruments shelved.
+
 - **D32 DELIVERED (sixth loop): all four D29 clearing conditions closed.**
   Gate v5r3: the belt now reads the engine'''s own Exposure chart (108/108
   runs carry it; the belt was discarding it), premia refuses above 1.0x

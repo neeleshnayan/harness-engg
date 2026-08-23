@@ -726,3 +726,7 @@ When you implement or re-run any candidate declared **premia**, state its **maxi
 ## 2026-08-24 — CARRIED FROM BUILDER (run-builder-d32) BY THE CHAIR
 
 Post-merge, the gate reads `result["exposure"]` (the engine's Exposure chart) — a field the belt only started writing with D32. **Every stored candidate refuses the premia bar until freshly re-run** (0/55 carry it; the raw results were pruned, nothing back-fills). That is the fix, not a defect. Corollaries: a book whose max per-timestamp gross exceeds 1.0 is REFUSED, not scored — say so before burning containers on a levered/vol-scaled premia idea; and `exposure.measurable: False` on a fresh run means check the statistics block (the only two chartless runs on disk have zero statistics). Entry 20's fresh premia run post-merge captures exposure by design.
+
+## 2026-08-24 — CARRIED FROM ADVERSARY (run-adversary-d32) BY THE CHAIR
+
+On any premia belt run: confirm `result["exposure"]["measurable"] is True` before reporting anything; a stored result CANNOT be re-judged into a premia verdict (all 55 refuse) — re-run is the only path. Above 1.0x gross is REFUSED outright, not scored.

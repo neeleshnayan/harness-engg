@@ -948,3 +948,7 @@ Your zero-skill census family needs a **LEVERED ARM**: the unlevered Dirichlet p
 ## 2026-08-24 — CARRIED FROM BUILDER (run-builder-d32) BY THE CHAIR — a named instrument question, queued for your next audit
 
 `gross_exposure` maxes over the engine's OWN samples (daily Exposure-chart points). **Can a strategy lever intraday and flatten by the close, measuring <=1.0 while briefly above the ceiling?** Needs one real container run with an intraday-levering algorithm to answer whether LEAN's chart sampling is finer than daily there. The builder could not test it without the belt; disclosed at birth rather than discovered later.
+
+## 2026-08-24 — CARRIED FROM ADVERSARY (run-adversary-d32) BY THE CHAIR
+
+**Audit a constant's WRITTEN REASON as a separate artifact from its VALUE**: SESSION_SPAN_TOLERANCE_DAYS=5 is justified by a sentence the fund's own feed falsifies (SPY 2001-09-10→2001-09-17, a 7-calendar-day session gap) while the number errs safe. A register that only checks values passes this. **Worth a sweep of thresholds whose provenance sentences nobody has ever executed** — joins your existing evaluability census.
