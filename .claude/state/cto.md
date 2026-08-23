@@ -454,3 +454,10 @@ not to re-derive" STATE blocks are the shelf's seed content.
 ## 2026-08-23 (~00:15Z) — FROM RISKOFFICER 6, binding on the chair
 
 Before any batch of order approvals touching a drift-list symbol, STATE THE PATH in the ticket: sync-apply reconciles by event (guarded); order approvals TRADE, and on three symbols today that opens $650.82 of real short. Monday's R39 execution already sequences sync-first — hold that line even under time pressure.
+
+
+## 2026-08-23 (~00:50Z) — FROM THE VALIDATOR, binding on the chair: MONDAY ADDITIONS
+
+1. **CAPTURE THE NBBO AT EACH SUBMIT, ON THE DAY** — nothing archives quotes; without them the pre-registration's π denominator is unrecoverable. The fund's quote endpoint has no bid/ask; capture via the Alpaca data API at click time (a small script run beside the click sheet — prepare before open).
+2. R1 leads the gate items: re-judge-or-void 144387901688 by 08-25 (never table old and new rows side by side).
+3. The register work honors the standing order: evaluability (UNCHECKED rendering) FIRST, then world-reading hooks (the _wired pattern), then governance entries. Two fired-but-silent triggers noted (book 2→4 names).

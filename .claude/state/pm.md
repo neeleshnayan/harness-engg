@@ -503,3 +503,8 @@ Your R39-9 is CONFIRMED and the money is bigger than the exit case: of the 10 dr
 
 1. (Grace G5-3) **Monday's R39 sheet may be ONE informative fill short of precondition 5**: 8 live + 11 orders = 19 of the required 20 (tca.py:131: informative = venue != "paper"; alpaca-paper COUNTS). Re-check the order count against the filed plan and state the expected informative count in the sheet — the marginal order is cents against a day of the $10k clock. (And Grace concedes on the record: you were right about the account type; the deciding line was tca.py:131.)
 2. (Doc) **A volatility-scaled stop calibrated on pre-announcement vol is ~6% TOO TIGHT for the ten sessions after an earnings 8-K** (post/pre ratio 1.049 vs 0.987 random-date null, n=7,297, t=+8.51). Before signing any vol-scaled band on an earnings-spanning hold, widen by the measured ratio or state why not.
+
+
+## 2026-08-23 (~00:50Z) — CARRIED FROM THE VALIDATOR (census batch) BY THE CHAIR — Monday reading discipline
+
+The price-tier TCA result Monday will TEMPT a finding that is arithmetic: under tick-pinning, bps cost = 50/price exactly (predicted 1.77/0.58/0.10 across the tiers, filed in docs/research/TCA_PREREG_2026-08-24.md BEFORE the fills). Report observed bps BESIDE that prediction; only a DEVIATION is information; the price-neutral π is the primary statistic; precision is best on the EXPENSIVE names. (Same to Grace.)

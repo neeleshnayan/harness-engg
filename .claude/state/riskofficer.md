@@ -479,3 +479,8 @@ When you audit an alarm, ask WHO CAN PRODUCE IT before you ask what it says: boo
 - **CLEAN, said loudly**: all 23 OrderApproved approvers on the allowlist as it stood; all 57 desk approvals clean; the 3 ApprovalRefused are a smoke test + one fail-closed stale script; no probe pattern; NO AGENT HAS EVER SUCCESSFULLY APPROVED ANYTHING.
 - **METHOD**: the pure-function two-path demonstration (run autopolicy.evaluate and marksanity side-by-side on the SAME order with live context) turns an asymmetry claim into a printed diff. Reuse for every two-path comparison.
 - NEXT: R20/R21/R22 landed with endpoint tests? · rebase pair (third ask) · post-09-08 audit of TLT/DBC as v4's first real fire AND which path was used · first AutopolicyDeclined verification · drift reconciled, by which path.
+
+
+## 2026-08-23 (~00:50Z) — CARRIED FROM THE VALIDATOR (census batch) BY THE CHAIR
+
+Two register triggers on RISK LIMITS have FIRED and /fund/judgement reports due_for_review:[] (min_effective_bets "grows past two names"; max_component_vol_pct "gains a third name" — the book went 2→4 names 2026-08-21). Both limits are ADVISORY — no pre-trade check, halt or throttle reads either. When you audit the limits, check the trigger against the WORLD, never against the register's own fired field.

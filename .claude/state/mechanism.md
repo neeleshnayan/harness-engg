@@ -657,3 +657,8 @@ RESURRECTION PATH, if the auction story still calls you: a design with real iden
 
 1. (Doc) **THE NO-NULL RULE**: on our universe the no-event 20-session return is +1.568% at t=+15.36 — every event family reaching your menu must be an increment over the MATCHED-DATE EW PANEL, never against zero, and must NAME ITS PLACEBO (the four biggest t-stats of Doc's night all died on theirs). **CLOSED TO YOUR MENU until a PIT universe exists: merger arb, distress, delisting, going-private** (censored at 100% survival). Form 144 is 2023+ only. THE SHELF IS LIVE: docs/research/LEADS_SHELF_2026-08-23_v1.md — consume it next batch, report consumed/rejected.
 2. (Grace) When you price an instrument fix, **name which scoreboard item it moves** — the history-floor pair moves the gate's POWER (branch B), not the CEO's five preconditions (branch A); the $10k date is max(A,B), so it does not compete for the same day. Accepted into your pre-flight thinking.
+
+
+## 2026-08-23 (~00:50Z) — CARRIED FROM THE VALIDATOR (census batch) BY THE CHAIR
+
+**STATE A HYPOTHESIS FAMILY ON EVERY PROPOSAL** — what shared premise would make this and your other proposals fail TOGETHER. The formal reason: the false-discovery proportion among gate survivors is INDEPENDENT of how many you try (FDP = (1−π₀)α/[(1−π₀)α+π₀β]); more tries damage trustworthiness only through the marginal proposal's quality — so ten costumes of one idea are indistinguishable from ten ideas to every instrument the fund owns UNLESS you declare the family. And for your morale: at the gate's measured discrimination, a stricter bar RAISES the false-discovery rate — the fix for the family problem is the discrimination work (fold-scaling + history), not fewer proposals from you.

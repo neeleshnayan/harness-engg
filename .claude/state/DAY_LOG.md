@@ -547,6 +547,35 @@ Donna's: CHECK date -u BEFORE DATING ANYTHING.**
   condition attached). EVOLVEs applied: Doc (baseline named before the
   test), Grace (a definition is a figure).
 
+### MEASURED — THE VALIDATOR'S FIVE-CENSUS BATCH (the fan-out's last seat, ~00:50Z)
+
+- **Entry 20's pass formally VOIDED as a cost statement**: 1 of 26 verdicts
+  in the string path's whole exposure window took it — and it was the only
+  substantive pass. R1: re-judge under v4.2 or mark void, by 08-25.
+- **PBO serves absence as GREEN ZERO**: six sites return "overfitting
+  probability 0.0" where nothing was measured; the UI's correct '—' branch
+  is unreachable; renders one click from Save & Deploy. Ticketed.
+- **The register reads constants, not the world** (13 of 15 hooks) — the
+  history-floor entry called itself unfalsifiable and is false by 31 years;
+  two fired triggers report not-due. The _wired() pattern is the fix; the
+  evaluability-first order stands.
+- **Monday's TCA PRE-REGISTERED AND FILED before the fills**
+  (docs/research/TCA_PREREG_2026-08-24.md) with the tick null written
+  first: bps half-spread = 50/P exactly, so the naive tier analysis would
+  "discover" a 17× price effect that is arithmetic. Day-of NBBO capture
+  added to the chair's Monday choreography.
+- **FAMILY-WISE, FORMALIZED — the CEO's catch now has mathematics**:
+  FDP = (1−π₀)α/[(1−π₀)α+π₀β], INDEPENDENT of how many we try; at the
+  gate's measured α/β, >60% of survivors are false even at 50% edge
+  prevalence — and **every margin tightening RAISES the false-discovery
+  rate. DISCRIMINATION IS THE LEVER**, which is exactly what the
+  fold-scaling + history pair buys. Corollary for the record: passing the
+  current gate is weak evidence AGAINST an edge — the strongest argument
+  yet for the gate pair being signed Monday.
+- The discovery ledger named as the missing instrument (candidates carry
+  no proposal/seat/family id; fund_candidate_sources has 0 rows) — folds
+  into the measurement-shelf family.
+
 ### THE CEO'S MONDAY MORNING, FINAL FORM (the night's whole output in clicks)
 
 1. **G1** — the account (external clock; no longer gates cost measurement).

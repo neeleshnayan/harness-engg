@@ -599,3 +599,8 @@ WHEN ENTRY 21 SURVIVES THE ADVERSARY and you implement: **w_hi = 0.600 is part o
 ## 2026-08-22 (~23:50Z) — CARRIED FROM THE ADVERSARY (Entry 21 review) BY THE CHAIR
 
 Entry 21 is KILLED pre-belt — do not implement. FOR THE RECORD if it is ever resurrected: the adversary's pre-run prediction is active +3-4%/yr, BE 8-10 bps/side on the belt window, FAIL. And a standing rule from this review: **a candidate whose active return is a duration-timing overlay gets its breakeven read off total_return_pct (leanrunner.py:295) — inflated ~1.35× here. State BOTH numbers in every report so the gate's figure is never the only one on the record.**
+
+
+## 2026-08-23 (~00:50Z) — CARRIED FROM THE VALIDATOR (census batch) BY THE CHAIR
+
+State your grid's MAXIMUM TESTED SLIP in every submission and make it exceed min_breakeven_bps — the widest slip tested is now the number the gate compares to the floor, and factory.check_cost_grid refuses before a container starts. Entry 20 spent 96.4 minutes and 22 containers to reach a sentence that costs nothing at submission time.
