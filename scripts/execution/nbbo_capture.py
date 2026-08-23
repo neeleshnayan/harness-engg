@@ -382,13 +382,20 @@ def capture_batch(events: list[dict], store: QuoteStore, quotes: Any, *,
 def run_loop(*, spine: str, store: QuoteStore, quotes: Any, run_id: str,
              checkpoint: pathlib.Path, from_seq: Optional[int],
              poll_s: float, max_age_s: float, max_ticks: Optional[int],
-             dry_run: bool, out=sys.stdout) -> dict:
+             dry_run: bool, out=sys.stdout, now_fn=None) -> dict:
     """The service. Returns a summary when ``max_ticks`` runs out.
 
     ``max_ticks`` exists so the loop is testable and so an operator can prove
     the thing works for five minutes before leaving it running. ``None`` runs
     until interrupted.
+
+    ``now_fn`` IS INJECTABLE AND THAT IS NOT DECORATION. The staleness guard is
+    the only thing standing between this loop and stamping today's market onto
+    a historical event, and a guard whose clock cannot be moved cannot be
+    tested at its own boundary from the outside. Defaults to the real clock;
+    every call goes through it, so there is no second clock in here.
     """
+    now_fn = now_fn or _now
     cp = from_seq
     if cp is None:
         cp = read_checkpoint(checkpoint)
@@ -430,7 +437,8 @@ def run_loop(*, spine: str, store: QuoteStore, quotes: Any, run_id: str,
                       f"to this loop (page cap {EVENTS_PAGE}); coverage will "
                       f"report them uncaptured", file=out, flush=True)
             results = capture_batch(batch, store, quotes, run_id=run_id,
-                                    max_age_s=max_age_s, dry_run=dry_run)
+                                    max_age_s=max_age_s, now=now_fn(),
+                                    dry_run=dry_run)
             for r in results:
                 written += 1
                 if r.get("quote_absent_reason"):
