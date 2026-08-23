@@ -52,6 +52,12 @@ from typing import Any, Iterable, Optional
 
 logger = logging.getLogger(__name__)
 
+#: THE MODULE DECLARES ITS OWN LAYER, and the guard reads the declaration.
+#: ``tests/test_knowledge_isolation.py`` derives its forbidden-import set by
+#: scanning ``app/fund`` for this flag rather than keeping a list somebody has
+#: to remember to extend — see the note in ``app/fund/episodes.py``.
+WORK_LAYER_STORE = True
+
 # --- vocabularies ---------------------------------------------------------
 
 #: Where a hypothesis came from. Closed set, per the design.

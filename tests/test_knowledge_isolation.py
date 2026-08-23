@@ -21,15 +21,48 @@ import pytest
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 APP = ROOT / "app"
 
-#: The modules the control layer may not reach. ONE LIST, because the law is
-#: one law: a work-layer store the spine imports has become load-bearing under
-#: the control layer, whichever store it is. The episode store
-#: (``app.fund.episodes``, ticket 92f98106) joins on the day it ships, rather
-#: than after someone imports it.
-FORBIDDEN_MODULES = ("app.fund.knowledge", "app.fund.episodes")
+#: The modules the control layer may not reach, DERIVED from the modules
+#: themselves rather than listed here.
+#:
+#: A work-layer store declares ``WORK_LAYER_STORE = True`` at module level and
+#: this scan finds it. The law is one law — a work-layer store the spine
+#: imports has become load-bearing under the control layer, whichever store it
+#: is — and a hand-kept tuple is the wrong shape for it: mutation showed that
+#: deleting an entry ran one fewer parametrized case and failed nothing at all.
+#: Now the only way to leave a store unpoliced is to delete its own
+#: declaration, which fails on the author who does it
+#: (``test_the_derived_forbidden_set_is_exactly_the_stores_we_know_about``).
+def _work_layer_modules() -> tuple[str, ...]:
+    found = []
+    for p in sorted((APP / "fund").glob("*.py")):
+        tree = ast.parse(p.read_text(encoding="utf-8"), filename=str(p))
+        for node in tree.body:
+            if (isinstance(node, ast.Assign)
+                    and any(isinstance(t, ast.Name) and t.id == "WORK_LAYER_STORE"
+                            for t in node.targets)
+                    and isinstance(node.value, ast.Constant)
+                    and node.value.value is True):
+                found.append(f"app.fund.{p.stem}")
+    return tuple(found)
+
+
+FORBIDDEN_MODULES = _work_layer_modules()
 
 #: Kept as a name because the planted-import test reads like prose with it.
-FORBIDDEN = FORBIDDEN_MODULES[0]
+FORBIDDEN = "app.fund.knowledge"
+
+
+def test_the_derived_forbidden_set_is_exactly_the_stores_we_know_about():
+    """The specification side of the derivation, hardcoded on purpose.
+
+    The scan above says what the tree declares; this says what the firm has
+    decided. Both are needed: a scan alone goes green by finding nothing, and
+    a literal alone goes stale. When a third work-layer store ships, this line
+    is the one that makes somebody type its name.
+    """
+    assert set(FORBIDDEN_MODULES) == {"app.fund.knowledge", "app.fund.episodes"}, (
+        f"the WORK_LAYER_STORE declarations in app/fund do not match the "
+        f"stores this guard was written for: {FORBIDDEN_MODULES}")
 
 
 def _reaches(names, forbidden) -> bool:

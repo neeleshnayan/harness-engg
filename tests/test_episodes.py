@@ -161,6 +161,25 @@ def test_a_file_that_STARTS_with_a_heading_yields_no_empty_preamble():
     assert len(secs) == 1 and secs[0].heading == "## one"
 
 
+def test_ONLY_h2_SPLITS__h3_and_h1_are_structure_INSIDE_an_episode():
+    """The round-trip invariant CANNOT catch this, which is why it is its own
+    test: splitting on ``###`` as well still rejoins to the original bytes
+    exactly, so a store fragmented into sub-sections would look perfectly
+    healthy. Mutation proved it — ``^(?=##)`` survived every other test here.
+
+    ``analyst.md`` carries 12 ``###`` subheadings and ``cto.md`` carries 8; at
+    ``^(?=##)`` those become 20 extra episodes whose headings are fragments of
+    someone else's argument.
+    """
+    from app.fund.episodes import split_sections
+    md = ("# title\n\nintro\n\n## one\n\n### inner\n\nbody\n\n"
+          "### inner two\n\nmore\n\n## two\n\nb\n")
+    secs = split_sections(md)
+    assert [s.heading for s in secs] == [None, "## one", "## two"]
+    assert "### inner" in secs[1].text, (
+        "a subheading belongs to the episode it sits in, not to one of its own")
+
+
 def test_line_numbers_point_at_the_real_lines():
     """The source_ref is the provenance link back to the memorandum; a wrong
     line range makes it a decoration."""
@@ -409,24 +428,70 @@ def test_an_ORDINARY_UPDATE_is_refused_by_the_database(store):
             c.commit()
 
 
-def test_the_NARROW_HOLE_is_closed__voiding_may_not_edit_the_text(store):
-    """A statement that flips ``voided`` AND rewrites the episode in one go.
+#: EVERY column the void flip must leave alone, with a value that differs from
+#: the fixture's. Written as data because a test that checks ONE of them is
+#: half a guard: mutation proved it — dropping ``market_tags`` from the
+#: trigger's comparison list survived a narrow-hole test that only edited
+#: ``episode_md``.
+_PROTECTED_COLUMNS = {
+    "seat": "'someone_else'",
+    "kind": "'lesson'",
+    "heading": "'## rewritten'",
+    "episode_md": "'quietly rewritten'",
+    "market_tags": "ARRAY['crypto']::text[]",
+    "cited_run": "'run-somebody-else'",
+    "source_ref": "'state/other.md#L1-L2'",
+    "provenance": "'backfill'",
+    "episode_at": "'2001-01-01T00:00:00+00:00'::timestamptz",
+    "filed_at": "'2001-01-01T00:00:00+00:00'::timestamptz",
+    "dedupe_key": "'episodes:forged:0000:deadbeef'",
+}
 
-    A naive guard checks only that the new verdict is a void and waves this
-    through. The trigger compares every other column explicitly.
+
+@pytest.mark.parametrize("column", sorted(_PROTECTED_COLUMNS))
+def test_the_NARROW_HOLE_is_closed__voiding_may_not_edit_ANY_field(store, column):
+    """A statement that flips ``voided`` AND edits a stored field in one go.
+
+    A naive guard checks only that the new state is a void and waves this
+    through. The trigger compares every other column explicitly — and this
+    test walks every one of them, because a guard list is exactly the kind of
+    thing that loses an entry in a refactor and never says so.
     """
     import psycopg
-    e = _add(store)
+    e = _add(store, seat="quant", kind="state", heading="## a",
+             market_tags=["bonds"], source_ref="state/quant.md#L1-L4",
+             episode_at="2026-08-20T00:00:00+00:00",
+             dedupe_key="episodes:quant:0001:abc")
     with pytest.raises(psycopg.errors.RaiseException,
                        match="may not alter a stored episode"):
         with psycopg.connect(_dsn()) as c:
             with c.cursor() as cur:
                 cur.execute(
-                    "UPDATE fund_seat_episodes SET voided=true, "
-                    "void_reason='r', voided_by_run='run-x', "
-                    "episode_md='quietly rewritten' WHERE episode_id=%s",
-                    (e["episode_id"],))
+                    f"UPDATE fund_seat_episodes SET voided=true, "
+                    f"void_reason='r', voided_by_run='run-x', "
+                    f"{column}={_PROTECTED_COLUMNS[column]} "
+                    f"WHERE episode_id=%s", (e["episode_id"],))
             c.commit()
+
+
+def test_the_protected_column_list_matches_the_TRIGGER(store):
+    """Traceability for the list above, against the DDL rather than my memory.
+
+    The parametrized test can only walk the columns it is given; if the
+    trigger grows a column and this list does not, the new one is unguarded
+    and every test still passes. So the list is checked against the SQL.
+    """
+    import re
+
+    from app.fund.episodes import SCHEMA
+    # Every `NEW.x IS DISTINCT FROM OLD.x` pair, wherever it sits. The first
+    # draft split the string on "IF NEW.seat" and silently dropped `seat` from
+    # its own census — a scan that cannot see the first item it is scanning.
+    in_trigger = {m.group(1) for m in re.finditer(
+        r"NEW\.(\w+)\s+IS DISTINCT FROM OLD\.\1\b", SCHEMA)}
+    assert in_trigger == set(_PROTECTED_COLUMNS), (
+        f"only-in-trigger={sorted(in_trigger - set(_PROTECTED_COLUMNS))} "
+        f"only-in-test={sorted(set(_PROTECTED_COLUMNS) - in_trigger)}")
 
 
 def test_a_void_with_NO_REASON_is_refused_by_the_database(store):
@@ -794,6 +859,29 @@ def test_the_ingest_has_no_WRITE_PATH_into_the_state_dir():
         + ". The seat memoranda are the operating memory and this is a copy.")
 
 
+def test_TWO_IDENTICAL_SECTIONS_in_one_file_are_TWO_episodes(store, tmp_path):
+    """The dedupe key carries the section's ORDINAL as well as its hash.
+
+    ``builder.md`` holds five sections that are exactly ``## STATE`` and
+    nothing else. On a key hashed over the text alone they collapse into one
+    row and four disappear — a silent loss, in the store whose whole claim is
+    that it loses nothing. Mutation proved the earlier tests could not see it:
+    the fixture had no repeated section.
+    """
+    d = tmp_path / "state"
+    d.mkdir()
+    (d / "builder.md").write_text(
+        "# builder\n\n## STATE\n\n## STATE\n\n## STATE\n", encoding="utf-8")
+    rep = _ingest(d)
+    assert rep["totals"]["sections"] == 4      # preamble + three
+    assert rep["totals"]["created"] == 4, (
+        "three byte-identical sections collapsed into one row")
+    rows = store.episodes(seat="builder", limit=100)["episodes"]
+    assert sum(1 for r in rows if r["heading"] == "## STATE") == 3
+    assert len({r["source_ref"] for r in rows}) == 4, (
+        "each row must point at its own lines in the file")
+
+
 def test_the_ingest_is_IDEMPOTENT(store, tmp_path):
     d = _corpus(tmp_path)
     first = _ingest(d)
@@ -882,9 +970,16 @@ def test_the_ingest_splits_REAL_citations_from_the_ingestion_run(store, tmp_path
 def test_the_ingest_REFUSES_an_absent_state_directory(store, tmp_path):
     """A path derived from __file__ that fails permissive is a control nobody
     notices has stopped working. Measured: the default resolves wrongly inside
-    a builder worktree, and printed a clean table of zeroes before this."""
-    with pytest.raises(SystemExit, match="REFUSING"):
+    a builder worktree, and printed a clean table of zeroes before this.
+
+    Matched on the SPECIFIC message, not on "REFUSING". Mutation caught that:
+    deleting this refusal let the NEXT one (no seat files) fire instead, and a
+    test keyed on the shared word went green against the wrong branch.
+    """
+    with pytest.raises(SystemExit, match="no directory at") as ei:
         _ingest(tmp_path / "does_not_exist")
+    assert "FUND_SEAT_STATE_DIR" in str(ei.value), (
+        "the refusal has to tell the operator how to point it somewhere real")
 
 
 def test_the_ingest_REFUSES_a_directory_with_no_seat_file(store, tmp_path):

@@ -56,6 +56,17 @@ from typing import Any, Iterable, NamedTuple, Optional
 
 logger = logging.getLogger(__name__)
 
+#: THE MODULE DECLARES ITS OWN LAYER, and the guard reads the declaration.
+#:
+#: ``tests/test_knowledge_isolation.py`` derives the set of modules the spine
+#: may not import by scanning ``app/fund`` for this flag, rather than keeping a
+#: list somebody has to remember to extend. Mutation showed why: deleting the
+#: episode store from a hand-kept tuple simply ran one fewer test case and
+#: nothing failed. A guard whose scope is a literal is a guard with a quiet
+#: off-switch; a guard whose scope is a declaration fails on the author who
+#: removes the declaration.
+WORK_LAYER_STORE = True
+
 # --- vocabularies ---------------------------------------------------------
 
 #: What an episode IS. Closed set, per the ticket.
