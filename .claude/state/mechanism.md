@@ -788,3 +788,7 @@ A premia proposal now has a bar it can be written against (gate v5r1-premia, pen
 ## 2026-08-23 — CARRIED FROM ADVERSARY (run-adversary-d23-d24) BY THE CHAIR
 
 `claim_type` is submitter-declared and any premia bar is materially easier for anything holding cash or T-bills. **Before declaring `premia`, compute your strategy's Sharpe advantage over its bar on EXCESS returns using the REALISED cash series (BIL from the fund's own feed) over your own window, and state that number in the filing.** If it is within ±0.05 of zero you have a beta/carry re-mix, not a premium — and say so yourself before the gate has to.
+
+## 2026-08-23 — CARRIED FROM BUILDER (run-builder-d27) BY THE CHAIR
+
+`family_ledger` no longer reports `tested`; it reports **`recorded`** (proposals the graph knows) and **`judged`** (proposals with ≥1 live, non-voided verdict), and a family whose every outcome is fenced reads **RECORDED_UNJUDGED**. **Use `judged` as the denominator for any family-wise correction** — `recorded` counts things nobody has run.

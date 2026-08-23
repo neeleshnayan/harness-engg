@@ -149,6 +149,26 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   premia certification in a single run.**
 
 **BUILT**
+- **BUILDER D27 delivered, chair-verified and MERGED (`a083ac9`), alongside
+  the D22+D24 desk-engine bundle (`6777054`) — one full suite on the final
+  tree run by the chair.** D27: the validator's three KG findings repaired
+  (the zero-unclassified block renders with a checked denominator;
+  `family_ledger` reports recorded/judged with a third honest status
+  RECORDED_UNJUDGED; readers are SELECT-only — `scripts/kg/report.py` no
+  longer takes a five-minute ACCESS EXCLUSIVE wedge, and the DDL premise
+  was MEASURED: only DROP TRIGGER blocks, CREATE TRIGGER is free) + THE
+  EPISODE STORE v1 (`fund_seat_episodes`, void-only trigger, byte-exact
+  round-trip proven over all 17 live memory files; backfill rehearsed on a
+  scratch DB: 406 sections, 14 seats, idempotent; live ingest at merge).
+  Run `run-builder-d27`, 4 recs; mutation 58/58; merge gate PASS 0
+  sensitive. Two EVOLVEs accepted (decomposition COUNT asserted separately;
+  guard scope derived from declarations). **The builder's ninth-deferral
+  CHALLENGE on THE CLEANUP was ACCEPTED**: deletion budgets now ride on
+  every feature brief, and the chair executed the slot-sized subset
+  same-session — **13 stale worktrees removed** across both repos
+  (junctions deleted before `git worktree remove`, per the builder's own
+  warning; kept: `d22ch` and `d23`, still referenced by adversary probes
+  and the pending repair round). Ticket remainder re-scopes at next triage.
 - **BUILDER D28 delivered, chair-verified and MERGED** (KryptonPay
   fast-forward `1b414ed1 → 0cb7f37b`; 389 tests + tsc re-run green on the
   merged tree by the chair; forbidden surfaces empty). The Studio shell

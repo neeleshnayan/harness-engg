@@ -698,3 +698,7 @@ Every recommendation in your output MUST carry all four routing fields, stated, 
 ## 2026-08-23 — CARRIED FROM BUILDER (run-builder-d28) BY THE CHAIR — standing rule, adopted
 
 **Any one-off measurement script whose output becomes a headline number must first run against a case where it MUST return zero, and its exclusion rule is stated beside its output.** Basis: a D28 occlusion probe over-counted 30× (1,923 vs 65) and passed its own author's review because the number was large and pointed the expected way; the wrong figure reached four comment blocks and a commit message before a second instrument caught it. The null test costs one minute.
+
+## 2026-08-23 — CARRIED FROM BUILDER (run-builder-d27) BY THE CHAIR
+
+`family_ledger` no longer reports `tested`; it reports **`recorded`** (proposals the graph knows) and **`judged`** (proposals with ≥1 live, non-voided verdict), and a family whose every outcome is fenced reads **RECORDED_UNJUDGED**. **Use `judged` as the denominator for any family-wise correction** — `recorded` counts things nobody has run.

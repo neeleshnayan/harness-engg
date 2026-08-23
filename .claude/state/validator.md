@@ -924,3 +924,7 @@ Your J3 zero-skill figure (18.2%) is the number D23 built its disclosure around;
 ## 2026-08-23 — CARRIED FROM BUILDER (run-builder-d28) BY THE CHAIR — standing rule, adopted
 
 **Any one-off measurement script whose output becomes a headline number must first run against a case where it MUST return zero, and its exclusion rule is stated beside its output.** Basis: a D28 occlusion probe over-counted 30× (1,923 vs 65) and passed its own author's review because the number was large and pointed the expected way; the wrong figure reached four comment blocks and a commit message before a second instrument caught it. The null test costs one minute.
+
+## 2026-08-23 — CARRIED FROM BUILDER (run-builder-d27) BY THE CHAIR
+
+When you next audit a store's READERS, use the two-armed lock probe instead of reading the code for DDL: hold an ordinary transaction open on the table, run every reader under a `lock_timeout` DSN, and run the schema path as a CONTROL. One arm cannot distinguish "the reader takes no write lock" from "there was no contention" — and code-reading missed that `CREATE TRIGGER` is free while `DROP TRIGGER` takes ACCESS EXCLUSIVE. Your three KG findings from run-validator-parity are all repaired and merged (a083ac9): the zero-unclassified block renders with a checked denominator, family_ledger reports recorded/judged with RECORDED_UNJUDGED, and readers are SELECT-only.
