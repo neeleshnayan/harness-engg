@@ -1605,10 +1605,21 @@ ROUTING_RULES_VERSION = "routing v1 (2026-08-23)"
 #: four and said so, which is the Stan R39 standard enforced by schema instead
 #: of by chair diligence.
 #:
-#: MEASURED BASIS: 47 of 47 open recommendations carried no dollar figure
-#: (builder dispatch 3); `due_date` separated ZERO rows because nothing wrote
-#: it (builder D9); 54 of 91 CEO-routed rows arrived by default (COO triage
-#: #7). The desk's top two ranking keys were both empty by construction.
+#: MEASURED BASIS — counted by this seat on the live corpus at 2026-08-23
+#: (167 open recommendations), not carried from a memo:
+#:
+#:   * **28 of the 54 rows on the CEO's counter are there by DEFAULT** — the
+#:     `next_actor` fold's rule 5, "nothing routed it elsewhere". A further 19
+#:     arrive by the kind `awaits-ceo`, and only **7 by an explicit
+#:     `next_actor`**. So better than half of his queue is a fall-through.
+#:   * `money_at_stake` reached 150 of 167 rows and `due_date` reached **4** —
+#:     the desk's TOP ranking key separates four rows out of a hundred and
+#:     sixty-seven, which is why the payload publishes `ranked_on_nothing`
+#:     rather than presenting arrival order as a ranking.
+#:
+#: (The spec quotes "54 of 91 CEO-routed rows arrived by default" from COO
+#: triage #7. That was a different day and a different population; the figures
+#: above are this seat's own count and are the ones the code rests on.)
 ROUTING_REQUIRED_FIELDS = ("next_actor", "due_date", "reversibility",
                            "money_at_stake")
 
@@ -2172,10 +2183,17 @@ def ceo_desk(*, open_recommendations: Iterable[dict[str, Any]],
 
     The first cut of this function got that wrong and the SCREENSHOT is what
     caught it: it filtered to categories `open` and `blocking`, which silently
-    dropped every `accepted` row whose EXECUTION is still the CEO's own act —
-    the COO's standing objection of 2026-08-21, and the exact case the explicit
-    `next_actor` field exists for. Eight rows, on a page whose whole purpose is
-    that the number is right.
+    dropped every `accepted`/`staged` row whose EXECUTION is still the CEO's
+    own act — the COO's standing objection of 2026-08-21, and the exact case
+    the explicit `next_actor` field exists for.
+
+    MEASURED, on the live corpus of 167 open recommendations and 92 requests
+    (2026-08-23, and re-counted at bundling time rather than inferred from two
+    figures taken at different moments): the old filter dropped **exactly one
+    row** — `run-pm-0908` rec 1, the 2026-09-08 exit package, staged, $1,847.36
+    at stake, the largest single figure on the desk. One row is the whole
+    defect and it is the one that mattered most, which is the argument for the
+    invariant rather than for the count.
 
     NOTHING RENDERS UNBOUNDED. Every list here carries `shown`, `total` and
     `truncated`; the matrix caps each cell; the shelf is capped by its own

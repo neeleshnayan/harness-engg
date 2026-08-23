@@ -1898,9 +1898,11 @@ def record_agent_run(req: AgentRunRecord):
     carry ``next_actor``, ``due_date``, ``reversibility`` and
     ``money_at_stake`` — 422 without them. Required means the KEY is present:
     ``due_date`` and ``money_at_stake`` may be null when there honestly is
-    none. What is refused is silence, because the desk's top two ranking keys
-    were empty on 47 of 47 rows and 54 of 91 CEO-routed rows arrived by
-    default. ``next_actor: "undecided"`` is legal and routes to the CHAIR,
+    none. What is refused is SILENCE. Measured on the live corpus at
+    2026-08-23 (167 open recommendations, counted by this seat rather than
+    carried from a memo): ``due_date`` reached 4 rows, and 28 of the 54 rows
+    on the CEO's counter are there only because nothing routed them
+    elsewhere. ``next_actor: "undecided"`` is legal and routes to the CHAIR,
     never to the CEO.
 
     EXISTING ROWS ARE GRANDFATHERED. Nothing rewrites a stored recommendation:
@@ -2452,6 +2454,32 @@ def intray_post(seat: str, req: InTrayPost):
         raise HTTPException(status_code=422, detail=str(e))
 
 
+@router.get("/fund/desk/intray/item/{item_id}/history")
+def intray_history(item_id: str):
+    """Every transition on one in-tray item, with its actor and its reason.
+
+    **DECLARED BEFORE ``/fund/desk/intray/{seat}`` — FastAPI matches routes in
+    DECLARATION ORDER**, and although these differ in depth today, the
+    ordering rule has already produced one plausible-looking 404 on this
+    prefix (`/fund/desk/runs/stats`). A test pins the order.
+
+    It exists because the append-only log was written and nothing read it. An
+    audit trail no caller can reach is the unwired kill switch with better
+    provenance: the riskofficer audits this engine's writes from the spine,
+    not from psql.
+    """
+    tray = _intray()
+    if tray is None:
+        raise HTTPException(status_code=503, detail="needs FUND_STORE=postgres")
+    rows = tray.history(item_id)
+    if not rows:
+        raise HTTPException(
+            status_code=404,
+            detail=f"no in-tray item {item_id} — an item with no log rows has "
+                   f"never been posted, since posting writes one")
+    return {"item_id": item_id, "history": rows, "count": len(rows)}
+
+
 @router.get("/fund/desk/intray/{seat}")
 def intray_read(seat: str, status: Optional[str] = Query(None)):
     """A seat's tray, oldest first, plus what the chair struck of its own asks."""
@@ -2459,7 +2487,13 @@ def intray_read(seat: str, status: Optional[str] = Query(None)):
     if tray is None:
         raise HTTPException(status_code=503, detail="needs FUND_STORE=postgres")
     s = (seat or "").strip().lower()
-    items = tray.items(seat=s, status=status)
+    try:
+        items = tray.items(seat=s, status=status)
+    except ValueError as e:
+        # A mistyped filter is a 422, never an empty tray: "nothing is waiting
+        # for this seat" is a fact about the world and must not be produced by
+        # a fact about the caller's spelling.
+        raise HTTPException(status_code=422, detail=str(e))
     returns = tray.returns_for(s)
     return {"seat": s, "items": items, "count": len(items),
             "returned_to_me": returns,

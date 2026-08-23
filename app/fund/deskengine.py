@@ -347,7 +347,18 @@ class InTray(_Table):
 
     def items(self, seat: Optional[str] = None, status: Optional[str] = None,
               limit: int = 500) -> list[dict[str, Any]]:
-        """Tray contents, oldest first — a queue is read in arrival order."""
+        """Tray contents, oldest first — a queue is read in arrival order.
+
+        AN UNRECOGNISED ``status`` FILTER IS REFUSED, not passed to SQL. A
+        typo would otherwise match no row and return an empty tray, which
+        reads exactly like "this seat has nothing waiting" — the caller would
+        be told a fact about the world by a fact about its own spelling.
+        """
+        if status is not None and status not in INTRAY_STATUSES:
+            raise ValueError(
+                f"status must be one of {INTRAY_STATUSES}, got {status!r} — "
+                f"refused rather than queried, because an unmatched filter "
+                f"returns an empty tray and an empty tray means something")
         where, params = [], []
         if seat:
             where.append("to_seat = %s")

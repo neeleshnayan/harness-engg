@@ -1090,6 +1090,50 @@ def test_the_desk_read_does_not_evaluate_the_git_rule(monkeypatch):
     assert [x["rule_id"] for x in body["hygiene"]["rules_not_evaluated"]] == ["H3"]
 
 
+def test_the_intray_history_route_is_declared_before_the_seat_parameter():
+    """FastAPI matches in DECLARATION order. A literal path registered after a
+    path parameter on the same prefix is unreachable and 404s plausibly — this
+    codebase has already shipped that once (`/fund/desk/runs/stats`), and
+    reading the file top to bottom is exactly how it gets reintroduced by the
+    next person appending a route at the end."""
+    from fastapi.routing import APIRoute
+    from app.api.v1 import fund as fundapi
+    # PER METHOD. `/fund/desk/intray/{seat}` is registered for BOTH POST and
+    # GET, and a naive `paths.index(...)` finds the POST — which is declared
+    # first and shadows nothing, because a POST route cannot swallow a GET.
+    # The first cut of this test did exactly that and failed on a correct
+    # ordering, which is a test that would have been "fixed" by moving working
+    # code.
+    gets = [r.path for r in fundapi.router.routes
+            if isinstance(r, APIRoute) and "GET" in (r.methods or set())]
+    assert gets.index("/fund/desk/intray/item/{item_id}/history") \
+        < gets.index("/fund/desk/intray/{seat}")
+
+
+def test_a_mistyped_intray_filter_is_refused_not_answered_with_an_empty_tray(monkeypatch):
+    """An unmatched filter returns no rows, and no rows reads as 'this seat has
+    nothing waiting'. The caller would be told a fact about the world by a fact
+    about its own spelling."""
+    class Tray:
+        def items(self, seat=None, status=None, limit=500):
+            from app.fund.deskengine import INTRAY_STATUSES
+            if status is not None and status not in INTRAY_STATUSES:
+                raise ValueError("status must be one of ...")
+            return []
+        def returns_for(self, seat, limit=200):
+            return []
+    c = client(monkeypatch, MemStore(), intray=Tray())
+    assert c.get("/api/v1/fund/desk/intray/quant?status=pending").status_code == 422
+    assert c.get("/api/v1/fund/desk/intray/quant?status=posted").status_code == 200
+
+
+def test_the_hygiene_module_ships_no_constant_nothing_reads():
+    """Deleted before shipping: a `JOIN_KINDS` tuple no code consulted. A
+    constant with no reader is a label, and this fund has a rule about those.
+    Pinned so it does not come back as documentation-shaped dead weight."""
+    assert not hasattr(deskhygiene, "JOIN_KINDS")
+
+
 def test_the_ceo_endpoint_reports_which_stores_it_could_read(monkeypatch):
     """A page that could not read the supersession table must render 'lineage
     unknown', never 'no lineage'. The second is a claim."""

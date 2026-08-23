@@ -154,6 +154,15 @@ def test_every_transition_is_logged_with_its_actor(tray):
     assert log[1]["actor"] == "cto" and log[1]["reason"] == "no"
 
 
+def test_an_unrecognised_status_filter_is_refused_by_the_store(tray):
+    """The guard lives in the store, not only in the route, because a script
+    reading the tray directly deserves the same refusal."""
+    tray.post(to_seat="quant", from_seat="pm", task="A")
+    assert len(tray.items(seat="quant", status="posted")) == 1
+    with pytest.raises(ValueError, match="status must be one of"):
+        tray.items(seat="quant", status="pending")
+
+
 def test_draining_an_empty_tray_says_so_rather_than_reporting_nothing(tray):
     out = tray.drain("quant", "cto")
     assert out["blessed"] == [] and out["struck"] == []

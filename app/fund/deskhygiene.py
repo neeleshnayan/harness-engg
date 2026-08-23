@@ -146,9 +146,12 @@ HYGIENE_RULES: tuple[Rule, ...] = (
                  "(trace_id | DeskDispatched.request_id | "
                  "run.meta.serves_requests)",
         written_reason=(
-            "MEASURED: at least 4 of the 37 approved 'backlog' rows on "
-            "2026-08-23 (34338ef6, d7f38be2, 75ca57a7, 252bce7b) name work "
-            "that has since merged. A desk request records an ASK; a "
+            "MEASURED: 37 desk requests sat at status `approved` on "
+            "2026-08-23. At least four of them (34338ef6, d7f38be2, 75ca57a7, "
+            "252bce7b — all four confirmed `approved` on the live payload) "
+            "name work this seat's own record says has merged: the belt bar "
+            "cache (D15), the hazard batch and the sign-inverted exit trigger "
+            "(D17/D18), the broker-drift alarm. A desk request records an ASK; a "
             "delivered run is the artifact that served it. Whether the work "
             "was any good is judged on the run's own recommendations, not by "
             "leaving the ask open forever."),
@@ -210,7 +213,7 @@ def assert_bookkeeping_only(action: str, status: Optional[str]) -> None:
 #
 # THREE WAYS A RUN CAN BE JOINED TO A REQUEST, ALL BY IDENTIFIER, none by prose.
 # They are listed in order of how much they prove, and each proposal names the
-# one it used so an auditor can weigh it:
+# one it used (`join`) so an auditor can weigh it:
 #
 #   dispatch_request_id  a DeskDispatched event NAMES the request, and a run
 #                        carries that dispatch's trace. The strongest: two
@@ -220,7 +223,11 @@ def assert_bookkeeping_only(action: str, status: Optional[str]) -> None:
 #                        The chair's structured statement at record time — an
 #                        id, not a sentence. Weakest of the three, and it is
 #                        still an identifier: nothing here reads English.
-JOIN_KINDS = ("dispatch_request_id", "trace_id", "declared")
+#
+# There WAS a `JOIN_KINDS` tuple here and it was deleted before shipping:
+# nothing read it, each rule's `evidence` string already names all three, and
+# a constant no code consults is a label. Every rule's `join` field is checked
+# against this comment by review, not by a tuple nobody imports.
 
 
 def _serves_requests(run: Any) -> list[str]:
