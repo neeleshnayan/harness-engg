@@ -1750,7 +1750,18 @@ CATEGORY_DEFINITIONS = {
     "blocking": "cannot move until something else does — a live supersession "
                 "edge, an approved request nobody has dispatched, or a row "
                 "whose next actor cannot be determined",
-    "closed": "terminal — decided, served, struck or withdrawn",
+    # THE ONE COLUMN THAT UNDERSTATES ITSELF, and it says so rather than
+    # letting a reader take it for the firm's closure rate. The desk's
+    # recommendation read (`DeskStore.open_recommendations`) returns only
+    # open / accepted / staged, so a recommendation that has been rejected,
+    # done or noted is not in this fold at all. Requests and in-tray items ARE
+    # complete here. Fixing it means a second query and a decision about how
+    # far back "closed" should reach, which is a scope question for a human,
+    # not a default for a builder.
+    "closed": ("terminal — decided, served, struck or withdrawn. INCOMPLETE "
+               "for recommendations: the desk's read returns only undecided "
+               "and in-flight rows, so closed RECOMMENDATIONS are not counted "
+               "here. Requests and in-tray items are complete"),
 }
 
 #: Terminal states per source. Mirrored here rather than imported from the
@@ -1896,20 +1907,31 @@ def desk_items(open_recommendations: Iterable[dict[str, Any]],
                intray_items: Iterable[dict[str, Any]] = (),
                supersessions: Optional[dict[str, dict[str, Any]]] = None,
                dispatched_request_ids: Iterable[str] = (),
+               pending_orders: Iterable[dict[str, Any]] = (),
                ) -> list[dict[str, Any]]:
-    """One flat, uniform list of desk items from the three sources that have them.
+    """One flat, uniform list of desk items from the four sources that have them.
 
     THE UNITS ARE THE SAME IN EVERY CELL, and that is the reason this function
-    exists rather than three parallel matrices. "Intra-team ticket count" is
+    exists rather than four parallel matrices. "Intra-team ticket count" is
     one number or it is a chart nobody can read: a recommendation, a desk
-    request and an in-tray posting are all TICKETS, and mixing seat-activity
-    states in with them would put two different things behind one figure.
+    request, an in-tray posting and a pending order are all TICKETS, and mixing
+    seat-activity states in with them would put two different things behind one
+    figure.
+
+    PENDING ORDERS ARE IN THIS LIST AND WERE NOT IN THE FIRST CUT, and the
+    reason is worth stating because it was caught by LOOKING at the rendered
+    page rather than by any test. ``desk_load`` counts pending orders; this
+    fold did not — so the CEO's page carried a fourth number claiming to be the
+    same thing as the other three. This desk has now shipped
+    one-quantity-computed-twice twice, and the fix is not another warning
+    banner, it is the same population.
 
     Attribution, stated because it is a choice: a recommendation belongs to the
     seat that FILED it (which is also the seat that must retire it when it is
     superseded — the standing PM instruction); a request belongs to the seat it
     SERVES (whoever must do the work); an in-tray item belongs to the seat it
-    was posted TO.
+    was posted TO; a pending order belongs to nobody on the bench and is
+    attributed to ``execution`` — a machine-produced row on a human's queue.
     """
     from app.fund.deskengine import rec_ref, req_ref
 
@@ -1985,6 +2007,40 @@ def desk_items(open_recommendations: Iterable[dict[str, Any]],
             "next_actor_basis": "intray",
             "at": item.get("posted_at"),
             "from_seat": item.get("from_seat"),
+            "supersession": None,
+        })
+
+    for o in pending_orders or []:
+        if not isinstance(o, dict):
+            continue
+        oid = o.get("order_id") or o.get("id")
+        impact = o.get("impact_preview") if isinstance(o.get("impact_preview"),
+                                                       dict) else {}
+        notional = (impact or {}).get("notional_usd")
+        out.append({
+            "source": "order", "ref": None,
+            # Not a bench seat. An order is machine-produced and lands on a
+            # human's queue; filing it under whichever strategy proposed it
+            # would put execution rows in a seat's ticket count.
+            "seat": "execution",
+            "order_id": oid,
+            "title": (f"{str(o.get('side') or '').upper()} {o.get('qty')} "
+                      f"{o.get('symbol')}").strip(),
+            "kind": "order",
+            "status": "open",
+            "due_date": None,
+            "money_at_stake": (float(notional)
+                               if isinstance(notional, (int, float))
+                               and not isinstance(notional, bool) else None),
+            # An order that cannot be taken back once it fills. Stated rather
+            # than inferred from a kind table — this one is not a judgement.
+            "reversibility": "irreversible",
+            # AN ORDER AWAITING APPROVAL IS THE CEO'S CLICK BY CONSTRUCTION;
+            # anything the auto-approval envelope takes never appears here at
+            # all. Same reasoning `desk_load` already rests on.
+            "next_actor_resolved": "ceo",
+            "next_actor_basis": "order_lifecycle",
+            "at": o.get("created_at") or o.get("at"),
             "supersession": None,
         })
     return out
@@ -2091,6 +2147,7 @@ def ceo_desk(*, open_recommendations: Iterable[dict[str, Any]],
              intray_items: Iterable[dict[str, Any]] = (),
              supersessions: Optional[dict[str, dict[str, Any]]] = None,
              dispatched_request_ids: Iterable[str] = (),
+             pending_orders: Iterable[dict[str, Any]] = (),
              briefings_shelf: Optional[dict[str, Any]] = None,
              hygiene: Optional[dict[str, Any]] = None,
              halted: Optional[bool] = None,
@@ -2106,6 +2163,20 @@ def ceo_desk(*, open_recommendations: Iterable[dict[str, Any]],
     what it shows — a page that quietly paginated its way to looking calm
     would defeat its own measurement.
 
+    ``decisions.total`` IS THE SAME NUMBER ``desk_load.total`` REPORTS, and a
+    test pins the two equal over the live corpus. That equality is not a
+    coincidence to be maintained by care: both count rows whose next actor is
+    the CEO or cannot be read, over the same four sources, and the only
+    documented difference is rows this fold removes because the SERVER WOULD
+    REFUSE the click (a live supersession edge). Anything else is a defect.
+
+    The first cut of this function got that wrong and the SCREENSHOT is what
+    caught it: it filtered to categories `open` and `blocking`, which silently
+    dropped every `accepted` row whose EXECUTION is still the CEO's own act —
+    the COO's standing objection of 2026-08-21, and the exact case the explicit
+    `next_actor` field exists for. Eight rows, on a page whose whole purpose is
+    that the number is right.
+
     NOTHING RENDERS UNBOUNDED. Every list here carries `shown`, `total` and
     `truncated`; the matrix caps each cell; the shelf is capped by its own
     fold. The previous desk earned *"this feels like an infine scroll"* and the
@@ -2117,17 +2188,22 @@ def ceo_desk(*, open_recommendations: Iterable[dict[str, Any]],
 
     items = desk_items(open_recommendations, requests, intray_items,
                        supersessions=supersessions,
-                       dispatched_request_ids=dispatched_request_ids)
+                       dispatched_request_ids=dispatched_request_ids,
+                       pending_orders=pending_orders)
     matrix = desk_matrix(items)
 
     # HIS rows: next actor is the CEO (or could not be read — an unreadable
-    # owner counts toward him, which is this desk's oldest rule) AND the row is
-    # not closed and not blocked behind a supersession edge. A superseded row
-    # is not a decision he can take: the server refuses the approval, so
-    # putting it on the decision list would be offering a button that fails.
+    # owner counts toward him, which is this desk's oldest rule), the row is
+    # not terminal, and it is not blocked behind a supersession edge. A
+    # superseded row is not a decision he can take: the server refuses the
+    # approval, so putting it on the decision list would be offering a button
+    # that fails.
+    #
+    # NOTE WHAT IS *NOT* IN THAT LIST: a category filter. A `ticking` row whose
+    # next actor is the CEO is a row he must still act on — see the docstring.
     mine = [i for i in items
             if i.get("next_actor_resolved") in ("ceo", "unknown")
-            and classify_item(i)["category"] in ("open", "blocking")
+            and classify_item(i)["category"] != "closed"
             and not i.get("supersession")]
     mine.sort(key=_rank_key)
 

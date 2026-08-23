@@ -308,6 +308,19 @@ def test_an_approved_request_nobody_dispatched_is_blocking_and_a_dispatched_one_
              dispatched=True))["category"] == "ticking"
 
 
+def test_the_closed_column_declares_that_it_understates_itself():
+    """A COLUMN THAT CANNOT SEE ALL ITS ROWS MUST SAY SO.
+
+    `DeskStore.open_recommendations` returns only open / accepted / staged, so
+    a rejected or done recommendation never reaches this fold. The number is
+    therefore a floor for recommendations and exact for everything else — and
+    a reader taking it for the firm's closure rate would be reading an
+    absence as a value, which is the one thing this desk is not allowed to do.
+    """
+    d = desk.CATEGORY_DEFINITIONS["closed"]
+    assert "INCOMPLETE" in d and "recommendation" in d.lower()
+
+
 def test_a_status_outside_the_vocabulary_blocks_rather_than_defaulting_open():
     v = desk.classify_item(item(status="halfway"))
     assert v["category"] == "blocking" and "vocabulary" in v["why"]
@@ -351,6 +364,93 @@ def _ceo(recs=(), requests=(), **kw):
     annotated = [desk._annotated(r) for r in recs]
     return desk.ceo_desk(open_recommendations=annotated, requests=list(requests),
                          now="2026-08-23T12:00:00+00:00", **kw)
+
+
+def test_the_ceo_desk_and_the_counter_report_THE_SAME_NUMBER():
+    """THE INVARIANT THIS PAGE EXISTS FOR, and the defect that earned it.
+
+    The first cut of `ceo_desk` filtered its decision list to the `open` and
+    `blocking` columns, which silently dropped every `accepted` row whose
+    EXECUTION is still the CEO's own act — the COO's standing objection of
+    2026-08-21, and the exact case the explicit `next_actor` field was added
+    for. On the live corpus that was eight rows, and it put a FOURTH number on
+    a page that already carried three claiming to be the same thing.
+
+    Found by looking at the rendered page, not by any test. So this is the
+    test: over a corpus containing every shape that matters — an accepted row
+    routed explicitly to the CEO, a staged row routed to the chair, an open
+    request, an approved request, an in-tray posting, a pending order and a
+    terminal row — `decisions.total` and `desk_load.total` must agree exactly.
+    """
+    recs = [
+        rec(1),                                             # open -> ceo
+        rec(2, status="accepted", next_actor="ceo"),        # HIS to execute
+        rec(3, status="staged"),                            # -> chair
+        rec(4, kind="build"),                               # -> chair by kind
+        rec(5, status="done"),                              # terminal
+        rec(6, kind="nothing-anyone-has-seen"),             # -> ceo by default
+    ]
+    annotated = [desk._annotated(r) for r in recs]
+    requests = [
+        {"request_id": "q1", "kind": "attack", "status": "open", "at": "t"},
+        {"request_id": "q2", "kind": "build", "status": "approved", "at": "t"},
+        {"request_id": "q3", "kind": "build", "status": "resolved", "at": "t"},
+    ]
+    orders = [{"order_id": "o1", "symbol": "SPY", "side": "buy", "qty": 1,
+               "impact_preview": {"notional_usd": 640.0}}]
+    tray = [{"item_id": "i1", "to_seat": "quant", "from_seat": "pm",
+             "task": "x", "status": "posted"}]
+
+    out = desk.ceo_desk(open_recommendations=annotated, requests=requests,
+                        intray_items=tray, pending_orders=orders,
+                        now="2026-08-23T12:00:00+00:00")
+    load = desk.desk_load(annotated, orders,
+                          [r for r in requests if r["status"] == "open"])
+    assert out["decisions"]["total"] == load["total"], (
+        f"the CEO's page says {out['decisions']['total']} and the counter says "
+        f"{load['total']} — two numbers for one question is the defect this "
+        f"engine was built to end")
+    # And the accepted-but-his row is genuinely in the list, not merely counted.
+    assert 2 in [i.get("rec_id") for i in out["decisions"]["items"]]
+
+
+def test_only_a_server_refusal_may_remove_a_row_from_the_ceos_count():
+    """The ONE documented reason the two numbers may differ, pinned.
+
+    A superseded row leaves the decision list because the spine refuses the
+    click; it stays on the counter because it is still work owed. Any OTHER
+    divergence is a bug, so the size of this one is asserted exactly.
+    """
+    annotated = [desk._annotated(r) for r in [rec(1), rec(2)]]
+    ref = deskengine.rec_ref("run-x", 1)
+    edges = {ref: {"target_ref": ref, "superseder_ref": "rec:run-y#1",
+                   "mode": "superseded", "reason": "r", "retracted_at": None,
+                   "edge_id": "e1"}}
+    out = desk.ceo_desk(open_recommendations=annotated, requests=[],
+                        supersessions=edges, now="2026-08-23T12:00:00+00:00")
+    load = desk.desk_load(annotated, [], [])
+    assert load["total"] - out["decisions"]["total"] == 1
+    assert out["blocked"]["total"] == 1
+
+
+def test_a_pending_order_is_on_the_board_and_belongs_to_nobody_on_the_bench():
+    orders = [{"order_id": "o1", "symbol": "TLT", "side": "sell", "qty": 3,
+               "impact_preview": {"notional_usd": 246.0}}]
+    items = desk.desk_items([], [], pending_orders=orders)
+    assert len(items) == 1
+    o = items[0]
+    assert o["seat"] == "execution", (
+        "filing an order under the strategy that proposed it would put "
+        "execution rows in a seat's ticket count")
+    assert o["next_actor_resolved"] == "ceo"
+    assert o["money_at_stake"] == 246.0
+    assert o["reversibility"] == "irreversible"
+    assert desk.classify_item(o)["category"] == "open"
+
+
+def test_an_order_with_no_impact_preview_states_no_figure_rather_than_zero():
+    items = desk.desk_items([], [], pending_orders=[{"order_id": "o", "qty": 1}])
+    assert items[0]["money_at_stake"] is None
 
 
 def test_the_decision_list_ranks_dates_first_then_money_with_absent_last():

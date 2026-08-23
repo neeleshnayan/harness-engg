@@ -2677,6 +2677,17 @@ def desk_ceo(since: Optional[str] = Query(None),
     except Exception as e:  # noqa: BLE001
         logger.info("ceo desk: risk state unreadable: %s", e)
 
+    # PENDING ORDERS ARE PART OF THIS FOLD, because they are part of
+    # `desk_load`'s. Leaving them out gave the CEO's page a fourth number
+    # claiming to be the same thing as the other three — caught by looking at
+    # the rendered page. `None` on failure is carried as an unreadable
+    # component, never as "no orders".
+    pending = None
+    try:
+        pending = _orders.pending()
+    except Exception as e:  # noqa: BLE001
+        logger.info("ceo desk: pending orders unreadable: %s", e)
+
     requests = desk_mod._requests(_store)
     hygiene = _hygiene(with_git=git)
     changed = _changed_since(since, requests, recs) if since else None
@@ -2685,6 +2696,7 @@ def desk_ceo(since: Optional[str] = Query(None),
         open_recommendations=recs, requests=requests,
         intray_items=intray_items, supersessions=edges,
         dispatched_request_ids=_dispatched_request_ids(),
+        pending_orders=pending or (),
         briefings_shelf=_shelf(), hygiene=hygiene, halted=halted,
         since=since, changed=changed)
     # DEGRADATIONS ARE DATA, not silence. A page that could not read the
@@ -2695,6 +2707,7 @@ def desk_ceo(since: Optional[str] = Query(None),
         "supersessions": edges is not None,
         "intray": tray is not None,
         "risk": halted is not None,
+        "pending_orders": pending is not None,
     }
     return out
 
