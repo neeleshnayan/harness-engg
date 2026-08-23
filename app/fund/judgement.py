@@ -418,7 +418,21 @@ def registry() -> list[Judgement]:
                          "that small subset. Simulated false-positive rate rises "
                          "2.9% -> 12.5% between 30 months and 5 years of data. It "
                          "must be made to scale BEFORE any new history is trusted, "
-                         "or a data purchase loosens the gate silently.",
+                         "or a data purchase loosens the gate silently. "
+                         "CLOSED 2026-08-23 by gate v4.3: `gate.folds_required` "
+                         "carries the anchor as a DENSITY over the covered "
+                         "window. Both registered figures reproduced on "
+                         "re-measurement (3.03% and 11.30%, 3,000 draws, real "
+                         "retention over real fold plans), and the flip was "
+                         "shown to loosen even under the shipped generator "
+                         "(3.03% -> 6.87%), which this entry had not "
+                         "measured. The value 4 stays: it is now the anchor "
+                         "the density is expressed in, not a ceiling. WHAT IS "
+                         "STILL OPEN and is a NEW registered concern: the "
+                         "strict-majority rule's strictness oscillates with "
+                         "parity — 3-of-4 is 31.2% under noise and 3-of-5 is "
+                         "50.0% — so scaling the fold count alone leaves 2.14pp "
+                         "of the loosening in place at six folds.",
             review_trigger="ANY extension of history past 2024-02-26 — this is a "
                            "blocking review, not a periodic one",
             review_by="2026-10-15"),
@@ -747,14 +761,33 @@ def registry() -> list[Judgement]:
         Judgement(
             "WALKFORWARD_HISTORY_FLOOR",
             where="app/fund/factory.py", basis="external",
-            expected="2024-02-26",
+            # MOVED 2026-08-23, part (b) of the CEO-approved ordered pair
+            # 58c4fff5, and the entry moves WITH the value because a register
+            # whose reason describes the old number is the drift it exists to
+            # catch. MEASURED: GET /fund/marketdata/bars?symbol=SPY&
+            # start_date=1990-01-01&end_date=2026-08-23&format=csv returns
+            # 8,448 rows from 1993-01-29. 2024-02-26 was never the feed's
+            # start — it was the reach of a trailing window nobody re-measured.
+            expected="1993-01-29",
             read=_module("app.fund.factory", "WALKFORWARD_HISTORY_FLOOR"),
-            why="The first bar we hold. Every fold-geometry conclusion rests on "
-                "it, including the NOT TESTABLE verdict.",
-            falsified_by="Nothing to falsify; it is a fact about the data. It is "
-                         "registered because so much is derived from it that it "
-                         "must be visible when it changes.",
-            review_trigger="any data purchase",
+            why="The first bar the feed serves, measured on SPY. Every "
+                "fold-geometry conclusion rests on it, including the NOT "
+                "TESTABLE verdict. It is NOT the depth any candidate actually "
+                "gets: `factory.effective_history_floor` ratchets the window "
+                "per candidate at HISTORY_FLOOR_RATCHET unless that "
+                "candidate's own declared lookback_days proves its containers "
+                "can be fed deeper, because the bars endpoint caps "
+                "lookback_days at 2000 and ten of sixteen algorithms declare "
+                "700.",
+            falsified_by="The value itself is a fact about the data and is "
+                         "falsified only by re-measuring the feed. The RATCHET "
+                         "beside it is a judgement and is falsified by the "
+                         "algorithms' bar URLs learning start_date/end_date — "
+                         "at that point the data path stops binding and the "
+                         "ratchet should be retired rather than left standing "
+                         "as a floor nobody needs.",
+            review_trigger="any data purchase, or the algorithms' bar URLs "
+                           "gaining start_date/end_date",
             review_by="2026-10-15"),
     ]
 

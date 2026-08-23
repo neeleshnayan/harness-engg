@@ -784,6 +784,28 @@ def evaluate(result: dict[str, Any],
     need = folds_required(wf, criteria)
     checks["walkforward_folds_required"] = need
     required_folds = int(need["required"])
+    # HOW DEEP the belt was allowed to look, and how much of that depth the
+    # candidate's own containers could actually be fed. Recorded rather than
+    # recomputed — the gate cannot know an algorithm's bar URL — and recorded
+    # as an ABSENCE when the belt did not say, because a verdict that cannot
+    # state its window is not interpretable later.
+    hist = wf.get("history_floor")
+    if isinstance(hist, dict):
+        checks["walkforward_history_floor"] = {
+            "effective": hist.get("effective"),
+            "binding_leg": hist.get("binding_leg"),
+            "data_path": hist.get("data_path"),
+            "deepened": hist.get("deepened"),
+            "folds_before_data_path_reach":
+                wf.get("folds_before_data_path_reach"),
+        }
+    elif wf:
+        checks["walkforward_history_floor"] = {
+            "effective": None,
+            "note": ("this walk-forward does not say how far back it was "
+                     "allowed to reach — judged before the per-candidate "
+                     "floor existed, so the window is UNSTATED, not default"),
+        }
     if c.get("require_walkforward"):
         if not wf:
             failures.append("no walk-forward test — a single held-out window is "
