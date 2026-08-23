@@ -106,6 +106,23 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   CEO: the majority rule's PARITY oscillation (3-of-4=31.2% under noise,
   3-of-5=50.0%) — the 2.14pp residual scaling cannot reach. Entry 20's
   re-judge is unblocked either way (3-day hold).
+- **ADVERSARY D19: BUNDLE KILL** — item 1 (benchmark labelling) survives
+  + one repair; the gate pair killed on the pre-committed criterion
+  (zero-skill FP 3.33%→5.00% on deepened windows, 5.4σ, paired n=6000).
+  Builder's disclosure was complete — the kill is about who owns the
+  trade. **CEO RULED (same sitting): extend to the 12-fold
+  configuration** (FP 2.90% < today's 3.03%, power 40.7% — strictly
+  dominates; honors the criterion literally). D20 dispatched: repairs
+  (K2 identity claims, projection honesty fields, null_audit ratchet,
+  wall-clock reach anchor, third table copy) + fold-reach extension,
+  verified with the adversary's paired harness on the SHIPPED geometry.
+  Would change its mind: the 12-fold configuration failing to reach FP ≤
+  today's on any real algorithm's window. ON THE RECORD per the
+  adversary's chair BIND: the `min_walkforward_folds` register entry's
+  BLOCKING trigger ("ANY extension past 2024-02-26", trigger_spec [])
+  is fired and discharged by this work — the register cannot record
+  either; recorded here, and the evaluability ticket (a26debb9 family)
+  remains the owner.
 - **THE SELF-FANOUT EXPERIMENT is running live** (Ed batch #2R): two
   research workers spawned by Ed himself, both returned with ethos intact
   (contrary-facts-first, URLs, absences reported absent); FOMC families
