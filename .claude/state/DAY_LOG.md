@@ -92,6 +92,31 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   account) starts Monday.
 
 **BUILT**
+- **BUILDER D23 delivered and chair-reviewed — GATE v5r1-premia: the premia
+  sleeve's first criterion since 2026-08-19** (branch
+  `builder/d23-premia-gate`, 11 commits off `1538e77`, +2261/−17; alpha
+  verdicts byte-identical over 62 cases; targeted 1942 passed, +73
+  collected exactly, mutation 33/33; FULL SUITE OWED under the chair's RAM
+  floor — the builder waited 25 min on the belt and correctly declined).
+  Run `run-builder-d23`, 7 recs. **THE HEADLINE FOR THE CEO: Entry 20
+  clears the ENTIRE premia bar (Sharpe 2.305 vs 1.286, +0.923 at rf=4%,
+  dd 15.26% vs 23.88%) and fails on ONE pre-existing sentence — the cost
+  grid stops at 5 bps, floor is 10. One grid point from the firm's first
+  certified strategy.** Counterweight stated as loudly: the validator's
+  VOLSCALE archetype FAILS the same bar (premium crosses zero at 2.1%/yr
+  cash vs measured 3.97%) — the rf=4% stress rate is a threshold and it is
+  the CEO's (on the desk). Instrument findings routed: the belt payload
+  carries TWO benchmarks (judging off the discarded leg flips 3 of 4
+  premia verdicts); LEAN's volatility is calendar-clock, ~17% low; LEAN's
+  Sharpe embeds an UNDECLARED rf of 3.04–3.80%/yr (H1 from a new
+  direction → validator). Chair correction recorded: the brief's "full
+  report in run-validator-jointpower" premise failed because the chair
+  filed that run as a 278-char stub — the miss was the chair's filing.
+  **Awaiting a FRESH adversary blind (gate code) — being dispatched now,
+  batched with D24's re-blind. The builder's BIND to the adversary was
+  STRUCK at resolve: it carried the author's defence into a blind review.**
+  Entry-20 premia re-run approved-for-experimentation (neelesh-via-cto,
+  second-look flagged), sequenced behind the censor re-judge + the merge.
 - **BUILDER D24 delivered and chair-reviewed — all six D22-kill repairs
   shipped, probe-verified with the adversary's own instruments re-run
   byte-unchanged** (branch `builder/d24-desk-repairs` inside the D22
