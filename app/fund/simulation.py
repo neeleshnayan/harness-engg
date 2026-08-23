@@ -15,9 +15,13 @@ from typing import Any, Optional, Dict, List
 
 
 
-# Default baseline macro reference prices
+# Default baseline macro reference price. Only crude needs one: the oil shock
+# arrives as a PRICE and has to be turned into a percentage change, so it needs
+# something to be a change FROM. The rate shock arrives in basis points and is
+# already a change, which is why there is no yield baseline here — there was
+# one, a hardcoded 4.15% with zero readers, and a hardcoded financial number
+# nobody reads is the shape that later gets read by accident.
 BASELINE_CRUDE_OIL = 75.0  # $/bbl baseline
-BASELINE_10Y_YIELD = 4.15  # % baseline
 
 # Factor sensitivity coefficients by symbol.
 # Format: (Market Beta, Oil Beta, Rate Duration, VIX Sensitivity)
