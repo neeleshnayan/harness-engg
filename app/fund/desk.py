@@ -1686,10 +1686,20 @@ def validate_routing(rec: Any, index: Optional[int] = None) -> list[str]:
                 f"in the wrong place silently")
 
     if "money_at_stake" in rec and rec.get("money_at_stake") is not None:
-        if _money_at_stake(rec) is None:
+        raw = rec.get("money_at_stake")
+        # STRICTER AT THE DOOR THAN IN STORAGE, on purpose. `_money_at_stake`
+        # coerces a numeric STRING because it also reads rows that were
+        # already written that way; a NEW filing has no such excuse, and JSON
+        # has a number type. A quoted figure is the shape a seat produces when
+        # it lifted the number out of its own prose, which is the one thing
+        # this field exists to prevent.
+        if isinstance(raw, bool) or not isinstance(raw, (int, float)) \
+                or _money_at_stake(rec) is None:
             errors.append(
-                f"{where}money_at_stake={rec.get('money_at_stake')!r} must be "
-                f"a finite number or null (never a string, never NaN)")
+                f"{where}money_at_stake={raw!r} must be a JSON number or "
+                f"null — never a string, never NaN, never a boolean. A "
+                f"quoted figure is what a number lifted out of prose looks "
+                f"like, and this field exists so the desk never ranks on one")
     return errors
 
 

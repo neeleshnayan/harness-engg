@@ -106,7 +106,12 @@ CREATE INDEX IF NOT EXISTS fund_desk_intray_log_item_idx
 CREATE TABLE IF NOT EXISTS fund_desk_supersession (
     edge_id        TEXT PRIMARY KEY,
     target_ref     TEXT NOT NULL,
-    superseder_ref TEXT NOT NULL,
+    -- NULLABLE, and the null means something: a `killed` row was not
+    -- REPLACED by anything. Python refuses a null superseder on every other
+    -- mode; a NOT NULL here would have forced the caller to invent a lineage
+    -- for a row that has none, which is fabrication with a constraint's
+    -- blessing.
+    superseder_ref TEXT,
     mode           TEXT NOT NULL,
     reason         TEXT NOT NULL,
     dies_at_event  TEXT,
@@ -491,8 +496,8 @@ class InTray(_Table):
 class Supersessions(_Table):
     """`supersedes` edges between desk rows, and the refusal they carry."""
 
-    def add(self, *, target_ref: str, superseder_ref: Optional[str],
-            mode: str, reason: str, actor: str,
+    def add(self, *, target_ref: str, mode: str, reason: str, actor: str,
+            superseder_ref: Optional[str] = None,
             dies_at_event: Optional[str] = None,
             revives_if: Optional[str] = None,
             edge_id: Optional[str] = None) -> dict[str, Any]:
