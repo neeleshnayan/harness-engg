@@ -491,3 +491,16 @@ Suite serialization between concurrent builders is a CORRECTNESS requirement, no
 ## 2026-08-23 - FROM TRIAGE #7, ACCEPTED AGAINST MYSELF
 
 Vishesh's challenge lands: the D9/D10 bundle merged while its own stated signature-hold was open. No defense - the hold lived in chair memory and chair memory is not a control. STANDING RULE ADOPTED: when the chair states a merge is held for a signature or condition, FILE THE HOLD AS A DESK ROW that must be closed before the merge. A rule nothing evaluates is a note; a hold nobody records is the same object. Also standing from this triage: sweep the approved-undispatched queue against merge history before quoting the friction figure; close blind-review requests when their verdicts land; re-derive deadlines on desk rows (the exposure peak, not the inspiring event).
+
+## 2026-08-23 - STANDING CHANGE TO THE RESOLVE HABIT (from D22, effective at its merge)
+
+Every POST /fund/desk/runs carrying recommendations MUST put next_actor /
+due_date / reversibility / money_at_stake on EACH row (422 without; nulls
+allowed on date+money; actor "undecided" routes to the CHAIR never the
+CEO) - and MUST carry serves_requests: [request_ids] naming which desk
+asks the run served. 66 of 66 open requests are unlinkable today; hygiene
+closes NOTHING until this field is written. Retro-link 1c53589f +
+b6f4a407 to run-adversary-batch2 after merge for H1's first live firing.
+Also post-merge: restart the spine; the four new tables create on first
+use.
+

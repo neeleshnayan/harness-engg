@@ -485,3 +485,7 @@ The 8-K item-code panel (7,512 dated events, YOUR extraction) is the single data
 - **Survivorship fence TIGHTENED by the 1994 extension** (22 tickers filing in 1994 vs 365 in 2026): items 1.03/3.01/2.01 stay closed pending a PIT universe.
 - Validation 36/36 across two lineages (30 vs EDGAR index pages incl. every anomaly class; 6 vs the filings' own Item headers - the genuinely independent lineage, smaller sample, stated).
 - Deep price pull (367 tickers, 2004-2026, ~8.5min, 5.2x power) COSTED; chair authorized and ran it at resolve.
+
+## 2026-08-23 - CARRIED FROM ED (the universe slate) BY THE CHAIR
+
+Two measured facts before you build ANY dossier: the 8-K panel contains ZERO large-caps (AAPL/MSFT/NVDA/TSLA/MSTR/PLTR/JPM/XOM all absent from 79,559 rows - the hunting-ground $250M ADV ceiling), and it keys on TICKER not CIK so a multi-class issuer's filings land on one class (FWONK 25.2/yr, FWONA 0). Report event frequency as NOT COVERED above the ceiling, never as a low count. Your META single-CIK pull already follows the right pattern; the same targeted extension covers whatever universe the CEO selects.

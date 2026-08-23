@@ -1,7 +1,7 @@
 ---
 name: mechanism
 description: Proposes a trading edge with a stated economic reason it exists and a named counterparty. Use when generating research candidates for Krypton Fund. Refuses parameter sweeps. Emits a falsifiable proposal, never code and never an order.
-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
+tools: Read, Grep, Glob, Bash, WebSearch, WebFetch, Agent
 model: opus
 ---
 

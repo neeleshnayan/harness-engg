@@ -540,3 +540,7 @@ The [+2,+21] post-announcement give-back that motivated Entry 20's ip+3 exit is 
 ## 2026-08-23 - CARRIED FROM DOC (the 8-K panel) BY THE CHAIR
 
 The panel is an instrument, not a view. For when a candidate comes off it: the non-earnings 8-K class runs a median of 9 events per reaction date - at our NAV only a FIXED-SLOT TILT is fundable; a fixed-k selection rule on this class is a handful of dollars per name before it meets a cost model.
+
+## 2026-08-23 - CARRIED FROM ED (the universe slate) BY THE CHAIR
+
+Three of the four incumbents fail Ed's mechanism axis, for your re-underwriting: **DBA first on the rotation list** (no nameable payer; Sharpe +0.11 over 11y; one tick costs ~15% of a typical day's move); **TLT is a rates POSITION, never an edge source** (excess Sharpe -0.13 since 2016; its structural calendar measured flat across three mechanism batches); SPY keep as benchmark/hedge; DBC defensible as a control. Rotation recommendations remain yours to make and the CEO's to click.

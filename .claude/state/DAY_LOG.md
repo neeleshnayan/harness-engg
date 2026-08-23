@@ -123,6 +123,29 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   is fired and discharged by this work — the register cannot record
   either; recorded here, and the evaluability ticket (a26debb9 family)
   remains the owner.
+- **ED'S UNIVERSE SLATE FILED** (16 finalists / 6 all-UNTESTED families /
+  3 mid-run verification reversals: EIX dropped on its own no-issuance
+  plan; MSTR's payer re-identified from the dead ATM story to the live
+  preferred-coupon stack; the Liberty FWONA/FWONK pair PASSED its
+  constant-observable control - 2x amplitude, 3.6x reversion vs
+  GOOGL/GOOG - the first post-META dossier target, long-only rotation
+  form). Incumbent verdicts to Stan: DBA rotate-first, TLT
+  rates-position-never-edge. Seat-tooling defect FIXED (the mechanism
+  frontmatter lacked the Agent tool - the chair's dispatch routing had
+  masked it; the experiment ledger must not read non-use). Selection
+  sheet: docs/mechanism/ED_UNIVERSE_SLATE_2026-08-23.md - the CEO
+  selects whenever ready; META remains step 1.
+- **D22 THE DESK ENGINE DELIVERED**: KryptonPay half MERGED (1b414ed1;
+  278-358 tests 0 fail; the office page 75,434px -> 2,858px with the
+  CEO's matrix); ClarkHarness half with the ADVERSARY BLIND (one routing
+  blocker: the superseded-row refusal sits in front of _guard_approval -
+  the two named attack surfaces are the refusal's admit-impossibility
+  and approval_refusal's deliberate fail-open). THE ENGINE'S OWN
+  FINDING: 66/66 open requests are UNLINKABLE to any run - hygiene
+  closes nothing until the chair writes serves_requests on every run
+  record (standing habit adopted, cto.md). R&D DELEGATION recorded (CEO:
+  no executive blockers in RnD; the chair steers quickly and decisively;
+  deployment clicks remain the CEO's).
 - **THE IMMEDIATE GOAL REGISTERED (CEO, ratified 'works?'): STEP 1 - one
   decent strategy on META, end-to-end, SURVIVING the machinery (survival
   earned, never engineered - instrument changes pre-registered, adversary

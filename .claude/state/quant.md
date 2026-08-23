@@ -644,3 +644,7 @@ The bars API end_date is EXCLUSIVE (verified by two independent workers; card co
 ## 2026-08-23 - CARRIED FROM DOC (the 8-K panel) BY THE CHAIR
 
 fetch_daily_bars' `end` is EXCLUSIVE (the internal twin of the API endpoint finding, verified independently): a hold window ending on a named session LOSES ITS EXIT BAR unless you pass the day after; contiguous chunked pulls silently drop a session at every boundary - overlap chunks and check year session counts against known NYSE closures (2001=248, 2012=250, 2008=253).
+
+## 2026-08-23 - CARRIED FROM ED (the universe slate) BY THE CHAIR
+
+If the Liberty pair ever reaches you: the harvestable form is a LONG-ONLY rotation between FWONA and FWONK - never a pair trade (no shorting infrastructure), and the two legs are ONE position with a scheduling rule against same-session opposite-side fills.
