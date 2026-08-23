@@ -163,6 +163,45 @@ def test_the_engine_kept_branch_uses_the_daily_returns_leg():
         compounded_pct(bar), abs=1e-6)
 
 
+def test_the_real_add_benchmark_sets_the_marker_on_BOTH_of_its_branches():
+    """Drive the producer, not a stub — the marker IS the producer's contract.
+
+    D17/D18: a helper can be flawless and uncalled, and a test that stubs the
+    producer cannot test the producer's contract. Mutation caught this exact
+    gap: deleting the recomputed-basket marker survived a suite that only ever
+    set the field by hand in a fixture.
+    """
+    import app.fund.marketdata as md
+    from app.fund.leanrunner import LeanRunner
+
+    class Bars:
+        closes = [100.0, 110.0, 120.0]
+        dates = ["2025-06-01", "2025-06-02", "2025-06-03"]
+        source = "test"
+
+    monkeypatch_target = getattr(md, "fetch_daily_bars")
+    try:
+        md.fetch_daily_bars = lambda *a, **k: Bars()      # type: ignore
+        # Multi-name: the engine's bar is discarded and a basket installed.
+        multi = {"equity_curve": [2000.0, 2050.0],
+                 "equity_dates": ["2025-06-01", "2025-06-03"],
+                 "orders": [{"symbol": "SPY"}, {"symbol": "QQQ"}],
+                 "benchmark_curve": []}
+        LeanRunner._add_benchmark(multi)
+        assert multi["benchmark_kind"] == "equal_weight_basket"
+        assert multi["benchmark_series_source"] == "recomputed_basket"
+
+        # Single name with a usable engine curve: the engine's bar is KEPT.
+        single = {"equity_curve": [2000.0, 2050.0],
+                  "equity_dates": ["2025-06-01", "2025-06-03"],
+                  "orders": [{"symbol": "SPY"}],
+                  "benchmark_curve": [100.0, 105.0]}
+        LeanRunner._add_benchmark(single)
+        assert single["benchmark_series_source"] == "engine_single_name"
+    finally:
+        md.fetch_daily_bars = monkeypatch_target            # type: ignore
+
+
 def test_an_unmarked_result_reports_the_premia_legs_ABSENT():
     """No marker means the belt did not decide which series is the bar.
 
@@ -301,6 +340,27 @@ def test_a_leg_with_no_dispersion_is_unmeasurable():
     assert got["measurable"] is False
     assert "zero dispersion" in got["reason"]
     assert st.sharpe_at_rf(got, 0.0) is None
+
+
+def test_sharpe_at_rf_refuses_a_leg_MARKED_unmeasurable_whatever_it_carries():
+    """The `measurable` flag is the contract, not the numbers beside it.
+
+    Found by mutation and confirmed by capturing outputs under both arms:
+    removing this guard is NOT a no-op. It is currently unreachable through
+    ``leg_moments`` — every unmeasurable shape it emits also has a zero or
+    absent stdev, so the arithmetic guard below catches them — but
+    ``sharpe_at_rf`` is public, takes a stored dict, and the day an
+    unmeasurable reason arrives that leaves the moments populated (too few
+    observations for inference, say) the flag is the only thing standing
+    between a caller and a Sharpe computed from a leg the belt refused to
+    measure. Measured divergence: 6 of 60 probed cases, e.g. 0.1587 against
+    None.
+    """
+    looks_fine = {"measurable": False, "obs_per_year": 252.0,
+                  "stdev": 0.1, "mean": 0.001}
+    assert st.sharpe_at_rf(looks_fine, 0.0) is None
+    assert st.sharpe_at_rf(looks_fine, 4.0) is None
+    assert st.sharpe_at_rf({**looks_fine, "measurable": True}, 0.0) is not None
 
 
 def test_sharpe_at_rf_is_affine_in_the_per_observation_rate():

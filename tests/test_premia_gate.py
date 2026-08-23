@@ -382,13 +382,23 @@ def test_a_premia_claim_that_trails_its_benchmark_on_TOTAL_return_can_pass():
     """
     bench = series_with_moments(R600, 30.0, 40.0, seed=51)
     strat = series_with_moments(R600, 16.0, 12.0, seed=52)
-    out = judge(make_result(strat, bench), claim_type="premia")
+    # THE HEADLINE NUMBERS TRAIL TOO, which is what makes this a test of the
+    # replacement rather than of the premia leg alone. Mutation caught the
+    # earlier version: turning the `elif` into an `if` — so that
+    # `must_beat_benchmark` applied to premia claims as well — survived,
+    # because the fixture's headline said the strategy beat its bar.
+    res = make_result(strat, bench, total_return_pct=10.0,
+                      benchmark_return_pct=80.0)
+    out = judge(res, claim_type="premia")
     p = out["checks"]["premia"]
     assert p["beats_benchmark_total_return"] is False
+    assert out["checks"]["must_beat_benchmark_applied"] is False
+    assert not any("expensive way to hold the underlying" in f
+                   for f in out["failures"]), out["failures"]
     assert out["passed"] is True
     # And the same evidence fails the ALPHA bar, on the sentence it always did.
-    alpha = judge(make_result(strat, bench,
-                              total_return_pct=10.0, benchmark_return_pct=80.0))
+    alpha = judge(res)
+    assert alpha["checks"]["must_beat_benchmark_applied"] is True
     assert any("expensive way to hold the underlying" in f
                for f in alpha["failures"])
 
@@ -411,6 +421,52 @@ def test_a_deeper_drawdown_fails_even_with_a_sharpe_advantage():
     assert p["drawdown_not_worse"] is False
     assert any("deeper hole" in f for f in out["failures"])
     assert out["passed"] is False
+
+
+def test_holding_the_bar_is_not_a_premium_over_holding_the_bar():
+    """The exact-tie case, and it is the one the strict inequality is FOR.
+
+    A strategy whose returns ARE the benchmark's has advantage exactly 0.00 at
+    every risk-free rate and exactly the same drawdown, so every non-strict
+    comparison in the criterion certifies it. Mutation found this gap: turning
+    ``adv0 > margin`` into ``adv0 >= margin`` survived the whole suite.
+    """
+    bench = series_with_moments(R600, 12.0, 20.0, seed=21)
+    # The strategy leg is taken through the SAME arithmetic as the benchmark
+    # leg — levels, then differences. Handing the raw list to one side and a
+    # curve-derived series to the other makes the two disagree in the last bits
+    # and turns an exact tie into a 1e-14 difference, which is a fact about
+    # float addition rather than about the criterion.
+    from app.fund.leanrunner import _returns_from_curve
+    same = _returns_from_curve(curve_from(bench), cdates(600))
+    strat = [same[d] for d in rdates(600)]
+    out = judge(make_result(strat, bench), claim_type="premia")
+    p = out["checks"]["premia"]
+    assert p["sharpe_advantage"] == 0.0
+    assert p["drawdown_not_worse"] is True          # equal, so "not worse"
+    assert any("no premium over owning the thing" in f for f in out["failures"])
+    assert out["passed"] is False
+
+
+def test_exactly_half_the_window_is_not_a_majority_of_it():
+    """The strict-majority boundary, at the value where strict matters.
+
+    Mutation found this too: ``common * 2 >= total`` survived, because no
+    fixture landed on exactly half. The integer form is deliberate — the
+    walk-forward majority uses the same shape for the same reason.
+    """
+    bench = series_with_moments(R600, 20.0, 24.0, seed=31)
+    strat = series_with_moments(R600, 15.0, 12.0, seed=32)
+    res = make_result(strat, bench)
+    res["benchmark_curve"] = curve_from(bench[:300])
+    res["benchmark_dates"] = cdates(300)
+    res["premia_inputs"] = premia_inputs(res)
+    assert res["premia_inputs"]["coverage"] == {
+        "common_days": 300, "strategy_days": 600, "fraction": 0.5}
+    out = judge(res, claim_type="premia")
+    assert out["checks"]["premia"]["coverage_majority"] is False
+    assert any("share only 300 of the strategy's 600" in f
+               for f in out["failures"])
 
 
 def test_no_sharpe_advantage_fails_with_the_no_premium_sentence():
