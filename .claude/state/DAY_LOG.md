@@ -123,6 +123,20 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   is fired and discharged by this work — the register cannot record
   either; recorded here, and the evaluability ticket (a26debb9 family)
   remains the owner.
+- **THE TEAM-AS-GRAPH VISION (CEO, verbatim: 'agents as nodes and edges
+  from other agents as learnings; both evolve over time and mutate the
+  agent to become better at its job').** Mapped to the machinery: nodes
+  = seats with tuned priors; edges = BINDS (today's measured specimens:
+  card 12-14 -> Ed = 0-of-3 kills became 6-of-6 free self-kills; the
+  plumbing edge = 300min -> 0; Grace's retraction = a bad edge voided);
+  mutation = EVOLVE on measured outcomes (7 today); the edge SUBSTRATE
+  = D27's episode store, in build tonight; the fitness signal =
+  prediction calibration per seat. THE UNBUILT ORGAN: edge scoring +
+  the Selection Loop (chartered) - buildable once the store holds weeks
+  of edges. DESIGNED ABSENT EDGES are load-bearing (the blind, the
+  exec-table order, the immune-system exclusion) - the topology's holes
+  keep evolution from becoming monoculture. The control layer still
+  only versions; nodes get better at noticing, never at permitting.
 - **THE BUILDER CAP WIDENED 2 -> UP-TO-4 (CEO, verbatim: 'fanout
   builders so we can get to the main stuff soon')**: pairwise-disjoint
   write scopes mandatory, ALL suites serialized via the lockfile
