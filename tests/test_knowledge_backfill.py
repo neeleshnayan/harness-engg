@@ -88,7 +88,11 @@ def _source_schema(cur, with_jobs=True, with_runs=True) -> None:
 def _fixture(with_jobs=True, with_runs=True):
     """Six candidates covering every interpretation branch, and their jobs."""
     import json
-    _graph()          # issues the kg_* DDL before anything truncates it
+    # EXPLICIT since the reader/writer split: constructing a graph no longer
+    # issues DDL, so the fixture has to ask. Without this the TRUNCATE below
+    # fails on a first run against a fresh krypton_fund_kgtest — and it passed
+    # only because the tables happened to survive from an earlier run.
+    _graph().ensure_schema()
     conn = _connect()
     with conn:
         with conn.cursor() as cur:
@@ -217,7 +221,12 @@ def test_an_ORPHANED_candidate_gets_a_hypothesis_and_NO_outcome():
     _ingest()
     kg = _graph()
     d = kg.family_ledger("orphan_algo")
-    assert d["status"] == "TESTED" and d["tested"] == 1
+    # RECORDED, NOT TESTED. The candidate is in the graph and has no verdict,
+    # and since 2026-08-23 the ledger has a status that can say exactly that —
+    # v1 called this family TESTED, which is the sentence the validator's
+    # spot-audit caught reading "tested: 6, not yet judged: 6".
+    assert d["status"] == "RECORDED_UNJUDGED"
+    assert d["recorded"] == 1 and d["judged"] == 0
     assert d["killed"] == 0 and d["survivors"] == []
     assert d["unjudged"] == ["cand-aaaa00000005"]
 
