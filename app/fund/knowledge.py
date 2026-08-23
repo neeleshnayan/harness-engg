@@ -457,17 +457,23 @@ class KnowledgeGraph:
     during the validator's spot-audit (run-validator-parity, 2026-08-23).
 
     MEASURED, not reasoned about (``scratchpad/d27probe_lock2.py``, one
-    connection holding a plain ``SELECT count(*) FROM kg_outcome`` open):
+    connection holding a plain ``SELECT count(*) FROM kg_outcome`` open, a 2s
+    statement timeout on the prober). ``SCHEMA`` issues 14 statements in SIX
+    distinct forms, and every form was probed:
 
-        CREATE TABLE IF NOT EXISTS kg_outcome ...      free, 0.03s
-        CREATE INDEX IF NOT EXISTS kg_outcome_hyp_idx  free, 0.03s
-        CREATE OR REPLACE FUNCTION kg_outcome_guard    free, 0.03s
-        DROP TRIGGER IF EXISTS kg_outcome_immutable    BLOCKED  <-- the wedge
-        (SELECT-only reader path)                      free, 0.03s
+        CREATE TABLE IF NOT EXISTS   (x3)   free, 0.03s
+        CREATE INDEX IF NOT EXISTS   (x6)   free, 0.03s
+        CREATE UNIQUE INDEX IF NOT EXISTS (x2)  free, 0.03s
+        CREATE OR REPLACE FUNCTION   (x1)   free, 0.03s
+        DROP TRIGGER IF EXISTS       (x1)   BLOCKED 2.03s  <-- the wedge
+        CREATE TRIGGER               (x1)   free, 0.02s
+        (the SELECT-only reader path)       free, 0.03s
 
-    So one statement of the five takes ACCESS EXCLUSIVE, and it is the one the
-    immutability guard needs. It stays exactly where it is — the fix is that
-    only a WRITER pays for it:
+    So exactly ONE of the fourteen takes ACCESS EXCLUSIVE, and it is the one
+    the immutability guard needs. Note the asymmetry, which is the part worth
+    remembering: CREATE TRIGGER is free (SHARE ROW EXCLUSIVE, no conflict with
+    a reader's ACCESS SHARE) while DROP TRIGGER is not. The statement stays
+    exactly where it is — the fix is that only a WRITER pays for it:
 
       * readers go through :meth:`_read`, which is SELECT-only and raises
         :class:`SchemaAbsent` on a store where the tables were never created;

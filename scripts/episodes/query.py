@@ -40,13 +40,20 @@ def _store(dsn: str | None = None):
 
 
 def _head(md: str, heading: str | None, width: int = 96) -> str:
-    """The heading, or the first non-blank line when there is none."""
-    if heading:
-        return heading[:width]
-    for line in (md or "").splitlines():
-        if line.strip():
-            return line.strip()[:width]
-    return "(no heading, no text)"
+    """The heading, or the first non-blank line when there is none.
+
+    A truncated line ENDS IN AN ELLIPSIS. Cutting at ``width`` silently makes
+    a fragment read as a complete heading, and these headings are sentences —
+    "the resolve pipeline (every dispatch, in order — skipping a step has"
+    means something different from what it was going to say.
+    """
+    text = heading
+    if not text:
+        text = next((ln.strip() for ln in (md or "").splitlines() if ln.strip()),
+                    None)
+    if not text:
+        return "(no heading, no text)"
+    return text if len(text) <= width else text[:width - 1] + "…"
 
 
 def find(d: dict, full: bool = False) -> str:
@@ -69,8 +76,12 @@ def find(d: dict, full: bool = False) -> str:
         L.append(f"    {_head(e['episode_md'], e['heading'])}")
         L.append(f"    {e['source_ref'] or 'NO SOURCE REF'}")
         if full:
-            L.append("")
-            L.extend("      " + ln for ln in e["episode_md"].splitlines())
+            # UNINDENTED, between markers. --full exists so a chair can copy
+            # an episode into a brief; a six-space indent would turn every
+            # pasted episode into a markdown code block.
+            L.append(f"    ----- BEGIN episode {e['episode_id']} verbatim -----")
+            L.extend(e["episode_md"].splitlines())
+            L.append(f"    ----- END episode {e['episode_id']} -----")
         L.append("")
     # THE ABSENCES, ALWAYS PRINTED — not only when the answer is empty. A short
     # answer with a large store is the case a reader misreads most.

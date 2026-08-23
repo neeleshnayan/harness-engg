@@ -258,10 +258,10 @@ def test_every_market_tag_in_the_vocabulary_CAN_fire(tag, text):
 def test_the_tag_rules_do_NOT_fire_on_these(text):
     """The measured false positives, pinned so they cannot come back.
 
-    A bare ``\\boptions?\\b`` was in the first draft of the table and produced
-    NINE hits in the corpus, every one of them the English word. Ticker rules
-    are case-SENSITIVE for the same reason: lowercase "gld" in a file path is
-    not a claim about gold.
+    A bare ``\\boptions?\\b`` was in the first draft of the table and matched
+    13 times across 6 seat files, not one of them an options-market episode.
+    Ticker rules are case-SENSITIVE for the same reason: lowercase "gld" in a
+    file path is not a claim about gold.
     """
     from app.fund.episodes import tags_for_text
     assert tags_for_text(text) == []
@@ -318,8 +318,11 @@ def test_an_UNREADABLE_recorder_accepts_NOTHING_as_a_citation():
                                   "no ids here at all"])
 def test_english_words_are_not_run_ids(text):
     """Measured: the one-segment form ``run-\\w+`` matched "run-up" in the live
-    corpus. Every one of the recorder's 107 ids on 2026-08-23 has at least two
-    segments."""
+    corpus. Every id the recorder holds has at least two segments — and that
+    is re-checked against the LIVE table by
+    ``test_the_run_id_shape_matches_every_id_the_recorder_holds`` rather than
+    pinned to a row count here, because the recorder grows during a dispatch.
+    """
     from app.fund.episodes import run_ids_in
     assert run_ids_in(text, known={"run-up", "run-time"})[0] == []
 

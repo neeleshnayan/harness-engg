@@ -20,14 +20,15 @@ than quietly not appearing.
 HOW A FILE BECOMES EPISODES. Split on ``## `` at the start of a line, and
 nothing else. The invariant is that rejoining a file's sections in order
 reproduces the file BYTE FOR BYTE (``app.fund.episodes.split_sections``,
-asserted over all fourteen live files in ``tests/test_episodes.py``). So:
+asserted over every live memory file in ``tests/test_episodes.py``). So:
 
   * the PREAMBLE — everything before the first heading — becomes episode 0 with
     no heading, rather than being dropped. "The part nobody indexed" is where a
     silent loss hides;
-  * a section whose body is blank (five exist today, including two halves of a
-    heading somebody wrapped across two lines in ``cto.md``) is stored AND
-    counted in ``uninterpretable`` — never dropped;
+  * a section whose body is blank is stored AND counted in ``uninterpretable``
+    — never dropped. FOUR at the 2026-08-23 reading, three of them in
+    ``cto.md``, where two are the halves of a heading somebody wrapped across
+    two lines and one is a quotation used as a heading;
   * ``### `` subheadings do not split. They are structure inside an episode.
 
 CITATIONS. A section that names a run id which EXISTS in ``fund_agent_runs``
@@ -38,8 +39,9 @@ recorder cannot be read, NOTHING is accepted as a real citation and the report
 says the table was unreadable, because an unverifiable citation that looks
 verified is worse than an honest fallback.
 
-IDEMPOTENCE. ``dedupe_key = episodes:<seat>:<ordinal>:<sha256(text)[:16]>``.
-Re-running after a chair appends a section writes only the new sections.
+IDEMPOTENCE. ``dedupe_key = episodes:<seat>:<ordinal>:<sha256(text.rstrip())[:16]>``.
+Re-running after a chair appends a section writes only the new sections — the
+``rstrip`` is load-bearing and its reason is in the code beside it.
 **A section EDITED IN PLACE writes a NEW episode and leaves the old one**, which
 is correct for an append-only store and is stated here because it is the
 surprising half: the store accumulates versions of an edited section rather than
@@ -170,7 +172,7 @@ def plan_file(path: pathlib.Path, seat: str, known: Optional[set[str]],
 
 def ingest(dsn: str, run_id: str, state_dir: pathlib.Path,
            dry_run: bool = False) -> dict[str, Any]:
-    from app.fund.episodes import EpisodeStore
+    from app.fund.episodes import MARKET_TAGS, EpisodeStore
 
     # REFUSE RATHER THAN REPORT A CLEAN ZERO. An ingest pointed at a directory
     # that is not there, or at one holding no seat memoranda, has measured
@@ -252,7 +254,7 @@ def ingest(dsn: str, run_id: str, state_dir: pathlib.Path,
         totals["created"] += created
         totals["already_present"] += present
         per_seat.append({
-            "seat": seat, "file": path.name, "bytes": path.stat().st_size,
+            "seat": seat, "file": path.name,
             "sections": len(rows), "created": created,
             "already_present": present,
             "empty_body": sum(1 for r in rows if r["empty_body"]),
@@ -264,7 +266,10 @@ def ingest(dsn: str, run_id: str, state_dir: pathlib.Path,
         "run_id": run_id,
         "dry_run": dry_run,
         "state_dir": str(state_dir),
-        "state_dir_present": state_dir.is_dir(),
+        # No `state_dir_present` key: the refusal above means it is always
+        # True by the time this returns. A field that can only hold one value
+        # is a control that cannot fire, and the first draft's report had a
+        # "DIRECTORY ABSENT" branch that no input could reach.
         "recorder_readable": known is not None,
         "known_run_ids": len(known) if known is not None else None,
         "per_seat": per_seat,
@@ -277,25 +282,21 @@ def ingest(dsn: str, run_id: str, state_dir: pathlib.Path,
             for p in skipped],
         "totals": totals,
         "kinds": dict(sorted(kinds.items(), key=lambda kv: (-kv[1], kv[0]))),
-        "market_tags": {t: tags.get(t, 0) for t in _tag_vocabulary()},
+        # THE WHOLE VOCABULARY, so a tag that fired zero times is VISIBLE.
+        # `dict(tags)` would print only what hit, and a market nobody wrote
+        # about would be indistinguishable from a market nobody can tag.
+        "market_tags": {t: tags.get(t, 0) for t in MARKET_TAGS},
         "rejected_run_tokens": dict(sorted(rejected_tokens.items())),
         "uninterpretable": uninterpretable,
     }
-
-
-def _tag_vocabulary() -> tuple[str, ...]:
-    from app.fund.episodes import MARKET_TAGS
-    return MARKET_TAGS
 
 
 def render(rep: dict[str, Any]) -> str:
     L: list[str] = []
     mode = "DRY RUN (nothing written)" if rep["dry_run"] else "WRITE"
     L.append(f"# seat-episode ingest   mode={mode}   run_id={rep['run_id']}")
-    L.append(f"  state dir: {rep['state_dir']}"
-             + ("" if rep["state_dir_present"]
-                else "   *** DIRECTORY ABSENT - UNREADABLE, NOT EMPTY"))
-    L.append(f"  flight recorder: "
+    L.append(f"  state dir: {rep['state_dir']}")
+    L.append("  flight recorder: "
              + (f"{rep['known_run_ids']} run id(s) known"
                 if rep["recorder_readable"] else
                 "UNREADABLE - no citation can be verified, so every episode "

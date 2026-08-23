@@ -50,11 +50,15 @@ readers are SELECT-only, writers call :meth:`EpisodeStore.ensure_schema`.
 
 from __future__ import annotations
 
-import logging
 import re
 from typing import Any, Iterable, NamedTuple, Optional
 
-logger = logging.getLogger(__name__)
+# NO MODULE LOGGER, deliberately. The knowledge graph has one because a reader
+# there degrades (an unreadable fund_agent_runs is warned about and the read
+# continues). Nothing here degrades: every failure is a raise the caller must
+# handle, and an unused logger is an invitation to make the next one a
+# logger.warning nobody reads — the riskofficer's carried rule, "audible means
+# in the record, never logger.warning".
 
 #: THE MODULE DECLARES ITS OWN LAYER, and the guard reads the declaration.
 #:
@@ -90,9 +94,15 @@ PROVENANCES = ("seat", "backfill")
 #: reading "STATE ... appended by the chair" is a state, not a bind.
 #:
 #: Matched against the heading only, never the body: a STATE section that
-#: quotes the word BINDS is still a STATE. Measured over the 2026-08-23 corpus
-#: (391 sections): state 88, bind 199, evolve 4, lesson 100.
-#: Reproduce: ``scripts/episodes/ingest.py --dry-run --run-id <id>``.
+#: quotes the word BINDS is still a STATE.
+#:
+#: SNAPSHOT, 2026-08-23 ~17:00Z, 417 sections across 14 files:
+#:     bind 222 · lesson 124 · state 67 · evolve 4
+#: **THE CORPUS GROWS WHILE YOU READ IT** — it went 391 -> 406 -> 417 during
+#: the dispatch that wrote this, because a chair appends at every resolve. The
+#: snapshot is dated for that reason and nothing may be derived from it;
+#: re-measure with ``scripts/episodes/ingest.py --dry-run --run-id <id>``,
+#: which prints exactly this table from the SHIPPED classifier.
 KIND_RULES: tuple[tuple[str, str], ...] = (
     ("state", r"\bSTATE\b"),
     ("evolve", r"\bEVOLVE\b"),
@@ -112,12 +122,13 @@ DEFAULT_KIND = "lesson"
 #: (tag, pattern, case_sensitive). Tickers are case-SENSITIVE — lowercase "gld"
 #: in a file path is not a claim about gold — and English terms are not.
 #:
-#: MEASURED over the 2026-08-23 corpus (391 sections, 14 seat files):
-#:     equities 58 · bonds 42 · commodities 30 · etf 11 · crypto 3 · fx 3 ·
-#:     futures 1 · options 0 · UNTAGGED 312 (80%)
+#: SNAPSHOT, 2026-08-23 ~17:00Z, 417 sections across 14 seat files — and the
+#: corpus grows, so re-measure rather than quote this:
+#:     equities 59 · bonds 42 · commodities 30 · etf 11 · crypto 3 · fx 3 ·
+#:     futures 1 · options 0 · TAGGED 77 · UNTAGGED 340 (81%)
 #: Reproduce: ``scripts/episodes/ingest.py --dry-run --run-id <id>``.
 #:
-#: **80% UNTAGGED IS THE HONEST NUMBER AND IT IS NOT A DEFECT.** Most of what
+#: **81% UNTAGGED IS THE HONEST NUMBER AND IT IS NOT A DEFECT.** Most of what
 #: these seats write is about the harness, not about a market. An untagged
 #: episode means "no market was named in it" — never "it applies to every
 #: market", and the query reader says so rather than returning everything.
@@ -140,9 +151,12 @@ MARKET_TAG_RULES: tuple[tuple[str, str, bool], ...] = (
     ("crypto", r"\bcrypto\b|\bbitcoin\b|\bethereum\b", False),
     ("futures", r"\bfutures\b|\bcontango\b|\bbackwardation\b|\broll yield\b",
      False),
-    # Deliberately NARROW. A bare "options" is the English word in this corpus
-    # ("two options for the fix"), and tagging on it would have produced nine
-    # false positives out of nine — measured before this table shipped.
+    # Deliberately NARROW. A bare ``\boptions?\b`` matches 13 times across 6
+    # seat files in the 2026-08-23 corpus and NOT ONE of them is an episode
+    # about the options market: "three regulatory options", "two options for
+    # the fix", "options data" in a data-source list, "option-like payoffs"
+    # in a Sharpe argument. Counted match by match before this table shipped —
+    # a first pass said "nine", which was the number of SECTIONS, not matches.
     ("options", r"\bimplied vol|\bstraddle\b|\boption chain\b|"
                 r"\bcall spread\b|\bput spread\b", False),
     ("etf", r"\bETFs?\b", True),
@@ -157,9 +171,12 @@ _COMPILED_TAG_RULES = tuple(
     for tag, pat, cs in MARKET_TAG_RULES)
 
 #: A run id as this firm writes them. At least two hyphen-separated segments
-#: after ``run-`` — MEASURED: all 107 rows of ``fund_agent_runs`` on 2026-08-23
-#: match, and the looser one-segment form matched the English words "run-up"
-#: and "run-time" in the corpus.
+#: after ``run-``. MEASURED against the recorder rather than assumed: every row
+#: of ``fund_agent_runs`` fullmatches this pattern (110 rows at the last
+#: reading, and rising — ``tests/test_episodes.py`` re-checks it against the
+#: LIVE table on every run rather than trusting the count written here). The
+#: looser one-segment form matched the English words "run-up" and "run-time"
+#: in the corpus, which is why the second segment is required.
 #:
 #: Shape is not enough on its own. :func:`run_ids_in` is given the recorder's
 #: real id set and returns only tokens that are IN it — the corpus contains
@@ -167,7 +184,9 @@ _COMPILED_TAG_RULES = tuple(
 #: and is not one.
 RUN_ID_RE = re.compile(r"\brun-[A-Za-z0-9]+(?:[-.][A-Za-z0-9]+)+")
 
-#: The ISO date a heading opens with, if it has one. 345 of 391 sections do.
+#: The ISO date a heading opens with, if it has one. Most do — 371 of 417 at
+#: the 2026-08-23 reading — and the rest are genuinely undated in the heading,
+#: which is why every dated query reports what it excluded.
 _HEADING_DATE_RE = re.compile(r"(20\d\d-\d\d-\d\d)")
 
 #: A markdown h2 at the start of a line. The ONLY split point.
@@ -439,8 +458,9 @@ class EpisodeStore:
     **CONSTRUCTING ONE ISSUES NO DDL AND TAKES NO LOCK**, from birth. The
     knowledge graph shipped the other way and a read-only report wedged
     ``kg_outcome`` for ~5 minutes behind one ordinary transaction — measured
-    2026-08-23: of the five DDL statements in that schema only
-    ``DROP TRIGGER IF EXISTS`` blocks, and this schema has one too.
+    2026-08-23 over all six DDL forms in that schema: exactly one,
+    ``DROP TRIGGER IF EXISTS``, takes ACCESS EXCLUSIVE. This schema has one
+    too, for the same reason (the immutability guard).
     Readers go through :meth:`_read`; writers call :meth:`ensure_schema`.
     """
 
@@ -456,8 +476,10 @@ class EpisodeStore:
     def ensure_schema(self) -> bool:
         """Issue the DDL. THE ONLY PLACE THIS MODULE TAKES A WRITE LOCK.
 
-        Memoised per instance: True the time it ran, False after. A backfill of
-        391 sections issues the DDL once, not 391 times.
+        Memoised per instance: True the time it ran, False after. A backfill
+        issues the DDL ONCE however many sections it writes — several hundred
+        today, and the count is deliberately not written here because the
+        corpus grows every time a chair resolves a dispatch.
         """
         if self._ensured:
             return False
