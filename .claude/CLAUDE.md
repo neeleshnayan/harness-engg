@@ -883,7 +883,7 @@ consequential.'**
 
 The chair may approve EXPERIMENTS on the CEO's behalf, effective
 immediately. The desk shows them as **approved-for-experimentation** (actor
-, this instruction cited), with a **SECOND-LOOK flag**
+`neelesh-via-cto`, this instruction cited), with a **SECOND-LOOK flag**
 whenever the result is consequential — a finding that changes a decision,
 a date, or a belief with money behind it.
 
@@ -896,7 +896,7 @@ tokens and time.
 deployments (experimental deployments still take the CEO's click per
 deploy, per the 2026-08-21 authorization); thresholds and the control
 layer; anything spending or moving money; anything irreversible. The
-riskofficer audits  experiment approvals exactly as it
+riskofficer audits `neelesh-via-cto` experiment approvals exactly as it
 audits every other channel.
 
 **What would change this decision's mind** (recorded at decision time): any
