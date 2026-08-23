@@ -225,8 +225,15 @@ def quote_rows_for(events: list[dict], quotes: Any, *, run_id: str,
             reason = "symbol_unknown:no event in this order names one"
         elif at is None:
             reason = "event_timestamp_unreadable"
-        elif at > cutoff:
-            # The refusal is the vendor's, and naming it beats a bare failure.
+        elif at >= cutoff:
+            # NON-STRICT, AND THE BOUNDARY ITSELF IS UNMEASURED. The probe
+            # measured 14 minutes refused and 16 minutes served; exactly 15:00
+            # was never observed either way, so this refuses it rather than
+            # guessing. The cost of refusing wrongly is one row that says
+            # "within_sip_delay" and can be recovered by re-running a minute
+            # later at zero cost; the cost of attempting wrongly is a vendor
+            # error recorded as if the market had no quote. Re-measure with
+            # ``--probe-delay``, which prints the pair this choice rests on.
             reason = (f"within_sip_delay:{MEASURED_SIP_DELAY_MINUTES}min - "
                       "the consolidated tape is not served for events this "
                       "recent; the live IEX row is what exists for it")

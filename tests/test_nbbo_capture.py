@@ -792,3 +792,22 @@ def test_run_loops_clock_is_injectable_and_is_the_only_one(tmp_path,
     assert len(long_after) == 1
     assert long_after[0].startswith("event_too_old_for_live_quote:")
     assert "3600" in long_after[0]
+
+
+@pytest.mark.parametrize("ahead_s, flagged", [
+    (119.5, False), (120.0, False), (120.5, True),
+])
+def test_the_future_clock_bound_is_probed_at_its_own_boundary(ahead_s, flagged):
+    """GAUNTLET 5: the past side of too_old had a three-point table and the
+    FUTURE side had only a far-away case.
+
+    The two sides are separate inequalities and only one of them was pinned.
+    An event dated slightly ahead of us is an ordinary clock skew and must
+    still be quotable; one dated far ahead is a disagreement worth reporting.
+    """
+    ts = iso(NOW + timedelta(seconds=ahead_s))
+    result = nbbo_capture.too_old(ts, 120.0, now=NOW)
+    if flagged:
+        assert result.startswith("event_timestamp_in_the_future:")
+    else:
+        assert result is None

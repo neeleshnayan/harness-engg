@@ -169,11 +169,26 @@ SIMULATED_VENUES = ("paper",)
 #:
 #: MEASURED PARTITION of the live log 2026-08-23, 29 filled orders / 34 legs:
 #: executed 10 orders / 15 legs (alpaca), simulated 12 / 12 (paper),
-#: not_submitted 7 / 7. Reproduce with ``scripts/execution/retro_spread.py``.
-#: THE PARTITION IS WHY THIS EXISTS: over the consolidated tape the three
-#: classes read 0.7-6.6 bps, 2.4-15,146 bps and 0.9-591 bps respectively, so a
-#: flat mean over all 34 would report the fund's execution cost as roughly four
-#: hundred basis points. It is not.
+#: not_submitted 7 / 7.
+#:
+#: THE PARTITION IS WHY THIS EXISTS. Over the consolidated tape, effective
+#: spread by class on that log — best to worst, 31 of the 34 legs measurable::
+#:
+#:     executed        n=15  0.67 -  46.95 bps   (single-leg n=7: 0.67 - 7.21)
+#:     simulated       n=9   2.42 - 15146.04 bps
+#:     not_submitted   n=7   7.19 -  591.40 bps
+#:
+#: A flat mean over all 31 measured legs is **560.58 bps**. That is a real
+#: number computed from real quotes and it is not the fund's execution cost,
+#: which is 2.89 bps mean / 1.99 median over the seven clean single-leg
+#: executed fills.
+#:
+#: REPRODUCE ALL OF IT: ``scripts/execution/retro_spread.py --quotes``.
+#: These are a GROWING POPULATION — the denominator rises with every fill the
+#: fund makes — so read the shape (three classes, three orders of magnitude
+#: apart) as the durable claim and the digits as a dated snapshot. An earlier
+#: draft of this comment said "0.7-6.6" and "0.9-591"; both were read off the
+#: table by eye rather than off the summary, and both were wrong.
 EXECUTION_CLASSES = ("executed", "simulated", "not_submitted")
 
 #: A retro mark row whose arrival mark EQUALS its fill price to this tolerance
@@ -264,12 +279,22 @@ def spread_bps_of(bid: Any, ask: Any) -> Optional[float]:
     A locked market (bid == ask) is 0.0 and that is a measurement, not an
     absence — which is why this returns the number rather than falling into the
     absent branch.
+
+    THERE IS NO ``m <= 0`` GUARD HERE AND THAT IS DELIBERATE. A first draft
+    carried one; it is UNREACHABLE. :func:`mid_of` returns a mid only when
+    ``bid > 0`` and ``ask >= bid``, so a returned mid is strictly positive by
+    that function's own contract. An unreachable branch is worse than no
+    branch: nothing can ever cover it, so it is a permanent hole in any
+    coverage figure and a permanent survivor in any mutation pass — which is
+    exactly how the Gauntlet found it. The invariant is stated as an assert
+    instead, where it documents the dependency without pretending to handle a
+    case that cannot arrive.
     """
-    m, reason = mid_of(bid, ask)
-    if m is None or m <= 0.0:
+    m, _reason = mid_of(bid, ask)
+    if m is None:
         return None
     b, a = _num(bid), _num(ask)
-    assert b is not None and a is not None  # guaranteed by mid_of returning
+    assert b is not None and a is not None and m > 0.0  # mid_of's contract
     return (a - b) / m * BPS
 
 
@@ -596,15 +621,17 @@ def summarise_quote_rows(rows: list[dict]) -> dict:
     By execution class, by symbol, and by feed — and there is no fourth,
     undivided number anywhere in the output, deliberately.
 
-    THE HEADLINE IS ``executed`` AND ONLY ``executed``. Measured over the
-    consolidated tape on 2026-08-23, the three classes on this fund's own log
-    read 0.7-6.6 bps (executed), 2.4-15,146 bps (simulated: one of those is the
-    known GLD phantom-price incident, which this instrument re-detects from
-    first principles), and 0.9-591 bps (not_submitted: bookkeeping backfills
-    whose prices were never struck against a market). A flat mean over all
-    thirty four would put the fund's execution cost near four hundred basis
-    points, and it would be a real number computed from real quotes and
-    completely false.
+    THE HEADLINE IS ``executed`` AND ONLY ``executed``. The three classes on
+    this fund's own log, over the consolidated tape on 2026-08-23, are three
+    orders of magnitude apart — see :data:`EXECUTION_CLASSES` for the measured
+    table and its reproduction command. The flat mean over all 31 measurable
+    legs is 560.58 bps; the fund's actual execution cost is 2.89. Both are real
+    numbers computed from real quotes and only one of them is the answer.
+
+    The simulated class contains the known GLD phantom-price incident, which
+    this instrument re-detects from first principles at 15,146 bps without
+    being told to look for it, and the not_submitted class is bookkeeping
+    backfills whose prices were never struck against a market at all.
 
     ``by_symbol`` reports the unmeasured count beside the measured one, so a
     symbol with three fills and no quotes cannot read as a symbol with no fills.

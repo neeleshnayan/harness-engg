@@ -579,3 +579,104 @@ def test_the_endpoint_route_is_registered_and_is_read_only():
     path = "/api/v1/fund/execution/quality"
     assert path in paths, f"route missing; nearest: {[p for p in paths if 'execution' in p]}"
     assert set(paths[path]) == {"get"}
+
+
+# ===========================================================================
+# Added after the Gauntlet's first pass. Each names the finding it closes.
+# ===========================================================================
+
+def test_the_capture_loop_drives_the_REAL_store_at_least_once(store):
+    """GAUNTLET 3: every capture test used a fake, so the keyword contract
+    between ``capture_batch``'s row dict and ``QuoteStore.record``'s signature
+    was verified by nothing.
+
+    A helper can be flawless and uncalled — the same family as the D17
+    cost-basis defect, where mutation restored the original bug inside
+    ``_apply`` and every test still passed because they all called the helper
+    directly. One test drives the real call site.
+    """
+    from datetime import datetime, timedelta, timezone
+    from execution import nbbo_capture
+
+    now = datetime(2026, 8, 23, 20, 0, 0, tzinfo=timezone.utc)
+    ts = (now - timedelta(seconds=5)).isoformat()
+    events = [
+        {"seq": 5001, "aggregate_id": "real-call", "aggregate_type": "order",
+         "type": "OrderProposed", "actor": "cto", "ts": ts,
+         "payload": {"qty": 1.0, "side": "buy", "venue": "alpaca",
+                     "symbol": "SPY"}},
+        {"seq": 5002, "aggregate_id": "real-call", "aggregate_type": "order",
+         "type": "OrderSubmitted", "actor": "system", "ts": ts,
+         "payload": {"venue": "alpaca", "venue_ref": "r",
+                     "arrival_price": 765.50}},
+        {"seq": 5003, "aggregate_id": "real-call", "aggregate_type": "order",
+         "type": "OrderFilled", "actor": "system", "ts": ts,
+         "payload": {"fees": "0", "side": "buy", "symbol": "SPY",
+                     "avg_price": "765.54", "filled_qty": "1.0"}},
+    ]
+
+    class Quotes:
+        def latest(self, symbols):
+            assert symbols == ["SPY"]
+            return {"SPY": {"bid": 765.45, "ask": 765.54, "bid_size": 100,
+                            "ask_size": 100, "quote_ts": ts}}
+
+    results = nbbo_capture.capture_batch(events, store, Quotes(),
+                                         run_id="run-real-call-site",
+                                         max_age_s=120.0, now=now)
+    assert len(results) == 2 and all(r["created"] for r in results)
+
+    rows, _ = store.rows()
+    by_kind = {r["event_kind"]: r for r in rows}
+    assert set(by_kind) == {"submitted", "filled"}
+    fill = by_kind["filled"]
+    # Every field the loop is responsible for populating, read back out of
+    # Postgres rather than out of the loop's return value.
+    assert fill["symbol"] == "SPY" and fill["side"] == "buy"
+    assert fill["submitted_venue"] == "alpaca" and fill["was_submitted"] is True
+    assert fill["feed"] == eq.LIVE_FEED and fill["basis"] == eq.LIVE_BASIS
+    assert fill["capture_run"] == "run-real-call-site"
+    assert fill["mid"] == pytest.approx((765.45 + 765.54) / 2)
+    assert fill["effective_spread_bps"] == pytest.approx(
+        eq.effective_spread_bps(765.54, (765.45 + 765.54) / 2))
+    # The submitted leg has a market but no fill to price against it.
+    assert by_kind["submitted"]["mid"] is not None
+    assert by_kind["submitted"]["effective_spread_bps"] is None
+
+
+def test_a_zero_midpoint_is_refused_by_the_table_itself(store):
+    """GAUNTLET 5: the DB's ``mid > 0`` was never probed at zero exactly.
+
+    ``record`` cannot produce this row, which is precisely why the constraint
+    is probed with raw SQL: a bound only the happy path respects is not a
+    bound.
+    """
+    import psycopg
+    with psycopg.connect(_dsn()) as conn, conn.cursor() as cur:
+        with pytest.raises(psycopg.errors.CheckViolation):
+            cur.execute(
+                "INSERT INTO fund_execution_quotes (order_id, event_kind,"
+                " event_seq, event_ts, bid, ask, mid, basis, capture_run)"
+                " VALUES ('z','filled',1,'t',0.0,0.0,0.0,%s,'r')",
+                (eq.LIVE_BASIS,))
+
+
+@pytest.mark.parametrize("bad, expect_word", [
+    (dict(event_kind="proposed"), "event_kind"),
+    (dict(basis="mark"), "basis"),
+    (dict(feed="polygon"), "feed"),
+])
+def test_the_refusal_names_WHICH_vocabulary_it_refused(store, bad, expect_word):
+    """GAUNTLET 2: asserting only ``pytest.raises(ValueError)`` cannot tell
+    the right guard from a different one firing.
+
+    ``record`` has three separate ``raise ValueError`` statements; a test that
+    accepts any of them would go green if, say, the basis check swallowed a bad
+    event_kind. The message must name the field it rejected.
+    """
+    with pytest.raises(ValueError) as e:
+        store.record(**_row(**bad))
+    assert expect_word in str(e.value)
+    others = {"event_kind", "basis", "feed"} - {expect_word}
+    assert not [w for w in others if f"{w} must be" in str(e.value)], (
+        f"the refusal for a bad {expect_word} named a different vocabulary")

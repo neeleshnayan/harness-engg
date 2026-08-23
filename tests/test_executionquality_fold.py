@@ -731,3 +731,33 @@ def test_a_lone_fill_is_single_leg_and_the_multi_bucket_is_absent_not_zero():
     assert ex["single_leg"]["effective_spread_bps"]["n"] == 1
     assert ex["multi_leg"]["fills"] == 0
     assert ex["multi_leg"]["effective_spread_bps"] is None
+
+
+def test_the_identity_tolerance_is_probed_at_its_own_edge():
+    """GAUNTLET 5: nothing probed MARK_IDENTITY_TOLERANCE at the tolerance.
+
+    The tolerance is 1e-12 and non-strict, so a difference EXACTLY at it is an
+    identity and anything larger is a measurement. Only a zero difference was
+    ever tested, which cannot tell 1e-12 from 1.0 — and a tolerance widened by
+    accident silently reclassifies real sub-basis-point fills as arithmetic and
+    drops them out of the fund's cost sample.
+    """
+    from app.fund.executionquality import MARK_IDENTITY_TOLERANCE as TOL
+
+    def classify(diff):
+        mark = 100.0
+        events = [
+            ev(1, "t1", "OrderSubmitted",
+               {"venue": "alpaca", "venue_ref": "r", "arrival_price": mark}),
+            ev(2, "t1", "OrderFilled",
+               {"fees": "0", "side": "buy", "symbol": "SPY",
+                "avg_price": repr(mark + diff), "filled_qty": "1.0"}),
+        ]
+        return retro_mark_rows(events)[0]["classification"]
+
+    assert classify(0.0) == "identity"
+    assert classify(TOL) == "identity"
+    # Strictly above the tolerance. 1e-9 is comfortably representable beside
+    # 100.0 (the float spacing there is about 1.4e-14), so this really is a
+    # difference the arithmetic can see.
+    assert classify(1e-9) == "measured"
