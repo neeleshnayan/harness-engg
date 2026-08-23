@@ -762,8 +762,8 @@ def volatility_check(result: dict[str, Any]) -> dict[str, Any]:
         # The engine's own figure, carried beside ours because they are NOT the
         # same measurement and the difference is systematic: LEAN annualises a
         # calendar-day series at sqrt(252), which understates by
-        # sqrt(365/252) = 1.204. Reproduced on all four stored candidates —
-        # see leanrunner.psr_inputs.
+        # sqrt(365.25/252) = 1.2039 in theory and by 1.2033 to 1.2047 as
+        # measured on the four stored candidates — see leanrunner.psr_inputs.
         "engine_ann_vol_pct": engine,
         "basis": ("both legs from the same daily returns over the window they "
                   "share, annualised at the series' OWN observed frequency"),

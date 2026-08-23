@@ -1646,9 +1646,10 @@ def psr_inputs(stats: dict, daily: Optional[dict[str, Any]] = None
                        else abs(published - recomputed) < 5e-4),
         "note": ("the engine's annualisation multiplies a CALENDAR-day series "
                  "by sqrt(252); the trading-day truth is larger by roughly "
-                 "sqrt(365/252) = 1.204 — measured 1.203 to 1.208 across the "
-                 "four stored candidates, since the real calendar-to-trading "
-                 "ratio varies with the window's holidays"),
+                 "sqrt(365.25/252) = 1.2039 — measured 1.2033 to 1.2047 "
+                 "across the four stored candidates, since the real "
+                 "calendar-to-trading ratio varies with the window's "
+                 "holidays"),
     }
     return out
 

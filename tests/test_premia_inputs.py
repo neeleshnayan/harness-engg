@@ -284,8 +284,9 @@ def test_the_annualisation_is_self_correcting_across_clocks():
 
     LEAN emits an equity point on every CALENDAR day, so ~29% of the return
     series is weekend zeros (584 of 1,998 on stored candidate a663a592ff1d).
-    Annualising that at sqrt(252) understates volatility by sqrt(365/252) =
-    1.204 — reproduced exactly against the engine's own published
+    Annualising that at sqrt(252) understates volatility by sqrt(365.25/252)
+    = 1.2039 in theory, and by a measured 1.2033 to 1.2047 on the four stored
+    candidates — reproduced against the engine's own published
     ``Annual Standard Deviation``.
 
     Deriving the factor from the dates removes the question: the same
@@ -319,7 +320,7 @@ def test_the_annualisation_is_self_correcting_across_clocks():
             == pytest.approx(st.sharpe_at_rf(t, 0.0), rel=0.01))
     # And the naive sqrt(252) on the calendar clock is the 17% error.
     naive = st.mean_std(cal_moves)[1] * math.sqrt(252) * 100
-    assert naive == pytest.approx(t["ann_vol_pct"] / 1.204, rel=0.02)
+    assert naive == pytest.approx(t["ann_vol_pct"] / 1.2039, rel=0.02)
 
 
 @pytest.mark.parametrize("dates,n,fragment", [

@@ -338,29 +338,32 @@ def observations_per_year(dates: Sequence[str], n_obs: int) -> dict[str, Any]:
 
     NOT a constant, and that is the whole point. The reflex is 252, and on this
     fund's engine output the reflex is WRONG: LEAN emits an equity point for
-    every CALENDAR day, so the return series carries a run of zeros across every
-    weekend. Measured on the four stored candidates that carry analytics
+    every CALENDAR day, so the return series carries a run of zeros across
+    every weekend. Measured on the four stored candidates that carry analytics
     (2026-08-23): 584 zeros in 1,998 observations and 170 in 907 — 29.2% and
-    18.7% — and the spacing works out at 365.4 and 365.7 observations a year,
-    not 252.
+    18.7% — and this function returns EXACTLY 365.25 for all four, because
+    ``n - 1`` equals the calendar span in days to the day. One observation per
+    calendar day, measured rather than supposed.
 
     The consequence is not academic. LEAN's own ``Annual Standard Deviation``
     statistic is reproducible, on all four, as the standard deviation of that
     CALENDAR series times sqrt(252) — so the engine's published volatility is
-    understated by sqrt(365/252) = 1.204 — measured 1.203, 1.203, 1.203 and
-    1.208 on the four, since the real calendar-to-trading ratio moves with the
-    window's holidays — a 17% error in the flattering direction. Reproduce: candidate 144387901688 stores ``Annual Standard
+    understated relative to the trading-day truth by a factor measured at
+    1.2033, 1.2033, 1.2033 and 1.2047 (theory: sqrt(365.25/252) = 1.2039; the
+    small spread is the window's own holidays). A 17% error, in the flattering
+    direction. Reproduce: candidate 144387901688 stores ``Annual Standard
     Deviation: 0.116``; the calendar series gives sd*sqrt(252) = 0.11627
-    (population) or 0.11634 (sample) and the trading-day subset gives 0.14043.
-    The engine reports three decimals, so which of the two conventions it uses
-    is NOT identified by this evidence — the clock is, and the clock is the
-    17%.
+    (population) or 0.11634 (sample) and the trading-day subset gives 0.14016.
+    The engine prints three decimals, so which of the two dispersion
+    conventions it uses is NOT identified by this evidence — the clock is, and
+    the clock is the 17%.
 
     Deriving the factor from the dates is self-correcting: a mean scales with K
     and a standard deviation with sqrt(K), so a Sharpe computed with the
     series' OWN K lands on the same number whichever clock the engine used.
     Verified on the same four candidates — strategy annualised volatility
-    12.026% on the calendar clock and 12.021% on the trading-day subset.
+    12.026% on the calendar clock (K = 365.25) against 12.021% on the
+    trading-day subset (K = 251.25).
 
     Returns ``usable: False`` with a reason rather than a fallback constant. An
     unreadable clock is an absence, and 252 is not the honest guess.
