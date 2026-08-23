@@ -488,3 +488,7 @@ Two register triggers on RISK LIMITS have FIRED and /fund/judgement reports due_
 ## 2026-08-23 - CARRIED FROM GRACE (run-cfo-6) BY THE CHAIR
 
 P4 (kill_switch_wired_and_tested, mode.py:434) has NO evaluator. Before the evaluability build lands: state in your lane WHAT A MACHINE COULD READ to prove the kill switch is wired - the call-graph assertion and the test name. If you cannot name one, say so - then P4 belongs in the human-attestation class with P2 and the build must not pretend otherwise. Rides in your next brief.
+
+## 2026-08-23 - CARRIED FROM VISHESH (triage #7) BY THE CHAIR
+
+DATE A CONTROL BY THE DATE ITS EXPOSURE PEAKS, not the date of the inspiring event. R20 was dated 'before 09-08' (the exits); the human approval path carries TEN clicks on Monday against a book disagreeing with the broker on 10 of 11 symbols, and approve_order runs no venue/compliance/risk re-check. Same finding, wrong fortnight. And CHECK YOUR SPEC HAS A TICKET before calling it prepared: R20/R21/R22 have none (faefd072 covers different items) - a signature on an unticketed spec buys a date nobody will meet.

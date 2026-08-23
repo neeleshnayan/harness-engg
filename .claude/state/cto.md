@@ -487,3 +487,7 @@ evidence pointer, not just its moral.
 ## 2026-08-23 - TWO-BUILDERS RULE, THE SECOND REASON (from D21, measured)
 
 Suite serialization between concurrent builders is a CORRECTNESS requirement, not only RAM: krypton_fund_test is ONE shared database, ten test modules TRUNCATE tables in it, and test_factory.py writes from background threads - D21 measured another process's row stamped inside its own run window, three consecutive runs, three different failures. BOTH builder briefs must carry this reason from now on; a bundle whose suite went green may still have been measured under contention. Also standing: any test module reading a WHOLE shared table gets its own database, reason in the docstring.
+
+## 2026-08-23 - FROM TRIAGE #7, ACCEPTED AGAINST MYSELF
+
+Vishesh's challenge lands: the D9/D10 bundle merged while its own stated signature-hold was open. No defense - the hold lived in chair memory and chair memory is not a control. STANDING RULE ADOPTED: when the chair states a merge is held for a signature or condition, FILE THE HOLD AS A DESK ROW that must be closed before the merge. A rule nothing evaluates is a note; a hold nobody records is the same object. Also standing from this triage: sweep the approved-undispatched queue against merge history before quoting the friction figure; close blind-review requests when their verdicts land; re-derive deadlines on desk rows (the exposure peak, not the inspiring event).

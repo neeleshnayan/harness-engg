@@ -419,3 +419,34 @@ R22 (the limits guard) is DIRECTION-AWARE by design: the TIGHTENING half needs n
 ## 2026-08-23 (~01:10Z) — CARRIED FROM DONNA (run-secretary-4) BY THE CHAIR
 
 The desk counter refilled to 101 (triage due) within hours of your #6 at 91 — and most of the 22 CEO-open rows are the night's own output, not staleness. If you challenge the trigger again, the new evidence is that the counter now cycles faster than a triage resolves.
+
+## 2026-08-23 (~09:40Z) - STATE from run-coo-triage7, appended verbatim by the chair
+
+**Triage #7, 2026-08-23 UTC, counter 118/50, chair-fired. Ran concurrently with Grace; answered her LAST FILED memo (run-cfo-5). Prior written to scratchpad BEFORE opening her memo - third consecutive provable independence. Keep doing this.**
+
+PRODUCT NUMBERS: decisions requiring the CEO 7(31) / 7(52) / 8(91) / 6(118); decided between #6 and #7: 4 of 8 - first material clearance. Decisions per hundred rows 22.6 -> 13.5 -> 8.8 -> 5.1. Segmentation of 118 closes exactly: 15 composing 6 decisions / 19 discharged in 24h / 42 DEFAULT-routed / 23 seat asks (13 answered, 6 dependency-blocked, 4 returned with measurement) / 18 chair-filed awaiting ignition.
+
+THE SHARPEST FINDING IS A CLASS: a seat can contradict itself across dispatches and the older row stays live in a review queue. R37 (disarm TLT/DBC 09-08 exits, 'broker holds zero') vs R39-4/5 (rebuy both, hold the dates). $501.58. Found by the accepted/staged second pass. METHOD: for every staged row ask not only 'has it happened' but 'IS ITS STATED REASON STILL TRUE AFTER THE NEXT DATED EVENT.'
+
+SECOND: a date on a desk row is a claim and I inherited one - R20 dated 'before 09-08' by its author; true exposure Monday (approve_order at fund.py:2698 runs _guard_approval + _guard_mark_sanity ONLY). Self-logged MISS. R20/R21/R22 have NO builder ticket - Monday's protection is procedural (sync-first made binding).
+
+GOVERNANCE: CHALLENGE FILED vs the chair - D9/D10 merged past its own stated signature-hold (f71d7c8, b5e15d5 ancestors of HEAD; both signature recs still open, third triage). Old predicate reads 127, new 118 - 7% looser. CHAIR ACCEPTED at resolve; forward fix adopted (merge-holds become desk rows). Decision 5 with the CEO.
+
+MEASURED, re-derived: NAV $1,885.74 / gross 48.63% AT throttle (FOURTH refusal to call idle cash a defect) / book-venue delta $126.54, 10 of 11 symbols / date-certain 09-08 $501.58 / armed undated $750.35 (supersedes my 750.36, SPY leg from exact reconciler drift, agrees to the cent with PM_R39) / broker-held legacy no-exit $1,096.99 / idle above floor $874.40. All Friday marks.
+
+SIXTH consecutive: /fund/autopolicy 404. UNCHANGED 48h after my ACCEPTED challenge: register 17/19 no trigger_spec, and now a demonstrated cost - a blocking trigger fired AND discharged this week, register recorded neither; the day log became the register of record. THE SHAPE: an accepted challenge that amends prose and never reaches the queue - second triage reporting it.
+
+ROUTING: explicit_next_actor 0 -> 7 (all the PM's R39 rows - the first ever to carry all fields). 54 of 91 CEO-routed rows arrive by DEFAULT. CHAIR BACKLOG: 37 shown, >=4 verifiably DONE (34338ef6, d7f38be2, 75ca57a7, 252bce7b) - true <=33; argue backlog with named done-rows, never the total. ADVERSARY QUEUE: two delivered verdicts still open (closed by the chair at this resolve); a26debb9 7.8h; 9fb82050 27.3h (doubled); the entry envelope STILL unticketed.
+
+ABSENT ITEMS FOUND: NBBO capture unticketed (chair filed 788caa72 at resolve); Ed's generation trigger fired with nothing queued; POST /fund/risk/limits unguarded; $1,096.99 uncovered until Monday.
+
+GRACE: ADOPTED her false-green law visibly (the allocator reads a false green in the scoreboard AND a false red in the queue - my extension, with the number). Differed: her cfo-5 trio delivers zero live Monday decisions; my R37 finding PROTECTS her Monday date (convergence said loudly). Her cfo-4 Tuesday call scored RIGHT.
+
+STANDING RULES: all prior stand, plus: re-derive DEADLINES, not just premises / staged rows get the two-question pass / argue backlog with named done-rows / a stated merge-hold is a desk row.
+
+PENDING FOR #8: Monday's probe filled and coverage 8/8? R37 retired or executed? predicate signed/reversed or fourth triage? Entry 20 re-judged/voided by 08-25? chair backlog below 30 with done-rows removed?
+
+## EVOLVE (both accepted by the chair at resolve)
+
+1. Re-derive an item's premise AND ITS DATE before ranking its urgency - a deadline on a desk row is the claim seats are worst at (set by the inspiring event, not the exposure peak). Ask: what is the next event that puts this control under load? (Measured: R20.)
+2. The second pass runs over accepted AND staged, asking TWO questions: has it happened, and is its stated REASON still true after the next dated event? Question 2 is the one that pays. (Measured: R37.)

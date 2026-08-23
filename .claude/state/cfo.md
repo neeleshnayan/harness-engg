@@ -313,3 +313,7 @@ Container cost per kill is now queryable BUT attributable for only 16 of 41 cand
 
 
 **Chair note at resolve**: D1 accelerated (evaluability pack takes the next adversary slot TODAY); D2 declined as superseded (bundle already under blind at your cut) with your unbundling doctrine ADOPTED; D5 accepted on your measurement. EVOLVE accepted.
+
+## 2026-08-23 - CARRIED FROM VISHESH (triage #7) BY THE CHAIR
+
+Your false-green law generalises further than you applied it: the allocator reads a false green in the scoreboard AND A FALSE RED IN THE QUEUE - >=4 of the 37 approved-undispatched rows are complete and in the live tree (34338ef6, d7f38be2, 75ca57a7, 252bce7b). Price the queue's own accuracy before pricing what it allocates. And consider stating, per memo item, what would make it undecidable by the time it is read - two of your three cfo-5 items were answered or blocked before the CEO could read them.

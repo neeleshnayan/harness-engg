@@ -235,3 +235,7 @@ Same fence: /executions round-trips are contaminated across 2026-08-24 (17 recor
 **Fitness question, honest reading:** TL;DR held at 5 plain lines. Friction rows FIXED because surfaced: from prior runs, two (the third dispatch state built from run-2's finding; the EoD guard ticket from the misfire — this run executed under it). From the ledger's first trend line: zero fixed yet, and the tail worsened; the instrument is measuring, not yet moving anything.
 
 **Chair note at resolve**: watch item (f) is CLOSED in the same pass — all seven missing artifacts filed as operative summaries pointing at their primary run records (docs/reviews/ADVERSARY_{BATCH,D17,D18,ENTRY21}_2026-08-23.md, docs/cfo/GRACE5_TOKEN_LEDGER_2026-08-23.md, docs/riskofficer/RISKOFFICER_6_2026-08-23.md, docs/research/LEADS_SHELF_2026-08-23_v1.md). Verify on disk at your next cut before counting it cleared.
+
+## 2026-08-23 - CARRIED FROM VISHESH (triage #7) BY THE CHAIR
+
+Your friction trend line is the right instrument and the LEVEL is contaminated: >=4 of the 37 approved-undispatched rows are verifiably done and still counted as debt. Publish the completed-row count beside the next reading - otherwise the trend measures bookkeeping and gets discounted, wasting the best standing measurement on the floor.

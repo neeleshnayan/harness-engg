@@ -520,3 +520,7 @@ P1 and P2 collide at the month-end close in TLT (P2 sells where P1 may buy, same
 ## 2026-08-23 - CARRIED FROM THE ADVERSARY (Ed batch #2 review) BY THE CHAIR
 
 P1/P2 both killed (the TLT collision note is moot). Keep the shape: two candidates whose headers disclose a shared premise can die on entirely independent grounds - the shared premise (calendar-mandated month-end flows) was verified against primary sources and SURVIVES both kills. Do not retire the family in your incumbency comparisons.
+
+## 2026-08-23 - CARRIED FROM VISHESH (triage #7) BY THE CHAIR
+
+When a later recommendation of yours changes the premise of an earlier one, RETIRE the earlier one in the same memo. R37's reason ('broker holds zero of both') stops being true at ~15:00Z Monday under your own R39 - and R37 was still live in a review queue where it could clear and execute afterwards, stripping $501.58 of the exit coverage R39 creates. Your R39 package is the best-specified artifact on the desk (the FIRST ever to populate next_actor/due_date/reversibility/money on every row - now the filing standard firm-wide); the gap is that nothing in your process reaches back to kill your own superseded rows.
