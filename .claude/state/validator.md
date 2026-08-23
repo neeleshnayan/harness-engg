@@ -863,3 +863,17 @@ Two instruments enter your battery, both cheap, both reusable: (1) the CONSTANT-
 ## 2026-08-23 - CARRIED FROM BUILDER D20 BY THE CHAIR
 
 The gate's calibration instrument was measuring a gate the fund does not run (null_audit planned from the raw feed floor while the belt ratchets per candidate) - fixed in D20, pending merge. Carry the general rule: before trusting any audit number, check the audit plans the SAME GEOMETRY the production path plans, and name in the report which floor and fold requirement it used. Under v4.3 the requirement is per candidate - a false-positive rate is meaningless without its geometry.
+
+## 2026-08-23 (~10:40Z) - STATE from run-validator-parity, appended by the chair (headline sections verbatim; full tables in the run record)
+
+- **JOB 1 HEADLINE: min_walkforward_folds_retained_share IS READ BY NO CODE.** Four CRITERIA sites + one doc mention, zero readers; operative rule hardcoded strict majority at gate.py:607. Declared 0.5 equals the implied bar at NO fold count (75% at m=4). 7 stored verdicts read 'declared 0.5, measured 0.5, passed=False'. **Moving the threshold is a NO-OP unless :607 moves in the same commit.**
+- **THE PARITY BEAT IS LIVE AS A HOLD-LENGTH BEAT** (int(d*365/252), walkforward.py:99): hold 3 -> 5 folds, hold 4 -> 4; one day halves noise pass (12.67->6.72%) and edge pass (37.21->22.88%). Holds 4/9/14/19-23 on the 4-fold side; >=24 not_testable (v4.2).
+- **AT m=4: majority = share>=0.60 = share>=0.75 (SAME RULE).** Only 0.50 moves it: discrimination 6.98->5.18. **Binomial alpha=.05 UNPASSABLE at m<=4** (min p=0.0625; 4/4 fails - gate-v2 pattern); both binomials retroactively fail cand-144387901688. **p0=0.5 is not our null: measured q=0.3688/0.4557/0.5366** (driftless/rising/SR1).
+- **MEASURABILITY BINDS, not retention**: at K=4 the leg never runs on 89.9% of noise, 52.8% of SR-1.0 draws.
+- **LADDER RULES (mine, measured): declare the decision rule (all-rungs flips 2/2 census; majority 1/2) and run on the MARGINAL** (P1 headline passes 4/5 rungs; marginal dead; the zero-info control's full-sample BE 12.87 > floor).
+- **KG AUDIT: all three claims verify, strengthened** (21/21 gate emitter shapes classify via AST walk; fence exactly six, 0/32 values reachable via 17 readers). Defects: zero-unclassified renders as nothing (knowledge.py:1009/report.py:120); 'tested' counts recorded; **DDL-on-construct lock (knowledge.py:409) - wedged kg_outcome ~5min with one ordinary transaction.**
+- **Two procrustean merges**: walkforward_minority_folds pools a v2/v4 RULE CHANGE (2+8 sentences); holdout_no_trades latent.
+- Method that paid (3rd consecutive): read the PRODUCING code before the number; cross-check the isolated criterion against the shipped evaluator (107,725/107,725).
+- Harnesses at scratchpad val23/: parity2, live, analytic, parity, ladder. Debts: 29 clean nulls (blocking S4 D>=0.75); oracle inversion under v4.2; rf series; DECISIONS_PER_TEST_LEG=4 unvalidated and it SETS the leg length behind the parity beat; the belt-measured version of all of this (model vs belt burned us at 2.9 vs 25 before).
+- CHALLENGE (tightens) filed and ACCEPTED by the chair: the Monday threshold item is TWO decisions (wire-or-delete the unread field; then the parity choice).
+**Chair note**: from the adversary's D20 review, adopt: build the FULL transition map before measuring (a sample list of 8 holds missed all 5 failing cells); advance BOTH clocks when comparing rule versions (a frozen baseline manufactured a 5.5-sigma phantom).

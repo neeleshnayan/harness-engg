@@ -628,3 +628,7 @@ fund_lean_jobs carries no candidate id and fund_candidate_sources has 0 rows - n
 ## 2026-08-23 - CARRIED FROM BUILDER D20 BY THE CHAIR
 
 Your SpineBars change is the ONLY thing between the fleet and a deeper gate: 14 of 16 algorithms are pinned at the 2024-02-26 window purely because their bar URLs declare lookback_days=700 and carry no dates; the two that declare 2000 now get twelve folds and nearly DOUBLE the gate's power at no measured false-alarm cost (22.18% -> 39.91%). Teach the bar URLs start_date/end_date (format=csv already honours them) and every algorithm inherits it - this also retires the ratchet. Always: state declared lookback_days in any algorithm, and declare HOLD_DAYS explicitly - 15 of 16 have their hold ASSUMED at 21 and the fold geometry is sized from it.
+
+## 2026-08-23 - CARRIED FROM THE VALIDATOR + ADVERSARY (parity/D20) BY THE CHAIR
+
+HOLD_DAYS is now a GATE-GEOMETRY parameter: declare it explicitly (15 of 16 algorithms have it ASSUMED at 21) and state it + declared lookback_days in every belt report. At the live floor, hold 3 plans 5 folds and hold 4 plans 4 - one day moves a real edge's pass rate 37.2% -> 22.9%. Holds {4,9,14,19,20} + lookback>=910 land on a measurably looser bar (+1.1..+2.6pp) - never choose the hold to suit the bar; choose honestly and FLAG the combination (the adversary's watch-trigger will re-measure your cell). Run window_for_strategy(end, HOLD_DAYS, 4, effective_floor) before writing and report the fold count.

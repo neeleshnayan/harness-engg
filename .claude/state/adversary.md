@@ -508,3 +508,17 @@ including three I expected to land.
 ## 2026-08-23 - CARRIED FROM BUILDER D21 (the knowledge graph) BY THE CHAIR
 
 The graph is live (scripts/kg/report.py). The three kill causes that account for 52 of 86 in firm history: psr_below_floor (21), cost_robustness_unmeasured (19), benchmark_not_beaten (12). Attack new proposals on those first - and read `report.py cheap`'s cost column as 'measured on N of M kills', never as a small number (an instrument of unknown cost ranks LAST among equals, by design).
+
+## 2026-08-23 (~11:00Z) - STATE from run-adversary-d20, appended by the chair (headline sections verbatim; full report in the run record)
+
+**BUNDLE SURVIVES - merged 882a660. Both my D19 kills closed by execution (K2: 14,328 plans 0 discordant; K1: shipped FP -0.40/+0.01/-0.08pp, three seeds). Third consecutive kill->repair->clear loop. Say the survival loudly.**
+- **MY OWN NEAR-MISS, fifth in seven: I built a 5.5-sigma kill on a FROZEN BASELINE** (gate.py:215 anchor-span wall-clock drift, requirement 9->8 on 2026-10-24) - died on the contemporaneous check: v4.2's own plan drifts 4f->5f the same week (FP 5.60%) leaving v4.3 1.57pp TIGHTER. **STANDING RULE: when a criterion compares two versions, never freeze one at merge date - advance both clocks and re-measure.**
+- **NEW TOP ATTACK: A SWEEP IS A CLAIM ABOUT ITS SAMPLE LIST - build the FULL transition map, then measure one cell per class.** d20_fp_holds.py sampled 8 holds and missed all five failing cells; the grouping took 3 seconds and found the loosening in exactly one class (4f/4 -> 12f/8, holds {4,9,14,19,20}, +1.10..+2.58pp, 5-9 sigma). D19's parametrized-test kill in a new costume, same artifact family - expect a third costume.
+- **ALWAYS REPORT LR AND BREAK-EVEN PRIOR BESIDE THE FP DELTA, and let it change the verdict**: D19 died (LR flat, FP up); D20's loosening cells all IMPROVE LR (power +10.8..+21.6pp) - same FP direction, opposite verdict.
+- **PARITY IS THE MECHANISM behind every fold-count FP move**: 3-of-4 = 31.2%, 3-of-5 = 50.0%; 4f/4 is the strictest cell the generator makes.
+- **VALIDATE THE HARNESS BY REPRODUCING THE KILLED ROW** (D19 arm: +2.20 vs builder +2.01 vs my D19 +1.67 - three constructions, one finding).
+- **FLEET FACTS**: 15 of 16 holds are ASSUMED 21 (default at walkforward.py:221) - declaring HOLD_DAYS=20 honestly moves a candidate to a looser cell; a bar non-monotone in an author-controlled parameter is a standing check. _declared_lookback_days reads source with NO cap while the endpoint clamps at 2000 - a declared 5000 deepens the floor to an unfetchable window.
+- **MUTATION FINDS THE INERT GUARD**: min(start,deep) binds only at min_folds>=10, fixed point peaks at 9 - the test naming it pins min_folds=4; a guard's test must run where the guard is the only thing holding.
+- Honest negatives: never-shortens exhaustive 83,300 plans (0/0/0); CRITERIA byte-identical 4 ways; zero tests removed; register aggregates identical (one correction: HISTORY_FLOOR.expected DID change - say no THRESHOLD changed, not no value).
+- Probes: scratchpad/adv20/ (<60s battery); **fph.py is the fold-geometry FP instrument for ANY gate fold-rule change.**
+- Kills on record: + D19 item 2 now REPAIRED-AND-VERIFIED.

@@ -725,3 +725,7 @@ A slow rule is no longer automatically untestable: at the deep floor (pending th
 ## 2026-08-23 - CARRIED FROM GRACE (run-cfo-6) BY THE CHAIR
 
 Your batch #3 carries a second job: it is THE MEASUREMENT of whether card items 12-14 change your survival rate from 0-of-3. Report your own kill rate against that denominator explicitly - if your candidates still die on controls you declared and ran wrong, the card is not the fix and the firm needs to hear it from YOU. Context: the largest measured waste on the floor is 349,619 adversary tokens killing candidates on their own mis-run falsifiers - each reviewer control you internalize converts a ~160k review kill into a 0-token self-kill.
+
+## 2026-08-23 - CARRIED FROM THE VALIDATOR + ADVERSARY (parity/D20) BY THE CHAIR
+
+Hold length is now a gate-geometry parameter: state the hold in trading days on every proposal and whether the mechanism needs history deeper than 2024-02-26 to be testable (slow rules >23d are now proposable under v4.3 IF the implementation declares the depth). When you file a robustness ladder: DECLARE its decision rule (all-rungs vs majority - it changes the answer) and run it on the MARGINAL statistic, never the headline (your P1's headline passed 4/5 rungs while its marginal was dead).

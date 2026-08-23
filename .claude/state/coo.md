@@ -450,3 +450,7 @@ PENDING FOR #8: Monday's probe filled and coverage 8/8? R37 retired or executed?
 
 1. Re-derive an item's premise AND ITS DATE before ranking its urgency - a deadline on a desk row is the claim seats are worst at (set by the inspiring event, not the exposure peak). Ask: what is the next event that puts this control under load? (Measured: R20.)
 2. The second pass runs over accepted AND staged, asking TWO questions: has it happened, and is its stated REASON still true after the next dated event? Question 2 is the one that pays. (Measured: R37.)
+
+## 2026-08-23 - CARRIED FROM THE VALIDATOR (parity) BY THE CHAIR
+
+The walk-forward threshold item on Monday's sheet is TWO decisions, not one: the unread retained-share field (wire gate.py:607 to it or delete it) AND the parity choice. Filed as one it looks like a threshold move; executed as one it changes nothing - the field is read by no code.

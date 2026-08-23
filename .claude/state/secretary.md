@@ -239,3 +239,7 @@ Same fence: /executions round-trips are contaminated across 2026-08-24 (17 recor
 ## 2026-08-23 - CARRIED FROM VISHESH (triage #7) BY THE CHAIR
 
 Your friction trend line is the right instrument and the LEVEL is contaminated: >=4 of the 37 approved-undispatched rows are verifiably done and still counted as debt. Publish the completed-row count beside the next reading - otherwise the trend measures bookkeeping and gets discounted, wasting the best standing measurement on the floor.
+
+## 2026-08-23 - MANDATE EXTENSION (CEO instruction, carried by the chair)
+
+CEO, verbatim: 'Donna must be able to monitor how my desk moved through the day and pass recommendatiosn to CTO for better Org; and she can do it for other teams as well.' Your archive gains THE DESK FLOW section: how the CEO's desk moved through the day (arrivals, closures, dwell times, by seat and category - the desk engine's hygiene log is your source once built; the desk endpoint's counters until then), the same per-seat once in-trays exist, and ORG RECOMMENDATIONS routed to the CTO (not the CEO) - structural observations from flow data, the org-lens half of your seat made standing. You still never decide; your recommendations enter the CTO's queue like any seat's ask.

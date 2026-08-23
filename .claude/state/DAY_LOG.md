@@ -123,6 +123,41 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   is fired and discharged by this work — the register cannot record
   either; recorded here, and the evaluability ticket (a26debb9 family)
   remains the owner.
+- **THE GATE BUNDLE CLEARED AND MERGED - v4.3 IS LIVE** (adversary blind:
+  BUNDLE SURVIVES; both its D19 kills closed by execution - K2: 14,328
+  plans 0 discordant; K1: shipped FP flat-to-lower over three seeds,
+  power +17pp at 32 sigma; never-shortens exhaustive at 83,300 plans).
+  Merged 882a660; spine restarted 13:58 local, v4.3 serving, NAV intact.
+  DISCLOSURE FOR THE CEO: five unshipped holds {4,9,14,19,20} with deep
+  lookback carry a looser RAW bar (+1.1..+2.6pp) at IMPROVED
+  discrimination - zero candidates affected; watch-trigger registered
+  (first candidate there gets its cell re-measured pre-verdict). The
+  merged-tree suite showed 107 errors clustered in test_venuesync -
+  solo-green in 0.15s; the D21-measured cross-builder DB race signature
+  (D22 live); clean-room re-run after D22 lands; .suite_running/.belt_running
+  lockfile protocol instituted. Third kill->repair->clear loop closed.
+- **VALIDATOR PARITY REPORT: the Monday threshold item is TWO decisions**
+  (challenge accepted): min_walkforward_folds_retained_share is READ BY
+  NO CODE (operative bar hardcoded 75% at gate.py:607; 7 verdicts read
+  declared-met-but-failed) - wire it or delete it; THEN the parity
+  choice (table filed: binomial alpha=.05 is UNPASSABLE at m<=4 and
+  retroactively fails Entry 20's old pass; measured null q=0.3688 not
+  0.5; at m=4 majority=share.60=share.75). The HOLD-LENGTH BEAT: one
+  declared day (hold 3 vs 4) halves both noise and edge pass rates -
+  14.3pp of leg-2 throughput, invisible to every seat until the
+  verdict-fields ticket lands. KG audit: all honesty claims verify
+  (strengthened); 2 label defects + a DDL-lock hazard ticketed.
+- **ENTRY 20 RE-JUDGE DISPATCHED under live v4.3** (same logic, adequate
+  grid reaching >=10bps, explicit HOLD_DAYS/lookback, candidate id
+  recorded, Ed prediction-ledger scoring) - the 08-25 deadline beats by
+  two days; a new row on a new window, never tabled beside the old.
+- **DONNA'S MANDATE EXTENDED (CEO): desk-flow monitoring** - how the
+  CEO's desk moved through the day (and per-seat once in-trays exist),
+  with ORG recommendations routed to the CTO. Seat memory amended.
+- **DESK ENGINE D22 BUILDING with the CEO's live UI spec**: matrix view
+  (seats x categories: open/ticking/blocking/closed), click-to-expand,
+  no infinite scroll; briefings shelf; the six-instruction consolidated
+  spec (docs/DESK_ENGINE_V1_2026-08-23.md).
 - **THE DESK CLEANUP EXECUTED (CEO: first cleanup my desk)**: closing
   sweep in two passes, 128 -> 76 (69 recs closed with citations, 2
   false positives self-caught and repaired by refiling the clean
