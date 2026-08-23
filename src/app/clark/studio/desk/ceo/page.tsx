@@ -4,8 +4,8 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, OctagonX } from "lucide-react";
 import {
-  fundApiClient, ArchiveMemo, DeskView, PendingOrder, RiskMonitorResponse,
-  SpineEvent,
+  fundApiClient, ArchiveMemo, CeoDeskView, DeskView, PendingOrder,
+  RiskMonitorResponse, SpineEvent,
 } from "@/lib/fund_api";
 import { KT } from "../../theme";
 import { money } from "../../format";
@@ -27,6 +27,10 @@ import { officerDesk } from "../officerQueues";
 import { CooTriageChip, ProvenanceChip } from "../components";
 import { cardStyle } from "../deskCardStyle";
 import { ClarkMarkdown } from "../../components/ClarkMarkdown";
+import { blockedRecs } from "../deskEngine";
+import {
+  BriefingsShelf, Fold, GreetingHeader, SupersessionNotice,
+} from "../EngineViews";
 
 /**
  * The CEO's desk — A DECISION LIST, and everything else behind a named door.
@@ -95,14 +99,36 @@ export default function CeoDeskPage() {
   const [memo, setMemo] = useState<ArchiveMemo | null>(null);
   const [memoErr, setMemoErr] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  /* The desk engine's fold: the greeting, the briefings shelf, and — the part
+     that changes what this page may RENDER — every row carrying a live
+     supersession edge. `null` is unreachable, and the page then says the
+     lineage is UNKNOWN rather than drawing rows as though none were blocked. */
+  const [engine, setEngine] = useState<CeoDeskView | null>(null);
+  const [engineErr, setEngineErr] = useState(false);
+  /* The client's own last visit, so the greeting can say what changed. Stamped
+     by the BROWSER, never by the spine: a GET that writes is a GET that lies
+     about being safe. Read once on mount, before this visit overwrites it. */
+  const [since, setSince] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      setSince(window.localStorage.getItem("kt.desk.ceo.lastVisit"));
+      window.localStorage.setItem("kt.desk.ceo.lastVisit", new Date().toISOString());
+    } catch {
+      /* Private mode, or storage disabled. `since` stays null and the greeting
+         says "no previous visit was supplied" — which is true, and is a
+         different sentence from "nothing has changed". */
+    }
+  }, []);
 
   const load = useCallback(async () => {
-    const [d, p, ev, rk, mm] = await Promise.allSettled([
+    const [d, p, ev, rk, mm, en] = await Promise.allSettled([
       fundApiClient.getDesk(),
       fundApiClient.getPending(),
       fundApiClient.getEvents(1000, 0),
       fundApiClient.getRiskMonitor(),
       fundApiClient.getArchiveMemo(),
+      fundApiClient.getCeoDesk(since, false),
     ]);
     if (d.status === "fulfilled") { setDesk(d.value); setErr(null); }
     else { setDesk(null); setErr(d.reason instanceof Error ? d.reason.message : "unreachable"); }
@@ -112,7 +138,9 @@ export default function CeoDeskPage() {
     else { setRisk(null); setRiskErr(true); }
     if (mm.status === "fulfilled") { setMemo(mm.value); setMemoErr(false); }
     else { setMemo(null); setMemoErr(true); }
-  }, []);
+    if (en.status === "fulfilled") { setEngine(en.value); setEngineErr(false); }
+    else { setEngine(null); setEngineErr(true); }
+  }, [since]);
 
   useEffect(() => {
     load();
@@ -120,12 +148,30 @@ export default function CeoDeskPage() {
     return () => clearInterval(t);
   }, [load]);
 
+  /* SUPERSEDED ROWS NEVER REACH A CARD.
+     This page builds its cards from `/fund/desk`, which knows nothing about
+     supersession — so without this filter it would render an Accept control
+     the spine refuses with a 409. The R37 case is exactly that: a `staged`
+     row whose premise dies at a named future event, sitting in a queue where
+     it could be clicked after the event that made it wrong.
+     Read from `blocked`, which the spine leaves UNCAPPED, and not from the
+     matrix cells, which it caps at 25 apiece. */
+  const blocked = useMemo(() => blockedRecs(engine), [engine]);
+  const withdrawn = useMemo(
+    () => (desk?.open_recommendations ?? []).filter(
+      (r) => blocked.has(`${r.run_id}#${r.rec_id}`)),
+    [desk, blocked]);
+  const liveRecs = useMemo(
+    () => (desk?.open_recommendations ?? []).filter(
+      (r) => !blocked.has(`${r.run_id}#${r.rec_id}`)),
+    [desk, blocked]);
+
   const ranked = useMemo(
     () => rankDeskItems([
       ...orderItems(pending ?? []),
-      ...recItems(desk?.open_recommendations ?? [], desk?.runs ?? []),
+      ...recItems(liveRecs, desk?.runs ?? []),
     ]),
-    [pending, desk],
+    [pending, liveRecs, desk],
   );
   const split = useMemo(() => splitDeskItems(ranked), [ranked]);
   const memos = useMemo(() => cooMemos(desk?.runs ?? [], memoParts), [desk]);
@@ -232,6 +278,25 @@ export default function CeoDeskPage() {
           </div>
         </header>
 
+        {/* ── THE GREETING ─────────────────────────────────────────────────
+            CEO instruction (ticket cec27460, absorbed into the desk engine):
+            each desk view opens with what changed since your last visit, what
+            needs you, and what is on fire — GENERATED from the same folds the
+            page renders, never hand-written. A hand-written "all quiet" would
+            be the one line here nobody could falsify. */}
+        <GreetingHeader view={engine} needsYou={desk === null ? null : awaitingCount} />
+        {engineErr && (
+          <div className={`${KT.card} mb-6 flex items-start gap-2 border-[var(--kt-warn)]`}>
+            <AlertTriangle size={15} className="mt-0.5 shrink-0 text-[var(--kt-warn)]" />
+            <p className="text-sm">
+              The desk engine could not be read, so supersession lineage is
+              UNKNOWN on this page — a withdrawn row could still be rendered
+              below with its controls. The spine still refuses the click; the
+              warning is that the page cannot warn you first.
+            </p>
+          </div>
+        )}
+
         {err && (
           <div className={`${KT.card} mb-6 flex items-start gap-2 border-[var(--kt-warn)]`}>
             <AlertTriangle size={15} className="mt-0.5 text-[var(--kt-warn)]" />
@@ -335,6 +400,54 @@ export default function CeoDeskPage() {
             <RankingNote gap={gap} coverage={coverage} batches={list.batches}
                          hazard={orderingHazard(list.all)} />
           </section>
+        )}
+
+        {/* ── 1b · THE BRIEFINGS SHELF ─────────────────────────────────────
+            Seat memos reach the CEO DIRECTLY (CEO instruction 3: "COO reaches
+            to me directly with you in CC"). Published at filing, stamped
+            chair-unverified until the chair's parallel verification flips the
+            badge. Folded, because reading is not a decision — but folded with
+            its count, which is the difference between disclosure and
+            concealment. */}
+        <Fold title="Briefings — seat memos, direct to you"
+              n={engine?.briefings ? engine.briefings.total : null}
+              lede="Donna's dailies, Vishesh's triages, Grace's ledgers. The chair verifies in parallel and is CC, never a relay; a discrepancy found after publication becomes a visible correction chip, never a silent edit.">
+          <BriefingsShelf shelf={engine?.briefings ?? null} />
+        </Fold>
+
+        {/* ── 1c · WITHDRAWN BY LINEAGE ────────────────────────────────────
+            CEO instruction 5, verbatim: "where supersed happens; this r37
+            withdraw and r39 acceptance fills the same pattern". These rows are
+            NOT above, and that is the point: the server refuses their
+            approval, so offering one would be a button that fails. They are
+            here whole, with the event that kills the premise and the branch
+            that revives it. */}
+        {withdrawn.length > 0 && (
+          <Fold title="Withdrawn by lineage — cannot be approved"
+                n={withdrawn.length}
+                defaultOpen
+                lede="Each of these was replaced or killed by a later row. They are kept on the page with their lineage rather than deleted, because a row that vanishes is a row nobody can revive.">
+            {/* KT.panel, not KT.card, on the rows below: `card` already
+                carries p-5 and Tailwind resolves by stylesheet order, so a
+                `p-3` written beside it is an invisible class. An existing test
+                caught exactly this in the first cut of this block. */}
+            <div className="space-y-2">
+              {withdrawn.map((r) => (
+                <div key={`${r.run_id}-${r.rec_id}`} className={`${KT.panel} p-3`}>
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <span className={`font-mono text-[10px] uppercase tracking-[0.1em] ${KT.muted}`}>
+                      {r.seat} · {r.status}
+                    </span>
+                    <span className="min-w-0 flex-1 text-[13px] leading-snug">
+                      {r.text}
+                    </span>
+                  </div>
+                  <SupersessionNotice
+                    edge={blocked.get(`${r.run_id}#${r.rec_id}`) ?? null} />
+                </div>
+              ))}
+            </div>
+          </Fold>
         )}
 
         {/* ── 2 · EVERYTHING ELSE, BEHIND NAMED DOORS ───────────────────── */}

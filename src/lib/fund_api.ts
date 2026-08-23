@@ -1894,6 +1894,216 @@ export interface ExecutionChartResponse {
   round_trips: (RoundTrip & { strategy_id: string })[];
 }
 
+/* ==========================================================================
+ * THE DESK ENGINE v1 — GET /fund/desk/ceo, /desk/hygiene, /desk/briefings,
+ * /desk/intray/{seat}, /desk/supersessions.
+ *
+ * Every shape below is READ FROM THE SPINE'S OWN FOLD, never re-derived here.
+ * That is not style: this desk has shipped one-quantity-computed-twice twice
+ * (the counter reading 11 while the page read 6), and the engine's whole
+ * premise is that a cell's count and the list behind it are the same list.
+ * ======================================================================== */
+
+/** One row on the firm's ticket board, whatever produced it. */
+export interface DeskEngineItem {
+  source: 'recommendation' | 'request' | 'intray';
+  /** `rec:<run_id>#<rec_id>` / `req:<id>`, or null for in-tray items. */
+  ref: string | null;
+  seat: string | null;
+  title: string | null;
+  kind: string | null;
+  status: string;
+  /** The desk's TOP ranking key. Null means the seat stated no date — it is
+   *  never parsed out of prose, and it does not mean "soon". */
+  due_date: string | null;
+  /** Null means the seat stated no figure. NEVER zero. */
+  money_at_stake: number | null;
+  reversibility: string | null;
+  next_actor_resolved: string;
+  next_actor_basis: string;
+  at: string | null;
+  run_id?: string; rec_id?: number; request_id?: string; item_id?: string;
+  from_seat?: string;
+  dispatched?: boolean;
+  /** The live supersession edge on this row, if any. Its presence is what
+   *  makes the row unapprovable — the SERVER refuses, and this is what the UI
+   *  reads to draw the disabled state, so the two cannot disagree. */
+  supersession: DeskSupersessionEdge | null;
+  /** Attached by the matrix fold, not by the item's producer. */
+  category?: DeskCategory;
+  category_why?: string;
+}
+
+export type DeskCategory = 'open' | 'ticking' | 'blocking' | 'closed';
+
+export interface DeskSupersessionEdge {
+  edge_id: string;
+  target_ref: string;
+  /** Null for `killed`: a row killed on its merits was not replaced, and a
+   *  fabricated lineage would be worse than none. */
+  superseder_ref: string | null;
+  mode: 'superseded' | 'superseded_pending' | 'killed';
+  reason: string;
+  /** Required on `superseded_pending`: the named future event at which the
+   *  premise dies. Without it the chip says "later". */
+  dies_at_event: string | null;
+  /** Required on `superseded_pending`: the branch in which the row lives. */
+  revives_if: string | null;
+  applied_by: string;
+  applied_at: string | null;
+  retracted_by?: string | null;
+  retracted_at?: string | null;
+  retract_reason?: string | null;
+  confirmed_by?: string | null;
+  confirmed_at?: string | null;
+}
+
+export interface DeskMatrixCell {
+  count: number;
+  /** How many rows the payload actually carries. A CAP, never a count — the
+   *  last cap this desk shipped (25 runs) was read as a count and truncated
+   *  the firm's first spend meter. */
+  shown: number;
+  truncated: boolean;
+  items: DeskEngineItem[];
+}
+
+export interface DeskMatrix {
+  categories: DeskCategory[];
+  /** What each column MEANS, from the spine, so the UI never writes its own. */
+  definitions: Record<DeskCategory, string>;
+  seats: string[];
+  cells: Record<string, Record<DeskCategory, DeskMatrixCell>>;
+  totals: Record<DeskCategory, number>;
+  items_classified: number;
+  cell_limit: number;
+  note: string;
+}
+
+export interface DeskGreeting {
+  at: string | null;
+  /** The client's own last visit. Null = it supplied none, and `changed` then
+   *  SAYS SO rather than claiming nothing happened. */
+  since: string | null;
+  changed: string;
+  needs_you: string;
+  on_fire: string;
+  hygiene: string | null;
+  text: string;
+}
+
+export interface DeskBriefing {
+  path: string;
+  seat: string; who: string; label: string;
+  title: string;
+  date: string | null;
+  /** `unknown` = the verification LEDGER could not be read. It is not
+   *  `chair-unverified`: a memo the chair HAS checked must not be shown as
+   *  unchecked by a database outage. */
+  badge: 'chair-verified' | 'chair-unverified' | 'unknown';
+  verified_by: string | null;
+  verified_at: string | null;
+  /** Corrections found after publication. A new chip, never a silent edit. */
+  corrections: { actor: string; note: string; at: string | null }[];
+}
+
+export interface DeskBriefingsShelf {
+  memos: DeskBriefing[];
+  shown: number; total: number; truncated: boolean;
+  ledger_readable: boolean;
+  unreadable: string[];
+  sources: { seat: string; who: string; label: string; dir: string }[];
+  note: string;
+}
+
+export interface DeskHygieneRule {
+  rule_id: string; since: string; title: string;
+  action: 'close_request' | 'flag';
+  produces: string | null;
+  evidence: string; written_reason: string; authority: string;
+}
+
+export interface DeskHygieneReport {
+  policy_version: string;
+  rules: DeskHygieneRule[];
+  /** A rule NOT in `rules_evaluated` found nothing because it did not run.
+   *  Reporting its zero as a clean result is the defect this pair prevents. */
+  rules_evaluated: string[];
+  rules_not_evaluated: { rule_id: string; why: string }[];
+  proposals: {
+    rule_id: string; action: string; status: string | null;
+    target: { kind: string; request_id?: string; run_id?: string; rec_id?: number };
+    join: string; citation: string;
+    evidence: Record<string, unknown>;
+  }[];
+  flags: {
+    rule_id: string; flag: string; citation: string; requires: string;
+    target: { kind: string; run_id?: string; rec_id?: number };
+  }[];
+  /** Rows with NO evidence edge at all. MEASURED 2026-08-23: 66 of 66. A
+   *  hygiene engine reporting "0 closes" against a desk of 92 rows would be
+   *  claiming a clean desk when what it means is a missing edge. */
+  unlinkable: { request_id: string; status: string; seat?: string | null;
+                task?: string | null; why: string }[];
+  linked_but_undelivered: { request_id: string; status: string;
+                            runs: string[]; why: string }[];
+  counts: {
+    candidate_requests: number; proposals: number; flags: number;
+    unlinkable: number; linked_but_undelivered: number;
+  };
+  runs_read?: number;
+  runs_declaring_service?: number;
+  note: string;
+}
+
+/** GET /fund/desk/ceo — the CEO's decision surface, bounded on the server. */
+export interface CeoDeskView {
+  at: string;
+  rules_version: string;
+  greeting: DeskGreeting;
+  decisions: {
+    shown: number; total: number; truncated: boolean;
+    ranked_by: string;
+    /** How many rows state NEITHER a date nor a figure. Their order is
+     *  arrival order; the page must not present it as a ranking. */
+    ranked_on_nothing: number;
+    items: DeskEngineItem[];
+    note: string;
+  };
+  on_fire: {
+    shown: number; total: number; items: DeskEngineItem[];
+    /** NULL = the risk control could not be read. Not `false`. */
+    risk_halted: boolean | null;
+    definition: string;
+  };
+  briefings: DeskBriefingsShelf | null;
+  matrix: DeskMatrix;
+  hygiene: DeskHygieneReport | null;
+  /** Every row carrying a live supersession edge, UNCAPPED. Read blocked rows
+   *  from HERE, never from the matrix cells — those are capped at 25 apiece,
+   *  and the 26th blocked row is exactly the one a surface must not miss. */
+  blocked: { shown: number; total: number; items: DeskEngineItem[]; note: string };
+  kill_shelf: { shown: number; total: number; items: DeskEngineItem[]; note: string };
+  elsewhere: {
+    by_actor: Record<string, number>;
+    by_source: Record<string, number>;
+  };
+  /** Which stores the spine could read. A page that could not read the
+   *  supersession table renders "lineage unknown", never "no lineage". */
+  readable: {
+    recommendations: boolean; supersessions: boolean;
+    intray: boolean; risk: boolean;
+  };
+}
+
+export interface DeskInTrayItem {
+  item_id: string; to_seat: string; from_seat: string;
+  task: string; why: string;
+  status: 'posted' | 'blessed' | 'struck';
+  decided_by: string | null; decided_at: string | null;
+  reason: string | null; ack_at: string | null; posted_at: string | null;
+}
+
 export const fundApiClient = {
   getNav: async (): Promise<NavResponse> => (await fundApi.get(`${P}/nav`)).data,
 
@@ -2552,6 +2762,55 @@ export const fundApiClient = {
   getCandidate: async (candidateId: string): Promise<CandidateRow> =>
     (await fundApi.get(
       `${P}/factory/candidates/${encodeURIComponent(candidateId)}`)).data,
+
+  /* --- the desk engine v1 ------------------------------------------------ */
+
+  /** The CEO's decision surface, ranked and BOUNDED SERVER-SIDE.
+   *
+   *  `since` is the client's own last visit and drives the greeting's "what
+   *  changed" line. The spine deliberately does not stamp one: a GET that
+   *  writes is a GET that lies about being safe, and "no previous visit was
+   *  supplied" is one honest sentence.
+   *
+   *  `git` defaults FALSE — hygiene rule H3 shells out to git once per cited
+   *  commit, which is not a cost the page the CEO opens should carry. The
+   *  payload then reports H3 as NOT EVALUATED rather than as finding nothing. */
+  getCeoDesk: async (since?: string | null, git = false): Promise<CeoDeskView> =>
+    (await fundApi.get(`${P}/desk/ceo`, {
+      params: { ...(since ? { since } : {}), git },
+    })).data,
+
+  /** What deterministic hygiene WOULD close, with every citation. Writes nothing. */
+  getDeskHygiene: async (git = true): Promise<DeskHygieneReport> =>
+    (await fundApi.get(`${P}/desk/hygiene`, { params: { git },
+      timeout: 60000 })).data,
+
+  /** Apply named bookkeeping closes. The chair's click, never a clock — and
+   *  the spine matches each against its own live evaluation, so this cannot
+   *  become "close any request you name". */
+  applyDeskHygiene: async (
+    proposals: { rule_id: string; request_id: string }[], actor = "cto",
+  ): Promise<{ policy_version: string; applied: unknown[];
+               refused: { request: unknown; why: string }[]; note: string }> =>
+    (await fundApi.post(`${P}/desk/hygiene/apply`, { proposals, actor })).data,
+
+  /** Seat memos with their chair-verification badges. */
+  getDeskBriefings: async (): Promise<DeskBriefingsShelf> =>
+    (await fundApi.get(`${P}/desk/briefings`)).data,
+
+  /** One seat's in-tray, plus its own asks the chair struck. */
+  getDeskInTray: async (seat: string): Promise<{
+    seat: string; items: DeskInTrayItem[]; count: number;
+    returned_to_me: DeskInTrayItem[]; note: string;
+  }> => (await fundApi.get(`${P}/desk/intray/${encodeURIComponent(seat)}`)).data,
+
+  /** Live supersession edges. `unapprovable_modes` comes from the spine so the
+   *  UI's disabled state and the server's refusal read one list. */
+  getDeskSupersessions: async (includeRetracted = false): Promise<{
+    edges: DeskSupersessionEdge[]; count: number;
+    modes: string[]; unapprovable_modes: string[];
+  }> => (await fundApi.get(`${P}/desk/supersessions`,
+    { params: { include_retracted: includeRetracted } })).data,
 };
 
 export default fundApi;

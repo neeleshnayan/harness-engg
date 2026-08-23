@@ -11,7 +11,7 @@ import {
   Swords,
   Users,
 } from "lucide-react";
-import { fundApiClient, DeskView, SpineEvent } from "@/lib/fund_api";
+import { CeoDeskView, fundApiClient, DeskView, SpineEvent } from "@/lib/fund_api";
 import { KT } from "../theme";
 import { StudioHeader } from "../components/StudioHeader";
 import { faceFor } from "./faces";
@@ -19,6 +19,8 @@ import {
   Metric, ProductionShelf, RecRow, RunRow, SeatTelemetryChips, SectionHead,
   WindowNote,
 } from "./components";
+import { DeskMatrix } from "./DeskMatrix";
+import { Fold } from "./EngineViews";
 import { SeatTelemetry, seatTelemetry } from "./deskTelemetry";
 import { MemoThread } from "./MemoThread";
 import { SeatFace } from "./SeatFace";
@@ -70,6 +72,11 @@ const STATUS_CHIP: Record<string, string> = {
 export default function DeskPage() {
   const [d, setD] = useState<DeskView | null>(null);
   const [events, setEvents] = useState<SpineEvent[] | null>(null);
+  /** The ticket board's fold. A SEPARATE failure from the desk's: the board
+   *  can be unreadable while the rest of the office is fine, and rendering an
+   *  empty board for an unreachable endpoint would say "no tickets". */
+  const [ceo, setCeo] = useState<CeoDeskView | null>(null);
+  const [ceoErr, setCeoErr] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [eventsErr, setEventsErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -79,14 +86,20 @@ export default function DeskPage() {
   const [day, setDay] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const [desk, ev] = await Promise.allSettled([
+    const [desk, ev, board] = await Promise.allSettled([
       fundApiClient.getDesk(),
       fundApiClient.getEvents(1000, 0),
+      // `git=false`: hygiene's commit-citation rule shells out to git, which
+      // does not belong in a 10-second poll. The payload reports H3 as NOT
+      // EVALUATED rather than as finding nothing.
+      fundApiClient.getCeoDesk(null, false),
     ]);
     if (desk.status === "fulfilled") { setD(desk.value); setErr(null); }
     else setErr(desk.reason instanceof Error ? desk.reason.message : "unreachable");
     if (ev.status === "fulfilled") { setEvents(ev.value.events || []); setEventsErr(null); }
     else setEventsErr(ev.reason instanceof Error ? ev.reason.message : "unreachable");
+    if (board.status === "fulfilled") { setCeo(board.value); setCeoErr(null); }
+    else setCeoErr(board.reason instanceof Error ? board.reason.message : "unreachable");
   }, []);
 
   useEffect(() => {
@@ -172,8 +185,41 @@ export default function DeskPage() {
         )}
         {!d && !err && <p className={`text-sm ${KT.muted}`}>Reading the desk…</p>}
 
+          {/* -------------------------------------------- the ticket board */}
+          {/* CEO instruction 2026-08-23, verbatim: "like put a matrix view
+              that shows intra-team ticket count -> I click it expands the
+              list; then different categories for whats closed, whats
+              ticking, whats blocking, whats open" — given after this page
+              earned "this feels like an infine scroll. We need better
+              organisation here too!"
+
+              IT SITS HERE, ABOVE EVERYTHING THAT SCROLLS, and everything
+              below it is now folded with its count in the header. The board
+              is the organising frame; the sections beneath are the detail
+              behind a named door. */}
+          <section className="mb-8">
+            <SectionHead
+              title="The ticket board"
+              lede="Every open thing at the firm, one row per seat. Click any number to read the rows behind it. Counts come from the spine's own fold, so a cell and its list can never disagree."
+            />
+            {ceoErr ? (
+              // KT.panel, not KT.card: `card` carries p-5 and Tailwind
+              // resolves by stylesheet order, so a p-4 beside it never
+              // renders. Pre-existing elsewhere on this page; not repeated
+              // in code written today.
+              <div className={`${KT.panel} p-4`}>
+                <p className={`text-sm ${KT.sev.warn}`}>
+                  The ticket board could not be read ({ceoErr}) — showing
+                  nothing rather than a clear board.
+                </p>
+              </div>
+            ) : (
+              <DeskMatrix matrix={ceo?.matrix ?? null} />
+            )}
+          </section>
         {d && (
           <>
+
             {/* --------------------------------------------------- the floor */}
             <section className="mb-8">
               <p className={`${KT.label} mb-3 flex items-center gap-2`}>
@@ -275,11 +321,9 @@ export default function DeskPage() {
                 read" and "nothing has happened yet" render identically: as
                 nothing at all. Those are different facts and the second one is
                 reassuring, so the first must never be able to wear it. */}
-            <section className="mb-8">
-              <SectionHead
-                title="The wire"
-                lede="Every interaction between the desks, newest first — the ask, the dispatch, the delivery, the decision. Click a seat to walk into its office. Refreshes every 10 seconds."
-              />
+            <Fold title="The wire — every interaction between the desks"
+                  n={feed.length}
+                  lede="The ask, the dispatch, the delivery, the decision, newest first. Folded because the board above already says what is outstanding; this is how it got there.">
               {feed.length > 0 ? (
                 <div className={`${KT.card} divide-y divide-[var(--kt-border)] p-0`}>
                   {feed.map((f, i) => <WireRow key={`${f.traceId}-${f.kind}-${f.at}-${i}`} f={f} />)}
@@ -311,7 +355,7 @@ export default function DeskPage() {
                   only the flight recorder until it returns.
                 </p>
               )}
-            </section>
+            </Fold>
 
             {/* ------------------------------------------------- request work */}
             <section className={`${KT.card} mb-8 border-[var(--kt-accent-border)]`}>
@@ -370,11 +414,9 @@ export default function DeskPage() {
                 a trigger. Requests already blessed render as "approved —
                 awaiting the CTO"; open ones carry the Approve control. */}
             {d.requests.filter((r) => r.status !== "resolved").length > 0 && (
-              <section className="mb-8">
-                <SectionHead
-                  title="Requests between desks"
-                  lede="Who wants to call whom, and for what. Approving records your blessing on the log and hands the ask to the CTO to trigger — it runs nothing by itself."
-                />
+              <Fold title="Requests between desks"
+                    n={d.requests.filter((r) => r.status !== "resolved").length}
+                    lede="Who wants to call whom, and for what. Approving records your blessing on the log and hands the ask to the CTO to trigger — it runs nothing by itself.">
                 <div className="space-y-1.5">
                   {d.requests
                     .filter((r) => r.status !== "resolved")
@@ -382,7 +424,7 @@ export default function DeskPage() {
                       <RequestRow key={r.request_id} r={r} onChanged={load} />
                     ))}
                 </div>
-              </section>
+              </Fold>
             )}
 
             {/* Recommendations, SPLIT (CDO D4). `/fund/desk` returns open,
@@ -393,39 +435,36 @@ export default function DeskPage() {
               const undecided = d.open_recommendations.filter((r) => r.status === "open");
               const decided = d.open_recommendations.filter((r) => r.status !== "open");
               return (
-                <section className="mb-8">
-                  <p className={`${KT.label} mb-2`}>
-                    Recommendations awaiting your decision ({undecided.length})
-                    {decided.length > 0 && (
-                      <span className={`ml-2 font-normal normal-case tracking-normal ${KT.muted}`}>
-                        · {decided.length} decided, awaiting execution
-                      </span>
-                    )}
-                  </p>
-                  <div className="space-y-1.5">
-                    {undecided.map((r) => (
-                      <RecRow key={`${r.run_id}-${r.rec_id}`} r={r} onDecide={load} />
-                    ))}
-                  </div>
-                  {decided.length > 0 && (
-                    <div className="mt-4 space-y-1.5">
-                      <p className={`${KT.label} mb-2`}>Decided, awaiting execution</p>
-                      {decided.map((r) => (
+                <>
+                  <Fold title="Recommendations awaiting a decision"
+                        n={undecided.length}
+                        lede="Undecided rows only. The board above splits these by seat; this is the flat list with its controls.">
+                    <div className="space-y-1.5">
+                      {undecided.map((r) => (
                         <RecRow key={`${r.run_id}-${r.rec_id}`} r={r} onDecide={load} />
                       ))}
                     </div>
+                  </Fold>
+                  {decided.length > 0 && (
+                    <Fold title="Decided, awaiting execution"
+                          n={decided.length}
+                          lede="The CEO already said yes to these; what remains is the chair's to execute. They are the board's TICKING column.">
+                      <div className="space-y-1.5">
+                        {decided.map((r) => (
+                          <RecRow key={`${r.run_id}-${r.rec_id}`} r={r} onDecide={load} />
+                        ))}
+                      </div>
+                    </Fold>
                   )}
-                </section>
+                </>
               );
             })()}
 
             {/* ------------------- rewind: any past day, as reviewable as today */}
             {days.length > 0 && (
-              <section className="mb-8">
-                <SectionHead
-                  title="Rewind"
-                  lede="The office on any past day: how many times each seat ran, who triggered them, what it cost, and each day's chains replayed. Today is live."
-                />
+              <Fold title="Rewind — any past day, as reviewable as today"
+                    n={days.length}
+                    lede="How many times each seat ran on a chosen day, who triggered them, what it cost, and that day's chains replayed. Today is live.">
                 <div className="mb-3 flex flex-wrap items-center gap-2">
                   <button type="button" disabled={!older} onClick={() => setDay(older)}
                           className={`${KT.btnGhost} flex h-8 items-center gap-1 px-2 text-xs disabled:opacity-30`}>
@@ -508,15 +547,14 @@ export default function DeskPage() {
                 {events != null && (
                   <WindowNote events={events.length} capped={events.length >= 1000} />
                 )}
-              </section>
+              </Fold>
             )}
 
             {/* the flight recorder, filtered to the day in view */}
             {fold && (
-              <section className="mb-8">
-                <p className={`${KT.label} mb-2`}>
-                  {isLive ? "Runs resolved today" : `Runs resolved on ${shownDay}`}
-                </p>
+              <Fold title={isLive ? "Runs resolved today" : `Runs resolved on ${shownDay}`}
+                    n={fold.runs.length}
+                    lede="The flight recorder for the day in view. The desk payload carries the 25 most recent runs across all seats; a seat's full record is on its own page.">
                 {fold.runs.length === 0 ? (
                   <p className={`text-sm ${KT.muted}`}>
                     No run was resolved on this day.
@@ -528,17 +566,14 @@ export default function DeskPage() {
                     ))}
                   </div>
                 )}
-                <p className={`mt-2 text-[11px] italic ${KT.muted}`}>
-                  The desk payload carries the 25 most recent runs across all
-                  seats; a seat&apos;s full record is on its own page.
-                </p>
-              </section>
+              </Fold>
             )}
 
             {/* the artifact chain */}
-            <section className="mb-8">
-              <div className="mb-3 flex items-baseline justify-between gap-2">
-                <p className={KT.label}>The artifact chain</p>
+            <Fold title="The artifact chain"
+                  n={d.artifacts.length}
+                  lede={`Proposals and designs paired with the verdicts that reviewed them. ${d.kills} kill${d.kills === 1 ? "" : "s"} — at this firm a demonstrated kill is a win.`}>
+              <div className="mb-3 flex items-baseline justify-end gap-2">
                 <p className={`flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.1em] ${KT.muted}`}>
                   <Skull size={11} className="text-[var(--kt-down)]" />
                   {d.kills} kill{d.kills === 1 ? "" : "s"} — at this firm a
@@ -586,12 +621,12 @@ export default function DeskPage() {
                   </div>
                 ))}
               </div>
-            </section>
+            </Fold>
 
             {/* the protocol, verbatim */}
-            <section className={`${KT.card} mb-8 p-4`}>
-              <p className={`${KT.label} mb-2`}>The working protocol</p>
-              <ol className="space-y-1.5">
+            <Fold title="The working protocol" n={d.protocol.length}
+                  lede="The five rules every artifact at this firm is judged against, verbatim from the constitution.">
+              <ol className={`${KT.card} space-y-1.5 p-4`}>
                 {d.protocol.map((line, i) => (
                   <li key={i} className="flex gap-3 text-xs leading-relaxed">
                     <span className="font-mono text-[var(--kt-accent)]">
@@ -601,7 +636,7 @@ export default function DeskPage() {
                   </li>
                 ))}
               </ol>
-            </section>
+            </Fold>
 
             {/* "How it got here" (the Arc + Ladder from Mechanics) was retired
                 from this page 2026-08-20 by CEO decision — it read as stale on
