@@ -149,9 +149,10 @@ export function ClarkConsole() {
   // Reflow the cockpit BESIDE the rail rather than under it.
   //
   // THE DEFECT THIS CLOSES, measured by CDP probe at 1024px: the rail sat at
-  // x=589 over content running to x=1009 with NO inset, and 1,923 elements —
-  // the risk bar's breach sentence, the position ticker, the right half of
-  // every decision card — had their clicks intercepted by an opaque panel.
+  // x=589 over content running to x=1009 with NO inset, and 501 elements
+  // across the six Studio pages — the risk bar's breach sentence, the position
+  // ticker, the right half of every decision card — had their clicks
+  // intercepted by an opaque panel (65 of them on the CEO desk alone).
   // The comment that used to sit here called that "a temporary overlap"; the
   // probe says it is permanent for every 1024 laptop whose stored preference
   // is open. `railLayout` now shrinks the rail instead, and covers the whole

@@ -4,10 +4,13 @@
  * THE INCIDENT, named because a regression test that does not name its
  * incident is a test nobody knows to keep. At a 1024px viewport with the Clark
  * rail open, the rail's left edge was at x=589 while every Studio page's
- * content ran to x=1009, `body` carried no inset, and a CDP probe found
- * **1,923 elements whose clicks the rail intercepted** — the risk bar's breach
- * sentence, the position ticker and the right half of every decision card
- * among them. At 1099 the count was 1,928. At 1280 and 1440 it was 0.
+ * content ran to x=1009 and `body` carried no inset. A CDP probe counted the
+ * elements with a PAINTED, clickable band under the rail — **501 across the
+ * six Studio pages** (Monitor 136, CEO desk 65, floor 83, Allocate 66, Risk
+ * 59, Lab 92) — the risk bar's breach sentence, the position ticker and the
+ * right half of every decision card among them. At 1099 the CEO desk measured
+ * 77. At 1280 and 1440 the count was 0 and the geometry was already correct.
+ * Both arms were measured with the same probe, against the base build.
  *
  * The law these tests hold is one sentence: **the rail sits BESIDE the content
  * or it covers the viewport whole; it never covers part of it.** Everything
@@ -58,10 +61,10 @@ test("THE CLIP INVARIANT: content is never partly under the rail, at any width",
 });
 
 test("the incident's own widths: 1024 and 1099 inset the page by the rail's width", () => {
-  // 1024 and 1099 are the two VIEWPORT widths the probe measured, at 1,923
-  // and 1,928 intercepted elements; 1009 and 1084 are the LAYOUT widths they
-  // resolved to on that machine and are what the code actually sees. The
-  // defect was an inset of ZERO at all four, and that is what this pins.
+  // 1024 and 1099 are the two VIEWPORT widths the probe measured on the CEO
+  // desk, at 65 and 77 intercepted elements; 1009 and 1084 are the LAYOUT
+  // widths they resolved to on that machine and are what the code actually
+  // sees. The defect was an inset of ZERO at all four; that is what this pins.
   for (const w of [1024, 1009, 1099, 1084]) {
     const l = railLayout(w, true);
     assert.equal(l.mode, "push", `width ${w} must dock beside, not over`);
@@ -153,7 +156,7 @@ test("a fractional width rounds DOWN — the safe direction", () => {
 
 test("bodyPaddingRight is the ONLY thing that decides the page's inset", () => {
   /* Also from mutation: writing "" unconditionally — an inset of zero, which
-   * IS the 1,923-element clip — SURVIVED while the expression lived inside a
+   * IS the 501-element clip — SURVIVED while the expression lived inside a
    * React effect no runner here can execute. */
   assert.equal(bodyPaddingRight(railLayout(1440, true)), "420px");
   assert.equal(bodyPaddingRight(railLayout(1024, true)), "384px");

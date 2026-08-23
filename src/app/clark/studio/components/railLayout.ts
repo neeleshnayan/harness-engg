@@ -1,21 +1,37 @@
 /**
  * WHERE THE CLARK RAIL SITS, AND HOW MUCH ROOM THE COCKPIT KEEPS.
  *
- * THE INCIDENT THIS MODULE EXISTS TO CLOSE (measured 2026-08-22 by CDP probe,
- * reproduced 2026-08-23 before this fix). At a 1024px viewport with the rail
- * open, the Studio rendered:
+ * THE INCIDENT THIS MODULE EXISTS TO CLOSE (found 2026-08-22 by CDP probe,
+ * re-measured 2026-08-23 against the base build before this fix). At a 1024px
+ * viewport with the rail open, every Studio page rendered like this — the
+ * count is elements with a PAINTED, clickable band under the rail, with any
+ * element merely clipped by an internal scroll container excluded:
  *
- *   | viewport | layout width | body pad-right | rail left | content right | elements whose clicks the rail ate |
- *   |---------:|-------------:|---------------:|----------:|--------------:|-----------------------------------:|
- *   |     1024 |         1009 |          0px   |       589 |          1009 |                            **1923** |
- *   |     1099 |         1084 |          0px   |       664 |          1084 |                            **1928** |
- *   |     1280 |         1265 |        420px   |       845 |           845 |                                   0 |
- *   |     1440 |         1425 |        420px   |      1005 |          1005 |                                   0 |
+ *   | page                    | before | after |
+ *   |-------------------------|-------:|------:|
+ *   | /clark/studio (Monitor) |    136 |     0 |
+ *   | /clark/studio/desk/ceo  |     65 |     0 |
+ *   | /clark/studio/desk      |     83 |     0 |
+ *   | /clark/studio/allocate  |     66 |     0 |
+ *   | /clark/studio/risk      |     59 |     0 |
+ *   | /clark/studio/lab       |     92 |     0 |
+ *   | **total**               |**501** | **0** |
+ *
+ * The geometry behind it: layout width 1009, `body` padding-right **0px**,
+ * rail left edge at **x=589**, page content running to **x=1009**. At 1099 the
+ * CEO desk measured 77. At 1280 and 1440 the count was 0 and the geometry was
+ * already correct (pad 420px, rail at 845 / 1005).
  *
  * A 420px band of EVERY Studio page — the risk bar's breach sentence, the
  * position ticker, the right half of every decision card — rendered underneath
  * a fixed panel that intercepted every click in it. Not a cosmetic clip: the
- * page looked complete and 1,923 elements were unreachable.
+ * page looked complete and the controls in that band could not be pressed.
+ *
+ * (A first, looser probe reported 1,923 for the CEO desk. It counted any
+ * element whose bounding box reached the rail's band, which over-counts every
+ * cell of a horizontally scrollable table — geometrically under the rail,
+ * never painted there. The 65 above is the honest number, and BOTH arms were
+ * re-measured with the same stricter test against the base build.)
  *
  * THE CAUSE was one condition doing two jobs. `PUSH_MIN_WIDTH = 1100` decided
  * BOTH "may the rail reflow the page" and, by omission, "what happens when it
@@ -137,7 +153,7 @@ export function railLayout(viewportWidth: number, open: boolean): RailLayout {
  *
  * A one-line function rather than an expression inside the effect, and the
  * reason is measured: the mutation pass restored the shipped defect — writing
- * `""` unconditionally, which is an inset of zero, which IS the 1,923-element
+ * `""` unconditionally, which is an inset of zero, which IS the 501-element
  * clip — and every test still passed, because the expression lived in a React
  * effect that no runner here can execute. There is no DOM test runner in this
  * repo, so a decision that only exists inside a component is a decision
