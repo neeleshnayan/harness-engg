@@ -1,10 +1,25 @@
 """The backfill — best effort, and honest about every edge of that effort.
 
-Runs against a FIXTURE built in ``krypton_fund_test``, never the live store.
-The fixture's source tables are created by executing the OWNING MODULES' own
-SCHEMA strings rather than a second copy of the DDL: two structures that must
-agree should be derived, not maintained in parallel, and a copy here would
-silently pass after the real table changed shape.
+Runs against a FIXTURE, never the live store. The fixture's source tables are
+created by executing the OWNING MODULES' own SCHEMA strings rather than a
+second copy of the DDL: two structures that must agree should be derived, not
+maintained in parallel, and a copy here would silently pass after the real
+table changed shape.
+
+**ITS OWN DATABASE, AND THAT IS NOT FASTIDIOUSNESS — IT IS A MEASURED FLAKE.**
+This module needs to read ALL of ``fund_candidates``, because that is what the
+backfill does. In ``krypton_fund_test`` that table is TRUNCATEd by
+``test_factory.py`` and ``test_provenance.py``, and ``test_factory.py`` submits
+candidates on BACKGROUND THREADS — so the rows are not exclusively any one
+module's even inside a single pytest process. Measured 2026-08-23: a DIFFERENT
+test in this module failed on each of three consecutive runs, and the row left
+behind was ``algorithm='algo'`` (test_factory's) stamped inside this module's
+run window, written by a SECOND pytest process running concurrently under the
+two-builders arrangement.
+
+``krypton_fund_kgtest`` is not any fund mode's ledger (``tests/
+test_fund_mode.py`` K1 asserts that property for the mode databases, and this
+name is none of them).
 
 What each test pins is a way the ingestion could quietly lie:
 
@@ -23,11 +38,15 @@ import pytest
 pytestmark = pytest.mark.skipif(
     os.getenv("SKIP_PG_TESTS") == "1", reason="Postgres tests disabled")
 
-TEST_DB = "krypton_fund_test"
+#: THIS MODULE'S OWN SCRATCH DATABASE. See the module docstring for the
+#: measured reason; the short version is that this module reads the WHOLE of
+#: fund_candidates and two other modules own rows in it.
+TEST_DB = "krypton_fund_kgtest"
 
 #: The fixture's own dates. The fence's real cohort is 2026-08-20/21; the
-#: fixture puts two candidates on 2026-08-20 so a run with ``expect_fenced=2``
-#: exercises the fencing path and a run with the default 6 must REFUSE.
+#: fixture puts exactly ONE candidate on 2026-08-20, so a run with
+#: ``expect_fenced=1`` exercises the fencing path and a run at the live default
+#: of 6 must REFUSE.
 FENCE_DAY = "2026-08-20"
 OTHER_DAY = "2026-08-16"
 
@@ -69,6 +88,7 @@ def _source_schema(cur, with_jobs=True, with_runs=True) -> None:
 def _fixture(with_jobs=True, with_runs=True):
     """Six candidates covering every interpretation branch, and their jobs."""
     import json
+    _graph()          # issues the kg_* DDL before anything truncates it
     conn = _connect()
     with conn:
         with conn.cursor() as cur:
@@ -135,6 +155,20 @@ def _fixture(with_jobs=True, with_runs=True):
                     "VALUES ('run-noise','pm','unrelated','no ids here')")
         conn.commit()
 
+    # THE FIXTURE VERIFIES ITSELF, out loud. A fixture that quietly built a
+    # different world would surface three lines later as a confusing count
+    # mismatch in whichever test happened to run — which is exactly how the
+    # shared-database race presented before this module got its own store.
+    with _connect() as c2:
+        with c2.cursor() as cur:
+            cur.execute("SELECT count(*), count(*) FILTER (WHERE "
+                        "started_at::date = %s) FROM fund_candidates",
+                        (FENCE_DAY,))
+            total, fenced = cur.fetchone()
+    assert (total, fenced) == (6, 1), (
+        f"the fixture built {total} candidates with {fenced} on the fenced "
+        f"date, not 6 and 1 — something else is writing to {TEST_DB}")
+
 
 def _ingest(expect_fenced=1, **kw):
     import scripts.kg.backfill as bf  # noqa: F401  (import for coverage)
@@ -158,7 +192,7 @@ def _sys_path():
         sys.path.insert(0, str(root))
 
 
-def test_the_fixture_ingests_and_counts_every_source(_sys_path=None):
+def test_the_fixture_ingests_and_counts_every_source():
     _fixture()
     rep = _ingest()
     s = rep["sources"]["fund_candidates"]

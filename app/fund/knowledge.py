@@ -348,7 +348,16 @@ def _slugify(raw: Any, field: str) -> str:
     text = raw.strip().lower() if isinstance(raw, str) else ""
     if not text:
         raise ValueError(f"{field} is mandatory and may not be blank")
-    return re.sub(r"[^a-z0-9]+", "_", text).strip("_")
+    slug = re.sub(r"[^a-z0-9]+", "_", text).strip("_")
+    if not slug:
+        # e.g. "!!!" — non-empty input that canonicalises to nothing. Raised
+        # here rather than left to the CHECK constraint so the caller gets the
+        # field name and its own value back.
+        raise ValueError(
+            f"{field}={raw!r} contains no slug-able characters — a family that "
+            f"canonicalises to the empty string would merge with every other "
+            f"such family")
+    return slug
 
 
 def _clean_reasons(reasons: Any) -> Optional[list[dict[str, str]]]:
@@ -506,13 +515,22 @@ class KnowledgeGraph:
             raise ValueError(
                 f"container_cost_basis must be one of {COST_BASES} or absent")
         secs = _num(container_seconds)
+        if container_seconds is not None and secs is None:
+            # UNREADABLE IS NOT ABSENT. Silently nulling a cost the caller
+            # tried to state would put "no attributable cost" on a row whose
+            # cost somebody measured and mistyped.
+            raise ValueError(
+                f"container_seconds must be a finite number or absent, got "
+                f"{container_seconds!r} — refused rather than nulled")
         if secs is not None and container_cost_basis in (None, "ambiguous",
                                                          "no_jobs", "unmeasured"):
             raise ValueError(
                 f"a container cost of {secs} cannot carry basis "
                 f"{container_cost_basis!r} — a number whose attribution is "
-                "unknown or shared is not this outcome's cost, and reporting "
-                "it as one is how a shared window becomes six full bills")
+                "unknown or shared is not this outcome's cost. The live worst "
+                "case is candidate 14c0af2073d5: 205 containers and 25,043 "
+                "seconds in a window that overlaps EIGHT siblings of the same "
+                "algorithm, so accepting it would bill 25,043s nine times.")
         reasons = _clean_reasons(kill_reasons)
         head = reasons[0] if reasons else None
         conflict = ("ON CONFLICT (dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING"

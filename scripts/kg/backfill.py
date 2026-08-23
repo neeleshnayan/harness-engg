@@ -40,7 +40,9 @@ script REFUSES if the derivation does not yield exactly six — a fence that
 silently fenced a different set would be worse than no fence.
 
 NO EDGES ARE WRITTEN. ``same_family`` is already a column (writing it as edges
-would put 276 rows into one algorithm alone); ``descendant_of_kill``,
+would put 253 rows into `null_random_smallcap` alone -- 23 candidates,
+reproduce with `SELECT algorithm, count(*)*(count(*)-1)/2 FROM
+fund_candidates GROUP BY 1 ORDER BY 2 DESC`); ``descendant_of_kill``,
 ``prior_art`` and ``supersedes`` are grammar-era facts nobody recorded before
 the grammar existed, and reconstructing them is exactly the guess this backfill
 refuses to make. In particular NO ``supersedes`` edge is written between the

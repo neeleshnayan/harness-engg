@@ -156,6 +156,36 @@ def test_an_unknown_source_is_refused_rather_than_nulled(kg):
         kg.add_hypothesis(family="f", run_id="r", source="twitter")
 
 
+def test_a_family_that_canonicalises_to_nothing_is_refused(kg):
+    """Non-empty input that slugifies to '' would merge with every other such
+    family, and the merged row would look like a real one."""
+    with pytest.raises(ValueError, match="no slug-able characters"):
+        kg.add_hypothesis(family="!!! ???", run_id="r")
+
+
+def test_an_UNREADABLE_container_cost_is_refused_rather_than_nulled(kg):
+    """Unreadable is not absent.
+
+    Nulling a mistyped cost would put "no attributable cost" on a row whose
+    cost somebody measured — the absence-is-never-zero rule pointed at its
+    quieter sibling, absence-is-never-a-typo.
+    """
+    h = _hyp(kg)
+    for bad in ("about twenty minutes", float("nan"), float("inf"), object()):
+        with pytest.raises(ValueError, match="finite number or absent"):
+            kg.add_outcome(hypothesis_id=h, stage="gate", verdict="fail",
+                           cited_run="r", container_seconds=bad,
+                           container_cost_basis="exclusive")
+    # A NUMERIC STRING IS READABLE AND IS ACCEPTED. `OrderFilled.avg_price` is
+    # a JSON string on 22 of 29 live rows, so refusing "1000" here would be
+    # refusing the shape this codebase actually stores numbers in.
+    o = kg.add_outcome(hypothesis_id=h, stage="gate", verdict="fail",
+                       cited_run="r", container_seconds="1000",
+                       container_cost_basis="exclusive")
+    assert kg._out_rows("WHERE outcome_id = %s",
+                        (o["outcome_id"],))[0]["container_seconds"] == 1000.0
+
+
 # --- rule 3: UNTESTED is a word, not a zero ----------------------------------
 
 def test_family_ledger_renders_UNTESTED_for_a_family_with_no_rows(kg):
@@ -562,9 +592,35 @@ def test_kill_taxonomy_reports_an_unattributable_cost_as_ABSENT_not_zero(kg):
     assert "1 ABSENT" in c["cost_note"]
 
 
-def test_kill_taxonomy_marks_a_cause_that_recurs_three_times(kg):
+def test_the_preflight_recurrence_matches_the_design_document():
+    """The constant is TRACEABLE, not merely present.
+
+    Written after a mutation pass: the behavioural test below originally built
+    ``range(PREFLIGHT_CARD_RECURRENCE)`` kills, so changing the constant moved
+    the test with it and 3 -> 4 SURVIVED. A test parametrised by the value it
+    is supposed to pin cannot pin it. This one checks the code against the
+    written basis instead — the design doc's "when a cause recurs three times,
+    it earns a pre-flight card item".
+
+    Reproduce:
+        grep -n 'recurs three times' \
+            docs/research/KNOWLEDGE_GRAPH_V1_2026-08-23.md
+    """
+    import pathlib
     from app.fund.knowledge import PREFLIGHT_CARD_RECURRENCE
-    for i in range(PREFLIGHT_CARD_RECURRENCE):
+    assert PREFLIGHT_CARD_RECURRENCE == 3
+    doc = (pathlib.Path(__file__).resolve().parents[1] / "docs" / "research"
+           / "KNOWLEDGE_GRAPH_V1_2026-08-23.md")
+    assert doc.exists(), f"the design document moved: {doc}"
+    assert "recurs three times" in doc.read_text(encoding="utf-8"), (
+        "the design document no longer says three — the constant and its "
+        "written basis have drifted apart, and one of them is now wrong")
+
+
+def test_kill_taxonomy_marks_a_cause_that_recurs_three_times(kg):
+    """THREE, hardcoded. See the test above for why it is not read from the
+    constant: this must fail if the threshold moves."""
+    for i in range(3):
         h = _hyp(kg, family=f"fam{i}")
         kg.add_outcome(hypothesis_id=h, stage="gate", verdict="fail",
                        cited_run="r", kill_reasons=["no held-out test - x"])
@@ -575,6 +631,16 @@ def test_kill_taxonomy_marks_a_cause_that_recurs_three_times(kg):
     assert t["earning_preflight_card"] == ["holdout_absent"]
     assert not [c for c in t["causes"]
                 if c["slug"] == "not_priced" and c["earns_preflight_card"]]
+
+
+def test_a_cause_that_has_recurred_only_twice_does_NOT_earn_the_card(kg):
+    """The other side of the boundary, so the threshold is pinned from both
+    directions rather than by one inequality that any looser value satisfies."""
+    for i in range(2):
+        h = _hyp(kg, family=f"fam{i}")
+        kg.add_outcome(hypothesis_id=h, stage="gate", verdict="fail",
+                       cited_run="r", kill_reasons=["no held-out test - x"])
+    assert kg.kill_taxonomy()["earning_preflight_card"] == []
 
 
 def test_cheap_kills_ranks_an_UNKNOWN_cost_instrument_LAST_among_equals(kg):
