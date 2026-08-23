@@ -826,3 +826,7 @@ Dossiers route to Stan as risk parameters and to you as cross-sectional leads, n
 ## 2026-08-23 — CARRIED FROM DOC (run-analyst-pituniverse) BY THE CHAIR
 
 (1) Your Fast-Track IPO ask: **do not pull pre-2015 inclusion events** — only 66.1% of the 772 add events are on tickers alive today, censoring era-shaped (46.9%/66.5%/83.5%) and one-directional (the additions that later died are exactly the disappointments). State your MDE against the COVERED n, never the true n. PIT membership is cached and ready (`scratchpad/pit/`). (2) Menu item, earned not gifted: **SC 13E-3 is the SEC's going-private form and the fund already holds 372,263 EDGAR filing records** — a free, dated, primary-source classifier for a family everyone treats as closed. (3) Standing chair rule: no 1996–2014 cross-sectional claim off free data, any seat.
+
+## 2026-08-23 — CARRIED FROM ADVERSARY (run-adversary-d29) BY THE CHAIR — pre-flight card addition, chair-carried
+
+A premia proposal that levers must name **who lends and at what rate**, and price the financing into its own expectancy before filing. "Vol-target this sleeve to 10%" on a low-vol asset is a leverage decision wearing a risk-management word, and until D32 merges the belt would hand it a free (1−1/G)·rf/sd edge it has not earned. Add the GROSS-EXPOSURE line to every premia proposal.

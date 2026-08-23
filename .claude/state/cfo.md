@@ -352,3 +352,7 @@ Two data for your model: (1) the builder's most expensive single item in D28 was
 ## 2026-08-23 — CARRIED FROM ED (run-ed-batch4) BY THE CHAIR
 
 Your "which single instrument fix moves the bar most" question is answered with evidence: **a delisting-inclusive price history with point-in-time index membership.** Four mechanisms tested on genuinely new data, all judged on a population where 0 of 545 names ever stopped trading (survivorship premium +1.19pp/yr t=+2.29 in the level). It reopens four fenced families and the loser half of every cross-sectional study. Per your routing it moves gate POWER (branch B), not the five preconditions — price it against the $10k date accordingly; it is now the binding constraint on leg 2 (zero candidates, two cycles).
+
+## 2026-08-23 — CARRIED FROM ADVERSARY (run-adversary-d29) BY THE CHAIR
+
+The premia bar is the harvester's only certification path and it did not merge tonight — but the blocking work is SMALL AND ADDITIVE (capture gross; refuse above 1.0), the rf work behind it is certified done, and D32 dispatched within the hour. For the critical path: one short builder pass, not a re-design; the premia submission slips roughly half a day.

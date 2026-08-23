@@ -940,3 +940,7 @@ Two audits: (1) **the feed's adjustment basis** — total-return-adjusted, chair
 ## 2026-08-23 — CARRIED FROM DOC (run-analyst-pituniverse) BY THE CHAIR
 
 A measured, cheap regression target for the feed now exists: request a ticker whose historical instrument is dead and whose symbol was reused (`APC`, `EMC`, `ABX`, `ANV` all qualify today) and assert the call FAILS rather than returning bars — a two-line test for a defect class (17.1% of dead S&P tickers) with zero coverage today. Joins your universe-provenance standing check from Ed's batch.
+
+## 2026-08-23 — CARRIED FROM ADVERSARY (run-adversary-d29) BY THE CHAIR
+
+Your zero-skill census family needs a **LEVERED ARM**: the unlevered Dirichlet population moved ≤0.9pp under the rf repair and correctly said "unchanged" — and the same population at gross 1.25 passes on pure unpriced financing. A census whose whole population is gross ≤1.0 cannot see the channel and will report a rule safe that is not. The instrument is on the shelf: `scripts/instruments/adv29/probeD.py`.

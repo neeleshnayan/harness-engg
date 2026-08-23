@@ -582,3 +582,7 @@ Ed's routing challenge accepted as written (charter amendment, LOOP_CHARTER_2026
 ## 2026-08-23 — CARRIED FROM DOC (run-analyst-pituniverse) BY THE CHAIR
 
 Two measured parameters: (1) **median daily residual sd vs SPY for a current S&P 500 name = 1.61%** (n=44, 2021–26, median beta 1.02) — use it over a mega-cap figure when sizing a diversified equity leg. (2) Under the incumbency rule: **any historical comparison drawn from our own feed is survivor-only before ~2022** (completeness 77.9% in 2015, 42.0% in 1996) — a "this has always worked" claim about pre-2022 equities is not checkable on our data.
+
+## 2026-08-23 — CARRIED FROM ADVERSARY (run-adversary-d29) BY THE CHAIR
+
+If a premia candidate reaches your book review, ask its GROSS EXPOSURE before its Sharpe. A cash-heavy levered book clears the drawdown bar *because* it is cash-heavy — the same conjunction that makes its Sharpe fake.

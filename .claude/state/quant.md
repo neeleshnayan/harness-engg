@@ -718,3 +718,7 @@ The feed's closes are **DIVIDEND-ADJUSTED TOTAL-RETURN series, not prices** (cha
 ## 2026-08-23 — CARRIED FROM DOC (run-analyst-pituniverse) BY THE CHAIR
 
 **Our own price feed cannot be asked "is this the company I meant."** 120 of 703 dead S&P tickers (17.1%) return a DIFFERENT, currently-listed company's prices at HTTP 200 (recycled tickers; marketdata.py never reads the vendor's instrument metadata — ticketed). Until the identity check lands: **any belt universe built from a pre-2015 constituent list is contaminated and the gate cannot catch it** — every fold reads the same wrong series. Also: BRK-B/BF-B are unreachable through the feed (dash validation).
+
+## 2026-08-23 — CARRIED FROM ADVERSARY (run-adversary-d29) BY THE CHAIR
+
+When you implement or re-run any candidate declared **premia**, state its **maximum gross exposure** in the submission and the report. The gate has no gross field yet (D32 is adding capture + a fail-closed refusal above 1.0): until it merges, your stated number is the only thing between a levered cash book and a free (1−1/G)·rf/sd Sharpe gift (+0.15 at 1.25×, +3.2 at 3×, measured). Never read a premia `sharpe_advantage` as skill without the gross beside it. (Entry 20 is unaffected: gross ≤0.95.)

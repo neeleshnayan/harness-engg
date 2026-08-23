@@ -191,6 +191,28 @@ Monday"). The five fan-out items all resolved; the floor rests until Monday.
   DELEGATION v1 (run-quant-entry20-rejudge recs 1–2), second-look flagged.
 
 **MEASURED**
+- **THE ADVERSARY'S D29 VERDICT (~19:3xZ): KILL (merge), narrowly grounded
+  — AND the D23 rf ground CERTIFIED CLOSED** (falsifier met exactly, 4dp
+  reproduction on 12/12 cells; the rf work is untouchable). **The new
+  ground, G1 UNFINANCED LEVERAGE, is the day's sharpest find**: LEAN
+  charges no margin interest, so a gross>1 book collects (1−1/G)·rf/sd of
+  free Sharpe — a zero-skill 1.25× cash book passes all four windows at
+  +0.15..+0.24 (financed counterfactual 0.0000) against a 0.0 margin; 3×
+  collects +3.2; and the branch's own notes denied the channel in two
+  sentences (the BAD-LEARNING CLAUSE demonstrated within the hour of its
+  writing: an invariance lesson true inside its test range, false one step
+  outside, traveled into load-bearing docstrings). G2 supporting: the
+  union coverage denominator degenerates under correlated truncation
+  (15.6% read as majority). /usr/bin/bash at risk (all algorithms ≤0.95 gross; no
+  premia bar live); Entry 20 unaffected. Fix ADDITIVE. **D32 dispatched
+  within the hour** (gross capture + fail-closed refusal >1.0 — a
+  tightening staged under v2; the refuse-vs-engine-financing SHAPE is the
+  CEO's policy question, on his desk). The reviewer self-caught a DOUBLE
+  near-miss (a false KILL and a false SURVIVES from anti-model probes in
+  one minute) and fixed its own AST scanner. probeD/probeF/base promoted
+  to the shelf. The premia submission slips ~half a day; the fifth
+  kill→repair loop is running.
+
 - **THE FUND'S FIRST FULL GATE PASS (~18:1xZ): candidate `9b767717ff08`,
   announcement_premium, gate v4.3, PASSED TRUE, FAILURES EMPTY** — the
   full 10bps cost grid measured at last (the criterion that killed every
