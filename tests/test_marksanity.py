@@ -50,9 +50,35 @@ def _struck(store, marks, ts="2026-08-20T07:30:00Z"):
                      aggregate_id="nav", ts=ts)
 
 
-def _filled(store, symbol, side, qty):
+def _filled(store, symbol, side, qty, avg_price=100.0):
+    """A fill, carrying ``avg_price`` because a real one always does.
+
+    The price is required by ``PositionsProjection`` — the fund's one true
+    holdings fold, which this guard now reads instead of summing fills itself
+    (ticket d79f65b1). Every OrderFilled in the live log carries it; a fixture
+    that omitted it was describing an event the fund has never emitted, and
+    ``test_a_fill_with_no_avg_price_cannot_be_folded_so_the_guard_refuses``
+    pins what happens if one ever appears.
+    """
     return store.add("OrderFilled",
-                     {"symbol": symbol, "side": side, "filled_qty": qty})
+                     {"symbol": symbol, "side": side, "filled_qty": qty,
+                      "avg_price": avg_price})
+
+
+def _reconciled(store, venue_qty: dict, ts="2026-08-24T12:36:46Z"):
+    """A ``BookReconciledToVenue``: the venue sync, which SETS quantities.
+
+    The event at the centre of ticket d79f65b1. It is not a trade — nothing was
+    bought or sold — and it is applied as an absolute SET, so it can both erase
+    a position the fill history still remembers and adopt one the fill history
+    has never seen.
+    """
+    return store.add("BookReconciledToVenue",
+                     {"positions": [{"symbol": s, "venue_qty": q,
+                                     "venue_avg_price": 10.0}
+                                    for s, q in venue_qty.items()],
+                      "run_id": "sync-1414", "actor": "cto"},
+                     aggregate_id="book", ts=ts)
 
 
 # ---------------------------------------------------------------- the incident
@@ -265,17 +291,271 @@ def test_float_residue_on_a_closed_position_does_not_count_as_held():
     assert v["refuse"] is False
 
 
-def test_a_fill_payload_using_the_wrong_key_leaves_the_position_absent_not_wrong():
-    """`qty` instead of `filled_qty` must not silently count as a holding."""
+def test_a_fill_payload_using_the_wrong_key_is_still_a_holding_to_the_true_fold():
+    """`qty` instead of `filled_qty` — and the two folds read it DIFFERENTLY.
+
+    CHANGED BY d79f65b1, deliberately, and this is the honest record of it.
+    The old fill-sum read `filled_qty` only, so a fill written with the wrong
+    key vanished and the order took the new-symbol branch — an ALLOW.
+    ``PositionsProjection`` falls back to `qty` (positions.py:162), so the same
+    event IS a holding to the fund's real book, and an unmarked holding refuses.
+
+    That is a TIGHTENING, and it is the correct direction: the guard's answer
+    to "does the fund hold this" now agrees with the book NAV values and the
+    reconciler compares, instead of with a private sum that agreed with
+    neither. A guard that disagrees with the fund's own book about what the
+    fund owns is the whole defect this ticket names.
+    """
     s = MemStore()
     _struck(s, {"TLT": 82.0})
-    s.add("OrderFilled", {"symbol": "GLD", "side": "buy", "qty": 3.0})
+    s.add("OrderFilled", {"symbol": "GLD", "side": "buy", "qty": 3.0,
+                          "avg_price": 100.0})
     _proposed(s, "o", "GLD", 100.0)
     v = marksanity.check(s, "o")
-    # held reads 0 from the wrong key, so this lands in the new-symbol branch —
-    # which is why THAT branch records its absence rather than claiming a check.
+    assert v["basis"] == "held_but_unpriced"
+    assert v["refuse"] is True
+    assert v["held_qty"] == 3.0
+    # And the divergence is visible rather than silent: the retired fill-sum
+    # saw nothing where the book sees three.
+    assert v["held_qty_from_fills"] == 0.0
+
+
+def test_a_fill_with_no_avg_price_cannot_be_folded_so_the_guard_refuses():
+    """Fail-closed on an unfoldable book — the projection needs a price.
+
+    ``PositionsProjection._apply`` indexes ``p["avg_price"]`` directly, so a
+    fill without one raises. The guard must then report the holding ABSENT and
+    refuse; it must never fall back to the fill-sum, because falling back on
+    the failure path would quietly restore the exact defect d79f65b1 removes.
+    """
+    s = MemStore()
+    _struck(s, {"TLT": 82.0})
+    s.add("OrderFilled", {"symbol": "GLD", "side": "buy", "filled_qty": 3.0})
+    _proposed(s, "o", "GLD", 100.0)
+    v = marksanity.check(s, "o")
+    assert v["refuse"] is True
+    assert v["basis"] == "holdings_unreadable"
+    assert v["held_qty"] is None, "an unreadable book reported a quantity"
+    assert "avg_price" in v["reason"]
+
+
+# ------------------------------------- the venue sync (ticket d79f65b1) -----
+#
+# Every fixture below is built from the fund's own state at the reconciliation
+# of 2026-08-24T12:36:46Z (seq 1414), measured before the repair. At that one
+# event the guard's fill-sum and the fund's true book disagreed about NINE of
+# eleven symbols, in BOTH directions — and the guard was wrong in both.
+
+
+def test_a_position_erased_by_the_sync_is_NOT_held_and_the_repurchase_proceeds():
+    """THE LIVE BLOCKER. DBC: fill-sum 8.122157, true book ZERO.
+
+    2026-08-24: the venue sync set DBC/TLT/DBA to zero. The guard, still summing
+    fills, believed the fund held all three, refused each approved repurchase as
+    ``held_but_unpriced``, and told the operator to "strike NAV first" — which
+    can never work, because NAV marks ``book.positions`` and the sync had popped
+    the symbol out of it. Three approved orders were unclickable by anyone, and
+    the guard was carrying forward the exact phantom the sync existed to erase.
+
+    DIRECTION: this is a LOOSENING of the ``held_but_unpriced`` branch, and it
+    is loosening a refusal that was FALSE. The fund does not hold DBC. The
+    corroboration this branch demands is not being skipped — there is nothing
+    to corroborate, which is what the new-symbol branch records.
+    """
+    s = MemStore()
+    _filled(s, "DBC", "buy", 8.122157)          # the fill history, still there
+    _reconciled(s, {"DBC": 0.0})                # the sync erased the position
+    _struck(s, {"SPY": 762.95})                 # NAV cannot mark what it lost
+    _proposed(s, "ord-dbc", "DBC", 21.79, side="buy", qty=8.122157)
+
+    v = marksanity.check(s, "ord-dbc")
+    assert v["refuse"] is False, (
+        "the phantom is still being mistaken for a holding: " + v["reason"])
     assert v["basis"] == "no_reference_new_symbol"
-    assert "NOT a corroboration" in v["reason"]
+    assert v["held_qty"] == 0.0
+    # The fill-sum that caused it is preserved, so the divergence is legible.
+    assert abs(v["held_qty_from_fills"] - 8.122157) < 1e-9
+    assert v["holdings_basis"] == "positions_projection"
+
+
+def test_a_position_ADOPTED_by_the_sync_with_no_fill_history_is_REFUSED():
+    """The other direction, and it was LIVE too — not hypothetical.
+
+    At the same event the sync adopted GLD 0.424471, INTC 1.608762, MSFT
+    0.340051, NVDA 0.749886, SOFI 9.188190 and XLE 2.749912 — six real
+    positions with NO fill history, the custody schema's ``foreign`` class (an
+    actor outside the harness). The fill-sum read every one of them as zero, so
+    the guard took the never-owned branch and skipped corroboration on six
+    positions the fund genuinely held. That is precisely the integrity case this
+    module exists to catch, walked past by a wrong input.
+
+    DIRECTION: a TIGHTENING. A sync-adopted, unmarked position now refuses.
+    """
+    s = MemStore()
+    _reconciled(s, {"GLD": 0.424471})           # adopted; no fill ever occurred
+    _struck(s, {"SPY": 762.95})                 # and no mark for it
+    _proposed(s, "ord-gld", "GLD", 415.04, side="buy")
+
+    v = marksanity.check(s, "ord-gld")
+    assert v["refuse"] is True, (
+        "a position the fund holds with no fill history was waved through as "
+        "a never-owned symbol — the foreign-custody hole")
+    assert v["basis"] == "held_but_unpriced"
+    assert abs(v["held_qty"] - 0.424471) < 1e-9
+    assert v["held_qty_from_fills"] == 0.0
+    # The remedy this branch names is now reachable: the fund really does hold
+    # it, so the next NAV strike really can mark it.
+    assert "Strike NAV first" in v["reason"]
+
+
+def test_the_two_folds_disagree_on_SPY_and_the_verdict_follows_the_TRUE_one():
+    """SPY's real numbers, pinned so the folds cannot silently diverge again.
+
+    Live at head 2026-08-24: fill-sum 0.474481, true book 0.346119 — a 37%
+    overstatement that no test could see, because both numbers are non-zero and
+    the branch only asks "is it held". The quantity is not decorative: it is
+    quoted verbatim in the refusal the CEO reads, so the old guard printed a
+    holding the fund does not have.
+    """
+    s = MemStore()
+    _filled(s, "SPY", "buy", 0.474481)
+    _reconciled(s, {"SPY": 0.346119})
+    _struck(s, {"TLT": 82.0})                   # SPY unmarked, so we see held
+    _proposed(s, "o", "SPY", 762.95, side="sell", qty=0.1)
+
+    v = marksanity.check(s, "o")
+    assert v["basis"] == "held_but_unpriced"
+    assert abs(v["held_qty"] - 0.346119) < 1e-9
+    assert abs(v["held_qty_from_fills"] - 0.474481) < 1e-9
+    assert v["held_qty"] != v["held_qty_from_fills"], (
+        "the fixture no longer contains a divergence, so it can no longer "
+        "prove which fold the verdict follows")
+    # The number the CEO reads is the one the fund actually holds.
+    assert "0.346119" in v["reason"]
+    assert "0.474481" not in v["reason"]
+
+
+def test_the_held_quantity_is_READ_from_the_projection_not_copied_from_fills():
+    """Move the value; the verdict must move with it.
+
+    An assertion that ``held_qty`` equals the projection's number cannot tell a
+    genuine read from a duplicate that happens to agree today. So the venue
+    number is MOVED across the branch boundary — 0 to 5 — with the fill history
+    held constant, and the verdict must flip from ALLOW to REFUSE. Nothing that
+    reads the fill-sum can produce this table.
+    """
+    seen = []
+    for venue_qty, expect_refuse, expect_basis in [
+            (0.0, False, "no_reference_new_symbol"),
+            (5.0, True, "held_but_unpriced")]:
+        s = MemStore()
+        _filled(s, "DBC", "buy", 8.122157)      # identical in both arms
+        _reconciled(s, {"DBC": venue_qty})
+        _struck(s, {"SPY": 762.95})
+        _proposed(s, "o", "DBC", 21.79, side="buy")
+        v = marksanity.check(s, "o")
+        assert v["refuse"] is expect_refuse and v["basis"] == expect_basis, (
+            f"venue_qty={venue_qty} gave {v['basis']}/{v['refuse']}")
+        seen.append(v["held_qty"])
+    assert seen == [0.0, 5.0], seen
+
+
+def test_an_unreadable_book_refuses_even_when_the_mark_agrees():
+    """Fail-closed, on the branch that does not read holdings at all.
+
+    A quote that agrees with the last strike would pass ``corroborated`` on its
+    own. It must still refuse when the book cannot be folded: the guard should
+    never approve while the fund's own holdings are unknown, and a projection
+    that raises means NAV cannot strike either, so the mark it agreed with is
+    going stale in the same minute. Stated plainly because it is a TIGHTENING.
+    """
+    s = MemStore()
+    _struck(s, {"GLD": 415.04})
+    s.add("OrderFilled", {"symbol": "GLD", "side": "buy",
+                          "filled_qty": 1.0})   # no avg_price -> fold raises
+    _proposed(s, "o", "GLD", 415.04)            # 0% move; would corroborate
+
+    v = marksanity.check(s, "o")
+    assert v["refuse"] is True
+    assert v["basis"] == "holdings_unreadable"
+
+
+def test_an_absent_holding_is_never_read_as_zero():
+    """`evaluate` is pure, so drive the exact absence the gatherer can produce.
+
+    The retired code said ``_num(facts.get("held_qty")) or 0.0``. That idiom
+    turns "the book was not read" into "the fund holds none", which is the
+    new-symbol branch, which APPROVES. Absence is never zero — and here that
+    non-negotiable is the difference between refusing and approving.
+    """
+    v = marksanity.evaluate({"symbol": "GLD", "quote_price": 415.04,
+                             "reference_mark": None, "held_qty": None})
+    assert v["refuse"] is True
+    assert v["basis"] == "holdings_unreadable"
+    assert v["basis"] != "no_reference_new_symbol"
+
+
+def test_the_fill_sum_is_a_diagnostic_and_no_branch_reads_it():
+    """Poison the diagnostic; every verdict must be byte-identical.
+
+    ``held_qty_from_fills`` is preserved beside the true number so a future
+    divergence is legible in the refusal record (the Clean Field Rule's
+    "annotate, never erase"). It is NOT an input, and this proves it: if any
+    branch ever starts reading it, one of these verdicts changes.
+    """
+    base = {"symbol": "GLD", "quote_price": 415.04, "reference_mark": None}
+    for held, poison in [(0.0, 8.122157), (0.0, -8.122157),
+                         (5.0, 0.0), (5.0, 999.0)]:
+        clean = marksanity.evaluate({**base, "held_qty": held,
+                                     "held_qty_from_fills": None})
+        dirty = marksanity.evaluate({**base, "held_qty": held,
+                                     "held_qty_from_fills": poison})
+        assert clean["refuse"] == dirty["refuse"]
+        assert clean["basis"] == dirty["basis"]
+        assert clean["reason"] == dirty["reason"]
+
+
+def test_a_broken_book_fold_does_not_crash_the_guard():
+    """A projection import or fold that explodes must REFUSE, never raise.
+
+    The endpoint calls this inside a request; an exception here would surface
+    as a 500 and the operator would learn nothing. The guard's contract is that
+    it can only ever narrow itself by failing.
+    """
+    class Exploding:
+        def stream(self, since_seq=0, limit=100_000):
+            # The gatherer's own pass must succeed, so this yields a valid
+            # proposal and then a fill the projection cannot fold.
+            return [
+                {"type": "OrderProposed", "aggregate_id": "o",
+                 "ts": "2026-08-24T12:00:00Z",
+                 "payload": {"symbol": "DBC", "side": "buy", "qty": 1.0,
+                             "impact_preview": {"quote_price": 21.79}}},
+                {"type": "OrderFilled", "aggregate_id": "f",
+                 "ts": "2026-08-24T12:01:00Z",
+                 "payload": {"symbol": "DBC", "side": "buy",
+                             "filled_qty": "not-a-number",
+                             "avg_price": "also-not-a-number"}},
+            ]
+
+    v = marksanity.check(Exploding(), "o")      # must not raise
+    assert v["refuse"] is True
+    assert v["basis"] == "holdings_unreadable"
+
+
+def test_the_repair_did_not_touch_the_bound_or_the_CEOs_flag():
+    """Two values this ticket was explicitly forbidden to move.
+
+    The bound is autopolicy's single constant; the flag is a versioned CEO
+    decision. A correctness repair of one INPUT must leave both exactly where
+    it found them, and a reviewer should be able to see that in one test.
+    """
+    import inspect
+    src = inspect.getsource(marksanity)
+    assert "MAX_MARK_MOVE_VS_STRIKE_PCT = " not in src
+    assert "from app.fund.autopolicy import MAX_MARK_MOVE_VS_STRIKE_PCT" in src
+    assert marksanity.NEW_SYMBOL_WITHOUT_REFERENCE_REFUSES is False
+    assert "NEW_SYMBOL_WITHOUT_REFERENCE_REFUSES = False" in src
 
 
 # --------------------------------------------------------- the endpoint -----
@@ -302,7 +582,8 @@ def test_the_approval_endpoint_refuses_and_records_the_refusal():
                              "positions": [{"symbol": "GLD", "mark": 415.04}]}},
                 {"type": "OrderFilled", "aggregate_id": "f",
                  "ts": "2026-08-20T07:40:00Z",
-                 "payload": {"symbol": "GLD", "side": "buy", "filled_qty": 1.0}},
+                 "payload": {"symbol": "GLD", "side": "buy", "filled_qty": 1.0,
+                             "avg_price": 415.04}},
                 {"type": "OrderProposed", "aggregate_id": "ord-gld",
                  "ts": "2026-08-20T08:00:00Z",
                  "payload": {"symbol": "GLD", "side": "sell", "qty": 1.0,
@@ -394,7 +675,8 @@ def test_the_endpoint_lets_a_corroborated_order_through():
                              "positions": [{"symbol": "GLD", "mark": 415.04}]}},
                 {"type": "OrderFilled", "aggregate_id": "f",
                  "ts": "2026-08-20T07:40:00Z",
-                 "payload": {"symbol": "GLD", "side": "buy", "filled_qty": 1.0}},
+                 "payload": {"symbol": "GLD", "side": "buy", "filled_qty": 1.0,
+                             "avg_price": 415.04}},
                 {"type": "OrderProposed", "aggregate_id": "ord-ok",
                  "ts": "2026-08-20T08:00:00Z",
                  "payload": {"symbol": "GLD", "side": "sell", "qty": 1.0,
