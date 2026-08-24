@@ -146,6 +146,40 @@ class EventType(str, Enum):
     # ignored ask is indistinguishable from an unseen one.
     DESK_REQUEST_DECLINED = "DeskRequestDeclined"
 
+    # THE TICKET HIGHWAY, slice 2 — docs/design/TICKET_HIGHWAY_V1_2026-08-24.md
+    # §2.1. Four types, deliberately few, and every one of them lands on a NEW
+    # aggregate_type ("ticket") rather than joining an existing lifecycle.
+    #
+    # THE D17 CHECKLIST, RUN RATHER THAN REMEMBERED — "a new event type on an
+    # existing aggregate is a lifecycle change until proven otherwise". These
+    # four are on a new aggregate type, so the question is the mirror one: does
+    # any fold read events WITHOUT switching on type or aggregate_type?
+    # Checked, one fold at a time, before the enum was touched:
+    #   * `desk._requests` switches on the four DeskRequest* values and ignores
+    #     everything else (desk.py:639-669);
+    #   * `desk._activity` switches on DeskDispatched / DeskRequestResolved;
+    #   * `projections/orders.py:48` drops any aggregate that is not "order",
+    #     so ORDER_ANNOTATION_EVENTS does not need a fifth member;
+    #   * `projections/nav.py` and `pipeline` switch on type throughout.
+    # `tests/test_tickets_doors.py::TestTheLegacyFoldsAreUntouched` asserts it
+    # by construction rather than by this comment: the same store folded with
+    # and without ticket events must produce byte-identical desk views.
+    #
+    # A ticket_id is the trace thread promoted to first class (§1.1), so a
+    # ticket event's aggregate_id CAN coincide with a desk_request aggregate_id
+    # — same string, different aggregate_type, and no fold joins on the string
+    # alone. That coincidence is the design's whole point and not an accident.
+    TICKET_OPENED = "TicketOpened"
+    TICKET_TRANSITIONED = "TicketTransitioned"
+    TICKET_LINKED = "TicketLinked"
+    # NO PRODUCER IN SLICE 2, AND THAT IS STATED RATHER THAN LEFT TO BE FOUND.
+    # Consumption receipts are appended by the chair's resolve pipeline when a
+    # lesson ticket is carried into a seat's brief (§1.5, slice 5). The fold
+    # READS this type from day one on purpose: a slice-5 producer appending an
+    # event no fold understands would be a phantom by construction, which is
+    # the exact failure this highway exists to end.
+    TICKET_CONSUMED = "TicketConsumed"
+
     # The fund's MODE changing hands (2026-08-22, CEO decision: "the UI needs
     # to give a toggle so I can switch"). A CONTROL, not a preference —
     # switching modes changes where real money-shaped orders go — so it is an
