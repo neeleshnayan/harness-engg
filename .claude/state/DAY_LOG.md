@@ -87,12 +87,33 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
   building; the blind rules on the proposal while the builder finishes the
   diff; nothing merges until it clears). Grace found one; the drain found
   four. Dispatched ~04:0xZ.
+- **The spine RESTARTED post-verdict** (held until the belt went terminal):
+  FUND_STORE=postgres, FUND_BAR_SNAPSHOT=0 (hang decision stands), health
+  green, /fund/execution/quality LIVE (readable:true, 34 rows — D35
+  switch-on ledger now served+filled; read waits on pack-v2/P5 wiring),
+  NBBO capture survived the restart window, D36 probes alive.
 - **O2 step 1 EXECUTED: the retro spread backfill ran** —
   `run-cto-retro-0824`, 34 rows stored in fund_execution_quotes, 31/34
   fills measured against real consolidated quotes (91.2%; 3 quote-absent
   recorded absent, never zero).
 
 **MEASURED**
+- **ENTRY 20 PASSED THE PREMIA GATE (candidate a9db39fdfab5,
+  announcement_premium, v5r3-premia) — the first full premia pass in firm
+  history, and the first pass of any kind under the excess-returns
+  machinery.** Excess sharpe_advantage +0.871 (raw 0.976 — the conversion
+  cost a tenth and it cleared by a mile); gross 0.9987 inside the
+  fail-closed ceiling; vol 14.0% vs 21.4%; DD 15.3% vs 23.9%; PSR 77.8
+  under the harsh construction; walkforward 8/9 retained (median 0.94,
+  fold 1 honestly refused on a negative train leg); 7,001 priced orders;
+  capacity $20.5M; rf-breakeven 48.9%/yr. FIVE CAVEATS FILED BESIDE IT
+  (run-cto-entry20-premia-resolve): survivor-only universe (direction
+  unknown; PIT corpus is the fix), cash-carry understatement
+  (conservative), PSR construction (conservative), COST REALISM (the one
+  that binds — breakeven is a >10bps floor read against flat 5bps assumed,
+  while the retro table measures 38-308bps on small names), null-distance
+  (+0.871 is ~17x the 0.05 noise band). E20-1 on the CEO's desk: the
+  human look; deploy path unchanged (his click). CEO push-notified.
 - **First cross-name execution numbers, SECOND-LOOK flagged: small-name
   effective spread is an order of magnitude above the assumption.** INTC
   mean 308bps (n=6), SOFI 38bps (n=7) vs ASSUMED_COST_BPS_PER_SIDE=5. The
