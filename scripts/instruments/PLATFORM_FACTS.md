@@ -89,3 +89,27 @@ the course instead of re-taking the exam.**
   `npm ci` in worktrees. Verified: D31.
 - **Google News RSS is relevance-ordered, not chronological**, links are
   redirect-wrapped, descriptions are empty anchors. Verified: Doc's harvest.
+
+## SEC EDGAR (data.sec.gov)
+
+- **`/api/xbrl/companyfacts/CIK##########.json` is free, keyless, and serves
+  the full XBRL statement history with a `filed` date on every fact** (META:
+  458 us-gaap concepts; Q2-2026 revenue fact carries filed=2026-07-30) — a
+  point-in-time fundamentals primary source. Requires a User-Agent header
+  with contact info. Verified: chair probe 2026-08-24. *Validation of
+  filed-vs-dissemination lag owed (the 57-day UPLOAD back-dating lesson).*
+
+## FMP (financialmodelingprep.com)
+
+- **The FREE tier serves `/stable/earnings-calendar` with FORWARD dates and
+  estimates** (NVDA 2026-08-26 with epsEstimated, lastUpdated same-day)
+  while price endpoints remain 402 Premium. The forward-calendar hole under
+  announcement_premium closes at zero cost, pending validation. Verified:
+  chair probe 2026-08-24.
+
+## FRED (with API key)
+
+- **The keyed API honors `realtime_start`/`realtime_end` correctly**: DFII10
+  queried at vintage 2022-06-01 served late-May-2022 values with correct
+  vintage windows — the point-in-time capability the keyless fredgraph.csv
+  silently lacks. Key lives in .env only. Verified: chair probe 2026-08-24.
