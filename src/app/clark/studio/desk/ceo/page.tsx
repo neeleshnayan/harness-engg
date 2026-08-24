@@ -33,7 +33,7 @@ import { BriefingsShelf, Fold, SupersessionNotice } from "../EngineViews";
 import { steeringSentence } from "../deskSteer";
 import {
   ClickFeedback, adjudicationOf, cardText, cascadeChip, cascadeOf,
-  looksUnreadable, rowLamp, supersededBy,
+  executionYours, looksUnreadable, rowLamp, supersededBy,
 } from "../cardState";
 import { deskLanes } from "../deskLanes";
 import type { LineageSources } from "../lineage";
@@ -257,6 +257,27 @@ export default function CeoDeskPage() {
      the ranking could not see must describe the rows on screen. */
   const cardItems = useMemo(
     () => list.all.flatMap((d) => (d.kind === "ask" ? [] : [d.item])), [list]);
+
+  /* THE SHELVES. CEO, 2026-08-24, on seeing "51 AWAITING YOU": "are you
+     sure?" — he was right. One number conflated four different obligations:
+     things to DECIDE today, things he already decided whose EXECUTION is
+     his, open ASKS on his figure only by the routing default (the P-2
+     decision on this very desk), and no-deadline reading. The hero number
+     stays the served total (the integrity fold above is untouched); this
+     line SHELVES it, computed from fields every row already carries — no
+     new count, a partition of the existing one. */
+  const shelves = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    let decideToday = 0, exec = 0, noDeadline = 0;
+    for (const it of cardItems) {
+      if (executionYours(it)) { exec += 1; continue; }
+      const due = it.dueDate;
+      if (due && due <= today) decideToday += 1;
+      else noDeadline += 1;
+    }
+    const asks = list.all.filter((d) => d.kind === "ask").length;
+    return { decideToday, exec, asks, noDeadline };
+  }, [cardItems, list]);
   const gap = useMemo(() => moneyGap(cardItems), [cardItems]);
   const coverage = useMemo(() => rankCoverage(cardItems), [cardItems]);
 
@@ -337,6 +358,17 @@ export default function CeoDeskPage() {
                 {headline.atLeast && "+"}
               </span>
               <span className={`${KT.label} pb-1`}>awaiting your decision</span>
+            </p>
+            {/* THE SHELF LINE — the honest partition of the hero number.
+                "51" alone reads as 51 decisions; the truth is four shelves
+                and only the first is this morning's. */}
+            <p className={`mt-1 text-sm ${KT.body}`}>
+              <span className={steer.overdue ? KT.sev.warn : "font-medium"}>
+                {shelves.decideToday} to decide today
+              </span>
+              {" · "}{shelves.exec} decided — execution yours
+              {" · "}{shelves.asks} asks awaiting your routing call
+              {" · "}{shelves.noDeadline} with no deadline
             </p>
             {/* THE ONE STEERING SENTENCE. Overdue is the single condition on
                 this desk that earns a colour, because it is the only one that
