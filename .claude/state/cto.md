@@ -1014,3 +1014,19 @@ per-run obs_per_year, one clock per payload, conventions disclosed as
 conversions. The clock is now FOUR-for-four in this family - promoted to
 PLATFORM_FACTS as the standing first check for any figure crossing the
 engine boundary.
+
+
+---
+
+## 2026-08-24 — THE MOCKUP-EXPECTATION MISS (CEO: "SO WHAT DID WE DO?")
+
+The chair showed the CEO ratified MOCKUPS, then dispatched D39 whose scope
+was the read-path REPAIR underneath them, then reported "the window is
+rebuilt" — letting plumbing wear the redesign's clothes. The visible delta
+on his page was truthful-but-subtle states; the beautiful cards never
+shipped. THE RULE: **when a design is ratified from a mockup, the very
+next dispatch on that surface builds THE LOOK, and every status report
+distinguishes 'the data is now truthful' from 'it looks like what you
+approved'.** D42 fired accordingly (card look only, one surface, ~1h,
+acceptance = the CEO SEES it). D41 (gate clause) runs in the other repo -
+disjoint, suites serialized. Reading Room D26 immediately after D42.
