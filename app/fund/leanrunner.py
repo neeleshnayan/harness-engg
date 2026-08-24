@@ -1542,9 +1542,11 @@ class LeanRunner:
             # because a premia payload that cannot be REBUILT from a stored
             # result is a payload no probe and no re-judgement can check — and
             # this fund verifies far more off stored results than off live runs.
-            # Measured cost: ~37 KB on a 118 KB result (a 1,937-day run,
-            # 2026-08-24), against a `daily_returns` block of 72 KB carried for
-            # the same reason.
+            # MEASURED, not estimated (candidate 331b61ee31b1, 2026-08-24):
+            # 42,490 bytes of invested weight — 1,937 dated readings — on a
+            # 117,544-byte result whose `daily_returns` block is already 71,944
+            # bytes and is carried for exactly the same reason. Reproduce with
+            # `len(json.dumps(invested_weights(charts)))`.
             "invested_weight": invested_weights(charts),
             "orders": _orders(best),
             # `daily` is handed in UNDOWNSAMPLED and before the thinning above,

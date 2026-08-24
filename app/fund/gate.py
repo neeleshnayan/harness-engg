@@ -550,11 +550,23 @@ def fmt_bps(x: float) -> str:
 #:     full    target-0, any level 50..99.9  100.0%        0.0%   HOLDS
 #:
 #: SO THE FALSIFIER DOES NOT FIRE, and the reason is worth more than the level:
-#: the luck filter was never what refused this population. Under the shipped bar
-#: 198 of 200 draws are refused, by `must_beat_benchmark` (194), the breakeven
-#: floor (194) and the fold count (189). The level is chosen by the ruling's
-#: rule — the LOWEST holding the invariant — which is 50.0, and at 50.0 this
-#: criterion asserts exactly one thing: the sample Sharpe is not negative.
+#: the luck filter is not what holds this population out. The refusal census
+#: under the shipped bar, PER WINDOW because the two do not agree and a single
+#: figure would hide it:
+#:
+#:     700d  198 of 200 refused — must_beat_benchmark 194, breakeven 194,
+#:           fold count 189, the engine hurdle 112, holdout unmeasurable 23
+#:     full  200 of 200 refused — the engine hurdle 200, fold count 199,
+#:           breakeven 193, must_beat_benchmark 191, holdout unmeasurable 11
+#:
+#: The engine hurdle DOES refuse, and over the long window it refuses
+#: everything — as a skill hurdle, which is what it is. What the table shows is
+#: that removing it costs the SYSTEM nothing, because three other criteria
+#: refuse the same draws for reasons that are true.
+#:
+#: The level is then chosen by the ruling's rule — the LOWEST holding the
+#: invariant — which is 50.0, and at 50.0 this criterion asserts exactly one
+#: thing: the sample Sharpe is not negative.
 #:
 #: WHAT WOULD CHANGE THIS DECISION'S MIND: a zero-skill population on which the
 #: full-gauntlet rate MOVES with this level (any market-neutral or short-capable
@@ -972,7 +984,20 @@ PREMIA_CRITERIA: dict[str, Any] = {
     # executed the correction blind against the Dirichlet zero-skill population
     # and measured the false-pass rate going 36.0% -> 50.5% on the 700-day
     # window and 30.5% -> 44.5% on the 2000-day one, with six of six zero-skill
-    # cash mixes moving from refused to passing. The cause is not the credit: it
+    # cash mixes moving from refused to passing.
+    #
+    # TWO INSTRUMENTS, TWO NUMBERS, ONE DIRECTION — said plainly, because a
+    # reader who finds 36.0 -> 50.5 here and 10.0 -> 40.5 in the
+    # `PREMIA_VERSION` note will reasonably think one of them is wrong. They are
+    # different constructions of the same population (ours draws the invested
+    # weight uniformly on [0.05, 1.0]; the reviewer's is their own) run by
+    # different people, and TWO HARNESSES AGREEING ON A SIGN IS WORTH MORE THAN
+    # ONE AGREEING WITH ITSELF. Neither is restated as the other's figure.
+    # One honest caveat on the reviewer's row: our pinned feed shares only 1,378
+    # sessions across this universe, so we could not reproduce a 2000-day
+    # geometry at all — that arm is unverified here, not disputed.
+    #
+    # The cause is not the credit: it
     # is that `premia_min_sharpe_advantage` is 0.0, a margin silently calibrated
     # AGAINST the uncredited bias — remove the bias and the strict inequality
     # has nothing left holding it up, at |advantage| around 0.01, five times
@@ -1055,7 +1080,8 @@ CRITERIA: dict[str, Any] = {
     # SHARPE MUST NOT BE NEGATIVE. That is a floor, not a discriminator, and the
     # v4 comment above already said the walk-forward criteria are what separates
     # signal here. The measurement now says the same of the benchmark and cost
-    # criteria: 194 of 200 draws refused by each, 189 by the fold count.
+    # criteria — the refusal census lives ONCE, in the `GATE_VERSION` v4.4 note,
+    # and is deliberately not restated here.
     "min_psr_pct": 50.0,
     # Sharpe on a handful of trades is a story about a handful of trades.
     "min_orders": 20,
@@ -1272,7 +1298,7 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
     annualised Sharpe of 1.34 to 1.51 on the four controls, stable within a
     window and moving when the window moves. It is a SKILL HURDLE wearing a luck
     filter's sentence, and our own module at target zero disagrees with it by
-    by 40x to 983x on the identical series, depending on the candidate.
+    40x to 983x on the identical series, depending on the candidate.
 
     TWO REAL CONFIGURATIONS, and the shipped one is chosen by measurement:
 
@@ -1303,7 +1329,10 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
     advantage can carry a modest absolute Sharpe; a beta-heavy book with no
     advantage at all can carry a large one. So the premia path scores the
     advantage series the belt measured (``premia_inputs["advantage"]``), whose
-    mean IS ``SR_s - SR_b``, with the same statistic and the same level.
+    mean IS ``SR_s - SR_b``, with the same statistic and its OWN level —
+    ``premia_min_luck_pct``, split from the alpha one because the two
+    statistics behave completely differently on the same population. The
+    measurement that forced the split is recorded beside that criterion.
 
     FAIL CLOSED, in both directions of absence. No series, no advantage block, a
     degenerate sample: the criterion is UNMEASURED, and an unmeasured criterion
@@ -1316,25 +1345,13 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
     # measurement that forced the split; reading the alpha level here would
     # apply a number calibrated on absolute Sharpe to a statistic about an
     # advantage, which is the same category error one layer down.
-    #
-    # A BAR THAT CANNOT STATE ITS OWN LEVEL HAS NOT BEEN APPLIED. `evaluate`
-    # merges defaults so this cannot fire from the ordinary path, but a caller
-    # handing in a criteria dict directly is a caller this must not raise on.
     raw_level = (pc.get("premia_min_luck_pct") if is_premia
                  else c.get("min_psr_pct"))
-    if not isinstance(raw_level, (int, float)) or isinstance(raw_level, bool):
-        return {"basis": basis, "measurable": False, "applied": True,
-                "level_pct": raw_level,
-                "reason": (f"the bar states no readable level for the luck "
-                           f"filter ({raw_level!r})")}, [
-            "the luck filter could not be applied: the bar states no readable "
-            "level for it — an unapplied criterion is not a passed one"]
-    level = float(raw_level)
     rb = result.get("robustness") or {}
     engine = rb.get("psr_pct")
     out: dict[str, Any] = {
         "basis": basis,
-        "level_pct": level,
+        "level_pct": raw_level,
         "claim_scope": "premia advantage" if is_premia else "strategy sharpe",
         # BOTH READINGS ON EVERY VERDICT, whichever one the criterion used.
         # Comparability is the whole reason the disagreement was found at all,
@@ -1353,6 +1370,22 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
         out["reason"] = ("this bar declines to apply the luck filter to a "
                          "premia claim (premia_require_luck_filter is off)")
         return out, []
+    # A BAR THAT CANNOT STATE ITS OWN LEVEL HAS NOT BEEN APPLIED. `evaluate`
+    # merges defaults so this cannot fire from the ordinary path, but a caller
+    # handing in a criteria dict directly is a caller this must not raise on.
+    #
+    # CHECKED AFTER THE OFF-SWITCH, deliberately: a criterion the bar declines
+    # to apply has no business refusing a candidate over the level it was never
+    # going to read. Found by reading the diff end to end — the first draft
+    # validated the level first and would have refused a DECLINED filter.
+    if not isinstance(raw_level, (int, float)) or isinstance(raw_level, bool):
+        out["reason"] = (f"the bar states no readable level for the luck "
+                         f"filter ({raw_level!r})")
+        return out, [
+            "the luck filter could not be applied: the bar states no readable "
+            "level for it — an unapplied criterion is not a passed one"]
+    level = float(raw_level)
+    out["level_pct"] = level
     if basis not in PSR_BASES:
         out["reason"] = (f"the bar names a luck-filter basis this gate does not "
                          f"implement ({basis!r}); it knows "

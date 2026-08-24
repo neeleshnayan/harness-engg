@@ -571,3 +571,17 @@ def test_a_bar_with_no_readable_level_refuses_rather_than_raising():
                    walkforward=CLEAN_WALK, criteria={"min_psr_pct": None})
     assert out["passed"] is False
     assert any("no readable level" in f for f in out["failures"])
+
+
+def test_a_DECLINED_filter_does_not_refuse_over_a_level_it_never_reads():
+    """The ordering the read-through caught.
+
+    A bar that declines to apply the luck filter has no business refusing a
+    candidate because that filter's level is unreadable. The first draft
+    validated the level BEFORE the off-switch and would have done exactly that.
+    """
+    res = _premia(-0.03)
+    out = judge(res, premia_require_luck_filter=False,
+                premia_min_luck_pct=None)
+    assert out["checks"]["luck"]["applied"] is False
+    assert out["passed"] is True, out["failures"]
