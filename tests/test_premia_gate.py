@@ -234,8 +234,25 @@ CLEAN_WALK = {"folds_measurable": 4, "folds_retained": 4,
 
 
 def judge(result, claim_type=None, **kw):
+    """Judge a fixture with the LUCK FILTER SCOPED OUT unless a test asks for it.
+
+    v4.4 added a luck filter on the premia ADVANTAGE, and it fires on fixtures
+    built to isolate something else entirely — the rf basis, the stress rate,
+    the cash symbol, a malformed payload. A fixture carrying a +0.23 advantage
+    over 600 observations is genuinely not distinguishable from zero, so the new
+    criterion is right to refuse it; what would be wrong is letting that refusal
+    decide twenty tests whose subject is a different criterion, because then a
+    change to EITHER one moves tests that never named it.
+
+    So the shared helper sets the luck level to 0 — off — and the tests that are
+    about the luck filter set it back explicitly and say so in their names. A
+    criterion scoped out on purpose is not a criterion weakened; the difference
+    is whether the test says which bar it is applying, and this one does.
+    """
+    pc = {"premia_require_luck_filter": False,
+          **(kw.pop("premia_criteria", None) or {})}
     return evaluate(result, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK,
-                    claim_type=claim_type, **kw)
+                    claim_type=claim_type, premia_criteria=pc, **kw)
 
 
 def premia_failures(verdict) -> list[str]:
@@ -247,16 +264,25 @@ def premia_failures(verdict) -> list[str]:
 
 # --- the alpha bar did not move ------------------------------------------
 
-def test_the_alpha_criteria_dict_is_byte_identical_to_v43():
+def test_the_alpha_criteria_dict_is_pinned_whole():
     """Every threshold, hardcoded — a test that reads CRITERIA cannot pin it.
 
     D16/D21: asserting `mine == CRITERIA[key]` cannot distinguish a hardcoded
     duplicate from a read, and a test parametrised by the constant it guards
-    moves with the constant. So the whole v4.3 bar is written out here, and any
-    edit to a threshold — in either direction — kills this test by name.
+    moves with the constant. So the whole bar is written out here, and any edit
+    to a threshold — in either direction — kills this test by name.
+
+    TWO DELIBERATE CHANGES IN v4.4, and they are the point of the version:
+    `psr_basis` is new (which luck statistic judges, recorded so a stored
+    verdict can say), and `min_psr_pct` moves 65.0 -> 50.0. The level is NOT a
+    loosening of the same bar — it is a level for a DIFFERENT statistic, chosen
+    by the calibration in the GATE_VERSION note under the invariant that
+    full-gauntlet zero-skill false passes may not rise. They did not: 1.0% at
+    both, on 200 draws.
     """
     assert CRITERIA == {
-        "min_psr_pct": 65.0,
+        "psr_basis": "target_zero_module",
+        "min_psr_pct": 50.0,
         "min_orders": 20,
         "must_beat_benchmark": True,
         "min_breakeven_bps": 10.0,
@@ -289,14 +315,17 @@ def test_no_premia_knob_leaked_into_the_alpha_bar():
         "premia_rf_stress_pct",
         "premia_require_majority_window_coverage",
         "premia_max_gross_exposure",
+        "premia_credit_idle_cash",
+        "premia_min_luck_pct",
+        "premia_require_luck_filter",
     }
 
 
 def test_the_two_version_stamps_are_pinned_and_move_together():
     """Hardcoded from both sides, per the D21 lesson about self-reading pins."""
-    assert PREMIA_VERSION == "v5r3"
-    assert GATE_VERSION_PREMIA == "v5r3-premia"
-    assert GATE_VERSION == "v4.3"
+    assert PREMIA_VERSION == "v5r4"
+    assert GATE_VERSION_PREMIA == "v5r4-premia"
+    assert GATE_VERSION == "v4.4"
 
 
 def test_the_shipped_rf_basis_is_the_realised_series_and_the_constant_is_4():
@@ -326,7 +355,7 @@ def test_an_alpha_verdict_is_unchanged_by_this_version(claim):
     strat = series_with_moments(R400, 18.0, 12.0, seed=5)
     bench = series_with_moments(R400, 9.0, 20.0, seed=6)
     out = judge(make_result(strat, bench), claim_type=claim)
-    assert out["gate_version"] == "v4.3"
+    assert out["gate_version"] == "v4.4"
     assert out["criteria"] == CRITERIA
     assert "premia" not in out["checks"]
     assert out["checks"]["claim_type"] == "alpha"
@@ -344,7 +373,7 @@ def test_an_unrecognised_claim_type_is_judged_as_alpha_AND_fails():
     strat = series_with_moments(R400, 40.0, 12.0, seed=5)
     bench = series_with_moments(R400, 9.0, 20.0, seed=6)
     out = judge(make_result(strat, bench), claim_type="premai")
-    assert out["gate_version"] == "v4.3"
+    assert out["gate_version"] == "v4.4"
     assert out["criteria"] == CRITERIA
     assert "premia" not in out["checks"]
     assert out["checks"]["claim_type_recognised"] is False
@@ -404,7 +433,7 @@ def test_the_cash_heavy_impersonator_fails_the_premia_bar():
     assert "no premium over owning the thing" in fails[0]
     assert "is CARRY" in fails[0], fails[0]
     assert "BIL paid 4.50%/yr" in fails[0], fails[0]
-    assert out["gate_version"] == "v5r3-premia"
+    assert out["gate_version"] == "v5r4-premia"
 
 
 def test_the_same_impersonator_PASSES_when_the_world_pays_less_than_it_earns():
@@ -495,7 +524,7 @@ def test_a_genuine_vol_scaler_clears_the_premia_bar():
     assert p["sharpe_advantage_raw"] > 0
     assert premia_failures(out) == [], out["failures"]
     assert out["passed"] is True
-    assert out["gate_version"] == "v5r3-premia"
+    assert out["gate_version"] == "v5r4-premia"
 
 
 def test_the_VOLSCALE_archetype_fails_the_rf_stress_AND_THAT_IS_THE_FINDING():
@@ -1150,7 +1179,7 @@ def test_a_malformed_stored_payload_fails_the_leg_and_never_raises():
     assert "max_drawdown_pct" in out["checks"]["premia"]["reason"]
     assert out["passed"] is False
     # And the rest of the gauntlet still ran: this failed ONE criterion.
-    assert out["gate_version"] == "v5r3-premia"
+    assert out["gate_version"] == "v5r4-premia"
     assert out["checks"]["psr_pct"] == 92.0
     # The volatility field reads the SAME payload and must not raise either —
     # it runs on every verdict, alpha ones included, purely to be looked at.
@@ -1449,7 +1478,7 @@ def test_an_ALPHA_verdict_does_not_read_the_exposure_capture_at_all():
     withx = judge(make_result(strat, bench, gross=3.0))
     assert without["failures"] == withx["failures"]
     assert without["passed"] == withx["passed"]
-    assert without["gate_version"] == "v4.3"
+    assert without["gate_version"] == "v4.4"
     assert "premia" not in without["checks"]
 
 
