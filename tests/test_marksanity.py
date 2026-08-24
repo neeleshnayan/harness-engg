@@ -558,6 +558,35 @@ def test_a_broken_book_fold_does_not_crash_the_guard():
     assert v["basis"] == "holdings_unreadable"
 
 
+def test_the_held_or_not_boundary_is_probed_on_both_sides_of_1e_9():
+    """The held/not-held classification, at the exact boundary value.
+
+    ``abs(held) > 1e-9`` predates this ticket, but its INPUT did not: the number
+    now arrives from a Decimal fold that a reconciliation can set to any value,
+    rather than from a float sum of fills. A boundary this diff re-aimed
+    deserves a table rather than an inference, and the comparison is STRICT, so
+    exactly 1e-9 is NOT held — the one value an off-by-one would move.
+
+    Driven through ``evaluate`` deliberately: the boundary lives in the pure
+    function, and a store fixture could not put a float at exactly 1e-9 without
+    going through Decimal rounding that would obscure which value was tested.
+    """
+    base = {"symbol": "GLD", "quote_price": 100.0, "reference_mark": None}
+    table = [
+        (0.0,      False, "no_reference_new_symbol"),   # flat
+        (1e-9,     False, "no_reference_new_symbol"),   # AT the bound: not held
+        (-1e-9,    False, "no_reference_new_symbol"),   # and symmetric
+        (1.001e-9, True,  "held_but_unpriced"),         # just past it
+        (-1.001e-9, True, "held_but_unpriced"),         # short, just past it
+        (8.122157, True,  "held_but_unpriced"),         # a real position
+    ]
+    for held, expect_refuse, expect_basis in table:
+        v = marksanity.evaluate({**base, "held_qty": held})
+        assert v["refuse"] is expect_refuse and v["basis"] == expect_basis, (
+            f"held={held!r} gave {v['basis']}/{v['refuse']}, expected "
+            f"{expect_basis}/{expect_refuse}")
+
+
 def test_the_absence_branches_claim_only_what_they_READ_never_never():
     """No branch may say "never" about the strike history. It reads ONE strike.
 
