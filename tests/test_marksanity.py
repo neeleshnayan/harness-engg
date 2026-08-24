@@ -341,10 +341,22 @@ def test_a_fill_with_no_avg_price_cannot_be_folded_so_the_guard_refuses():
 
 # ------------------------------------- the venue sync (ticket d79f65b1) -----
 #
-# Every fixture below is built from the fund's own state at the reconciliation
-# of 2026-08-24T12:36:46Z (seq 1414), measured before the repair. At that one
-# event the guard's fill-sum and the fund's true book disagreed about NINE of
-# eleven symbols, in BOTH directions — and the guard was wrong in both.
+# Every fixture below is built from the fund's own live numbers, measured before
+# the repair — but from TWO readings, and each test says which it uses, because
+# conflating them is how a fixture starts describing a state that never existed:
+#
+#   * AT THE SYNC (2026-08-24T12:36:46Z, seq 1414). Of the eleven symbols either
+#     fold mentions, NINE were classified differently by the two — held by one
+#     and not the other, which is the disagreement that changes a branch. F was
+#     flat in both. SPY was held in both, at 0.346119 (fills) against 0.217757
+#     (book) — a quantity disagreement that changes no branch.
+#   * AT HEAD (after the sync and after R39's sells). SPY reads 0.474481 (fills)
+#     against 0.346119 (book); the six adopted symbols have since been sold, so
+#     their fill-sums are now NEGATIVE — the same phantom wearing a minus sign.
+#
+# The SPY test below uses the HEAD reading and says so. Corroborated
+# independently of this file: venuesync.py:24, autopolicy.py:104,
+# strategy.py:203 ("SPY 0.346119 -> 0.217757") and rebalance.py:58.
 
 
 def test_a_position_erased_by_the_sync_is_NOT_held_and_the_repurchase_proceeds():
