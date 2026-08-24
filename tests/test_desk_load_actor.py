@@ -193,7 +193,20 @@ class TestDeskLoadCountsCeoWork:
         # explicit rather than implied by a different number.
         assert sum(1 for r in feed if r.get("status") in (None, "open")) == 17
         assert load["components"]["open_recommendations"] == 12
-        assert load["total"] == 13
+        # 13 UNTIL 2026-08-24, WHEN THE OPEN DESK REQUEST LEFT THIS TOTAL.
+        # The incident is unchanged and still pinned: the RECOMMENDATION leg is
+        # 12, not the 17 the status label would have given, and that is the
+        # regression this test was written to stop. What moved is the separate
+        # request leg — see `desk.OPEN_REQUEST_ACTOR` for the two non-circular
+        # measurements (28 of 49 resolved requests were never approved; 11 of
+        # 11 open ones were filed by the chair or the operator). The row is
+        # still counted, still published, and now named in the exclusions,
+        # which is asserted below so it cannot become genuinely invisible.
+        assert load["total"] == 12
+        assert load["components"]["requests_awaiting_approval"] == 1
+        assert "requests_awaiting_approval" in load["excluded_from_total"]
+        assert load["requests_by_actor"]["chair"] == 1
+        assert load["requests_by_actor"]["ceo"] == 0
         assert load["by_actor"]["chair"] == 71     # 68 decided + 3 engineering
         assert load["by_actor"]["seat"] == 1
         assert load["by_actor"]["nobody"] == 1
@@ -224,12 +237,51 @@ class TestDeskLoadCountsCeoWork:
         assert load["total"] == 2
         assert "could not be determined" in load["note"]
 
-    def test_the_total_is_still_the_sum_of_its_named_components(self):
+    def test_the_total_is_the_sum_of_its_counted_components(self):
+        """Every component is PUBLISHED; the total sums the ones whose next
+        actor is the CEO. The gap between the two must be nameable in one
+        field, or the number becomes a thing only this file's history explains.
+        """
         load = desk_mod.desk_load([{}] * 4, [{}] * 3, [{}] * 2)
         assert load["components"] == {"open_recommendations": 4,
                                       "pending_orders": 3,
                                       "requests_awaiting_approval": 2}
-        assert load["total"] == 9
+        assert load["total"] == 7
+        # THE ARITHMETIC IS CLOSED: everything published either counts or is
+        # named as excluded. A component that were neither would be a row that
+        # left the CEO's figure with no record of leaving, which is the one
+        # move this module forbids itself.
+        counted = load["total"]
+        excluded = sum(load["components"][k] for k in load["excluded_from_total"]
+                       if k in load["components"])
+        assert counted + excluded == sum(
+            v for v in load["components"].values() if v is not None)
+
+    def test_an_open_request_is_the_chairs_move_not_the_ceos(self):
+        """P-2 / H-2, 2026-08-24. DIRECTION: LOOSENING — this takes rows off
+        the CEO's figure, so the COO triage trigger fires later.
+
+        The old rule said an open desk request awaits the CEO, citing "all 25
+        DeskRequestApproved events carry `ceo` or a via-chair identity". That
+        is circular: `DESK_APPROVAL_ALLOWLIST` admits nobody else, so the ratio
+        restates the allowlist. The measurement that is NOT circular is that 28
+        of the 49 requests resolved in the live log window carry no approval
+        event at all — the modal path is the chair picking it up.
+        """
+        assert desk_mod.open_request_actor("open") == "chair"
+        assert desk_mod.open_request_actor("approved") == "chair"
+        assert desk_mod.open_request_actor(None) == "chair"
+        # Terminal is nobody's move — the same rule `next_actor` applies to a
+        # terminal recommendation, so a served request cannot sit on a queue.
+        assert desk_mod.open_request_actor("resolved") == "nobody"
+        assert desk_mod.open_request_actor("declined") == "nobody"
+        # And the counter agrees with the router: no open request reaches the
+        # CEO's total by any path.
+        load = desk_mod.desk_load([], [], [{"status": "open"},
+                                           {"status": "approved"}])
+        assert load["total"] == 0
+        assert load["requests_by_actor"] == {"ceo": 0, "chair": 2, "seat": 0,
+                                             "nobody": 0, "unknown": 0}
 
     def test_an_unreadable_component_still_makes_the_total_a_floor(self):
         load = desk_mod.desk_load([{}] * 4, None, [{}])

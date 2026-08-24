@@ -19,7 +19,13 @@
         "kind": "some-kind-nobody-registered",
         "next_actor_resolved": "ceo",
         "next_actor_basis": "default",
-        "next_actor_why": "undecided, and nothing routes it elsewhere — a recommendation awaiting a decision awaits the CEO's"
+        "next_actor_why": "undecided, and nothing routes it elsewhere — a recommendation awaiting a decision awaits the CEO's",
+        "text_display": "open row, kind nobody has seen",
+        "text_basis": "verbatim",
+        "execution_yours": false,
+        "desk_stage": "awaiting_decision",
+        "adjudication": null,
+        "superseded_by": null
       },
       "expect": {
         "next_actor_resolved": "ceo",
@@ -43,7 +49,13 @@
         "kind": "harness_gap",
         "next_actor_resolved": "chair",
         "next_actor_basis": "kind",
-        "next_actor_why": "kind 'harness_gap' routes to the chair"
+        "next_actor_why": "kind 'harness_gap' routes to the chair",
+        "text_display": "open row, engineering kind",
+        "text_basis": "verbatim",
+        "execution_yours": false,
+        "desk_stage": "owned_elsewhere",
+        "adjudication": null,
+        "superseded_by": null
       },
       "expect": {
         "next_actor_resolved": "chair",
@@ -67,7 +79,13 @@
         "kind": "handoff_to_mechanism",
         "next_actor_resolved": "seat",
         "next_actor_basis": "kind",
-        "next_actor_why": "kind 'handoff_to_mechanism' names its own recipient — a seat-to-seat handoff is not the CEO's load"
+        "next_actor_why": "kind 'handoff_to_mechanism' names its own recipient — a seat-to-seat handoff is not the CEO's load",
+        "text_display": "open row, seat-to-seat handoff",
+        "text_basis": "verbatim",
+        "execution_yours": false,
+        "desk_stage": "owned_elsewhere",
+        "adjudication": null,
+        "superseded_by": null
       },
       "expect": {
         "next_actor_resolved": "seat",
@@ -91,7 +109,13 @@
         "kind": "no_action",
         "next_actor_resolved": "nobody",
         "next_actor_basis": "kind",
-        "next_actor_why": "kind 'no_action' routes to the nobody"
+        "next_actor_why": "kind 'no_action' routes to the nobody",
+        "text_display": "open row, nothing is owed",
+        "text_basis": "verbatim",
+        "execution_yours": false,
+        "desk_stage": "owned_elsewhere",
+        "adjudication": null,
+        "superseded_by": null
       },
       "expect": {
         "next_actor_resolved": "nobody",
@@ -116,7 +140,13 @@
         "next_actor": "ceo",
         "next_actor_resolved": "ceo",
         "next_actor_basis": "explicit",
-        "next_actor_why": "the row states its next actor is the ceo"
+        "next_actor_why": "the row states its next actor is the ceo",
+        "text_display": "ACCEPTED row whose execution is the CEO'S OWN — the kill",
+        "text_basis": "verbatim",
+        "execution_yours": true,
+        "desk_stage": "awaiting_decision",
+        "adjudication": null,
+        "superseded_by": null
       },
       "expect": {
         "next_actor_resolved": "ceo",
@@ -141,7 +171,13 @@
         "next_actor": "ceo",
         "next_actor_resolved": "ceo",
         "next_actor_basis": "explicit",
-        "next_actor_why": "the row states its next actor is the ceo"
+        "next_actor_why": "the row states its next actor is the ceo",
+        "text_display": "STAGED row whose execution is the CEO's own",
+        "text_basis": "verbatim",
+        "execution_yours": true,
+        "desk_stage": "awaiting_decision",
+        "adjudication": null,
+        "superseded_by": null
       },
       "expect": {
         "next_actor_resolved": "ceo",
@@ -166,7 +202,13 @@
         "next_actor": "Whoever",
         "next_actor_resolved": "unknown",
         "next_actor_basis": "explicit_unrecognised",
-        "next_actor_why": "the row states next_actor='Whoever', which is not one of ('ceo', 'chair', 'seat', 'nobody', 'unknown') — an unreadable claim is UNKNOWN, not an excuse to fall back to a guess"
+        "next_actor_why": "the row states next_actor='Whoever', which is not one of ('ceo', 'chair', 'seat', 'nobody', 'unknown') — an unreadable claim is UNKNOWN, not an excuse to fall back to a guess",
+        "text_display": "accepted row with an UNREADABLE explicit actor",
+        "text_basis": "verbatim",
+        "execution_yours": true,
+        "desk_stage": "awaiting_decision",
+        "adjudication": null,
+        "superseded_by": null
       },
       "expect": {
         "next_actor_resolved": "unknown",
@@ -190,7 +232,13 @@
         "kind": "process",
         "next_actor_resolved": "chair",
         "next_actor_basis": "lifecycle",
-        "next_actor_why": "status 'accepted' means the CEO has already decided; what remains is the chair's to execute"
+        "next_actor_why": "status 'accepted' means the CEO has already decided; what remains is the chair's to execute",
+        "text_display": "accepted row, no explicit actor",
+        "text_basis": "verbatim",
+        "execution_yours": false,
+        "desk_stage": "awaiting_execution",
+        "adjudication": null,
+        "superseded_by": null
       },
       "expect": {
         "next_actor_resolved": "chair",
@@ -214,7 +262,13 @@
         "kind": "retire",
         "next_actor_resolved": "chair",
         "next_actor_basis": "lifecycle",
-        "next_actor_why": "status 'staged' means the CEO has already decided; what remains is the chair's to execute"
+        "next_actor_why": "status 'staged' means the CEO has already decided; what remains is the chair's to execute",
+        "text_display": "staged row, no explicit actor",
+        "text_basis": "verbatim",
+        "execution_yours": false,
+        "desk_stage": "awaiting_execution",
+        "adjudication": null,
+        "superseded_by": null
       },
       "expect": {
         "next_actor_resolved": "chair",
@@ -239,7 +293,13 @@
         "next_actor": "seat",
         "next_actor_resolved": "seat",
         "next_actor_basis": "explicit",
-        "next_actor_why": "the row states its next actor is the seat"
+        "next_actor_why": "the row states its next actor is the seat",
+        "text_display": "accepted row explicitly owned by a seat",
+        "text_basis": "verbatim",
+        "execution_yours": false,
+        "desk_stage": "awaiting_execution",
+        "adjudication": null,
+        "superseded_by": null
       },
       "expect": {
         "next_actor_resolved": "seat",
@@ -264,7 +324,13 @@
         "next_actor": "chair",
         "next_actor_resolved": "chair",
         "next_actor_basis": "explicit",
-        "next_actor_why": "the row states its next actor is the chair"
+        "next_actor_why": "the row states its next actor is the chair",
+        "text_display": "open row explicitly handed to the chair",
+        "text_basis": "verbatim",
+        "execution_yours": false,
+        "desk_stage": "owned_elsewhere",
+        "adjudication": null,
+        "superseded_by": null
       },
       "expect": {
         "next_actor_resolved": "chair",
@@ -288,7 +354,13 @@
         "kind": "process",
         "next_actor_resolved": "unknown",
         "next_actor_basis": "status_unrecognised",
-        "next_actor_why": "status 'in-progress-ish' is outside the known vocabulary, so whether a decision is outstanding cannot be read"
+        "next_actor_why": "status 'in-progress-ish' is outside the known vocabulary, so whether a decision is outstanding cannot be read",
+        "text_display": "status outside the vocabulary",
+        "text_basis": "verbatim",
+        "execution_yours": false,
+        "desk_stage": "awaiting_decision",
+        "adjudication": null,
+        "superseded_by": null
       },
       "expect": {
         "next_actor_resolved": "unknown",
@@ -311,7 +383,13 @@
         "kind": "process",
         "next_actor_resolved": "ceo",
         "next_actor_basis": "default",
-        "next_actor_why": "undecided, and nothing routes it elsewhere — a recommendation awaiting a decision awaits the CEO's"
+        "next_actor_why": "undecided, and nothing routes it elsewhere — a recommendation awaiting a decision awaits the CEO's",
+        "text_display": "row with no status at all",
+        "text_basis": "verbatim",
+        "execution_yours": false,
+        "desk_stage": "awaiting_decision",
+        "adjudication": null,
+        "superseded_by": null
       },
       "expect": {
         "next_actor_resolved": "ceo",
@@ -335,7 +413,13 @@
         "kind": "record_keeping",
         "next_actor_resolved": "ceo",
         "next_actor_basis": "default",
-        "next_actor_why": "undecided, and nothing routes it elsewhere — a recommendation awaiting a decision awaits the CEO's"
+        "next_actor_why": "undecided, and nothing routes it elsewhere — a recommendation awaiting a decision awaits the CEO's",
+        "text_display": "SECRETARY note — the second divergence, found BY this contract",
+        "text_basis": "verbatim",
+        "execution_yours": false,
+        "desk_stage": "awaiting_decision",
+        "adjudication": null,
+        "superseded_by": null
       },
       "expect": {
         "next_actor_resolved": "ceo",
@@ -362,7 +446,13 @@
         "next_actor": "ceo",
         "next_actor_resolved": "nobody",
         "next_actor_basis": "lifecycle",
-        "next_actor_why": "status 'rejected' is terminal — nothing follows it, and no label may claim otherwise"
+        "next_actor_why": "status 'rejected' is terminal — nothing follows it, and no label may claim otherwise",
+        "text_display": "terminal row (rejected)",
+        "text_basis": "verbatim",
+        "execution_yours": false,
+        "desk_stage": "owned_elsewhere",
+        "adjudication": null,
+        "superseded_by": null
       },
       "expect": {
         "next_actor_resolved": "nobody",
@@ -386,7 +476,13 @@
         "next_actor": "ceo",
         "next_actor_resolved": "nobody",
         "next_actor_basis": "lifecycle",
-        "next_actor_why": "status 'done' is terminal — nothing follows it, and no label may claim otherwise"
+        "next_actor_why": "status 'done' is terminal — nothing follows it, and no label may claim otherwise",
+        "text_display": "terminal row (done)",
+        "text_basis": "verbatim",
+        "execution_yours": false,
+        "desk_stage": "owned_elsewhere",
+        "adjudication": null,
+        "superseded_by": null
       },
       "expect": {
         "next_actor_resolved": "nobody",
@@ -410,7 +506,13 @@
         "next_actor": "ceo",
         "next_actor_resolved": "nobody",
         "next_actor_basis": "lifecycle",
-        "next_actor_why": "status 'noted' is terminal — nothing follows it, and no label may claim otherwise"
+        "next_actor_why": "status 'noted' is terminal — nothing follows it, and no label may claim otherwise",
+        "text_display": "terminal row (noted)",
+        "text_basis": "verbatim",
+        "execution_yours": false,
+        "desk_stage": "owned_elsewhere",
+        "adjudication": null,
+        "superseded_by": null
       },
       "expect": {
         "next_actor_resolved": "nobody",
@@ -447,5 +549,5 @@
     "decided_awaiting_execution": 3,
     "explicit_next_actor": 4
   },
-  "digest": "0fdfb5123edf0ab0188ef09acadba87b8adc3ef6c72e2bc6a16499a0a5bdb593"
+  "digest": "c49516837a6a0033a65eae5be03a698d7c54a925827b3bab20f1a5f121d17fc2"
 }

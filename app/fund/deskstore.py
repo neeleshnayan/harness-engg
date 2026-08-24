@@ -318,11 +318,37 @@ class DeskStore:
         ``tokens`` moved, and omitting ``tokens`` blanked it — the flight
         recorder was losing exactly the corrections it was being sent.
         """
+        from app.fund.deskcard import (card_text, normalise_members,
+                                       recommendation_text)
+
         recs = []
         for i, r in enumerate(recommendations or [], 1):
+            # P-1, MEASURED (2026-08-24, GET /fund/desk): 2 of 227 rows on the
+            # CEO's live desk rendered as a raw Python dict repr — `run-cfo-8`
+            # recs 1 and 2, both `accepted`, both filed with a `title` key and
+            # no `text` key. The old line was `str(r.get("text") or r)`, so a
+            # payload that named its display field anything else stored its own
+            # `{'id': 'O4', 'title': ...}` as the sentence he reads. The seats
+            # were not wrong; the door was.
+            parts = card_text(r)
             recs.append({"rec_id": i, "seat": seat, "status": "open",
                          "trace_id": trace_id,
-                         "text": str(r.get("text") or r).strip(),
+                         "text": recommendation_text(r),
+                         # THE REST OF THE PAYLOAD, KEPT. Extracting a headline
+                         # must not delete the paragraph it was extracted from
+                         # — the card renders this behind the details toggle.
+                         # Absent (not "") when the filing carried no detail.
+                         **({"detail": parts["detail"]}
+                            if parts["detail"] else {}),
+                         # THE CASCADE RULE'S MISSING FIELD (constitution
+                         # 2026-08-21: "a batch acceptance CASCADES"). Written
+                         # as governance, never given a column, so "did the
+                         # cascade happen" had no query for three days short of
+                         # a week. Optional; a row without it is an ordinary
+                         # recommendation and reads exactly as it did.
+                         **({"members": normalise_members(r.get("members"))}
+                            if isinstance(r, dict)
+                            and normalise_members(r.get("members")) else {}),
                          "kind": r.get("kind") if isinstance(r, dict) else None,
                          # OPTIONAL. 47 of 47 open recommendations carried no
                          # dollar figure, so the CEO's desk ranked its queue by

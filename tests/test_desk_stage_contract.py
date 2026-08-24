@@ -116,7 +116,12 @@ class TestTheContractStillDescribesTheCode:
         assert r.returncode == 0, (
             f"`gen_desk_contract.py --check` says the checked-in contract is "
             f"stale:\n{r.stdout}\n{r.stderr}")
-        assert "OK digest" in r.stdout
+        # BOTH contracts in one command since 2026-08-24 — the card contract
+        # joined the stage contract, and checking them separately would let one
+        # be regenerated while the other went quietly stale, which is the drift
+        # this whole mechanism exists to make impossible.
+        assert "OK desk_stage_contract.v1.json digest" in r.stdout
+        assert "OK desk_card_contract.v1.json digest" in r.stdout
         assert CONTRACT_PATH.read_bytes() == before, (
             "--check must never write; a checker that edits its subject "
             "cannot fail")
