@@ -33,7 +33,7 @@ test("THE LIVE SHAPE: the served counter is what renders, less the known notes",
   // 2026-08-23, hardcoded: desk_load.total 97, one secretary note diverted,
   // 96 cards below. The header used to say 96 and the chip 97.
   const h = awaitingHeadline({
-    deskReadable: true, servedTotal: 97, servedComplete: true,
+    read: "readable", servedTotal: 97, servedComplete: true,
     divertedNotes: 1, cardCount: 96,
   });
   assert.equal(h.value, 96, "the figure is the fund's 97 less the one note");
@@ -52,11 +52,11 @@ test("THE LIVE SHAPE: the served counter is what renders, less the known notes",
 
 test("the singular and plural adjustments both read as English", () => {
   const one = awaitingHeadline({
-    deskReadable: true, servedTotal: 10, servedComplete: true,
+    read: "readable", servedTotal: 10, servedComplete: true,
     divertedNotes: 1, cardCount: 9,
   }).note!;
   const many = awaitingHeadline({
-    deskReadable: true, servedTotal: 10, servedComplete: true,
+    read: "readable", servedTotal: 10, servedComplete: true,
     divertedNotes: 3, cardCount: 7,
   }).note!;
   assert.match(one, /one row .* a note from Donna, which asks to be read/);
@@ -67,7 +67,7 @@ test("the singular and plural adjustments both read as English", () => {
 
 test("no notes to divert: the served figure is rendered verbatim and needs no gloss", () => {
   const h = awaitingHeadline({
-    deskReadable: true, servedTotal: 42, servedComplete: true,
+    read: "readable", servedTotal: 42, servedComplete: true,
     divertedNotes: 0, cardCount: 42,
   });
   assert.equal(h.value, 42);
@@ -81,7 +81,7 @@ test("no notes to divert: the served figure is rendered verbatim and needs no gl
 test("a spine with no counter falls back to the page fold AND SAYS SO", () => {
   for (const served of [undefined, null, Number.NaN]) {
     const h = awaitingHeadline({
-      deskReadable: true, servedTotal: served as number | null | undefined,
+      read: "readable", servedTotal: served as number | null | undefined,
       divertedNotes: 3, cardCount: 11,
     });
     assert.equal(h.value, 11, "the cards are the fallback figure");
@@ -95,7 +95,7 @@ test("a spine with no counter falls back to the page fold AND SAYS SO", () => {
 
 test("an unreadable desk is UNKNOWN, never zero", () => {
   const h = awaitingHeadline({
-    deskReadable: false, servedTotal: 5, divertedNotes: 0, cardCount: 0,
+    read: "unreadable", servedTotal: 5, divertedNotes: 0, cardCount: 0,
   });
   assert.equal(h.value, null, "null, not 0 — absence is never zero");
   assert.equal(h.source, "unknown");
@@ -104,7 +104,7 @@ test("an unreadable desk is UNKNOWN, never zero", () => {
 
 test("an incomplete count is a FLOOR and names what could not be read", () => {
   const h = awaitingHeadline({
-    deskReadable: true, servedTotal: 12, servedComplete: false,
+    read: "readable", servedTotal: 12, servedComplete: false,
     servedUnreadable: ["pending_orders", "requests"],
     divertedNotes: 0, cardCount: 12,
   });
@@ -116,7 +116,7 @@ test("an incomplete count is a FLOOR and names what could not be read", () => {
 
 test("an unreadable list that is absent does not fabricate an empty one", () => {
   const h = awaitingHeadline({
-    deskReadable: true, servedTotal: 12, servedComplete: false,
+    read: "readable", servedTotal: 12, servedComplete: false,
     servedUnreadable: null, divertedNotes: 0, cardCount: 12,
   });
   assert.equal(h.atLeast, true);
@@ -132,7 +132,7 @@ test("the adjustment may only REMOVE, and is REFUSED rather than clamped", () =>
   // More notes diverted than the fund counts as awaiting: the two folds
   // disagree about which rows exist. A clamp to zero would hide that.
   const h = awaitingHeadline({
-    deskReadable: true, servedTotal: 2, servedComplete: true,
+    read: "readable", servedTotal: 2, servedComplete: true,
     divertedNotes: 5, cardCount: 2,
   });
   assert.equal(h.value, 2, "unadjusted — the subtraction was refused, not applied");
@@ -144,7 +144,7 @@ test("the adjustment may only REMOVE, and is REFUSED rather than clamped", () =>
 
 test("an adjustment exactly equal to the total is applied, and reaches zero honestly", () => {
   const h = awaitingHeadline({
-    deskReadable: true, servedTotal: 3, servedComplete: true,
+    read: "readable", servedTotal: 3, servedComplete: true,
     divertedNotes: 3, cardCount: 0,
   });
   assert.equal(h.value, 0, "zero because it was measured, not because it was absent");
@@ -159,7 +159,7 @@ test("a nonsensical served figure is SHOWN and shouted about, not repaired", () 
    * silently clamping to 0, which would present a repaired number as if the
    * spine had produced it. Never fabricate; report. */
   const h = awaitingHeadline({
-    deskReadable: true, servedTotal: -3, servedComplete: true,
+    read: "readable", servedTotal: -3, servedComplete: true,
     divertedNotes: 1, cardCount: 0,
   });
   assert.equal(h.value, -3, "shown as served, unadjusted");
@@ -171,7 +171,7 @@ test("a nonsensical served figure is SHOWN and shouted about, not repaired", () 
 
 test("a residual disagreement is LOUD and points at the larger number", () => {
   const h = awaitingHeadline({
-    deskReadable: true, servedTotal: 9, servedComplete: true,
+    read: "readable", servedTotal: 9, servedComplete: true,
     divertedNotes: 1, cardCount: 6,
   });
   assert.equal(h.value, 8);
@@ -191,7 +191,7 @@ test("the reconciliation sentence is countCheck's, not a second copy of it", () 
   ];
   for (const c of cases) {
     const h = awaitingHeadline({
-      deskReadable: true, servedTotal: c.served, servedComplete: true,
+      read: "readable", servedTotal: c.served, servedComplete: true,
       divertedNotes: c.notes, cardCount: c.cards,
     });
     const applied = c.notes > 0 && c.notes <= c.served ? c.notes : 0;
@@ -208,7 +208,7 @@ test("the refused case reconciles against the figure ON SCREEN, not the unapplie
   // disagreement is 2-vs-4. Reconciling against 2−5=−3 would report a
   // disagreement of 7 about a number nobody can see.
   const h = awaitingHeadline({
-    deskReadable: true, servedTotal: 2, servedComplete: true,
+    read: "readable", servedTotal: 2, servedComplete: true,
     divertedNotes: 5, cardCount: 4,
   });
   assert.equal(h.value, 2);
@@ -231,7 +231,7 @@ test("the UNKNOWN sentence appears exactly once on the page", () => {
    * new `headline.note` and the decision section's pre-existing copy rendered
    * the same sentence 300px apart. One sentence, one owner. */
   const h = awaitingHeadline({
-    deskReadable: false, divertedNotes: 0, cardCount: 0,
+    read: "unreadable", divertedNotes: 0, cardCount: 0,
   });
   const marker = "UNKNOWN, not none";
   assert.ok(h.note!.includes(marker), "the fold owns the sentence");
@@ -294,34 +294,34 @@ const shelfItem = (dueDate: string | null, executionYours = false) =>
 test("D42: AN UNREADABLE DESK HAS NO SHELVES — null, so the caller renders a "
   + "sentence. Four zeros beside an admitted `unknown` hero is the "
   + "absence-as-zero error on this fund's most-read line", () => {
-  assert.equal(deskShelves(false, [], 0, "2026-08-24"), null);
+  assert.equal(deskShelves("unreadable", [], 0, "2026-08-24"), null);
   // And it stays null even when rows happen to be in hand: unreadable is
   // unreadable, and a partial fold is not a partition of the whole.
   assert.equal(
-    deskShelves(false, [shelfItem("2026-08-24")], 3, "2026-08-24"), null);
+    deskShelves("unreadable", [shelfItem("2026-08-24")], 3, "2026-08-24"), null);
 });
 
 test("D42: a readable desk with nothing on it is FOUR ZEROS, not null — an "
   + "empty desk is a fact and must not read as an outage", () => {
-  assert.deepEqual(deskShelves(true, [], 0, "2026-08-24"),
+  assert.deepEqual(deskShelves("readable", [], 0, "2026-08-24"),
     { decideToday: 0, exec: 0, asks: 0, noDeadline: 0 });
 });
 
 test("D42: execution-yours WINS over the date. A row he already decided is "
   + "not a decision he owes today, whatever its due date says", () => {
-  const s = deskShelves(true,
+  const s = deskShelves("readable",
     [shelfItem("2026-08-01", true), shelfItem("2026-08-01")], 0, "2026-08-24");
   assert.deepEqual(s, { decideToday: 1, exec: 1, asks: 0, noDeadline: 0 });
 });
 
 test("D42: the boundary is INCLUSIVE — a row due exactly today is due today, "
   + "and a row due tomorrow is not", () => {
-  const on = deskShelves(true, [shelfItem("2026-08-24")], 0, "2026-08-24");
+  const on = deskShelves("readable", [shelfItem("2026-08-24")], 0, "2026-08-24");
   assert.equal(on?.decideToday, 1);
-  const after = deskShelves(true, [shelfItem("2026-08-25")], 0, "2026-08-24");
+  const after = deskShelves("readable", [shelfItem("2026-08-25")], 0, "2026-08-24");
   assert.equal(after?.decideToday, 0);
   assert.equal(after?.noDeadline, 1);
-  const before = deskShelves(true, [shelfItem("2026-08-23")], 0, "2026-08-24");
+  const before = deskShelves("readable", [shelfItem("2026-08-23")], 0, "2026-08-24");
   assert.equal(before?.decideToday, 1, "an OVERDUE row is still to decide today");
 });
 
@@ -331,7 +331,7 @@ test("D42: THE SHELVES PARTITION — every card lands in exactly one of the "
     shelfItem(null), shelfItem("2026-08-24"), shelfItem("2026-09-01"),
     shelfItem("2026-08-24", true), shelfItem(null, true),
   ];
-  const s = deskShelves(true, items, 7, "2026-08-24")!;
+  const s = deskShelves("readable", items, 7, "2026-08-24")!;
   assert.equal(s.decideToday + s.exec + s.noDeadline, items.length);
   assert.equal(s.asks, 7, "asks are counted separately, never folded in");
 });

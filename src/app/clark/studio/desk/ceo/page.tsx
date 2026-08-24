@@ -36,6 +36,7 @@ import {
   executionYours, looksUnreadable, rowLamp, supersededBy,
 } from "../cardState";
 import { deskLanes } from "../deskLanes";
+import { READING_DESK, readError, readState } from "../deskRead";
 import {
   ASK_HEADLINE_MAX, CARD_HEADLINE_MAX, REC_STAGE_LABEL, bodyWithTail,
   clampLine, recLifecycle,
@@ -106,6 +107,11 @@ export default function CeoDeskPage() {
   const [desk, setDesk] = useState<DeskView | null>(null);
   const [pending, setPending] = useState<PendingOrder[] | null>(null);
   const [events, setEvents] = useState<SpineEvent[] | null>(null);
+  /* The event log's read carries its own failure flag for the same reason the
+     desk's does: `events === null` is the state before the first answer AND
+     after a failed one, and the footer below makes an "could not be read"
+     claim from it. */
+  const [eventsErr, setEventsErr] = useState(false);
   const [risk, setRisk] = useState<RiskMonitorResponse | null>(null);
   const [riskErr, setRiskErr] = useState(false);
   /* Donna's short memo. `null` is UNREACHABLE, not "she filed nothing" — the
@@ -153,9 +159,10 @@ export default function CeoDeskPage() {
       fundApiClient.getDeskSupersessions(),
     ]);
     if (d.status === "fulfilled") { setDesk(d.value); setErr(null); }
-    else { setDesk(null); setErr(d.reason instanceof Error ? d.reason.message : "unreachable"); }
+    else { setDesk(null); setErr(readError(d.reason)); }
     setPending(p.status === "fulfilled" ? (p.value.pending || []) : null);
-    setEvents(ev.status === "fulfilled" ? (ev.value.events || []) : null);
+    if (ev.status === "fulfilled") { setEvents(ev.value.events || []); setEventsErr(false); }
+    else { setEvents(null); setEventsErr(true); }
     if (rk.status === "fulfilled") { setRisk(rk.value); setRiskErr(false); }
     else { setRisk(null); setRiskErr(true); }
     if (mm.status === "fulfilled") { setMemo(mm.value); setMemoErr(false); }
@@ -177,6 +184,19 @@ export default function CeoDeskPage() {
     const t = setInterval(load, 15000);
     return () => clearInterval(t);
   }, [load]);
+
+  /* THE THREE STATES OF EACH READ — the CEO's own ticket, fccb9cf3.
+     `desk === null` is TWO facts wearing one expression: the payload before
+     the first answer, and the payload after a failure. Every sentence on this
+     page that reads "could not be read" used to fire on both, so a recompile
+     that left the fetches pending for thirty seconds rendered the fund's
+     loudest honesty language about an outage that had not happened. The two
+     reads are tracked separately because they are two endpoints with two
+     failures: the desk feeds the number and the lanes, the engine feeds the
+     greeting, the lineage and the steer. */
+  const deskRead = readState(desk !== null, err !== null);
+  const engineRead = readState(engine !== null, engineErr);
+  const eventsRead = readState(events !== null, eventsErr);
 
   /* SUPERSEDED ROWS NEVER REACH A CARD.
      This page builds its cards from `/fund/desk`, which knows nothing about
@@ -249,14 +269,14 @@ export default function CeoDeskPage() {
      the honest thing to reconcile the served figure against. */
   const headline = useMemo(
     () => awaitingHeadline({
-      deskReadable: desk !== null,
+      read: deskRead,
       servedTotal: desk?.desk_load?.total,
       servedComplete: desk?.desk_load?.complete,
       servedUnreadable: desk?.desk_load?.unreadable,
       divertedNotes: officers.donna.notes.length,
       cardCount: list.total,
     }),
-    [desk, officers, list],
+    [desk, deskRead, officers, list],
   );
 
   /* Coverage over the CARDS, not over the flat split — the sentence about what
@@ -283,7 +303,7 @@ export default function CeoDeskPage() {
      new count, a partition of the existing one. */
   const shelves = useMemo(
     () => deskShelves(
-      desk !== null,
+      deskRead,
       cardItems.map((it) => ({
         dueDate: it.dueDate, executionYours: executionYours(it),
       })),
@@ -292,7 +312,7 @@ export default function CeoDeskPage() {
       // fund's UTC day, and `deskNow` is the one clock this page reads.
       deskNow.slice(0, 10),
     ),
-    [desk, cardItems, list, deskNow]);
+    [deskRead, cardItems, list, deskNow]);
   const gap = useMemo(() => moneyGap(cardItems), [cardItems]);
   const coverage = useMemo(() => rankCoverage(cardItems), [cardItems]);
 
@@ -301,8 +321,10 @@ export default function CeoDeskPage() {
      refuses to name a "most urgent" row when the top of that ranking states
      neither. See `deskSteer`. */
   const steer = useMemo(
-    () => steeringSentence({ view: engine, needsYou: headline.value }),
-    [engine, headline]);
+    () => steeringSentence({
+      view: engine, read: engineRead, needsYou: headline.value,
+    }),
+    [engine, engineRead, headline]);
 
   /* THE FIVE LANES. Lane (a) is the decision list this page already builds;
      the other four are folded here from the same payload, each carrying the
@@ -310,12 +332,13 @@ export default function CeoDeskPage() {
   const lanes = useMemo(
     () => deskLanes({
       desk,
+      read: deskRead,
       awaitingShown: list.total,
       awaitingServed: headline.value,
       blocked,
       now: deskNow,
     }),
-    [desk, list.total, headline.value, blocked, deskNow]);
+    [desk, deskRead, list.total, headline.value, blocked, deskNow]);
 
   /* Everything the lineage fold reads. Each field is independently nullable
      and null means UNREADABLE — a chain drawn over an outage would make the
@@ -362,11 +385,21 @@ export default function CeoDeskPage() {
                 ?? (engineErr
                   ? "The desk engine could not be read, so what changed since "
                     + "your last visit is unknown."
-                  : "Reading the desk…")}
+                  : READING_DESK)}
             </p>
             <p className="mt-3 flex items-baseline gap-3">
-              <span className={KT.hero}>
-                {headline.value === null ? "unknown" : headline.value}
+              {/* THE HERO SAYS WHICH KIND OF NOT-A-NUMBER IT IS.
+                  `unknown` is a finding: the fund was asked and could not
+                  answer, and it is rendered at full strength because it means
+                  work may be waiting that nobody can see. `…` is a read still
+                  in flight — no finding, nothing to alarm about, and muted so
+                  the eye passes over it. Rendering the first for the second is
+                  ticket fccb9cf3, thirty seconds of it on the CEO's screen. */}
+              <span className={`${KT.hero} ${
+                headline.source === "loading" ? KT.muted : ""}`}>
+                {headline.value === null
+                  ? (headline.source === "loading" ? "…" : "unknown")
+                  : headline.value}
                 {headline.atLeast && "+"}
               </span>
               <span className={`${KT.label} pb-1`}>awaiting your decision</span>
@@ -380,11 +413,20 @@ export default function CeoDeskPage() {
                    ERROR, on this fund's most-read line. Caught in D42's
                    dead-spine pass: the hero said `unknown` and this line
                    underneath it said "0 to decide today", about the same
-                   rows. A partition of an unknown number is unknown. */
+                   rows. A partition of an unknown number is unknown.
+
+                   AND A PARTITION OF A NUMBER NOBODY HAS YET IS NOT UNKNOWN
+                   EITHER — it is not computed. Same null from `deskShelves`,
+                   two different true sentences, chosen by the read state
+                   rather than by the null. */
                 <span className={KT.muted}>
-                  The desk could not be read, so how that number splits —
-                  today&apos;s decisions, your executions, your routing calls —
-                  is unknown too.
+                  {deskRead === "loading"
+                    ? `${READING_DESK} How that number splits — today's `
+                      + "decisions, your executions, your routing calls — is "
+                      + "not worked out yet."
+                    : "The desk could not be read, so how that number splits — "
+                      + "today's decisions, your executions, your routing "
+                      + "calls — is unknown too."}
                 </span>
               ) : (
                 <>
@@ -555,7 +597,12 @@ export default function CeoDeskPage() {
 
         <div className={`${KT.panel} mb-8 px-6`}>
           <LaneBlock lane={lanes[0]} sources={lineageSources}>
-            {desk === null ? (
+            {deskRead === "loading" ? (
+              /* NOT AN OUTAGE. The read is in flight, so there are no cards
+                 for the same reason there is no number: nobody has answered
+                 yet. Muted, and it does not borrow the warn tone below. */
+              <p className={`text-sm ${KT.muted}`}>{READING_DESK}</p>
+            ) : deskRead === "unreadable" ? (
               /* The "UNKNOWN, not none" sentence lives ONCE, under the figure
                  it describes — `headline.note`. What belongs here is the
                  different fact: why there is nothing in this lane. */
@@ -728,11 +775,18 @@ export default function CeoDeskPage() {
                 rendered in the calm tone is a reassurance nobody measured).
                 The flame itself stays off in the unknown case, because a flame
                 is a positive claim about fire and there is none to make. */}
-            <span className={engine === null || (engine.on_fire.total ?? 0) > 0
-              ? KT.sev.warn : KT.body}>
+            {/* FOUR FACTS NOW, not three: the fourth is the read still being
+                in flight, which is neither a fire nor a failure to look for
+                one. It is muted and it makes no claim (ticket fccb9cf3). */}
+            <span className={engineRead === "loading" ? KT.muted
+              : engine === null || (engine.on_fire.total ?? 0) > 0
+                ? KT.sev.warn : KT.body}>
               {engine?.greeting?.on_fire
-                ?? "The desk engine could not be read, so whether anything is on "
-                   + "fire is UNKNOWN — not no."}
+                ?? (engineRead === "loading"
+                  ? "Reading the desk engine… whether anything is on fire has "
+                    + "not been checked yet."
+                  : "The desk engine could not be read, so whether anything is "
+                    + "on fire is UNKNOWN — not no.")}
             </span>
           </p>
           {/* THREE-VALUED, and rendered that way: `null` is the risk control
@@ -748,7 +802,8 @@ export default function CeoDeskPage() {
           <p className={`mt-2 text-xs ${KT.muted}`}>
             decisions recorded{" "}
             <span className="font-mono tabular-nums">
-              {velocity.today ?? "— (event log unreadable, not zero)"}
+              {velocity.today ?? (eventsRead === "loading"
+                ? "… (not read yet)" : "— (event log unreadable, not zero)")}
             </span>{" "}
             today
             {velocity.week != null && (
@@ -796,8 +851,15 @@ export default function CeoDeskPage() {
         </div>
 
         <p className={`mt-6 text-[11px] italic leading-relaxed ${KT.muted}`}>
-          Folded from {events?.length ?? 0} spine events
-          {events === null && " — the event log could not be read, so the decision counts above are absent, not zero"}
+          {/* "Folded from 0 spine events" is a MEASUREMENT of an empty log and
+              must not be printed for a log nobody has finished reading — the
+              `?? 0` said 0 in both cases and the clause after it called the
+              second an outage. */}
+          {eventsRead === "loading"
+            ? "Still folding the spine's events; the counts above are not "
+              + "final and none of them is a zero"
+            : `Folded from ${events?.length ?? 0} spine events`}
+          {eventsRead === "unreadable" && " — the event log could not be read, so the decision counts above are absent, not zero"}
           {events !== null && velocity.oldestSeen &&
             ` back to ${fmtAt(velocity.oldestSeen)}; the endpoint caps at 1000 rows, so anything older is outside this view rather than quiet`}
           {desk !== null && drift === "unverified" &&

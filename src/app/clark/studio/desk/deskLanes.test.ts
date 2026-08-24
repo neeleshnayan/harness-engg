@@ -56,6 +56,7 @@ function desk(over: Partial<DeskView> = {}): DeskView {
 function lanes(over: Partial<DeskView> = {}, extra: Record<string, unknown> = {}) {
   return deskLanes({
     desk: desk(over),
+    read: "readable",
     awaitingShown: 0,
     awaitingServed: 0,
     blocked: new Map<string, DeskSupersessionEdge>(),
@@ -301,6 +302,7 @@ test("a superseded row NEVER appears in an active lane, and is counted out", () 
                   applied_by: "cto", applied_at: null }],
   ]);
   const ls = deskLanes({
+    read: "readable",
     desk: desk({ open_recommendations: [
       rec({ rec_id: 1, status: "accepted" }),
       rec({ rec_id: 2, status: "accepted" }),
@@ -345,9 +347,9 @@ test("an unreadable desk yields five lanes of UNKNOWN, never five zeroes", () =>
    * discipline is that absence is never zero: with no served figure,
    * `laneCount` fell back to the page's row count, and on an unreadable desk
    * that count is 0 — so all five lanes rendered a confident zero over a
-   * queue nobody had looked at. `pageReadable` is the repair. */
+   * queue nobody had looked at. `read` is the repair. */
   const ls = deskLanes({
-    desk: null, awaitingShown: 0, awaitingServed: null,
+    desk: null, read: "unreadable", awaitingShown: 0, awaitingServed: null,
     blocked: new Map(), now: NOW,
   });
   assert.equal(ls.length, 5);
@@ -373,9 +375,9 @@ test("a readable desk with an empty lane renders the fund's or the page's ZERO",
 });
 
 test("a served figure survives an unreadable page, and says the rows are missing", () => {
-  /* `pageReadable=false` must only govern the FALLBACK. A spine that counted
+  /* `read: "unreadable"` must only govern the FALLBACK. A spine that counted
    * 162 still counted 162; what the page cannot do is show the rows. */
-  const c = laneCount(162, 0, "decided work", false);
+  const c = laneCount(162, 0, "decided work", "unreadable");
   assert.equal(c.value, 162);
   assert.equal(c.source, "spine");
   assert.match(c.note!, /this page can render 0 of them/);
@@ -430,7 +432,7 @@ test("decidedCount: a GENUINE partition disagreement still alarms, shown = total
 });
 
 test("decidedCount: unreadable desk stays UNKNOWN, never a confident total", () => {
-  const c = decidedCount(null, 0, 0, false);
+  const c = decidedCount(null, 0, 0, "unreadable");
   assert.equal(c.value, null);
   assert.equal(c.source, "unknown");
   assert.match(c.note!, /UNKNOWN/);

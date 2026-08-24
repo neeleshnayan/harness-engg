@@ -51,9 +51,15 @@
  */
 
 import { countCheck } from "./decisionList.ts";
+import { READING_DESK, type DeskRead } from "./deskRead.ts";
 
-/** Where the figure on screen came from. Never inferred by the reader. */
-export type AwaitingSource = "spine" | "page" | "unknown";
+/** Where the figure on screen came from. Never inferred by the reader.
+ *
+ *  `loading` is NOT a source of a figure — it is the admission that there is
+ *  no figure yet. It lives in this union so the header can render a calm
+ *  glyph for it instead of the word `unknown`, which on this desk means "we
+ *  asked and could not find out" (ticket fccb9cf3). */
+export type AwaitingSource = "spine" | "page" | "unknown" | "loading";
 
 /**
  * Whether a surface's triage chip may print the served total.
@@ -92,8 +98,11 @@ export interface AwaitingHeadline {
 }
 
 export interface AwaitingInput {
-  /** Did `/fund/desk` answer at all? */
-  deskReadable: boolean;
+  /** What is known about the `/fund/desk` read: still in flight, failed, or
+   *  answered. It replaced a `deskReadable` boolean, which could not tell a
+   *  pending fetch from an outage and reported the first as the second for
+   *  about thirty seconds on the CEO's own desk. */
+  read: DeskRead;
   /** `desk_load.total`. Absent on a spine that predates the counter. */
   servedTotal?: number | null;
   /** `desk_load.complete`. `false` makes the served figure a floor. */
@@ -115,11 +124,26 @@ const rows = (n: number) => `${n} row${n === 1 ? "" : "s"}`;
  */
 export function awaitingHeadline(input: AwaitingInput): AwaitingHeadline {
   const {
-    deskReadable, servedTotal, servedComplete, servedUnreadable,
+    read, servedTotal, servedComplete, servedUnreadable,
     divertedNotes, cardCount,
   } = input;
 
-  if (!deskReadable) {
+  // STILL IN FLIGHT. Checked FIRST and returning before anything is counted:
+  // a read that has not answered cannot have served a total, and a page that
+  // fell through to the page-fold branch here would print its own `0` while
+  // the answer was on its way.
+  if (read === "loading") {
+    return {
+      value: null,
+      atLeast: false,
+      source: "loading",
+      note: `${READING_DESK} This figure has not been counted yet — nothing `
+        + "here has failed, and nothing here is a zero.",
+      reconciliation: null,
+    };
+  }
+
+  if (read === "unreadable") {
     return {
       value: null,
       atLeast: false,
@@ -246,15 +270,20 @@ export interface ShelfItem {
 }
 
 /**
- * @param readable did `/fund/desk` answer at all? `false` returns null.
+ * @param read the state of the `/fund/desk` read. ONLY `readable` partitions
+ *   anything: a pending read and a failed one both return null, because the
+ *   partition of a number nobody has yet is not a row of zeroes. The CALLER
+ *   holds the same `read` value and writes the sentence, so the two states
+ *   get two different sentences from one source rather than one sentence
+ *   from a boolean that cannot tell them apart.
  * @param today the fund's UTC day, `YYYY-MM-DD` — passed in, never read from
  *   the browser, because "due today" must mean the fund's day and because a
  *   clock a test cannot set is a branch a test cannot reach.
  */
 export function deskShelves(
-  readable: boolean, items: readonly ShelfItem[], asks: number, today: string,
+  read: DeskRead, items: readonly ShelfItem[], asks: number, today: string,
 ): DeskShelves | null {
-  if (!readable) return null;
+  if (read !== "readable") return null;
   let decideToday = 0, exec = 0, noDeadline = 0;
   for (const it of items) {
     if (it.executionYours) { exec += 1; continue; }

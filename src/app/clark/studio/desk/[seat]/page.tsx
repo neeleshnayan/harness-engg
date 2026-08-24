@@ -13,6 +13,7 @@ import {
 import { MemoThread } from "../MemoThread";
 import { SeatFace } from "../SeatFace";
 import { splitRecordRows } from "../recordRow";
+import { readError, readState } from "../deskRead";
 import { LaneTrackRecord } from "../laneViews";
 import {
   ASSUMED_INPUT_SHARE,
@@ -84,9 +85,9 @@ function Seat({ seat }: { seat: SeatId }) {
       fundApiClient.getEvents(1000, 0),
     ]);
     if (d.status === "fulfilled") { setDesk(d.value); setDeskErr(null); }
-    else setDeskErr(d.reason instanceof Error ? d.reason.message : "unreachable");
+    else setDeskErr(readError(d.reason));
     if (r.status === "fulfilled") { setRuns(r.value.runs || []); setRunsErr(null); }
-    else setRunsErr(r.reason instanceof Error ? r.reason.message : "unreachable");
+    else setRunsErr(readError(r.reason));
     if (e.status === "fulfilled") setEvents(e.value.events || []);
     else setEvents(null);
   }, [seat]);
@@ -96,6 +97,12 @@ function Seat({ seat }: { seat: SeatId }) {
     const t = setInterval(load, 60000);
     return () => clearInterval(t);
   }, [load]);
+
+  /* THE DESK READ HAS THREE STATES HERE TOO (ticket fccb9cf3). `desk` is
+     KEPT when a later poll fails on this page — see the precedence note in
+     `readState` — so `readable` here means "there is a payload on screen",
+     with the failed refresh reported separately by the banner below. */
+  const deskRead = readState(desk !== null, deskErr !== null);
 
   const roster = desk?.roster?.find((r) => r.agent === seat) ?? null;
   // Memoised: `?? []` is a fresh array each render, and the folds below key off it.
@@ -168,9 +175,17 @@ function Seat({ seat }: { seat: SeatId }) {
                   <SeatStatus roster={roster} />
                 </h1>
                 <p className="mt-1 max-w-2xl text-sm leading-relaxed">
-                  {roster?.lane ?? (deskErr
-                    ? "Lane unreadable — the spine is unreachable, so the roster it defines cannot be shown."
-                    : "…")}
+                  {/* FOUR CASES, and the fourth had no sentence: the desk read
+                      FINE and this seat is simply not in the roster it served.
+                      That fell to the loading ellipsis, so a seat missing from
+                      the spine's own roster looked like a slow page — for
+                      ever. Absence and latency are different facts here too. */}
+                  {roster?.lane ?? (
+                    deskRead === "unreadable"
+                      ? "Lane unreadable — the spine is unreachable, so the roster it defines cannot be shown."
+                      : deskRead === "loading"
+                        ? "…"
+                        : "The spine's roster carries no entry for this seat, so its lane is undeclared — absent from the roster, not undefined by the constitution.")}
                 </p>
                 {roster && (
                   <p className={`mt-1 text-xs ${KT.muted}`}>
@@ -274,9 +289,15 @@ function Seat({ seat }: { seat: SeatId }) {
           />
           {openRecs.length === 0 ? (
             <p className={`text-sm ${KT.muted}`}>
-              {desk
+              {/* Three states, kept apart — the same rule the production shelf
+                  below already followed and this line did not: "unreadable"
+                  for a read that failed, "reading" for one still in flight,
+                  and the measurement only when there is something to measure. */}
+              {deskRead === "readable"
                 ? "Nothing awaiting your decision from this seat."
-                : "The desk is unreadable, so whether this seat is waiting on you is unknown."}
+                : deskRead === "loading"
+                  ? "Reading the desk…"
+                  : "The desk is unreadable, so whether this seat is waiting on you is unknown."}
             </p>
           ) : (
             <div className="space-y-1.5">
@@ -345,7 +366,11 @@ function Seat({ seat }: { seat: SeatId }) {
               emptyNote="Nothing filed. This desk has no runs in the flight recorder — which is an absence of dispatches, not an absence of output."
             />
           )}
-          {desk == null && runs != null && seatRuns.length > 0 && (
+          {/* `deskRead`, not `desk == null`: while the desk fetch is still in
+              flight the spines are provisional, not degraded, and saying "the
+              artifact fold could not be read" about a pending read is the
+              ticket fccb9cf3 defect on this page. */}
+          {deskRead === "unreadable" && runs != null && seatRuns.length > 0 && (
             <p className={`mt-2 text-[11px] ${KT.sev.warn}`}>
               The artifact fold could not be read, so these spines carry the
               run&apos;s task rather than the document&apos;s own title, and no

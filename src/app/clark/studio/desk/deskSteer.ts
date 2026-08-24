@@ -35,9 +35,15 @@
  */
 
 import type { CeoDeskView, DeskEngineItem } from "@/lib/fund_api";
+import type { DeskRead } from "./deskRead.ts";
 
-/** What the sentence is resting on. Rendered, never inferred by the reader. */
-export type SteerBasis = "due_date" | "money" | "unranked" | "none" | "unknown";
+/** What the sentence is resting on. Rendered, never inferred by the reader.
+ *
+ *  `loading` is not a basis — it is the absence of one, yet, and it exists so
+ *  the header can stay quiet while the engine read is in flight instead of
+ *  announcing an outage that has not happened (ticket fccb9cf3). */
+export type SteerBasis =
+  | "due_date" | "money" | "unranked" | "none" | "unknown" | "loading";
 
 export interface Steer {
   basis: SteerBasis;
@@ -86,8 +92,13 @@ function pointer(title: string | null | undefined, max = 120): string {
 }
 
 export interface SteerInput {
-  /** The served CEO desk. `null` = unreachable, and the steer says so. */
+  /** The served CEO desk. `null` = the read has not produced one, and `read`
+   *  says whether that is because it failed or because it has not answered. */
   view: CeoDeskView | null;
+  /** The state of the `GET /fund/desk/ceo` read — the ENGINE's own read, not
+   *  `/fund/desk`'s. They are two fetches with two failures, and this sentence
+   *  is built entirely from the first. */
+  read: DeskRead;
   /** The figure the header is already rendering, so the two agree by
    *  construction rather than by two folds happening to match. */
   needsYou: number | null;
@@ -97,7 +108,20 @@ export interface SteerInput {
  * The sentence under the number.
  */
 export function steeringSentence(input: SteerInput): Steer {
-  const { view, needsYou } = input;
+  const { view, read, needsYou } = input;
+
+  // IN FLIGHT. Before the `!view` test, because a pending read also has no
+  // view and the loud sentence below is a claim that the engine was asked and
+  // did not answer.
+  if (read === "loading" && !view) {
+    return {
+      basis: "loading",
+      text: "Reading the desk engine… what to look at first has not been "
+        + "worked out yet.",
+      item: null,
+      overdue: false,
+    };
+  }
 
   if (!view) {
     return {

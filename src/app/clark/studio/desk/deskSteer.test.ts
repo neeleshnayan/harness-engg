@@ -73,6 +73,7 @@ test("the steer FOLLOWS the served order, it does not re-derive one", () => {
    * biggest number cannot distinguish reading from re-ranking. Moving the
    * biggest number away from position zero can. */
   const s = steeringSentence({
+    read: "readable",
     view: view([
       item({ title: "the spine put this first", money_at_stake: 25 }),
       item({ ref: "rec:run-x#2", title: "sixty times the money",
@@ -92,6 +93,7 @@ test("a dated row beats a priced one only because the SPINE said so", () => {
   /* The spine's own key order is date, then money. This fixture puts the
    * dated row second on purpose: the steer must NOT promote it. */
   const s = steeringSentence({
+    read: "readable",
     view: view([
       item({ title: "priced, undated", money_at_stake: 900 }),
       item({ ref: "rec:run-x#2", title: "dated, unpriced",
@@ -107,6 +109,7 @@ test("a dated row beats a priced one only because the SPINE said so", () => {
 
 test("a dated top row steers on the date, with the days spelled out", () => {
   const mk = (due: string) => steeringSentence({
+    read: "readable",
     view: view([item({ title: "T", due_date: due, money_at_stake: 1748.92 })]),
     needsYou: 1,
   });
@@ -124,6 +127,7 @@ test("a dated top row steers on the date, with the days spelled out", () => {
 
 test("one day overdue is singular, and the sign is not lost", () => {
   const s = steeringSentence({
+    read: "readable",
     view: view([item({ due_date: "2026-08-22" })]), needsYou: 1 });
   assert.match(s.text, /1 day OVERDUE/);
   assert.ok(!s.text.includes("-1"), "the minus sign must not reach the reader");
@@ -131,6 +135,7 @@ test("one day overdue is singular, and the sign is not lost", () => {
 
 test("a priced top row says so, and says nothing above it is dated", () => {
   const s = steeringSentence({
+    read: "readable",
     view: view([item({ title: "R39", money_at_stake: 1748.92 })]),
     needsYou: 1,
   });
@@ -143,6 +148,7 @@ test("a priced top row says so, and says nothing above it is dated", () => {
 test("a top row stating NEITHER refuses to name one, and says why", () => {
   /* THE HONEST BRANCH, and the one the live desk is actually in. */
   const s = steeringSentence({
+    read: "readable",
     view: view([item({ title: "unranked" }), item({ ref: "r2" })]),
     needsYou: 2,
   });
@@ -160,7 +166,7 @@ test("an unstated ranked_on_nothing is 'some of them', never a zero", () => {
   const v = view([item()]);
   // A spine that predates the field. Absence is never zero.
   delete (v.decisions as unknown as Record<string, unknown>).ranked_on_nothing;
-  const s = steeringSentence({ view: v, needsYou: 1 });
+  const s = steeringSentence({ read: "readable", view: v, needsYou: 1 });
   assert.equal(s.basis, "unranked");
   assert.match(s.text, /some of them state neither/);
   assert.ok(!/0 of/.test(s.text));
@@ -169,7 +175,7 @@ test("an unstated ranked_on_nothing is 'some of them', never a zero", () => {
 /* ------------------------------------------------------- the absences ---- */
 
 test("no view at all is UNKNOWN, never 'nothing to do'", () => {
-  const s = steeringSentence({ view: null, needsYou: 12 });
+  const s = steeringSentence({ view: null, read: "unreadable", needsYou: 12 });
   assert.equal(s.basis, "unknown");
   assert.match(s.text, /UNKNOWN/);
   assert.ok(!/nothing/i.test(s.text.replace("not nothing", "")),
@@ -177,14 +183,14 @@ test("no view at all is UNKNOWN, never 'nothing to do'", () => {
 });
 
 test("an empty ranked list beside a non-zero counter is a DISAGREEMENT", () => {
-  const s = steeringSentence({ view: view([]), needsYou: 7 });
+  const s = steeringSentence({ read: "readable", view: view([]), needsYou: 7 });
   assert.equal(s.basis, "none");
   assert.match(s.text, /7 await you/);
   assert.match(s.text, /disagree/);
 });
 
 test("an empty ranked list beside a zero counter is simply quiet", () => {
-  const s = steeringSentence({ view: view([]), needsYou: 0 });
+  const s = steeringSentence({ read: "readable", view: view([]), needsYou: 0 });
   assert.equal(s.basis, "none");
   assert.match(s.text, /Nothing is ranked for you/);
   assert.ok(!/disagree/.test(s.text));
@@ -193,12 +199,12 @@ test("an empty ranked list beside a zero counter is simply quiet", () => {
 test("a truncated page says the steer is over the PAGE, not the queue", () => {
   const v = view([item({ money_at_stake: 10 })],
                  { decisions: { shown: 1, total: 40, truncated: true } });
-  const s = steeringSentence({ view: v, needsYou: 40 });
+  const s = steeringSentence({ read: "readable", view: v, needsYou: 40 });
   assert.match(s.text, /capped at 1 of 40/);
   // And the unranked branch carries it too — a cap does not stop mattering
   // because the top row happens to be unrankable.
   const v2 = view([item()], { decisions: { shown: 1, total: 40, truncated: true } });
-  assert.match(steeringSentence({ view: v2, needsYou: 40 }).text,
+  assert.match(steeringSentence({ read: "readable", view: v2, needsYou: 40 }).text,
                /capped at 1 of 40/);
 });
 
@@ -208,12 +214,13 @@ test("truncated:true with nothing actually cut says nothing", () => {
    * otherwise print a caveat about nothing. */
   const v = view([item({ money_at_stake: 10 })],
                  { decisions: { shown: 1, total: 1, truncated: true } });
-  assert.ok(!/capped at/.test(steeringSentence({ view: v, needsYou: 1 }).text));
+  assert.ok(!/capped at/.test(steeringSentence({ read: "readable", view: v, needsYou: 1 }).text));
 });
 
 test("a long title is clamped, and the clamp is visible", () => {
   const long = "x".repeat(400);
   const s = steeringSentence({
+    read: "readable",
     view: view([item({ title: long, money_at_stake: 1 })]), needsYou: 1 });
   assert.ok(s.text.length < 400, "an unclamped COO batch title is 200+ chars");
   assert.ok(s.text.includes("…"), "the clamp must be visible, never silent");
@@ -221,6 +228,7 @@ test("a long title is clamped, and the clamp is visible", () => {
 
 test("a row with no text says so rather than rendering a blank", () => {
   const s = steeringSentence({
+    read: "readable",
     view: view([item({ title: null, money_at_stake: 5 })]), needsYou: 1 });
   assert.match(s.text, /this row carries no text/);
 });
@@ -251,6 +259,7 @@ test("an unparseable due date still steers on the date, saying only its value", 
   /* The row IS dated — the spine stored something in `due_date` — so the
    * basis is the date. What the module must not do is invent a day count. */
   const s = steeringSentence({
+    read: "readable",
     view: view([item({ due_date: "2026-8-3" })]), needsYou: 1 });
   assert.equal(s.basis, "due_date");
   assert.match(s.text, /dated 2026-8-3/);

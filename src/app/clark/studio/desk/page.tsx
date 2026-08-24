@@ -20,6 +20,7 @@ import {
 } from "./components";
 import { Fold } from "./EngineViews";
 import { splitRecordRows } from "./recordRow";
+import { READING_DESK, readError, readState } from "./deskRead";
 import { SeatTelemetry, seatTelemetry } from "./deskTelemetry";
 import { MemoThread } from "./MemoThread";
 import { SeatFace } from "./SeatFace";
@@ -88,9 +89,9 @@ export default function DeskPage() {
       fundApiClient.getEvents(1000, 0),
     ]);
     if (desk.status === "fulfilled") { setD(desk.value); setErr(null); }
-    else setErr(desk.reason instanceof Error ? desk.reason.message : "unreachable");
+    else setErr(readError(desk.reason));
     if (ev.status === "fulfilled") { setEvents(ev.value.events || []); setEventsErr(null); }
-    else setEventsErr(ev.reason instanceof Error ? ev.reason.message : "unreachable");
+    else setEventsErr(readError(ev.reason));
   }, []);
 
   useEffect(() => {
@@ -174,7 +175,15 @@ export default function DeskPage() {
             <p className="text-sm">Spine unreachable — showing nothing rather than a healthy desk. {err}</p>
           </div>
         )}
-        {!d && !err && <p className={`text-sm ${KT.muted}`}>Reading the desk…</p>}
+        {/* THE THREE STATES, and this page had them first — `readState` names
+            what it was already doing so the CEO desk and the seat pages can do
+            the same thing by the same rule instead of by three hand-written
+            conditions (ticket fccb9cf3). `readError` is what makes the middle
+            branch safe: a rejection carrying an empty message used to leave
+            `err` falsy and this line would have claimed a failed read was
+            still in flight. */}
+        {readState(d !== null, err !== null) === "loading"
+          && <p className={`text-sm ${KT.muted}`}>{READING_DESK}</p>}
 
           {/* THE TICKET BOARD IS NOT HERE ANY MORE.
               CEO instruction 2026-08-23, verbatim: "And put the matrix in the

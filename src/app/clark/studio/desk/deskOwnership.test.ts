@@ -437,8 +437,18 @@ test("the header count and the card count are ONE number in the source", () => {
   // Both rendered figures read the SAME fold, named site by site rather than
   // tallied — a count of occurrences would move with an added `?:` and pin
   // nothing.
-  assert.ok(src.includes(`{headline.value === null ? "unknown" : headline.value}`),
-    "the header figure must be headline.value, and UNKNOWN when it is null");
+  /* THE PIN GAINED A THIRD STATE (2026-08-24, ticket fccb9cf3) AND LOST NO
+   * STRENGTH. It still requires the hero to read `headline.value` and still
+   * requires a null to render as a WORD — but the word `unknown` is now
+   * reserved for a read that actually failed, because rendering it for a read
+   * still in flight put the fund's loudest honesty sentence on the CEO's
+   * screen for thirty seconds about an outage that had not happened. */
+  const hero = src.replace(/\s+/g, " ");
+  assert.ok(hero.includes(
+    '{headline.value === null ? (headline.source === "loading" ? "…" '
+    + ': "unknown") : headline.value}'),
+    "the header figure must be headline.value; a null must render as a word, "
+    + "and that word may only be `unknown` when the read is not loading");
   /* THE SECOND READER MOVED (D31), THE INVARIANT DID NOT. It used to be the
    * greeting card, which is deleted; it is the steering sentence now. The
    * steer says "N await you and the ranked list came back empty" in one
