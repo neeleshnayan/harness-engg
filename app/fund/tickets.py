@@ -728,6 +728,15 @@ def _reconciliation(tickets: list[dict[str, Any]]) -> dict[str, Any]:
     # cannot fail however badly `ceo` and `decided` misclassify, because the
     # remainder absorbs every error by construction. Three independent tallies
     # that must sum is a check; two tallies and a remainder is a restatement.
+    #
+    # HONEST NOTE ON WHAT THIS DOES AND DOES NOT BUY, because the mutation pass
+    # forced the question: the two forms are PROVABLY EQUIVALENT on today's
+    # code — the three predicates are mutually exclusive and exhaustive over
+    # `rec_working`, so the remainder always equals this count and reverting
+    # the line kills no test (mutant M39, retired with this proof). The change
+    # is not a behaviour fix. It buys the exhaustiveness test its MEANING for
+    # the next edit: the day a fourth category is added, or a predicate stops
+    # partitioning, the direct form fails and the remainder form absorbs it.
     elsewhere = sum(1 for t in rec_working
                     if t["next_actor"] not in ("ceo", "unknown")
                     and t.get("legacy_status") not in ("accepted", "staged"))

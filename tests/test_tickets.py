@@ -429,6 +429,27 @@ class TestReconciliationWithDeskLoad:
         assert f["counts"]["desk_load_runs_cap"] == 3
         assert f["counts"]["reconciles_with_desk_load"] is False
 
+    def test_open_recommendations_actually_uses_the_named_cap(self,
+                                                              monkeypatch):
+        """MUTATION SURVIVOR M43: naming the constant is not the same as using
+        it. Changing ``open_recommendations`` to scan 201 runs while the
+        constant still read 200 killed no test — the fold would then publish a
+        cap that is not the one the other instrument obeys, which is a
+        confident wrong answer with a citation attached. This drives the REAL
+        ``DeskStore.open_recommendations`` (bound onto the fake), so the
+        constant and its one use are pinned together."""
+        import app.fund.deskstore as ds_mod
+        monkeypatch.setattr(ds_mod, "OPEN_RECS_RUN_CAP", 1)
+        two = [{"run_id": "r1", "seat": "s", "task": "t", "trace_id": None,
+                "resolved_at": None, "artifact_path": None,
+                "recommendations": [_rec(1, "open")]},
+               {"run_id": "r2", "seat": "s", "task": "t", "trace_id": None,
+                "resolved_at": None, "artifact_path": None,
+                "recommendations": [_rec(1, "open")]}]
+        assert len(_FakeDeskStore(two).open_recommendations()) == 1
+        monkeypatch.setattr(ds_mod, "OPEN_RECS_RUN_CAP", 2)
+        assert len(_FakeDeskStore(two).open_recommendations()) == 2
+
     def test_an_unknown_run_count_is_not_reported_as_agreement(self):
         """None, never True: "we did not look" must not render as "the two
         instruments agree"."""
