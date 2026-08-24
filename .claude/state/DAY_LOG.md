@@ -192,6 +192,18 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
   recorded absent, never zero).
 
 **MEASURED**
+- **THE RE-CHECK RETURNED: KILL, narrow, ONE CLAUSE - the clock's fourth
+  strike.** D38's constant is certified right per-observation; "1.00
+  annualised" is the engine's 252-convention, not our series' truth
+  (~366 obs/yr -> hurdle ~1.21, demand ~+1.34). Demonstrated on the
+  shipped gate (true-1.167 refused while told the bar was 1.00).
+  Everything else certified twice across two restarts, zero flips of
+  765. D41 in flight under the standing clock ruling; the register draft
+  stays unsigned; the chair's ruling text corrected a second time (the
+  D38 brief's hardcoded 1.00 was a chair brief defect). THE CLOCK CHECK
+  promoted to PLATFORM_FACTS. Also verified live for the CEO: the D39
+  desk renders his morning R39 click as "You accepted this - execution
+  yours - 07:04Z" with lineage buttons and the since-last-visit diff.
 - **STAN'S GOLD REVIEW (the machinery demo the CEO asked for): SIZE ZERO
   TODAY with a four-number re-entry card — and two findings bigger than
   the question.** (1) The dossier's one pro-gold sizing number INVERTS on

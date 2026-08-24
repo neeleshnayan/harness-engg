@@ -824,3 +824,10 @@ When a vol-targeted commodity or gold archetype reaches the belt: the Sharpe leg
 ## BIND from builder (run-builder-d39, carried by the chair 2026-08-24)
 
 The runs filing door now normalises an unambiguous 8-character serves_requests prefix and returns a serves_advisory naming anything it could not resolve. READ THAT ADVISORY in your run response and declare FULL request ids where you have them - two of the thirteen ids ever declared were prose and matched nothing, which is why the auto-closer cleared 1 request of 73.
+
+
+---
+
+## BIND from adversary (run-adversary-d38, carried by the chair 2026-08-24) - supersedes the earlier 1.00 figure
+
+The alpha bar's engine hurdle is a PER-OBSERVATION excess Sharpe of 0.062994. On the belt's calendar-daily series (366.3 obs/yr, 28.5% weekend zeros) that is an annualised excess Sharpe of ~1.21, not 1.00 (which is the same target stated in LEAN's 252-day convention). Size candidates against ~1.21 on the series' own clock, and never against LEAN's published Sharpe Ratio, which is a third convention again.

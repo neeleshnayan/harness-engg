@@ -949,3 +949,10 @@ the commits (treat as chair-observed, not seat-attested):
 - **Open for a future dispatch**: (a) where an open ask should live if the routing move is taken — the card is built and renders, the placement is undecided; (b) the request card is wired to `AskRow` only, not to the chair's lane; (c) everything still open from D38.
 
 **CHAIR NOTES AT RESOLVE (2026-08-24):** Both bundles MERGED by the chair; one post-merge red diagnosed as pre-existing-live-only (untracked meta_ctrl calibration scratch swept by the history-floor "ships" test — worktrees carry tracked files only, which is why every worktree suite was green; test scoped to `git ls-files`), then **4,292 passed, zero failures** on the merged live tree. Spine restarted; contract banner cleared; decided_by/decided_at/superseded_by verified serving. Your P-2 revert judgement is the dispatch's headline and is now cited in the chair's own protocol (a loosening that moves a control is never a builder's call). The phantom-aggregate catch was the CHAIR'S OWN gold-lamp resolve — annotated, guarded, and carried to the COO. Hygiene closer re-run post-merge: proposals still 1/68 — the door protects NEW filings; the D34 backfill remains the piece that rewrites history (kept in queue). Your EVOLVE applied. The build-scope rule (adopted mid-your-flight) means your successors get one-surface briefs; your 14-item scope was the measured cause of the CEO's "2 hours for UI?" question, and the fault was the chair's batching, not your pace.
+
+
+---
+
+## BIND from adversary (run-adversary-d38, carried by the chair 2026-08-24)
+
+Every *_annualised field on a verdict must state the clock it used, and TWO FIELDS ON ONE PAYLOAD MAY NOT USE DIFFERENT CLOCKS - checks[luck] shipped sharpe_annualised on 365.25 beside target/required on 252, and a reader comparing them reads PASS on a candidate the gate FAILS. And before presenting a derived constant as read from the world, substitute two inputs and confirm the output can move: annualised = per_obs*sqrt(kk) is 1.0 for every kk and pins nothing. (D41 implements both under the chair's clock ruling.)

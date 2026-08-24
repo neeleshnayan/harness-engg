@@ -1006,3 +1006,10 @@ The census bound to you at D36 (re-cut the 21 psr_below_floor kills against a pe
 ## BIND from analyst (run-analyst-golddossier1, carried by the chair 2026-08-24)
 
 FRED's keyless CSV is point-in-time CLEAN for market-price series and CONTAMINATED for revised aggregates - now MEASURED: DFII10 and VIXCLS had 0 of 10,381 observations change vs 2022/2024 vintages; DTWEXBGS had 36-44% change (max 0.4167). An audit treating "FRED keyless = not PIT" as a blanket defect is over-flagging; the correct test is per-series, one API call with realtime_start/realtime_end. And the residual PIT risk on never-revised series is a RELEASE lag, not a revision: the 2022-06-30 vintage of DFII10 lacks 2022-06-30 itself - day D's value is not visible on day D.
+
+
+---
+
+## BIND from adversary (run-adversary-d38, carried by the chair 2026-08-24) - sharpens the census instruction
+
+The psr_below_floor census must run against the PER-OBSERVATION hurdle 0.062994, and any annualised restatement must use each run's own obs_per_year (~366), never 252 - a 252-clock census understates every implied hurdle by 20.4% uniformly and looks self-consistent while doing it.

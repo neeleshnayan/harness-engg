@@ -993,3 +993,24 @@ D39 (in flight) -> **D26 THE READING ROOM promoted next** (research dossiers
 slot; the CEO's "hope they are all now accessible via the UI" is the
 demand signal) -> D40 (team room) -> D33 (live floor). Interim bridge: the
 reading pack sent as files; the library ritual continues per dossier.
+
+
+---
+
+## 2026-08-24 - CORRECTION OF THE CORRECTION (the clock, fourth strike)
+
+My earlier corrected ruling text ("the 1.00-excess-Sharpe hurdle") was
+itself clock-wrong: 1.00 is the target stated in LEAN's 252-day
+CONVENTION; on the belt's actual series (~366.3 obs/yr, weekend zeros
+included) the same per-observation constant (0.062994 excess) is an
+annualised hurdle of ~1.21, demand ~+1.34 at 65%. TRUE STATEMENT, final
+form: the criterion demands P(true excess Sharpe > the engine's per-obs
+target 0.062994) >= 65% - which on our series' own clock is ~1.21
+annualised, and in the engine's convention is 1.00. Prior sections stand
+unedited; this corrects them. The D38 brief hardcoded 1.00 - a chair
+brief defect under the brief-number rule (the number was DERIVED on the
+wrong clock and written bare). D41 implements the standing clock ruling:
+per-run obs_per_year, one clock per payload, conventions disclosed as
+conversions. The clock is now FOUR-for-four in this family - promoted to
+PLATFORM_FACTS as the standing first check for any figure crossing the
+engine boundary.
