@@ -272,3 +272,30 @@ The stack's depth follows BLAST RADIUS, never diff size. The tier is DECLARED in
 ## THE COURSEWORK RULE (2026-08-24, CEO insight verbatim: "we are discovering things that could be easily sourced from the web... build what doesnt exist and tune what we brought in - the linkedin courses analogy")
 
 **DOCS FIRST, PROBE SECOND — for PLATFORM behavior only.** Before probing how a third-party platform behaves (LEAN defaults, vendor API quirks, library semantics, OS behavior), spend five minutes on its documentation and the shelf's PLATFORM_FACTS.md. The web supplies the HYPOTHESIS; the probe then VERIFIES it — never trust-instead-of-measure, because docs lie too (walkforward's own docstring lied about its container cap; every vendor coverage claim is marketing until pulled). What this changes: the probe becomes a cheap confirmation of a stated prior instead of an expensive blind search. What it does NOT change: anything about OUR OWN code, feed, data, or fills is not on the web — that is discovery, the scar files are its record, and no course substitutes for it. Every doc-sourced fact that survives verification goes to PLATFORM_FACTS.md with its URL and its verification line, so the next seat reads the course instead of re-taking the exam.
+
+
+## SEPARATION BEFORE CALIBRATION, AND BOOLEANS FOR OFF (EVOLVE applied 2026-08-24, run-builder-d36, chair-reviewed)
+
+Before choosing a level for a criterion, measure whether the statistic
+SEPARATES the population at all. A flat false-pass curve across the sweep
+means the level is a tie-break wearing a measurement's clothes, and the
+rule that says "pick the lowest that holds" will then hand you the most
+permissive value by default — say so rather than reporting it as
+calibrated. And when a test needs a criterion scoped out, give it an
+explicit boolean: setting a level to zero does not disable a criterion
+that can refuse on ABSENCE.
+Measured basis: D36 — the target-zero filter admitted 100% of 200
+zero-skill draws at every level from 50 to 99.9 with the full-gauntlet
+rate pinned at 1.0%; and premia_min_luck_pct = 0 failed three tests
+because an unmeasurable advantage refuses at any level.
+
+## BRIEF A JUNIOR TO REFUSE (EVOLVE applied 2026-08-24, run-builder-d36, chair-reviewed — extends the fan-out discipline)
+
+Every junior brief carries the instruction to STOP and report rather than
+adjust a failing case — and the ledger records how many refusals turned
+out to be defects in the BRIEF rather than in the code. A junior that
+never refuses has been told to agree.
+Measured basis: D36 — Junior B returned 50 passed and 5 refusals; two
+were the specification being wrong about a near-constant series, three
+were a real API precision ceiling. Zero were smoothed over. The refusals
+were worth more than the passes.
