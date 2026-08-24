@@ -226,6 +226,31 @@ class TestAPhantomAggregateIsRefused:
         assert r.status_code == 404
         assert r.json()["detail"]["did_you_mean"] == [LIVE_ID]
 
+    def test_did_you_mean_is_EMPTY_when_nothing_matches(self, client):
+        """NULL TEST (Gauntlet finding): the suggestion list was only ever
+        exercised where a match existed.
+
+        The live case that made this matter is not the shorthand one. On
+        2026-08-24 at 09:03Z the chair resolved the Gold dossier against
+        ``96390291-…`` — a full uuid that is a DISPATCH task_id, not a request
+        id, with no ``DeskRequested`` behind it. Nothing prefix-matches it, and
+        the refusal must say so with an empty list rather than reaching for the
+        nearest id.
+        """
+        r = client.post(
+            "/api/v1/fund/desk/requests/96390291-82ab-4876-904f-f18ebaaa7aac"
+            "/resolve", json={"resolution": "x", "actor": "cto"})
+        assert r.status_code == 404
+        assert r.json()["detail"]["did_you_mean"] == []
+
+    def test_a_short_typo_gets_no_suggestions_either(self, client):
+        """Below `MIN_ID_PREFIX` nothing is matched, so nothing is suggested —
+        the same bound the normaliser uses, asked at the other door."""
+        r = client.post("/api/v1/fund/desk/requests/1c5358/resolve",
+                        json={"resolution": "x", "actor": "cto"})
+        assert r.status_code == 404
+        assert r.json()["detail"]["did_you_mean"] == []
+
     def test_a_real_request_still_resolves(self, client):
         """THE TIGHTENING MUST ONLY REFUSE. A row that exists takes exactly the
         path it took yesterday — a guard that also blocked the good case would

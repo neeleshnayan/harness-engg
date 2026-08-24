@@ -408,9 +408,10 @@ CARD_CASES: list[dict[str, Any]] = [
         "name": "CLOSED BY THE CHAIR — its own visible category",
         "why": "CEO, verbatim 2026-08-24: 'your desk on the UI only marks "
                "items as CEO approved... I cant form a view of whats closed "
-               "and adjudicated by you.' 52 live rows were adjudicated by the "
-               "chair alone (co-cto 39, cto 13) against 122 by the CEO, and "
-               "the desk labelled all 174 the same way. The citation is the "
+               "and adjudicated by you.' Of 227 live rows, 185 are decided — "
+               "122 by the CEO, 52 by the chair alone (co-cto 39, cto 13), 11 "
+               "via-chair — and the desk labelled all 185 the same way, which "
+               "is to say it labelled none of them. The citation is the "
                "decision note, verbatim and untruncated.",
         "rec": {"status": "accepted", "kind": "process",
                 "text": "Merge the D37 bundle.",

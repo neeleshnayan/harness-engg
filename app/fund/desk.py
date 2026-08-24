@@ -1119,12 +1119,28 @@ def next_actor(rec: Any) -> dict[str, Any]:
                    "recommendation awaiting a decision awaits the CEO's"}
 
 
-#: WHOSE MOVE AN OPEN DESK REQUEST IS. Changed from ``ceo`` to ``chair`` on
-#: 2026-08-24 (Donna hygiene P-2 + riskofficer H-2, chair's recorded routing
-#: decision). **DIRECTION: LOOSENING — it takes rows OFF the CEO's figure, so
-#: the registered COO triage trigger (>=50) fires LATER.** Recorded loudly here
-#: rather than quietly in a diff, and flagged for the riskofficer's audit of
-#: the routing channel.
+#: WHOSE MOVE AN OPEN DESK REQUEST IS.
+#:
+#: **SHIPPED AS ``ceo`` — THE EXISTING BEHAVIOUR, UNCHANGED. The change the
+#: brief asked for is NOT applied, and the reason is a consequence the brief
+#: did not have.**
+#:
+#: P-2/H-2 asked for `chair` here, flagged as a loosening (it takes rows off
+#: the CEO's counter, so the COO triage trigger fires later). It was built,
+#: measured, rendered — and the rendered page showed a second consequence
+#: nobody had priced: **it removes the CEO's ask-approval control from his own
+#: page.** His page routes asks to a card that carries Approve/Decline only
+#: while the ask is on his list; route them to the chair and they render in the
+#: chair's dispatch lane, which is a one-line summary view with no approval
+#: control anywhere in it. The counter would have gone quiet and so would the
+#: button.
+#:
+#: A loosening that also REMOVES A CONTROL is not a builder's call. The
+#: constitution routes it to the adversary blind and then to the CEO's click,
+#: and it is filed that way with the measurements below attached, rather than
+#: applied here and mentioned in a diff.
+#:
+#: WHAT THE MEASUREMENTS STILL SAY, because they are the reason to revisit it:
 #:
 #: THE OLD READING RESTED ON A CIRCULAR MEASUREMENT, AND THAT IS THE NEW
 #: EVIDENCE. Both this module and ``desk_items`` justified ``ceo`` with: "all
@@ -1152,31 +1168,38 @@ def next_actor(rec: Any) -> dict[str, Any]:
 #: what an open request is BLOCKED on, and a counter that says otherwise puts
 #: the chair's dispatch queue on the CEO's desk.
 #:
-#: NOTHING IS HIDDEN. These rows stay in the matrix, in ``by_actor`` under the
-#: chair, and in the OPEN column. They move ATTENTION, never authority — the
-#: approve button, the allowlist and the guard are all untouched.
-OPEN_REQUEST_ACTOR = "chair"
+#: WHAT WOULD CHANGE THIS DECISION'S MIND, recorded at decision time: a
+#: placement for the CEO's ask-approval control that survives the rows leaving
+#: his list. Then this constant becomes ``"chair"`` in a one-line versioned
+#: change, and the measurements above are already the written reason.
+OPEN_REQUEST_ACTOR = "ceo"
 
 #: Bumped when the line above moves, so a client can tell which rule produced
-#: the number it is holding.
-REQUEST_ROUTING_VERSION = "request routing v2 (2026-08-24) — open -> chair"
+#: the number it is holding. v1 IS the pre-existing behaviour, named for the
+#: first time — the rule used to live untitled inside ``desk_items``.
+REQUEST_ROUTING_VERSION = ("request routing v1 (named 2026-08-24) — open -> "
+                           "ceo, approved -> chair")
 
 
 def open_request_actor(status: Any) -> str:
     """Whose move a desk request is, from its status alone.
 
-    ``open`` -> the chair (it must be dispatched). ``approved`` -> the chair
-    (it must be dispatched). Anything terminal -> nobody.
+    ``open`` -> the CEO (his blessing is the next act on the record's own
+    reading). ``approved`` -> the chair, which must dispatch it. Terminal ->
+    nobody, the same rule ``next_actor`` applies to a terminal recommendation.
 
-    Note that open and approved now give the SAME answer, which is the honest
-    shape: approval was never the thing an open request was waiting for. The
-    two states differ in whether the CEO has blessed the ask, not in whose desk
-    it sits on, and the lifecycle rail renders that difference where it belongs
-    — on the card, as a stage, with its age.
+    NET BEHAVIOUR CHANGE FROM THE BASE COMMIT: ZERO. This is the rule
+    ``desk_items`` already applied inline, lifted into one named function so
+    that the spine, the counter and the CEO's page read one answer instead of
+    three — which is the repair that actually shipped here. The routing MOVE
+    that P-2/H-2 asked for is filed as a recommendation with its measurements;
+    see ``OPEN_REQUEST_ACTOR`` for why a builder did not apply it.
     """
     s = (status or "open").strip().lower() if isinstance(status, str) else "open"
     if s in _TERMINAL_REQUEST_STATUSES:
         return "nobody"
+    if s == "approved":
+        return "chair"
     return OPEN_REQUEST_ACTOR
 
 
@@ -1295,20 +1318,13 @@ def desk_load(open_recommendations: list[dict[str, Any]],
         "requests_awaiting_approval": _count(open_requests),
     }
     unreadable = sorted(k for k, v in parts.items() if v is None)
-    # OPEN DESK REQUESTS LEFT THIS TOTAL ON 2026-08-24. See
-    # `OPEN_REQUEST_ACTOR` for the two non-circular measurements that moved
-    # them; the direction is LOOSENING and it is stated there in full. The
-    # component is still COMPUTED, still PUBLISHED, and now named in
-    # `excluded_from_total` beside the chair's backlog — the same treatment,
-    # for the same reason, as the approved-undispatched queue: a number defined
-    # as "awaiting the CEO" must not carry rows whose next actor is not him.
-    #
-    # `unreadable` deliberately still includes the request leg. A component
-    # that could not be read is a fact about the fold's completeness whether or
-    # not it feeds the headline, and dropping it from that list would make an
-    # unreadable request store look like a clean one.
-    total = sum(v for k, v in parts.items()
-                if v is not None and k != "requests_awaiting_approval")
+    # THE OPEN-REQUEST LEG STILL COUNTS, and that is the shipped state rather
+    # than the one P-2/H-2 asked for. See `OPEN_REQUEST_ACTOR`: the move was
+    # built and measured, and the rendered page showed it would also remove the
+    # CEO's ask-approval control, which makes it a decision for the adversary
+    # blind and the CEO rather than for a builder. `requests_by_actor` below
+    # publishes the finding without acting on it.
+    total = sum(v for v in parts.values() if v is not None)
     backlog = chair_backlog if isinstance(chair_backlog, dict) else None
     undispatched = (backlog or {}).get("requests_approved_undispatched")
     return {
@@ -1350,10 +1366,8 @@ def desk_load(open_recommendations: list[dict[str, Any]],
             if isinstance(open_requests, list) else None),
         # Named explicitly so a reader of the payload can see WHAT was left out
         # of the total rather than having to diff two versions of this file.
-        "excluded_from_total": (
-            (["requests_awaiting_approval"]
-             if parts["requests_awaiting_approval"] else [])
-            + (["requests_approved_undispatched"] if undispatched else [])),
+        "excluded_from_total": (["requests_approved_undispatched"]
+                                if undispatched else []),
         "rules_version": NEXT_ACTOR_RULES_VERSION,
         "request_routing_version": REQUEST_ROUTING_VERSION,
         # The shared contract this spine's routing was generated against, so a
@@ -1377,11 +1391,12 @@ def desk_load(open_recommendations: list[dict[str, Any]],
                "never his to decide" if open_elsewhere else "")
             + (f". {decided_rows} are decided and awaiting execution"
                if decided_rows else "")
-            + (f". {parts['requests_awaiting_approval']} open desk request(s) "
-               "await DISPATCH by the chair — reported, and since 2026-08-24 "
-               "not added to the CEO's figure: 28 of the 49 requests resolved "
-               "in the last log window were never approved at all, so an open "
-               "request is blocked on the chair firing it, not on his click"
+            + (f". {parts['requests_awaiting_approval']} of them are open desk "
+               "request(s), counted as his — MEASURED AND DISPUTED: 28 of the "
+               "49 requests resolved in the last log window carry no approval "
+               "event at all, so the modal path is the chair serving them. "
+               "Moving them is a CEO decision because it would also take his "
+               "approve control off the page; see desk.OPEN_REQUEST_ACTOR"
                if parts["requests_awaiting_approval"] else "")
             + (f". Separately, {undispatched} approved desk request(s) await "
                "DISPATCH by the chair — reported, and deliberately not added "
@@ -1562,6 +1577,76 @@ def seat_telemetry(day_runs: Optional[list[dict[str, Any]]],
     }
 
 
+def dispatched_request_ids(store: Any) -> set:
+    """Request ids a ``DeskDispatched`` event has ever named.
+
+    MOVED HERE 2026-08-24 from ``app/api/v1/fund.py``, which now delegates: the
+    lifecycle rail needs this fold on the ``/fund/desk`` path and the CEO
+    engine already needed it on the other, and two copies of a fold over the
+    same event type is how the request lifecycle drifts. Same reasoning
+    ``_chair_backlog`` already gives for delegating to ``metrics.friction``.
+
+    Returns an EMPTY SET when the store cannot be read, and the caller renders
+    the rail's `dispatched` stage as not-reached. That is the honest
+    degradation here: an unreadable dispatch log cannot prove a dispatch
+    happened, and claiming one would advance a stage on no evidence.
+    """
+    from app.fund.events import EventType
+
+    out: set = set()
+    try:
+        for e in store.stream(since_seq=0, limit=100_000):
+            t = e.get("type") if isinstance(e, dict) else getattr(e, "type", None)
+            if getattr(t, "value", t) != EventType.DESK_DISPATCHED.value:
+                continue
+            p = (e.get("payload") if isinstance(e, dict)
+                 else getattr(e, "payload", None)) or {}
+            if p.get("request_id"):
+                out.add(str(p["request_id"]))
+    except Exception as e:  # noqa: BLE001
+        logger.info("dispatch fold unavailable: %s", e)
+    return out
+
+
+def _annotated_request(req: Any, dispatched_ids: Any = ()) -> Any:
+    """One desk request with its card fields and its lifecycle rail attached.
+
+    THE CARD SPEC (``KryptonPay/docs/design/REQUEST_CARD_2026-08-24.md``,
+    CEO-ratified after request ``0c295ec7`` rendered as a wall of prose: *"it
+    could have been designed in a far more intuitive and cleaner way"*). The
+    four questions a card must answer — what is this, where does it stand, what
+    is owed, whose move is it — are computed HERE, from the same two functions
+    ``desk_items`` uses, so the two surfaces cannot answer them differently.
+
+    ``next_actor_resolved`` is here for a measured reason. The CEO page derived
+    it in TypeScript, so when ``OPEN_REQUEST_ACTOR`` moved on this side the
+    page went on listing eleven asks as decisions he owed and its own
+    reconciliation banner reported the counts disagreeing by exactly that many
+    — both suites green. One rule, published, read by the client.
+
+    EVERY FIELD IS ADDITIVE AND PROSE-ONLY STAYS VALID FOREVER: a request filed
+    as a subject renders through the fallback with ``structured: false``, which
+    is what all 109 rows filed before the schema existed do. No migration.
+    """
+    from app.fund import deskcard
+
+    if not isinstance(req, dict):
+        return req
+    dispatched = {str(x) for x in (dispatched_ids or ())}
+    row = {**req, "dispatched": str(req.get("request_id")) in dispatched}
+    card = deskcard.request_card(req)
+    return {**row,
+            "next_actor_resolved": open_request_actor(req.get("status")),
+            "next_actor_basis": "request_lifecycle",
+            "headline": card["headline"],
+            "summary": card["summary"],
+            "incident": card["incident"],
+            "wanted": card["wanted"],
+            "next_move": card["next_move"],
+            "structured": card["structured"],
+            "lifecycle": deskcard.lifecycle_rail(row)}
+
+
 def status_index(open_recommendations: Any = (), requests: Any = ()) -> dict[str, Any]:
     """Every row on this desk keyed by canonical ref, for the cascade fold.
 
@@ -1694,6 +1779,7 @@ def view(store: Any, deskstore: Any = None,
     # recommendation or a desk request. (Hoisted after the first version put
     # the call inside the comprehension: 227 recommendations against 336 rows
     # is ~76k dict writes to render one reminder chip.)
+    dispatched_ids = dispatched_request_ids(store)
     index = status_index(open_recs, reqs)
     open_recs = [_annotated(r, index) for r in open_recs]
     killed = [a for a in artifacts if a["status"] == "killed"]
@@ -1714,7 +1800,18 @@ def view(store: Any, deskstore: Any = None,
             "log, or tune thresholds",
         ],
         "artifacts": artifacts,
-        "requests": reqs,
+        # ANNOTATED WITH WHOSE MOVE IT IS, for the same reason recommendations
+        # are (2026-08-24). The CEO page derived this itself — an open request
+        # was `awaiting_ceo` in TypeScript — so when `OPEN_REQUEST_ACTOR` moved
+        # to the chair on this side, the page went on listing eleven asks as
+        # decisions he owed and its own reconciliation banner reported the two
+        # counts disagreeing by exactly that many. Caught by looking at the
+        # rendered page, which is the only place a divergence of this shape has
+        # ever been visible: both suites were green over it.
+        #
+        # One rule, published, read by the client. The client keeps its old
+        # derivation as the fallback for a spine that predates the field.
+        "requests": [_annotated_request(r, dispatched_ids) for r in reqs],
         # The flight recorder: every dispatch whole, and every recommendation
         # with the seat that made it - attribution is the point.
         "runs": runs,

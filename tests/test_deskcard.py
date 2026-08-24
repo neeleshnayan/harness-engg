@@ -89,6 +89,27 @@ class TestADictPayloadRendersItsTextNeverItsRepr:
         assert parts["from_dict"] is False
         assert parts["headline"] == hostile
 
+    def test_the_literal_parser_is_BOUNDED_and_the_bound_is_probed(self):
+        """BOUNDARY TABLE for `_LITERAL_MAX = 20_000` (Gauntlet finding).
+
+        This door parses SEAT-AUTHORED strings as Python literals, so its
+        length bound is the one number here that decides how much attacker-
+        shaped text `ast.literal_eval` ever sees. A repr is short by nature; a
+        genuine memo is long. Probed at the bound and one past it: at the
+        bound it still parses, one over and the string comes back verbatim —
+        which is the safe direction (unparsed, never mangled).
+        """
+        m = deskcard._LITERAL_MAX
+        pad = "x" * (m - len("{'text': 'a', 'detail': ''}"))
+        at = "{'text': 'a', 'detail': '" + pad + "'}"
+        assert len(at) == m
+        assert deskcard.card_text(at)["headline"] == "a"
+        over = "{'text': 'a', 'detail': '" + pad + "y'}"
+        assert len(over) == m + 1
+        parts = deskcard.card_text(over)
+        assert parts["from_dict"] is False
+        assert parts["headline"] == over, "unparsed is returned whole"
+
     def test_the_display_key_order_is_the_one_the_corpus_needs(self):
         """`text` wins over `title` — a payload carrying both means the seat
         wrote a display line on purpose and a heading as well."""
@@ -108,6 +129,56 @@ class TestADictPayloadRendersItsTextNeverItsRepr:
         a filing error, and str() would hide it."""
         assert deskcard.card_text({"text": 12, "title": "real"})["headline"] \
             == "real"
+
+    def test_THE_DOOR_ITSELF_stores_the_headline(self):
+        """MUTATION SURVIVOR M23, closed. Reverting `record_run`'s display line
+        to `str(r.get("text") or r)` — THE defect that put two Python dict
+        reprs on the CEO's desk — killed no test, because every test above
+        calls `recommendation_text` directly while the door was reachable only
+        through a live Postgres connection.
+
+        `build_recommendations` was extracted for exactly this: the branch the
+        suite could not reach is now the branch under test.
+        """
+        from app.fund.deskstore import build_recommendations
+
+        rows = build_recommendations(
+            [{"id": "O4", "title": "Validate serves_requests ids",
+              "detail": "app/api/v1/fund.py:2136-2140 stores declared ids."}],
+            seat="cfo", trace_id="t")
+        assert rows[0]["text"] == "Validate serves_requests ids"
+        assert not rows[0]["text"].startswith("{")
+        assert rows[0]["detail"].startswith("app/api/v1/fund.py")
+
+    def test_the_door_keeps_every_other_field_it_always_kept(self):
+        """The extraction must be behaviour-preserving. Named fields rather
+        than a snapshot: a snapshot test would go green over a field silently
+        dropped and only fail once someone regenerated it."""
+        from app.fund.deskstore import build_recommendations
+
+        rows = build_recommendations(
+            [{"text": "t", "kind": "build", "money_at_stake": 12.5,
+              "next_actor": "chair", "due_date": "2026-09-08",
+              "reversibility": "reversible", "routed_from": "undecided",
+              "routing_rules_version": "routing v1"}],
+            seat="pm", trace_id="tr")
+        r = rows[0]
+        assert (r["rec_id"], r["seat"], r["status"], r["trace_id"]) == \
+            (1, "pm", "open", "tr")
+        assert r["kind"] == "build" and r["money_at_stake"] == 12.5
+        assert r["next_actor"] == "chair" and r["due_date"] == "2026-09-08"
+        assert r["reversibility"] == "reversible"
+        assert r["routed_from"] == "undecided"
+        assert r["routing_rules_version"] == "routing v1"
+
+    def test_the_door_omits_optional_keys_rather_than_nulling_them(self):
+        """`detail` and `members` are ABSENT when there are none — not "" and
+        not []. A stored empty list is a claim that the seat filed a bundle
+        with no members."""
+        from app.fund.deskstore import build_recommendations
+
+        r = build_recommendations([{"text": "t"}], seat="pm", trace_id=None)[0]
+        assert "detail" not in r and "members" not in r
 
     def test_a_string_recommendation_no_longer_crashes_the_door(self):
         """LATENT CRASH, fixed in passing. The old line called
@@ -311,9 +382,13 @@ class TestChairAdjudicationIsFirstClass:
     CEO approved - trigger it so I cant form a view of whats closed and
     adjudicated by you."*
 
-    MEASURED over the 227 live rows: **122 decided by the CEO, 52 by the chair
-    alone** (``co-cto`` 39, ``cto`` 13), **11 via-chair**, 42 undecided. The
-    desk labelled all 185 decided rows identically.
+    MEASURED over the 227 live rows (2026-08-24): **122 decided by the CEO, 52
+    by the chair alone** (``co-cto`` 39, ``cto`` 13), **11 via-chair**, 42
+    undecided. 122 + 52 + 11 = **185 decided**, and the desk labelled all 185
+    identically — which is to say it labelled none of them.
+
+    Reproduce: ``GET /api/v1/fund/desk``, group ``open_recommendations`` by
+    ``decided_by`` with the bracketed instruction stripped.
     """
 
     def test_the_three_channels_are_distinguishable(self):
@@ -451,9 +526,17 @@ class TestTheCascadeBlock:
                                         {"run_id": "r", "rec_id": 1}])
         assert len(m) == 1
 
-    def test_the_member_list_is_bounded(self):
-        many = [{"run_id": "r", "rec_id": i} for i in range(500)]
-        assert len(deskcard.normalise_members(many)) == deskcard.MAX_MEMBERS
+    def test_the_member_list_is_bounded_AT_the_boundary(self):
+        """BOUNDARY TABLE for `MAX_MEMBERS` (Gauntlet finding: the old test
+        passed 500 and proved only that truncation fires SOMEWHERE, never
+        where). Exactly the cap survives whole; one more truncates."""
+        cap = deskcard.MAX_MEMBERS
+        at = [{"run_id": "r", "rec_id": i} for i in range(cap)]
+        assert len(deskcard.normalise_members(at)) == cap
+        over = [{"run_id": "r", "rec_id": i} for i in range(cap + 1)]
+        assert len(deskcard.normalise_members(over)) == cap
+        # And the row that fell off is the LAST one, not an arbitrary one.
+        assert deskcard.normalise_members(over)[-1]["rec_id"] == cap - 1
 
 
 # ============================================================================
@@ -611,6 +694,87 @@ class TestTheProjectionCarriesWhatTheRendererNeeds:
         assert out["text_display"] == "Validate the ids"
         assert out["text_detail"] == "the detail"
         assert out["text_basis"] == "title"
+
+    def test_THE_CASCADE_IS_WIRED_ON_THE_PATH_THE_CARDS_USE(self):
+        """MUTATION SURVIVOR M21, closed — and it is the defect this dispatch
+        already found once, by LOOKING at the rendered page.
+
+        The CEO's cards are built from `/fund/desk`'s `open_recommendations`,
+        which flow through `_annotated`. The first cut put the cascade fold in
+        `desk_items` (the `/fund/desk/ceo` engine) ONLY, so the chip could
+        never have appeared on the surface it was written for — a control with
+        no caller, which is this firm's named worst failure mode. Setting
+        `_annotated`'s cascade back to None killed no test.
+
+        `view()` is the caller under test as much as `_annotated` is: this
+        asserts the INDEX reaches the annotation, not merely that the function
+        exists.
+        """
+        bundle = {"run_id": "b", "rec_id": 1, "status": "accepted",
+                  "text": "Accept the batch.", "next_actor": "ceo",
+                  "members": [{"run_id": "m", "rec_id": 1},
+                              {"request_id": "q"}]}
+        member = {"run_id": "m", "rec_id": 1, "status": "open", "text": "m"}
+        index = desk_mod.status_index([bundle, member],
+                                      [{"request_id": "q",
+                                        "status": "resolved"}])
+        out = desk_mod._annotated(bundle, index)
+        assert out["cascade"] is not None, \
+            "the cascade must be on the /fund/desk path, not only on /desk/ceo"
+        assert out["cascade"]["pending"] == 1
+        assert out["cascade"]["done"] == 1
+
+    def test_VIEW_ITSELF_builds_the_index_so_the_chip_can_render(self):
+        """MUTATION SURVIVOR M24, closed — the wiring defect one level up.
+
+        Closing M21 pinned `_annotated`'s fold. It did NOT pin that `view()`
+        actually passes an index: setting `index = None` there left every test
+        green while the chip was, again, unreachable from `/fund/desk`. Two
+        mutants, the same failure mode, one caught by the other's fix and one
+        not. The end-to-end payload is the only thing that can tell.
+        """
+        class _Store:
+            def stream(self, since_seq=0, limit=100_000):
+                return []
+
+        class _DeskStore:
+            def runs(self, limit=25):
+                return []
+
+            def runs_between(self, a, b):
+                return []
+
+            def open_recommendations(self):
+                return [
+                    {"run_id": "b", "rec_id": 1, "status": "accepted",
+                     "text": "Accept the batch.", "next_actor": "ceo",
+                     "members": [{"run_id": "m", "rec_id": 1}]},
+                    {"run_id": "m", "rec_id": 1, "status": "open",
+                     "text": "the member"},
+                ]
+
+        payload = desk_mod.view(_Store(), deskstore=_DeskStore())
+        bundle = next(r for r in payload["open_recommendations"]
+                      if r["run_id"] == "b")
+        assert bundle["cascade"] is not None, \
+            "GET /fund/desk must carry the cascade — it is what the cards read"
+        assert bundle["cascade"]["pending"] == 1
+
+    def test_without_an_index_the_cascade_is_OMITTED_not_zeroed(self):
+        """An empty index would report every member `not_open`, which reads as
+        "nothing is outstanding" — an absence dressed as an answer. A caller
+        that did not build the index gets no block at all."""
+        bundle = {"run_id": "b", "rec_id": 1, "status": "accepted", "text": "t",
+                  "members": [{"run_id": "m", "rec_id": 1}]}
+        assert desk_mod._annotated(bundle)["cascade"] is None
+
+    def test_the_index_covers_both_populations_and_is_built_once(self):
+        """A bundle may name a recommendation OR a desk request, so an index
+        over one population would silently report half the members absent."""
+        idx = desk_mod.status_index(
+            [{"run_id": "r", "rec_id": 2, "status": "staged"}],
+            [{"request_id": "q", "status": "approved"}])
+        assert idx == {"rec:r#2": "staged", "req:q": "approved"}
 
     def test_the_cascade_lookup_sees_both_populations(self):
         items = desk_mod.desk_items(

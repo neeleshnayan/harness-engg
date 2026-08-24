@@ -251,20 +251,12 @@ def test_chair_backlog_is_reported_and_NOT_summed_into_the_CEO_total():
                "upper_bound": True}
     plain = desk.desk_load([], [], [{}] * 5)
     with_backlog = desk.desk_load([], [], [{}] * 5, chair_backlog=backlog)
-    # 5 UNTIL 2026-08-24, WHEN OPEN REQUESTS LEFT THIS TOTAL TOO — by exactly
-    # the argument this test was written to make, applied one step earlier in
-    # the lifecycle. An APPROVED-undispatched request waits on the chair; so,
-    # it turns out, does an OPEN one: 28 of the 49 requests resolved in the
-    # live log window carry no approval event at all. Both legs are now
-    # published, excluded, and named in `excluded_from_total`.
-    assert with_backlog["total"] == plain["total"] == 0
+    assert with_backlog["total"] == plain["total"] == 5
     assert with_backlog["coo_triage_due"] == plain["coo_triage_due"]
     assert with_backlog["requests_approved_undispatched"] == 30
     assert with_backlog["chair_backlog"] == backlog
-    assert with_backlog["excluded_from_total"] == [
-        "requests_awaiting_approval", "requests_approved_undispatched"]
-    assert with_backlog["components"]["requests_awaiting_approval"] == 5, \
-        "excluded from the headline, never dropped from the payload"
+    assert with_backlog["excluded_from_total"] == \
+        ["requests_approved_undispatched"]
     assert "await DISPATCH by the chair" in with_backlog["note"]
 
 

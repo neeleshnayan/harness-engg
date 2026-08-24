@@ -265,6 +265,99 @@ def _money_at_stake(r: Any) -> Optional[float]:
     return round(v, 2)
 
 
+def build_recommendations(recommendations: Any, *, seat: str,
+                          trace_id: Optional[str]) -> list[dict[str, Any]]:
+    """One filed recommendation per row, normalised for storage.
+
+    EXTRACTED FROM ``record_run`` 2026-08-24, and the reason is a MUTATION
+    SURVIVOR rather than tidiness. Reverting the display line to the old
+    ``str(r.get("text") or r)`` — the exact defect that put two Python dict
+    reprs on the CEO's desk — killed no test, because every test of that
+    behaviour called ``deskcard.recommendation_text`` directly while the door
+    itself was only reachable through a live Postgres connection. A branch no
+    test can reach is a branch the suite cannot defend.
+
+    Pure: no connection, no clock, no I/O. The mutant dies now.
+    """
+    from app.fund.deskcard import (card_text, normalise_members,
+                                   recommendation_text)
+
+    recs: list[dict[str, Any]] = []
+    for i, r in enumerate(recommendations or [], 1):
+        # P-1, MEASURED (2026-08-24, GET /fund/desk): 2 of 227 rows on the
+        # CEO's live desk rendered as a raw Python dict repr — `run-cfo-8`
+        # recs 1 and 2, both `accepted`, both filed with a `title` key and
+        # no `text` key. The old line was `str(r.get("text") or r)`, so a
+        # payload that named its display field anything else stored its own
+        # `{'id': 'O4', 'title': ...}` as the sentence he reads. The seats
+        # were not wrong; the door was.
+        parts = card_text(r)
+        recs.append({"rec_id": i, "seat": seat, "status": "open",
+                     "trace_id": trace_id,
+                     "text": recommendation_text(r),
+                     # THE REST OF THE PAYLOAD, KEPT. Extracting a headline
+                     # must not delete the paragraph it was extracted from
+                     # — the card renders this behind the details toggle.
+                     # Absent (not "") when the filing carried no detail.
+                     **({"detail": parts["detail"]}
+                        if parts["detail"] else {}),
+                     # THE CASCADE RULE'S MISSING FIELD (constitution
+                     # 2026-08-21: "a batch acceptance CASCADES"). Written
+                     # as governance, never given a column, so "did the
+                     # cascade happen" had no query for three days short of
+                     # a week. Optional; a row without it is an ordinary
+                     # recommendation and reads exactly as it did.
+                     **({"members": normalise_members(r.get("members"))}
+                        if isinstance(r, dict)
+                        and normalise_members(r.get("members")) else {}),
+                     "kind": r.get("kind") if isinstance(r, dict) else None,
+                     # OPTIONAL. 47 of 47 open recommendations carried no
+                     # dollar figure, so the CEO's desk ranked its queue by
+                     # arrival order while claiming to rank by money
+                     # (builder dispatch 3). None means the seat did not
+                     # state a figure — it does NOT mean $0, and the desk
+                     # ranks absent-last and says the gap out loud rather
+                     # than scraping a number out of prose.
+                     "money_at_stake": _money_at_stake(r),
+                     # OPTIONAL. The seat's own statement of whose move is
+                     # next; absent means the desk infers it. See
+                     # `_next_actor` for why the field exists at all.
+                     "next_actor": _next_actor(
+                         r.get("next_actor") if isinstance(r, dict) else None),
+                     # OPTIONAL YYYY-MM-DD. A DATED COMMITMENT — the day
+                     # something happens whether or not anybody clicks —
+                     # and the CEO desk's top ranking key. Absent means the
+                     # seat stated no date; it is never parsed out of the
+                     # text, because a deadline read out of English is the
+                     # same mistake as a completion read out of English.
+                     "due_date": _due_date(
+                         r.get("due_date") if isinstance(r, dict) else None),
+                     # OPTIONAL. The desk's SECOND ranking key, stated by
+                     # the seat rather than guessed from its kind. Absent
+                     # falls back to the kind table.
+                     "reversibility": _reversibility(
+                         r.get("reversibility") if isinstance(r, dict)
+                         else None),
+                     # ROUTING AT BIRTH (desk engine v1). Carried because
+                     # the row is rebuilt here field by field, and without
+                     # these two the normalisation would be invisible the
+                     # instant it was stored. `routed_from` is the ONE
+                     # measurement that says whether the undecided->chair
+                     # default is being leaned on or genuinely used: a
+                     # chair queue full of `routed_from: undecided` is a
+                     # bench that stopped thinking about ownership, and a
+                     # queue without it is real delegation. Both absent on
+                     # rows filed before the engine, which is correct —
+                     # they were not routed at birth.
+                     **({"routed_from": r["routed_from"]}
+                        if isinstance(r, dict) and r.get("routed_from")
+                        else {}),
+                     **({"routing_rules_version": r["routing_rules_version"]}
+                        if isinstance(r, dict)
+                        and r.get("routing_rules_version") else {})})
+    return recs
+
+
 class DeskStore:
     def __init__(self, dsn: Optional[str] = None):
         from app.fund.pgstore import dsn as default_dsn
@@ -318,82 +411,8 @@ class DeskStore:
         ``tokens`` moved, and omitting ``tokens`` blanked it — the flight
         recorder was losing exactly the corrections it was being sent.
         """
-        from app.fund.deskcard import (card_text, normalise_members,
-                                       recommendation_text)
-
-        recs = []
-        for i, r in enumerate(recommendations or [], 1):
-            # P-1, MEASURED (2026-08-24, GET /fund/desk): 2 of 227 rows on the
-            # CEO's live desk rendered as a raw Python dict repr — `run-cfo-8`
-            # recs 1 and 2, both `accepted`, both filed with a `title` key and
-            # no `text` key. The old line was `str(r.get("text") or r)`, so a
-            # payload that named its display field anything else stored its own
-            # `{'id': 'O4', 'title': ...}` as the sentence he reads. The seats
-            # were not wrong; the door was.
-            parts = card_text(r)
-            recs.append({"rec_id": i, "seat": seat, "status": "open",
-                         "trace_id": trace_id,
-                         "text": recommendation_text(r),
-                         # THE REST OF THE PAYLOAD, KEPT. Extracting a headline
-                         # must not delete the paragraph it was extracted from
-                         # — the card renders this behind the details toggle.
-                         # Absent (not "") when the filing carried no detail.
-                         **({"detail": parts["detail"]}
-                            if parts["detail"] else {}),
-                         # THE CASCADE RULE'S MISSING FIELD (constitution
-                         # 2026-08-21: "a batch acceptance CASCADES"). Written
-                         # as governance, never given a column, so "did the
-                         # cascade happen" had no query for three days short of
-                         # a week. Optional; a row without it is an ordinary
-                         # recommendation and reads exactly as it did.
-                         **({"members": normalise_members(r.get("members"))}
-                            if isinstance(r, dict)
-                            and normalise_members(r.get("members")) else {}),
-                         "kind": r.get("kind") if isinstance(r, dict) else None,
-                         # OPTIONAL. 47 of 47 open recommendations carried no
-                         # dollar figure, so the CEO's desk ranked its queue by
-                         # arrival order while claiming to rank by money
-                         # (builder dispatch 3). None means the seat did not
-                         # state a figure — it does NOT mean $0, and the desk
-                         # ranks absent-last and says the gap out loud rather
-                         # than scraping a number out of prose.
-                         "money_at_stake": _money_at_stake(r),
-                         # OPTIONAL. The seat's own statement of whose move is
-                         # next; absent means the desk infers it. See
-                         # `_next_actor` for why the field exists at all.
-                         "next_actor": _next_actor(
-                             r.get("next_actor") if isinstance(r, dict) else None),
-                         # OPTIONAL YYYY-MM-DD. A DATED COMMITMENT — the day
-                         # something happens whether or not anybody clicks —
-                         # and the CEO desk's top ranking key. Absent means the
-                         # seat stated no date; it is never parsed out of the
-                         # text, because a deadline read out of English is the
-                         # same mistake as a completion read out of English.
-                         "due_date": _due_date(
-                             r.get("due_date") if isinstance(r, dict) else None),
-                         # OPTIONAL. The desk's SECOND ranking key, stated by
-                         # the seat rather than guessed from its kind. Absent
-                         # falls back to the kind table.
-                         "reversibility": _reversibility(
-                             r.get("reversibility") if isinstance(r, dict)
-                             else None),
-                         # ROUTING AT BIRTH (desk engine v1). Carried because
-                         # the row is rebuilt here field by field, and without
-                         # these two the normalisation would be invisible the
-                         # instant it was stored. `routed_from` is the ONE
-                         # measurement that says whether the undecided->chair
-                         # default is being leaned on or genuinely used: a
-                         # chair queue full of `routed_from: undecided` is a
-                         # bench that stopped thinking about ownership, and a
-                         # queue without it is real delegation. Both absent on
-                         # rows filed before the engine, which is correct —
-                         # they were not routed at birth.
-                         **({"routed_from": r["routed_from"]}
-                            if isinstance(r, dict) and r.get("routed_from")
-                            else {}),
-                         **({"routing_rules_version": r["routing_rules_version"]}
-                            if isinstance(r, dict)
-                            and r.get("routing_rules_version") else {})})
+        recs = build_recommendations(recommendations, seat=seat,
+                                     trace_id=trace_id)
         st = _run_status(status)
         with self._connect() as conn:
             with conn.cursor() as cur:

@@ -2,7 +2,7 @@
   "contract": "desk_card",
   "version": 1,
   "rules_version": "v1 (2026-08-22)",
-  "request_routing_version": "request routing v2 (2026-08-24) — open -> chair",
+  "request_routing_version": "request routing v1 (named 2026-08-24) — open -> ceo, approved -> chair",
   "covers": "what a desk row RENDERS as — the nine states the CEO's window either got wrong or could not express on 2026-08-24. It binds no count; the stage contract binds the count.",
   "lifecycle": [
     "filed",
@@ -110,7 +110,7 @@
     },
     {
       "name": "CLOSED BY THE CHAIR — its own visible category",
-      "why": "CEO, verbatim 2026-08-24: 'your desk on the UI only marks items as CEO approved... I cant form a view of whats closed and adjudicated by you.' 52 live rows were adjudicated by the chair alone (co-cto 39, cto 13) against 122 by the CEO, and the desk labelled all 174 the same way. The citation is the decision note, verbatim and untruncated.",
+      "why": "CEO, verbatim 2026-08-24: 'your desk on the UI only marks items as CEO approved... I cant form a view of whats closed and adjudicated by you.' Of 227 live rows, 185 are decided — 122 by the CEO, 52 by the chair alone (co-cto 39, cto 13), 11 via-chair — and the desk labelled all 185 the same way, which is to say it labelled none of them. The citation is the decision note, verbatim and untruncated.",
       "row": {
         "status": "accepted",
         "kind": "process",
@@ -379,7 +379,7 @@
       },
       "expect": {
         "status": "open",
-        "next_actor_resolved": "chair",
+        "next_actor_resolved": "ceo",
         "title_display": "DESK RENDERING + ROUTING (Donna P-1/P-2/P-3)",
         "summary": null,
         "detail": "DESK RENDERING + ROUTING (Donna P-1/P-2/P-3)\nFive rows rendered as raw Python reprs this weekend, including the two that were genuinely his.",
@@ -619,7 +619,7 @@
       },
       "expect": {
         "status": "open",
-        "next_actor_resolved": "chair",
+        "next_actor_resolved": "ceo",
         "title_display": "Half a move.",
         "summary": null,
         "detail": "Half a move.",
@@ -750,7 +750,7 @@
     "counted_for_ceo": 3,
     "superseded_edges": 1,
     "repaired_reprs": 1,
-    "requests_on_the_ceos_figure": 0
+    "requests_on_the_ceos_figure": 2
   },
-  "digest": "5407f30702436ac2d83ccde4baa01d5e893719a84d4171d7025876a44509a8c2"
+  "digest": "168c0b96bafc93a8416ddc1716ef1ca8cf318c83485c4af34b28b666bc8ee810"
 }

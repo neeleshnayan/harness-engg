@@ -274,19 +274,32 @@ class TestRequestCasePins:
         c = _by_name(contract["request_cases"], "SERVED REQUEST — the rail reaches delivered")
         assert c["expect"]["lifecycle"]["current"] == "delivered"
 
-    def test_no_request_ever_lands_on_the_ceos_own_figure(self, contract):
-        """Request routing v2 (2026-08-24): every open request routes to the
-        chair, never the CEO — a request is bench-to-bench traffic, not a
-        decision queue. If any request case resolved to `ceo`, the CEO's
-        headline figure would silently start counting a population the
-        constitution says is not his to decide."""
-        for c in contract["request_cases"]:
-            assert c["expect"]["next_actor_resolved"] != "ceo", (
-                f"{c['name']!r} resolved to the CEO's own figure")
-        assert contract["expect_totals"]["requests_on_the_ceos_figure"] == 0
+    def test_the_request_routing_is_the_one_the_spine_SHIPS(self, contract):
+        """THE ROUTING THAT SHIPPED, pinned as data so a later move is a
+        deliberate act.
 
+        `open` -> the CEO and `approved` -> the chair are the BASE COMMIT's
+        values, lifted out of `desk_items` into `desk.open_request_actor`
+        without changing them. Donna's P-2 and the riskofficer's H-2 asked for
+        `open` -> chair, and the measurements support it (28 of the 49 requests
+        resolved in the live log window carry no approval event at all; the old
+        justification was circular, since `DESK_APPROVAL_ALLOWLIST` admits
+        nobody but the CEO).
 
-class TestLifecycleAgeIsWallClockNeverPinned:
+        It was built and then NOT applied: the rendered page showed it would
+        also take the CEO's ask-approval control off his screen, because his
+        page hangs Approve/Decline on the ask being his. A loosening that
+        removes a control is an adversary-blind-then-CEO decision. When it is
+        taken, THIS TEST is what has to be edited by hand — which is the point
+        of pinning it.
+        """
+        by = {c["name"]: c["expect"]["next_actor_resolved"]
+              for c in contract["request_cases"]}
+        assert by["PROSE-ONLY REQUEST — the permanent fallback"] == "ceo"
+        assert by["STRUCTURED REQUEST — the four questions"] == "chair",             "status `approved` — the CEO decided; the chair must dispatch it"
+        assert by["SERVED REQUEST — the rail reaches delivered"] == "nobody"
+        assert contract["expect_totals"]["requests_on_the_ceos_figure"] ==             sum(1 for v in by.values() if v == "ceo")
+
     def test_every_request_cases_age_hours_is_the_wallclock_sentinel(self, contract):
         """A contract that pinned a real `age_hours` would be stale one
         second after it was written, and every suite that read it after that

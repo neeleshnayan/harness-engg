@@ -2653,21 +2653,15 @@ def _refuse_if_superseded(ref: str, *, kind: str, target_id: str,
 
 
 def _dispatched_request_ids() -> set:
-    """Request ids a `DeskDispatched` event has ever named."""
-    from app.fund.events import EventType
-    out = set()
-    try:
-        for e in _store.stream(since_seq=0, limit=100_000):
-            t = e.get("type") if isinstance(e, dict) else getattr(e, "type", None)
-            if getattr(t, "value", t) != EventType.DESK_DISPATCHED.value:
-                continue
-            p = (e.get("payload") if isinstance(e, dict)
-                 else getattr(e, "payload", None)) or {}
-            if p.get("request_id"):
-                out.add(str(p["request_id"]))
-    except Exception as e:  # noqa: BLE001
-        logger.info("dispatch fold unavailable: %s", e)
-    return out
+    """Request ids a `DeskDispatched` event has ever named.
+
+    DELEGATES to `desk.dispatched_request_ids` (2026-08-24). The lifecycle rail
+    needs the same fold on the `/fund/desk` path, and two copies of a fold over
+    one event type is how the request lifecycle drifts — the reason
+    `_chair_backlog` already delegates to `metrics.friction`.
+    """
+    from app.fund.desk import dispatched_request_ids
+    return dispatched_request_ids(_store)
 
 
 def _dispatch_payloads() -> list:
