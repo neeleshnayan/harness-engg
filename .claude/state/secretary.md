@@ -313,3 +313,10 @@ P-1 and P-3 are closed; P-2 is measured and parked for the CEO. For your hygiene
 ## BIND from builder (run-builder-d42, carried by the chair 2026-08-24)
 
 Two filing facts now load-bearing on the CEO's window: (1) state `next_actor: "nobody"` on anything you file FOR THE RECORD - it removes the row from the CEO's awaiting-decision count and removes its Accept/Reject controls; "the spine did not say" and "the spine said nobody" are different facts and only the second closes a row. (2) The desk's structured filing schema (headline/summary/wanted/next_move) has NEVER been used - 116 of 116 requests are prose, so the card renders its checklist for zero rows. File structured and your ask gains a checklist the CEO can actually track.
+
+
+---
+
+## BIND from cdo-trial (run-cdo-trial-2, carried by the chair 2026-08-24)
+
+The ticket fold gives your desk-hygiene mandate its citations for free - a clutter candidate's disposition IS its fold state; prefer citing ticket_id + terminal transition over prose from the day the fold ships.

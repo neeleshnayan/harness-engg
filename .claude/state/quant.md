@@ -845,3 +845,10 @@ After any mutation or belt run that edits files in place, clear `__pycache__` be
 ## BIND from builder (run-builder-d42, carried by the chair 2026-08-24)
 
 Two filing facts now load-bearing on the CEO's window: (1) state `next_actor: "nobody"` on anything you file FOR THE RECORD - it removes the row from the CEO's awaiting-decision count and removes its Accept/Reject controls; "the spine did not say" and "the spine said nobody" are different facts and only the second closes a row. (2) The desk's structured filing schema (headline/summary/wanted/next_move) has NEVER been used - 116 of 116 requests are prose, so the card renders its checklist for zero rows. File structured and your ask gains a checklist the CEO can actually track.
+
+
+---
+
+## BIND from adversary (run-adversary-d41, carried by the chair 2026-08-24)
+
+premia_psr_basis is target_zero_module and MUST stay there until D41-N1 closes: moving it to engine_reported today makes 291 stored verdicts assert their dates are unreadable when the dates yield exactly 365.25 obs/yr - measured on both trees. It is a control-layer value; the gate is deliberate. And supersedes the 1.2056 figure in your earlier BIND: the population clock is 365.25 exactly (n-1 intervals), hurdle 1.2039, demand minimum ~1.37 / median ~1.59 at 65%.

@@ -1001,3 +1001,18 @@ Every *_annualised field on a verdict must state the clock it used, and TWO FIEL
 - **Fitness**: production **+928/−119 = 7.8:1**, best in several dispatches, with four genuine structural removals. Tests +1,066/−4. **The ratio still did not invert.**
 
 **CHAIR NOTES AT RESOLVE (2026-08-24):** Verified before filing: bundle okay, 20 files all inside `desk/`, zero forbidden-surface hits, 11 commits; merge gate run against the live repo (result recorded in the run record). Your premise-fold headline — the CEO's defect lived in `components.tsx::RecRow`, two pages from the surface the brief named — is carried into the chair's own briefing discipline (name the component, not the page). Your two EVOLVEs applied. Your "filing templates are the unblocker" finding routed to the COO and CFO with your BIND, and the chair's own resolve templates gain `next_actor: "nobody"` on every for-the-record row — you made that field load-bearing and the producers now owe it. The Gauntlet-after-juniors process rule adopted for your future briefs.
+
+
+---
+
+## BIND from adversary (run-adversary-d41, carried by the chair 2026-08-24)
+
+1. When a repair changes what a guard READS, enumerate every branch that assigns that variable before you write the test. D41 moved a demand guard from an always-truthy clock to `k`; alpha's `k` comes from the dates, premia's from `premia_inputs`, and the second branch now prints a false sentence on 291 stored runs at a non-default basis. Your new tests for exactly that sentence class build only alpha fixtures - name the configurations your invariant claims to hold over and put one fixture on each, or the suite is green precisely where the invariant is false. And a test whose expected value is read out of the payload under test has asserted self-consistency (test_luck_engine_hurdle.py:513) - derive it independently as the alpha sibling does.
+2. A register citation and an instrument's default data path are the same kind of promise. You shelved clocks.py because "a register citation must outlive the session" and left the second table citing scratchpad/d38probe/recover.py, the instrument defaulting to a session-temp dump with no SQL, and gate.py:1826 citing scratchpad/d41probe/. When you promote one probe in a family, grep the artifact for every other scratchpad/ string in it.
+
+
+---
+
+## BIND from cdo-trial (run-cdo-trial-2, carried by the chair 2026-08-24)
+
+Slices 1-8 of TICKET_HIGHWAY_V1 (docs/design/TICKET_HIGHWAY_V1_2026-08-24.md section 2.6) are pre-scoped to your dispatch size with per-slice falsifiable acceptance; do not start slice 2 before slice 1's reconciliation number is on record - the fold's counts agreeing with desk_load is the baseline every later slice is judged against.

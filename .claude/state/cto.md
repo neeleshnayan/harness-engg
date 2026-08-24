@@ -1091,3 +1091,45 @@ disjoint, suites serialized. Reading Room D26 immediately after D42.
    dispatch task_ids; the fold closes on exactly that id). D41-cont and
    D42 lamps annotated un-closable in the ticket; do NOT resolve dispatch
    ids through the requests door meanwhile - that is the phantom class.
+
+
+## 2026-08-24 - D41 SURVIVES; the stack merges; the clock closes at five strikes
+
+The adversary's re-check: SURVIVES, merge-ready, by execution (killing
+probe re-run unchanged; 767x2 re-judge, zero flips; frozen surfaces
+AST-certified). Two independent instruments - the builder's and the
+adversary's own shelved census - landed on 365.25/1.2039 blind to each
+other, correcting the adversary's 366.3/1.2056. THE CLOCK FAMILY CLOSES:
+five strikes, the last one inside the review chain itself. Standing:
+any per-year rate states n-vs-(n-1); any figure crossing the engine
+boundary states its clock (PLATFORM_FACTS). D41-N1 ticketed with its
+gate condition (premia_psr_basis frozen at target_zero_module until it
+closes). Register draft: three chair repairs ticketed, stays unsigned.
+Spine restart deferred to post-R39 - never restart the spine mid-
+execution-sequence.
+
+
+## 2026-08-24 - R39 EXECUTION LESSONS (codified mid-sequence, CEO asked)
+
+1. **The pipeline is measured, not designed**: first-ever live fills ran
+   propose -> autopolicy-refuse -> CEO click -> submit -> fill -> fold,
+   six times, each verified at the venue.
+2. **Plan numbers are bounds; live reads are truth**: broker held 1.608762
+   INTC vs the plan's Friday 1.558762. And REPLAY THE FOLD BEFORE
+   DECLARING A DEFECT - the chair mis-diagnosed a fold defect that a
+   5-minute event-by-event replay disproved.
+3. **STRIKE NAV AFTER EVERY BookReconciledToVenue** - the mark-sanity
+   guard rightly refused an approval because the last strike predated the
+   sync (no INTC mark to corroborate against). The plan lacked the step;
+   the choreography gains it permanently: sync -> strike -> trade.
+4. **A refusal that renders as a dead button is a UX defect of the
+   kill-switch class**: five CEO clicks looked like nothing; each was a
+   recorded ApprovalRefused with a good reason. Refusals must render
+   loudly at the click site (queued, next KP dispatch, with the
+   orders-panel 'in flight' mislabel).
+5. **Lots, never symbols**: the probe's untagged sell created a -0.05
+   INTC lot beside the adopted +1.608762 - live confirmation of the
+   custody schema (R39-6) before it is built.
+6. **The cost meter runs on real data now**: NBBO captured at every
+   submit; GLD's touch was $12 wide at fill time. TCA n roughly doubles
+   today against pre-registered predictions.

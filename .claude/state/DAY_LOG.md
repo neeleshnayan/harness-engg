@@ -39,6 +39,26 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
 (13:30Z open). Opened by resolving Grace's growth-mandate audition.
 
 **DECIDED**
+- **FABLE OOO (CEO-granted, ~14:05Z); the co-CTO holds the floor.** The
+  handover charter is `.claude/state/HANDOVER_2026-08-24.md` - READ IT
+  FIRST after co-cto.md: it carries the mid-flight R39 sequence (Phase 4
+  script ready at scripts/r39_phase4_rebuys.py, Phase 5 acceptance
+  bounds, the post-R39 spine restart), the two in-flight builders and
+  their merge carve-outs (the lamp-door commit is Tier-3, parked for
+  Fable), the day's Tier-1/2 allowances, and the deferred list. Session-
+  boundary warning inside: two builders live in the Fable session's
+  process.
+- **THE TICKET HIGHWAY COMMISSIONED AND DESIGNED (CEO instruction, same
+  afternoon).** The CEO ratified three design decisions in-session (ONE
+  typed ticket entity; chair-mediated frictionless transitions - seats
+  gain no pen; exceptions-only CEO desk), then decided NO CDO SEAT is
+  needed - the design ran as transient drafting fan-out under the chair,
+  the chair codifies, the builder builds. Memo filed:
+  docs/design/TICKET_HIGHWAY_V1_2026-08-24.md - ticket=trace_id promoted
+  to first-class (joints verified in code), five terminal states, eight
+  measured failures each mapped to a structural kill, eight builder
+  slices with falsifiable acceptance. AWAITS the CEO: ratification + the
+  aging policy for the expired terminal.
 - **THE WINDOW REDESIGN, CEO-ratified in-session**: the request card (four
   questions: what/where-stands/what-owed/whose-move, lifecycle rail with
   age-at-stage, wanted-checklist, collapsed narrative) and the seat card
@@ -207,6 +227,18 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
   recorded absent, never zero).
 
 **MEASURED**
+- **D41 SURVIVES - THE GATE STACK IS MERGE-READY AND THE CLOCK FAMILY
+  CLOSES AT FIVE STRIKES.** The adversary re-ran its own killing probe
+  unchanged: the shipped gate's pass boundary (realised 1.367) now agrees
+  with its stated demand (+1.34, target 1.2039, the series' own 365.25
+  clock). 767x2 re-judge: ZERO verdict flips; premia payload byte-
+  identical; frozen surfaces AST-certified. The builder's and adversary's
+  instruments independently corrected the adversary's own D38 number
+  (366.3 was n-vs-(n-1); 365.25 is exact on all 339). One new defect
+  (D41-N1) at $0 reachability, ticketed with a control-layer gate; the
+  register draft stays unsigned on three line-level repairs. The diff
+  also closed a LARGER defect unasked: raw-vs-excess Sharpe gap +0.363,
+  4 of 6 rows reading PASS on a gate FAIL.
 - **ENTRY 20 REPRODUCES AT DEPLOYABLE SIZE.** The quant's three-arm re-belt
   (agent lost to the rewind; chair read the stored results): nav=$500
   fractional Sharpe 1.608 / PSR 77.7%, nav=$250 fractional 1.611 / 77.9%

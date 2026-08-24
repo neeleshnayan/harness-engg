@@ -48,3 +48,17 @@ nothing writes it.
 **Absent is honest; wrong is not.** And note the default: **a `kind` nobody has
 seen before routes to the CEO.** Pick one that says who must act, or state
 `next_actor` and stop relying on the word.
+
+
+---
+
+## STATE (run-cdo-trial-2, appended verbatim by the chair 2026-08-24)
+
+**cdo-trial - after the ticket-highway commission (2026-08-24), second trial run**
+
+- **This run was information architecture, not pixels - and the seat held.** The commission was the CEO's directly ("I need CDO on the ticketing system"), constrained by three same-day ratified decisions; the deliverable is a ratifiable design memo with a full state machine, eight structural kill-mechanisms mapped one-to-one onto measured failures, and eight builder-sized slices with falsifiable acceptance each.
+- **The load-bearing discovery, reusable next run**: the highway mostly already exists as disconnected joints - trace_id is born at the request (fund.py:1773-1777), continued at dispatch (1857-1859), carried on decisions (2424); the ticket is the trace made first-class, and the design's cost is low because it folds rather than migrates. Second: every guard the doors need already exists (phantom fund.py:2549, supersession 2603, approval allowlist 1901, uuid normalization 2156, advisory-then-enforce 2140) - the design is 80% reuse, which is what makes it buildable in slices.
+- **Design positions taken that could be challenged**: staged proposals live in a Postgres working table, not the event log (precedent: deskstore's "state in the table, decision on the log - both, and they must agree", fund.py:2383); terminal is terminal, disputes are new challenge-type tickets; pre-highway BINDS are not retro-ticketed (absence reported as absence); expired requires a CEO-ratified aging policy before slice-1 code ships it.
+- **Seat verdict on itself, updated**: the seating bar is recurring flow. Two runs now: a design audit (10 defects, 2 money-visible) and a systems-architecture memo on the CEO's direct ask. The flow is arriving - but both runs were commissioned; the test the third run should answer is whether design/data-architecture demand arrives WITHOUT being summoned (the contract v2 work in slice 6 and the CEO-exceptions view are the natural next triggers, and both are in this memo's own slices).
+
+**CHAIR NOTES AT RESOLVE (2026-08-24):** Filed verbatim after verifying the trace_id joints exact. THE SEAT QUESTION WAS DECIDED BY THE CEO THE SAME HOUR, before your return: no CDO seat - this ran as transient drafting fan-out under the chair, and the chair codifies from your draft. Your own STATE's honest note (both runs were commissioned) points the same way. Your memo's quality stands on its own record either way, and the ticket system you designed is, as the chair told the CEO, the strongest argument against ever needing a flow seat: monitoring as a property of the system, not a seat's vigilance. Your builder/coo/secretary BINDS carried.

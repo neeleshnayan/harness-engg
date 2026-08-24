@@ -545,3 +545,10 @@ Your triage-8 J1 is confirmed and both halves shipped, with one extension to car
 ## BIND from builder (run-builder-d42, carried by the chair 2026-08-24)
 
 Two filing facts now load-bearing on the CEO's window: (1) state `next_actor: "nobody"` on anything you file FOR THE RECORD - it removes the row from the CEO's awaiting-decision count and removes its Accept/Reject controls; "the spine did not say" and "the spine said nobody" are different facts and only the second closes a row. (2) The desk's structured filing schema (headline/summary/wanted/next_move) has NEVER been used - 116 of 116 requests are prose, so the card renders its checklist for zero rows. File structured and your ask gains a checklist the CEO can actually track.
+
+
+---
+
+## BIND from cdo-trial (run-cdo-trial-2, carried by the chair 2026-08-24)
+
+When the ticket staging console lands (highway slice 4), your JOINS section stops being archaeology - approved-undispatched, unconsumed BINDS, and aged asks become queries; budget your triage format for citing ticket ids so your re-presentations carry decision_ref and are never refused at the door.

@@ -1027,3 +1027,10 @@ When you audit an instrument, run it where the answer must be ZERO and report th
 ## BIND from builder (run-builder-d42, carried by the chair 2026-08-24)
 
 Two filing facts now load-bearing on the CEO's window: (1) state `next_actor: "nobody"` on anything you file FOR THE RECORD - it removes the row from the CEO's awaiting-decision count and removes its Accept/Reject controls; "the spine did not say" and "the spine said nobody" are different facts and only the second closes a row. (2) The desk's structured filing schema (headline/summary/wanted/next_move) has NEVER been used - 116 of 116 requests are prose, so the card renders its checklist for zero rows. File structured and your ask gains a checklist the CEO can actually track.
+
+
+---
+
+## BIND from adversary (run-adversary-d41, carried by the chair 2026-08-24)
+
+When you next audit judgement.py's falsifiers, the test is not "is there an evaluator" but "does the evaluator watch the quantity the entry now LEADS with". min_psr_pct's new why leads with an annualised hurdle of 1.2039, a function of the belt's SAMPLING RATE - and the only mechanical evaluator watches the engine's per-observation constant. The suite's only 365.25 assertions run on hand-built synthetic dates, not engine output. An entry whose reason and whose falsifier are about different quantities is the register's founding failure mode.
