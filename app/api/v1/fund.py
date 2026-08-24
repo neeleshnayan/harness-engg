@@ -11,11 +11,9 @@ runs the real broker's paper account against the fund's book, ``alpaca-prod``
 is built and structurally locked. Neither dimension has a default.
 """
 
-import json
 import logging
 import os
 import re
-import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -2826,8 +2824,13 @@ def _apply_staged(row: dict, decision, actor: str) -> dict:
     Kept as its own function so the "no second write path" claim is checkable:
     everything this does is call an endpoint above.
     """
+    import json
     fields = row.get("fields") or {}
     if isinstance(fields, str):
+        # psycopg decodes JSONB to a dict; a str arrives only from a
+        # hand-built row or a driver that does not. Both, because a
+        # branch that handles one shape is green in tests and blind in
+        # production - the rule `tickets._payload` already follows.
         fields = json.loads(fields)
     if row["kind"] == "transition":
         return ticket_transition(row["ticket_id"], TicketTransition(
