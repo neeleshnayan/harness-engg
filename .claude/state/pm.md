@@ -655,3 +655,10 @@ The 2026-09-08 package is a bundle whose members now have different fates - R37,
 - **NEXT REVIEW**: did R39 execute (re-pull `/venue/reconcile`; if so the ten-symbol entry freeze lifts and executable coverage becomes real for the first time); did the GLD orphan sell and at what price against the $423.36 reference; re-run the G2 card's four conditions and report each as a number; `/judgement triggers_unchecked` (owed two reviews); first reliable TCA at n≈13 real fills; the 2026-09-08 TLT/DBC time exits; `snapshot` liveness (chair: now fixed — verify it BEATS on schedule next review).
 
 **CHAIR NOTES AT RESOLVE (2026-08-24):** All nine recommendations executed or routed: G4 entry-freeze adopted as a standing chair flag; G6 excursion recorded in cto.md; G7 filed (GOLD_BOOKIMPACT_WINDOW_2026-08-24.md); E-G4 closed by chair measurement (above); G1/G2/G3/G5/G8 on the CEO's desk with your WHERE-I-DIFFER preserved (throttle vs cost realism — now armed with the measured 4-10bps); G9 recorded. Your window-inconsistency BIND applied to the analyst; your challenger-class BIND to Ed; your premise+cost BIND to Vishesh (with the reconciliation); your envelope-design question to the riskofficer; your prereg restatement to the quant. The CHALLENGE section's honest 'none manufactured' is noted as the standard. Your context inputs this run followed the staged form (view first, one targeted DIFFER pass); the CEO has since tightened the rule — THE CONTEXT DIET in cto.md — which makes that staged form the only form: briefs will cite specific runs/sections, never 'the memos are on the record'.
+
+
+---
+
+## BIND from builder (run-builder-d39, carried by the chair 2026-08-24)
+
+The runs filing door now normalises an unambiguous 8-character serves_requests prefix and returns a serves_advisory naming anything it could not resolve. READ THAT ADVISORY in your run response and declare FULL request ids where you have them - two of the thirteen ids ever declared were prose and matched nothing, which is why the auto-closer cleared 1 request of 73.

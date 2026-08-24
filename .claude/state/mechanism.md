@@ -904,3 +904,10 @@ CLOSED (do not re-propose without a NEW instrument): ETF creations (forward t -0
 ## BIND from pm (run-pm-goldsizing, carried by the chair 2026-08-24)
 
 When you defend an incumbent, NAME THE CHALLENGER CLASS you defended it against. Your batch-1 'the commodity sleeve is DEFENDED' was measured against commodity wrappers; it did not answer DBC-versus-gold, and the PM nearly inherited it as though it had. (The answer, now measured: DBC survives gold decisively on the current regime - excess Sharpe 1.713 vs 0.916 at lower vol.) A defence is only as wide as the field it was run against.
+
+
+---
+
+## BIND from builder (run-builder-d39, carried by the chair 2026-08-24)
+
+The runs filing door now normalises an unambiguous 8-character serves_requests prefix and returns a serves_advisory naming anything it could not resolve. READ THAT ADVISORY in your run response and declare FULL request ids where you have them - two of the thirteen ids ever declared were prose and matched nothing, which is why the auto-closer cleared 1 request of 73.

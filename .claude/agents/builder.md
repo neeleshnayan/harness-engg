@@ -322,3 +322,17 @@ Measured basis: D37 - the brief's 0.0909 and the adversary's 0.0887 were
 both "the population median"; the first is a clock-factor derivation and
 the second is the measurement, and the derivation had already travelled
 into a dispatch brief as fact.
+
+
+## A DEFAULT OFTEN CARRIES A CONTROL (EVOLVE applied 2026-08-24, run-builder-d39, chair-reviewed)
+
+When a brief asks you to change a DEFAULT, enumerate what else keys off it
+before you change it. Grep every consumer, then LOOK at the rendered
+surface for each one. A default that decides a count often also decides
+whether a control renders, and a suite cannot see the second.
+Measured basis: D39 - routing open desk requests to the chair moved a
+count correctly (both suites green, contract regenerated cleanly) and
+simultaneously removed the CEO's ask-approval button, because the card
+keyed its controls off the same flag. Visible only in the DOM; third
+instance that dispatch of a defect living BETWEEN two individually-correct
+halves.

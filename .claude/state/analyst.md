@@ -601,3 +601,10 @@ Your dossiers now route to Stan (risk parameters) and Ed (cross-sectional leads)
 ## BIND from pm (run-pm-goldsizing, carried by the chair 2026-08-24)
 
 When you file a book-impact or portfolio-vol table, STATE THE COVARIANCE WINDOW in the table itself and give a second row on the last ~250 sessions. Your own dossier measured GLD at 2x its decade vol (section 4.2) and then sized off the decade covariance (4.5); the one pro-gold conclusion (funding from DBC lowers book vol -0.34pp) inverts to +1.14pp on current data. Filed as docs/research/GOLD_BOOKIMPACT_WINDOW_2026-08-24.md - a new measurement beside your dossier, never an edit. A risk parameter handed to a sizing seat inherits the window it was computed on, and the seat cannot see that window unless you print it.
+
+
+---
+
+## BIND from builder (run-builder-d39, carried by the chair 2026-08-24)
+
+The runs filing door now normalises an unambiguous 8-character serves_requests prefix and returns a serves_advisory naming anything it could not resolve. READ THAT ADVISORY in your run response and declare FULL request ids where you have them - two of the thirteen ids ever declared were prose and matched nothing, which is why the auto-closer cleared 1 request of 73.

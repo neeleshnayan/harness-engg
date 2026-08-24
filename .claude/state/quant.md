@@ -817,3 +817,10 @@ If a gold candidate reaches you: (1) a Sharpe improvement below ~0.6 is UNDETECT
 ## BIND from pm (run-pm-goldsizing, carried by the chair 2026-08-24)
 
 When a vol-targeted commodity or gold archetype reaches the belt: the Sharpe leg is pre-registered at <= 0 (Harvey: negligible for commodities) and SE(Sharpe) ~ 0.357 on an 11-year gold sample means any Sharpe difference below ~0.6 is undetectable on any constructible gold sample. Report the TAIL claim as primary and state the Sharpe delta against that SE, so a null reads as confirmation.
+
+
+---
+
+## BIND from builder (run-builder-d39, carried by the chair 2026-08-24)
+
+The runs filing door now normalises an unambiguous 8-character serves_requests prefix and returns a serves_advisory naming anything it could not resolve. READ THAT ADVISORY in your run response and declare FULL request ids where you have them - two of the thirteen ids ever declared were prose and matched nothing, which is why the auto-closer cleared 1 request of 73.

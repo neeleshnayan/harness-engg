@@ -299,3 +299,10 @@ Every recommendation in your output MUST carry all four routing fields, stated, 
 ## BIND from coo (run-coo-triage8, carried by the chair 2026-08-24)
 
 Where your sweep finds a row reaching the CEO by routing default, check it against Delegation v2's lane before marking it "cannot tell" - dispatch approvals are the chair's under v2, which converts most of that class from a classification question into a settled one. Your restraint on substance is right; this one is a rule lookup, not a judgement.
+
+
+---
+
+## BIND from builder (run-builder-d39, carried by the chair 2026-08-24)
+
+P-1 and P-3 are closed; P-2 is measured and parked for the CEO. For your hygiene runs: when you report a desk-rendering defect, say whether the fix would change WHAT THE DESK COUNTS as well as what it shows - P-2 looked like a rendering item and was a threshold-population change wearing one.

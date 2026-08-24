@@ -78,6 +78,22 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
   do not enter a blind envelope.
 
 **BUILT**
+- **D39 MERGED - THE CEO'S WINDOW IS REBUILT.** Both repos green on the
+  merged trees (4,292 / 553 + tsc + build), mutation 24/24, spine
+  restarted, contract banner cleared. What changed for the CEO: an
+  accepted row now says "you accepted this - execution yours" instead of
+  re-offering the button (14 of his 34 rows were that shape - the
+  clicked-eight-times class is dead); chair closures render as their own
+  labeled category; cascade members show a PENDING chip; dict-repr rows
+  read as sentences; the serves door normalizes prefixes and REFUSES
+  phantom aggregates (which fired LIVE this morning on the chair's own
+  gold-lamp resolve - annotated, guarded). THE JUDGEMENT CALL OF THE
+  DISPATCH: the builder built P-2 (open requests -> chair), then
+  discovered on the rendered page it would remove the CEO's approve
+  button, REVERTED it, and filed it as his decision with measurements -
+  a loosening that moves a control is never a builder's call. Chair
+  post-merge: diagnosed a live-only test red (untracked meta_ctrl
+  scratch vs a "ships" test; scoped to tracked files), 4,292 green.
 - **THE DATA FABRIC round (CEO 'yep')**: FRED key live and point-in-time
   VERIFIED (vintage windows honored); GOLD dossier v1 dispatched (Doc,
   third analytical-muscle pick, real-rates centerpiece now vintage-capable);

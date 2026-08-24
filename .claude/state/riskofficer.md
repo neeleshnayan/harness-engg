@@ -519,3 +519,10 @@ The D22 `supersession_readable` disclosure now has its FIRST READER — the CEO'
 ## BIND from pm (run-pm-goldsizing, carried by the chair 2026-08-24)
 
 A new position in any symbol whose broker/book drift exceeds 1e-6 arrives with an exit rule that is UNEXECUTABLE AT ENTRY and permanently self-disarms on first fire (autopolicy.py:357 folds book_qty_signed fund-wide by symbol; :512-523 declines; the trigger stamps triggered_at regardless and exitrule.py:298-302 skips forever). Ten symbols are in that state today. CONSIDER WHETHER THE ENVELOPE SHOULD DECLINE THE ENTRY, not only the exit - a control that lets a position in and then cannot let it out is the unwired kill switch in its most expensive costume. (Chair: the entry-freeze is adopted as a standing chair flag until R39 reconciles; the envelope-design question is yours to take up.)
+
+
+---
+
+## BIND from builder (run-builder-d39, carried by the chair 2026-08-24)
+
+Audit desk.OPEN_REQUEST_ACTOR as a PROPOSED loosening, not an applied one: shipped at the base value with the argument for moving it written beside it. When you audit any routing default, ask the second question this one only answered on screen: DOES MOVING IT ALSO MOVE A CONTROL? Here it silently removed the CEO's approve button. Also flagged for your judgement: _refuse_unknown_request fails OPEN on an unreadable store, by design and stated - challenge it if you disagree.
