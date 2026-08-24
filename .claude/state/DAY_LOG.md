@@ -271,6 +271,22 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
   recorded absent, never zero).
 
 **MEASURED**
+- **R39 IS COMPLETE — PHASE 5 PASSES BOTH BOUNDS (co-CTO).** out_of_sync
+  **0**, residual **-$0.27** against a $3.00 limit. The book is four
+  positions all under mandate with live exit rules: SPY 0.346119 /
+  DBC 8.122157 / TLT 3.019871 / DBA 5.314306, cash $1,085.11, NAV
+  **$2,000.63** struck with every position marked. The guard fix merged
+  (35b5461c) and the spine restarted on it; the chair verified all three
+  orders would PASS before sending the CEO to click (refuse=False,
+  basis `no_reference_new_symbol`, holdings read from
+  `positions_projection`). Every exit rule now PREDATES its position.
+- **THE THREE LIVE SLEEVES ARE STILL `state: draft` WITH `assets: []`**
+  while holding $915. Verified nothing gates on strategy state (grepped
+  autopolicy/exitrule/risk/compliance, zero matches), so no control is
+  lost — a labelling and lifecycle gap, on the CEO's desk as a decision.
+- **CHAIR RETRACTION**: the 'stale critical alarm' the chair reported to
+  the CEO does not exist — `book_venue_drift` raised at seq 1525 and
+  CLEARED at 1526. Asserted from a partial read; corrected on re-check.
 - **ENTRY FREEZE LIFTED (co-CTO, 15:2?Z).** `/fund/venue/reconcile` reads
   `symbols_out_of_sync: 0`, delta -$0.01, so Stan's G4 freeze on
   DBA/DBC/GLD/INTC/MSFT/NVDA/SOFI/SPY/TLT/XLE released itself exactly as
