@@ -304,9 +304,12 @@ def evaluate(facts: dict[str, Any],
             result["basis"] = "held_but_unpriced"
             return result
         if NEW_SYMBOL_WITHOUT_REFERENCE_REFUSES:
+            # Same correction as the branch below: the check reads the LAST
+            # strike, so "never" is more than it knows.
             result["reason"] = (
-                f"no reference mark: the fund has never struck a mark for {sym} "
-                f"and holds none of it, so ${quote:,.2f} cannot be corroborated.")
+                f"no reference mark: the last NAV strike carries no mark for "
+                f"{sym} and the fund holds none of it, so ${quote:,.2f} cannot "
+                f"be corroborated.")
             result["basis"] = "no_reference_strict"
             return result
         # The ordinary first purchase. ALLOWED, and the allowance is recorded so
@@ -314,11 +317,19 @@ def evaluate(facts: dict[str, Any],
         # reason it did not run is a fact about the order.
         result["refuse"] = False
         result["basis"] = "no_reference_new_symbol"
+        # "has never struck a mark for it" was the old wording, and this repair
+        # made it a lie the guard could tell. The check reads the LAST strike
+        # only, so all it can honestly claim is that THAT strike carries no
+        # mark. Before d79f65b1 this branch was reachable only for genuinely
+        # never-owned symbols; now a position the venue sync erased lands here
+        # too — DBC, TLT and DBA all have marks in earlier strikes. Claiming
+        # "never" about a symbol the fund priced last week is the kind of
+        # confident sentence this module exists to stop printing.
         result["reason"] = (
-            f"mark sanity did not apply: the fund holds no {sym} and has never "
-            f"struck a mark for it, so it has nothing of its own to compare "
-            f"${quote:,.2f} against. NOT a corroboration — an absence, recorded "
-            f"as one.")
+            f"mark sanity did not apply: the fund holds no {sym} and the last "
+            f"NAV strike carries no mark for it, so it has nothing of its own "
+            f"to compare ${quote:,.2f} against. NOT a corroboration — an "
+            f"absence, recorded as one.")
         return result
 
     if ref == 0:
