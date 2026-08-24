@@ -21,11 +21,14 @@ seven refusals, each carrying its lineage and each appending an
 ``ApprovalRefused`` event so the riskofficer can see it in ``/fund/events``
 rather than in somebody's terminal.
 
-WHAT THESE TESTS DELIBERATELY DO NOT CLAIM. The guard is wired to the TICKET
-door only. The legacy ``decide_recommendation`` door — where all eight of those
-events actually landed — is untouched, and ``TestTheLegacyDoorIsUntouched``
-pins that rather than leaving it to be assumed: this slice does not change the
-behaviour of any path the CEO's desk posts to today.
+WHAT THESE TESTS COVER, AND WHERE THE REST LIVES. This file is the TICKET
+door's rule (``check_representation``). The legacy ``decide_recommendation``
+door — where all eight of those events actually landed — was wired on
+2026-08-24 on the CEO's decision, with the NARROWER rule
+(``check_redecision``): it refuses only a status the row already holds, so
+every progression passes. Its acceptance tests are in
+``tests/test_legacy_redecision_guard.py``; ``TestTheLegacyDoorIsWired`` below
+pins that the two doors keep two rules and do not get tidied into one.
 """
 
 from __future__ import annotations
@@ -543,18 +546,63 @@ class TestTheCensusInstrument:
         assert out["events_scanned"] == 5
 
 
-class TestTheLegacyDoorIsUntouched:
-    def test_decide_recommendation_does_not_consult_this_guard(self):
-        """The eight R39 events landed HERE, and this slice does not touch it.
+class TestTheLegacyDoorIsWired:
+    """THE ABSTENTION ENDED ON 2026-08-24, and this class is what said so.
 
-        Wiring the guard into a live approval-adjacent path the CEO's desk
-        posts to today is a human decision with the numbers in front of it, not
-        a slice's side effect. Asserted rather than assumed, so that the day
-        somebody does wire it, this test is the thing that says so out loud.
+    Its predecessor was ``TestTheLegacyDoorIsUntouched``, whose docstring read:
+    *"the day somebody does wire it, this test is the thing that says so out
+    loud"*. That day came — the CEO decided it with the census in front of him
+    — so the assertion is inverted rather than deleted, because a door that
+    silently stopped being guarded and a door that was never guarded look
+    identical to a suite with no test at all.
+
+    THE TWO DOORS TAKE DIFFERENT RULES, and this class pins that too. The
+    ticket door gets ``check_representation`` (the broader rule, with the
+    ``merged``/``superseded`` escapes); the legacy door gets
+    ``check_redecision`` (the narrow one — refuse only a status the row
+    already holds). Porting the broad rule here would refuse every
+    ``accepted -> done`` closure in the record.
+    """
+
+    def _legacy_src(self):
+        import inspect
+
+        from app.api.v1 import fund as fundapi
+        return inspect.getsource(fundapi.decide_recommendation)
+
+    def test_decide_recommendation_now_consults_the_narrow_guard(self):
+        assert "_refuse_if_redecided" in self._legacy_src()
+
+    def test_the_narrow_guard_reaches_ticketguard(self):
+        """Named through the door helper, so the rule has ONE home.
+
+        A second copy of "has this row already recorded that" is exactly the
+        shape that let one client read 11 where the spine read 6.
         """
         import inspect
 
         from app.api.v1 import fund as fundapi
-        src = inspect.getsource(fundapi.decide_recommendation)
-        assert "ticketguard" not in src
-        assert "check_representation" not in src
+        src = inspect.getsource(fundapi._refuse_if_redecided)
+        assert "ticketguard.check_redecision" in src
+        assert "ticketguard.decisions_for" in src
+
+    def test_the_BROAD_ticket_rule_is_NOT_ported_to_the_legacy_door(self):
+        """THE TEST THAT FAILS IF SOMEBODY TIDIES THE TWO RULES INTO ONE.
+
+        ``check_representation`` refuses a bare re-presentation of a decision
+        the ticket has EVER recorded. On the legacy door that reading refuses
+        the second decision of every ordinary lifecycle — 136 rows in the
+        record carry one — which is a control refusing correct work.
+        """
+        import inspect
+
+        from app.api.v1 import fund as fundapi
+        both = (self._legacy_src()
+                + inspect.getsource(fundapi._refuse_if_redecided))
+        assert "check_representation" not in both
+
+    def test_the_two_doors_publish_DIFFERENT_guard_versions(self):
+        """An auditor reading an ApprovalRefused off /fund/events must be able
+        to tell which rule refused without inspecting the aggregate type."""
+        assert (ticketguard.DECISION_REF_GUARD_VERSION
+                != ticketguard.LEGACY_REDECISION_GUARD_VERSION)
