@@ -11,6 +11,7 @@ runs the real broker's paper account against the fund's book, ``alpaca-prod``
 is built and structurally locked. Neither dimension has a default.
 """
 
+import json
 import logging
 import os
 import re
@@ -2917,6 +2918,227 @@ def link_ticket(ticket_id: str, req: TicketLink):
                         type=EventType.TICKET_LINKED,
                         payload=payload, actor=req.actor))
     return payload
+
+
+# ---------------------------------------------------------------------------
+# THE AGENT->CTO->AGENT HOP — slice 4: staging, the parser, the batch console.
+#
+# DIRECTION: four NEW endpoints, none of which can append a ticket event on its
+# own. `POST /fund/tickets/staged` PARSES a seat's output into a Postgres table
+# and appends NOTHING — `app/fund/ticketstaging.py` does not import
+# `app.fund.events`, and a test asserts that by AST. The only path from a
+# staged row to the event log runs through `transition_ticket` / `open_ticket`
+# above, with every guard those doors carry, driven by the chair's own session
+# at `POST /fund/tickets/staged/resolve`. Seats gain no pen; what they gain is
+# a queue the chair can clear in one POST instead of by recollection.
+# ---------------------------------------------------------------------------
+
+_staged_cache = None
+
+
+def _stagedstore():
+    """The staging table, or None off Postgres.
+
+    None rather than raising, and every reader renders it as a stated absence:
+    a firestore-backed process simply has no staging table, exactly as it has
+    no in-trays. `staged: null` is not `staged: []`.
+    """
+    global _staged_cache
+    from app.fund.events import store_backend
+    if store_backend() != "postgres":
+        return None
+    if _staged_cache is None:
+        from app.fund.ticketstaging import StagedTickets
+        _staged_cache = StagedTickets()
+    return _staged_cache
+
+
+class TicketsBlock(BaseModel):
+    """A seat's output, for parsing. The TEXT, never a decision."""
+    text: Optional[str] = None
+    run_id: Optional[str] = None
+    seat: Optional[str] = None
+    dry_run: bool = False
+
+
+@router.post("/fund/tickets/staged")
+def stage_tickets_block(req: TicketsBlock):
+    """Parse a seat's ``## TICKETS`` block into staged rows. APPENDS NOTHING.
+
+    ``dry_run`` returns the parse without writing even to the staging table —
+    the shape a producer uses to check its own block before filing, and the
+    shape the adoption measurement uses without polluting the queue.
+
+    AN ABSENT BLOCK AND AN EMPTY ONE ARE DIFFERENT ANSWERS, and both ride the
+    response: ``block_present`` false means the producer has not adopted the
+    format (the slice-7 number), true with no proposals means it had nothing to
+    file. Failure #6 in the design's own table is that structured filing sits
+    at 0 of 116; collapsing these two would make that number unreadable.
+    """
+    from app.fund import ticketstaging
+    parsed = ticketstaging.parse_tickets_block(req.text)
+    if req.dry_run or not parsed["proposals"]:
+        return {**parsed, "staged": [], "stored": False,
+                "store_available": _stagedstore() is not None}
+    st = _stagedstore()
+    if st is None:
+        return {**parsed, "staged": None, "stored": False,
+                "store_available": False,
+                "note": parsed["note"] + " — the staging table is UNAVAILABLE "
+                        "off Postgres, so these proposals were parsed and NOT "
+                        "stored; null, not an empty list"}
+    try:
+        rows = st.stage(parsed["proposals"], run_id=req.run_id, seat=req.seat)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return {**parsed, "staged": rows, "stored": True, "store_available": True}
+
+
+@router.get("/fund/tickets/staged")
+def staged_tickets(status: Optional[str] = Query("staged"),
+                   limit: int = Query(500, ge=1, le=5000)):
+    """The chair's batch console: what seats have proposed, awaiting a click."""
+    from app.fund import ticketstaging
+    if status is not None and status not in ticketstaging.STAGED_STATUSES:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "unknown status filter", "status": status,
+                    "allowed": list(ticketstaging.STAGED_STATUSES),
+                    "note": "refused rather than answered with an empty list — "
+                            "zero rows for a status that does not exist reads "
+                            "exactly like zero rows for one that does"})
+    st = _stagedstore()
+    if st is None:
+        return {"readable": False, "staged": None, "counts": None,
+                "note": "no staging table off Postgres; the queue is UNKNOWN, "
+                        "which is not the same as empty"}
+    try:
+        rows, counts = st.staged(status=status, limit=limit), st.counts()
+    except Exception as e:  # noqa: BLE001
+        logger.warning("staging table unreadable: %s", e)
+        return {"readable": False, "staged": None, "counts": None,
+                "note": f"the staging table could not be read ({e})"}
+    return {"readable": True, "staged": rows, "counts": counts,
+            "shown": len(rows), "limit": limit, "filters": {"status": status},
+            "statuses": list(ticketstaging.STAGED_STATUSES)}
+
+
+class StagedDecision(BaseModel):
+    staged_id: str
+    verdict: str                       # accept | strike
+    reason: Optional[str] = None
+    confirm: Optional[str] = None      # per-row echo, decision transitions only
+    instruction: Optional[str] = None
+
+
+class StagedResolve(BaseModel):
+    decisions: List[StagedDecision]
+    actor: str = "cto"
+
+
+@router.post("/fund/tickets/staged/resolve")
+def resolve_staged(req: StagedResolve):
+    """One POST, one batch, one appended event per ACCEPTED row.
+
+    **THIS IS NOT A BACK DOOR AROUND THE GUARDS AND THAT IS THE POINT.** Each
+    acceptance is executed by calling `transition_ticket` / `open_ticket`
+    directly, so an accepted row takes byte-identically the path a hand-typed
+    transition takes: approval channel, phantom guard, terminal requirements,
+    the §1.5 decision_ref rule, terminal precedence. A batch console that
+    appended its own events would be a second write path with its own copy of
+    five guards, and the day they drifted nobody would know which one ran.
+
+    THE ECHO IS STILL PER-TARGET. The approval-channel guard wants
+    `confirm = ticket_id[:8]`, and batching does not dissolve that: a row
+    proposing a DECISION transition carries its own `confirm`, and one that
+    does not is refused exactly as a hand-typed call would be. Non-decision
+    transitions (`in_flight`, `returned`) need no echo, and those are most of
+    what a seat proposes — so one click still clears most batches.
+
+    PARTIAL FAILURE IS REPORTED PER ROW, never as a batch verdict. `applied`,
+    `struck`, `refused` and `missing` are four different outcomes and a caller
+    that got 200 deserves to know which rows landed.
+    """
+    st = _stagedstore()
+    if st is None:
+        raise HTTPException(
+            status_code=503,
+            detail="no staging table off Postgres — nothing to resolve, and "
+                   "returning 200 with an empty result would report success "
+                   "for work that could not be attempted")
+    out = {"applied": [], "struck": [], "refused": [], "missing": [],
+           "actor": req.actor}
+    for d in req.decisions:
+        verdict = (d.verdict or "").strip().lower()
+        if verdict not in ("accept", "strike"):
+            raise HTTPException(
+                status_code=422,
+                detail=f"verdict must be 'accept' or 'strike', got {d.verdict!r}")
+        if verdict == "strike":
+            try:
+                row = st.resolve(d.staged_id, verdict="struck",
+                                 actor=req.actor, reason=d.reason)
+            except ValueError as e:
+                raise HTTPException(status_code=422, detail=str(e))
+            (out["struck"] if row else out["missing"]).append(
+                {"staged_id": d.staged_id,
+                 **({"reason": d.reason} if row else
+                    {"why": "not found, or already resolved — a second resolve "
+                            "is refused in the UPDATE predicate, not in a "
+                            "check-then-write"})})
+            continue
+        # CLAIM FIRST. See `StagedTickets.attach_event` for why this order and
+        # what its failure state is called.
+        row = st.resolve(d.staged_id, verdict="accepted", actor=req.actor)
+        if row is None:
+            out["missing"].append(
+                {"staged_id": d.staged_id,
+                 "why": "not found, or already resolved"})
+            continue
+        try:
+            applied = _apply_staged(row, d, req.actor)
+        except HTTPException as e:
+            st.attach_event(d.staged_id, event_ref=None,
+                            note=f"door refused: {e.detail!r}")
+            out["refused"].append(
+                {"staged_id": d.staged_id, "status": e.status_code,
+                 "detail": e.detail,
+                 "state": "accepted_without_event — the row is claimed and "
+                          "NOTHING was appended; it cannot be re-resolved and "
+                          "must be re-filed"})
+            continue
+        st.attach_event(d.staged_id,
+                        event_ref=applied.get("ticket_id"))
+        out["applied"].append({"staged_id": d.staged_id, "result": applied})
+    return out
+
+
+def _apply_staged(row: dict, decision, actor: str) -> dict:
+    """Execute one accepted staged row through the ORDINARY door.
+
+    Kept as its own function so the "no second write path" claim is checkable:
+    everything this does is call an endpoint above.
+    """
+    fields = row.get("fields") or {}
+    if isinstance(fields, str):
+        fields = json.loads(fields)
+    if row["kind"] == "transition":
+        return transition_ticket(row["ticket_id"], TicketTransition(
+            to=row["to_state"], actor=actor,
+            basis=fields.get("basis") or "staged",
+            citation=fields.get("citation"), reason=fields.get("reason"),
+            decision_ref=fields.get("decision_ref"),
+            superseder_ref=fields.get("superseder_ref"),
+            staged_ref=row["staged_id"],
+            confirm=decision.confirm, instruction=decision.instruction))
+    return open_ticket(TicketOpen(
+        type=fields.get("type") or "ask",
+        subject=fields.get("subject") or row.get("raw") or "",
+        filed_for=fields.get("for") or fields.get("filed_for"),
+        actor=actor, parent_id=fields.get("parent_id"),
+        kind=fields.get("kind"), next_actor=fields.get("next_actor"),
+        due_date=fields.get("due") or fields.get("due_date"),
+        reversibility=fields.get("reversibility")))
 
 
 # ===========================================================================
