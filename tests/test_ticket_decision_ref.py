@@ -431,6 +431,82 @@ class TestTheMergeTarget:
 # WHAT THIS SLICE DOES NOT CHANGE
 # ============================================================================
 
+class TestTheCensusInstrument:
+    """The measurement behind this file's own claims, under test.
+
+    An instrument whose numbers appear in a docstring and which nothing
+    exercises is a claim with no check — and this one already told a
+    half-truth: it reported ``events_scanned`` as though it were the domain
+    when ``GET /fund/events`` caps at 1000 and serves the NEWEST 1000. The
+    Gauntlet's null-test pass found it; these tests keep it found.
+    """
+
+    @staticmethod
+    def _census(*args, **kw):
+        import importlib.util
+        import pathlib
+        p = (pathlib.Path(__file__).resolve().parents[1]
+             / "scripts" / "instruments" / "hw3" / "r39_census.py")
+        spec = importlib.util.spec_from_file_location("r39_census", p)
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        return m
+
+    def test_a_window_pinned_against_the_cap_says_it_is_a_window(self):
+        m = self._census()
+        events = [{"seq": 543 + i, "type": "X", "payload": {}}
+                  for i in range(m.FEED_CAP)]
+        out = m.census(events, "R39")
+        assert out["events_scanned"] == m.FEED_CAP
+        assert out["window_min_seq"] == 543
+        # FALSE, not None and not True: we are pinned against the cap and the
+        # window does not start at seq 1, so older events certainly exist.
+        assert out["covers_whole_log"] is False
+
+    def test_a_window_shorter_than_the_cap_covers_the_log(self):
+        m = self._census()
+        events = [{"seq": i + 1, "type": "X", "payload": {}} for i in range(10)]
+        assert m.census(events, "R39")["covers_whole_log"] is True
+
+    def test_a_full_window_that_starts_at_seq_1_also_covers_it(self):
+        """The boundary the naive `len < cap` test would get wrong."""
+        m = self._census()
+        events = [{"seq": i + 1, "type": "X", "payload": {}}
+                  for i in range(m.FEED_CAP)]
+        assert m.census(events, "R39")["covers_whole_log"] is True
+
+    def test_events_without_seqs_report_UNKNOWN_coverage_not_full(self):
+        m = self._census()
+        out = m.census([{"type": "X", "payload": {}}], "R39")
+        assert out["covers_whole_log"] is None
+        assert out["window_min_seq"] is None
+
+    def test_it_separates_re_decision_from_re_presentation(self):
+        """The two shapes the phrase 'one decision, eight rows' collapses."""
+        m = self._census()
+        events = (
+            [{"seq": i, "type": "DeskRecommendationDecided",
+              "payload": {"run_id": "run-a", "rec_id": 1, "text": "R39"}}
+             for i in range(1, 9)]
+            + [{"seq": 9, "type": "DeskRecommendationDecided",
+                "payload": {"run_id": "run-b", "rec_id": 2, "text": "R39"}}])
+        out = m.census(events, "R39")
+        assert out["decision_events"] == 9          # nine decisions...
+        assert out["distinct_identities"] == 2      # ...over two rows
+        assert out["worst_identity"] == ["run-a", 1]
+        assert out["worst_identity_decisions"] == 8
+        assert out["worst_identity_seqs"] == list(range(1, 9))
+
+    def test_the_null_arm_finds_nothing_over_a_NON_empty_domain(self):
+        """A zero without its domain is not a result."""
+        m = self._census()
+        events = [{"seq": i + 1, "type": "X", "payload": {"text": "R39"}}
+                  for i in range(5)]
+        out = m.census(events, "__NO_SUCH_SUBJECT_ZZZQ__")
+        assert out["events_mentioning_subject"] == 0
+        assert out["events_scanned"] == 5
+
+
 class TestTheLegacyDoorIsUntouched:
     def test_decide_recommendation_does_not_consult_this_guard(self):
         """The eight R39 events landed HERE, and this slice does not touch it.
