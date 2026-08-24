@@ -34,6 +34,77 @@ _N = NormalDist()
 #: Below this many observations we refuse to dress an estimate up as a finding.
 MIN_OBS_FOR_INFERENCE = 30
 
+#: THE ENGINE'S OWN CLOCK, and the reason the PSR target is a round number.
+#:
+#: LEAN annualises with ``tradingDaysPerYear``, which it also writes into every
+#: result's ``algorithmConfiguration``. MEASURED on this fund's own runs: 252 on
+#: **276 of 276** stored ``-summary.json`` files (reproduce:
+#: ``json.load(f)["algorithmConfiguration"]["tradingDaysPerYear"]`` over
+#: ``lean_workspace/results/**/*-summary.json``; the file count grows with the
+#: belt, the unanimity has not moved — an earlier count the same day read
+#: 273/273). This is the DEFAULT the engine ships, not a value we set, so a
+#: reader who wants certainty for one candidate reads that candidate's own
+#: config; callers here may pass it in and this constant is the fallback.
+LEAN_TRADING_DAYS_PER_YEAR = 252
+
+#: The citation, in one place, because three call sites were about to carry
+#: three paraphrases of it.
+LEAN_PSR_TARGET_SOURCE = (
+    "QuantConnect/Lean, Common/Statistics/PortfolioStatistics.cs:311-312 — "
+    "`var benchmarkSharpeRatio = 1.0d / Math.Sqrt(tradingDaysPerYear);` under "
+    "the comment `deannualize a 1 sharpe ratio`, fed to "
+    "Statistics.ProbabilisticSharpeRatio together with "
+    "`riskFreeRate / tradingDaysPerYear`")
+
+
+def lean_psr_target(trading_days_per_year: float | int | None = None
+                    ) -> dict[str, Any]:
+    """WHAT LEAN's published Probabilistic Sharpe Ratio is measured against.
+
+    It is a CONSTANT, and it is the same constant for every candidate the engine
+    has ever scored: ``1 / sqrt(tradingDaysPerYear)`` per observation, which is
+    an ANNUALISED Sharpe of exactly **1.00**. The engine does not publish it in
+    the statistics block — which is why this fund spent two dispatches inverting
+    it out of each run's own series — but it is not unpublished. It is in the
+    engine's source, on one line, and the line's own comment says what it is:
+    *deannualize a 1 sharpe ratio*.
+
+    And the statistic is measured on EXCESS returns:
+    ``Statistics.cs:231-237``'s ``ObservedSharpeRatio`` subtracts a per-sample
+    risk-free rate from the mean before dividing by the standard deviation, and
+    ``PortfolioStatistics.cs:312`` hands it ``riskFreeRate / tradingDaysPerYear``
+    — the engine's own average risk-free rate over the run's equity dates.
+
+    So the criterion that reads this number is asking exactly one question:
+    **P(this strategy's TRUE EXCESS Sharpe exceeds an annualised 1.00)**. It is
+    a skill hurdle, it is the same hurdle for everyone, and nothing about it
+    varies with the candidate.
+
+    THE PER-CANDIDATE SPREAD THE FUND PUBLISHED (1.17 to 2.26 annualised, D36
+    and D37) WAS AN ARTIFACT OF OUR OWN INVERSION, not a property of the engine
+    — see ``implied_target_sharpe``.
+
+    ``assumed`` is True when the caller did not state the run's own
+    ``tradingDaysPerYear`` and the module fell back to
+    ``LEAN_TRADING_DAYS_PER_YEAR``. Absence is reported, not silently defaulted.
+    """
+    k = trading_days_per_year
+    assumed = not isinstance(k, (int, float)) or isinstance(k, bool) or k <= 0
+    kk = float(LEAN_TRADING_DAYS_PER_YEAR if assumed else k)
+    per_obs = 1.0 / math.sqrt(kk)
+    return {
+        "per_obs": per_obs,
+        # Computed rather than written as 1.0, so that a caller passing a
+        # different clock gets the truth rather than the round number: the
+        # annualised target is 1.00 BECAUSE the per-observation target is
+        # 1/sqrt(K) and the annualisation is sqrt(K), and stating both as
+        # constants would let them disagree.
+        "annualised": per_obs * math.sqrt(kk),
+        "trading_days_per_year": kk,
+        "assumed": assumed,
+        "source": LEAN_PSR_TARGET_SOURCE,
+    }
+
 
 def _clean(returns: Sequence[float]) -> list[float]:
     return [float(r) for r in (returns or []) if r is not None and math.isfinite(float(r))]
@@ -449,27 +520,87 @@ def _psr_moments(returns: Sequence[float] | None) -> tuple | None:
 
 
 def implied_target_sharpe(psr_pct: float,
-                          returns: Sequence[float] | None) -> dict[str, Any]:
-    """WHAT TARGET was a reported PSR measured against? Inverted, not assumed.
+                          returns: Sequence[float] | None,
+                          rf_per_obs: float = 0.0,
+                          trading_days_per_year: float | int | None = None
+                          ) -> dict[str, Any]:
+    """A VERIFICATION INSTRUMENT: re-derive a reported PSR's target from a run.
 
-    A PSR is meaningless without the ``SR*`` it was computed against, and LEAN
-    publishes a ``Probabilistic Sharpe Ratio`` and no target for it (the engine's
-    statistics block carries no ``Benchmark Sharpe Ratio`` key — verified on a
-    real 27-key block, candidate 144387901688). The formula is invertible, so the
-    target can be RECOVERED from the run's own series instead of guessed:
+    **NOT A DISCLOSURE, and no verdict may quote it.** LEAN's target is a known
+    constant — see ``lean_psr_target`` — so nothing that judges a candidate
+    needs to invert anything. What this function is for is checking that the
+    constant is still the constant: run it over stored candidates and it must
+    come back at an annualised 1.00. If a future engine build moves the hurdle,
+    this is what says so.
 
-        z = Phi^-1(PSR);  SR* = SR - z * sqrt(shape(SR)) / sqrt(n - 1)
+        z = Phi^-1(PSR);  SR* = SR_excess - z * sqrt(shape(SR_excess)) / sqrt(n-1)
 
-    This is the identification the fund previously carried as a table of four
-    numbers in a comment. Computing it per candidate means the disclosure cannot
-    go stale and cannot describe a different candidate than the one being judged.
+    TWO CORRECTIONS, and they are why this function is no longer on the sentence
+    path (adversary, run-adversary-d37; measured here over the fund's own
+    stored population):
+
+      1. **EXCESS, NOT RAW.** The engine subtracts a daily risk-free rate inside
+         ``ObservedSharpeRatio`` (Statistics.cs:231-237). Inverting on RAW
+         returns therefore recovers ``SR* + rf_per_obs / sd``, which is larger
+         than the target and larger by a DIFFERENT amount for every candidate,
+         because sd differs. That is the whole of the "per-candidate hurdle"
+         the fund published.
+      2. **THE ENGINE'S CLOCK, NOT THE CANDIDATE'S.** The target is
+         ``1/sqrt(tradingDaysPerYear)`` per observation, so it annualises on
+         ``tradingDaysPerYear``. Annualising on the series' own calendar clock
+         (~365 obs/yr on this fund's runs) multiplies it by sqrt(365.25/252) =
+         1.2039.
+
+    MEASURED, over every stored belt result carrying both a PSR and an
+    undownsampled series (n = 336; reproduce ``scratchpad/d38probe/recover.py``,
+    one read-only SELECT over ``fund_lean_jobs``), with ``rf_per_obs`` recovered
+    per candidate by ``engine_risk_free_per_obs``:
+
+        uncorrected (raw returns, candidate clock): 1.171 / 1.696 / 2.262
+        CORRECTED   (excess returns, 252 clock)   : 0.786 / 0.9996 / 1.058
+                                                     min  /  median  /  max
+
+    78.6% land within 0.01 of 1.00 and 96.1% within 0.10. The residual is not
+    the target: it is the reconstruction — our skew and kurtosis estimators are
+    not byte-identical to MathNet's, and the stored series reproduces the
+    engine's published annual volatility to 5e-4 on only 227 of 339 runs. So
+    this instrument CONFIRMS a constant; it does not measure one to four
+    decimals, and a test built on it must state a tolerance.
+
+    A THIRD, SMALLER FLOOR SITS UNDER EVEN A PERFECT SERIES, found by a test
+    that asked for an exact round trip and did not get one: the reported PSR is
+    a PERCENTAGE ROUNDED TO THREE DECIMALS, by LEAN and by this module's own
+    `psr_from_series` alike. Through `dz/dp = 1/phi(z)` that +/-5e-6 in p lands
+    as roughly 1e-6 per observation, ~1.6e-5 annualised — negligible beside the
+    estimator residual above, and a hard floor regardless: no inversion of a
+    rounded probability recovers more precision than the rounding left in it.
+
+    ``rf_per_obs`` defaults to 0.0 — the honest default for a caller who has not
+    measured the engine's rate — and the returned payload always says which rate
+    was used, because a zero that was assumed and a zero that was measured are
+    different facts.
 
     Returns ``measurable: False`` rather than a number at PSR of exactly 0% or
     100%, where the normal inverse is infinite and the target is unrecoverable.
     """
     out: dict[str, Any] = {"measurable": False, "target_per_obs": None,
-                           "reason": None}
-    m = _psr_moments(returns)
+                           "target_annualised": None, "reason": None}
+    try:
+        rf = float(rf_per_obs)
+    except (TypeError, ValueError):
+        rf = float("nan")
+    if not math.isfinite(rf):
+        out["reason"] = "the risk-free rate handed in is not a number"
+        return out
+    out["rf_per_obs"] = rf
+    clock = lean_psr_target(trading_days_per_year)
+    out["trading_days_per_year"] = clock["trading_days_per_year"]
+    out["trading_days_assumed"] = clock["assumed"]
+    # EXCESS FIRST, then moments. Skew and kurtosis are shift-invariant so the
+    # subtraction cannot touch them, but the Sharpe it feeds is the whole point
+    # and doing it in the other order is the defect this correction closes.
+    excess = None if returns is None else [x - rf for x in _clean(returns)]
+    m = _psr_moments(excess)
     if m is None:
         out["reason"] = ("no usable return series, so the target this PSR was "
                          "measured against cannot be recovered")
@@ -490,11 +621,85 @@ def implied_target_sharpe(psr_pct: float,
                          "term, so the inversion has no real solution")
         return out
     z = _N.inv_cdf(p)
+    target = sr - z * math.sqrt(shape) / math.sqrt(n - 1)
     out.update({
         "measurable": True,
-        "target_per_obs": sr - z * math.sqrt(shape) / math.sqrt(n - 1),
+        "target_per_obs": target,
+        "target_annualised": target * math.sqrt(clock["trading_days_per_year"]),
         "sharpe_per_obs": sr,
         "n_obs": n,
+    })
+    return out
+
+
+def engine_risk_free_per_obs(published_sharpe: float | None,
+                             published_annual_stdev: float | None,
+                             returns: Sequence[float] | None,
+                             trading_days_per_year: float | int | None = None
+                             ) -> dict[str, Any]:
+    """The rate LEAN charged this run, recovered from what LEAN published.
+
+    The engine does not publish its risk-free rate, but it publishes the Sharpe
+    Ratio it computed WITH that rate, and that relation inverts exactly
+    (PortfolioStatistics.cs:290-294, Statistics.cs:57-60 and 148-150):
+
+        SharpeRatio       = (AnnualPerformance - rf_annual) / AnnualStdDev
+        AnnualPerformance = (1 + mean(series))^K - 1
+        =>  rf_annual     = AnnualPerformance - SharpeRatio * AnnualStdDev
+        =>  rf_per_obs    = rf_annual / K
+
+    THE SERIES HAS TO BE THE ONE THE ENGINE SCORED, and that is checkable rather
+    than assumable: ``AnnualStdDev`` is ``sd(series) * sqrt(K)``, so the payload
+    reports ``reproduces_annual_stdev`` and the size of the disagreement. A
+    caller that ignores it is recovering a rate from someone else's series.
+
+    MEASURED over the 339 stored results carrying a series: the recovered annual
+    rate runs -0.0065 / 0.0538 / 0.0713 (min / median / max), which is the
+    shape of a US policy-rate history and not of an arithmetic accident. The
+    published inputs are printed to three decimals, which bounds the recovered
+    per-observation rate's error at roughly 2e-6 — four orders below the target
+    it corrects.
+    """
+    out: dict[str, Any] = {"measurable": False, "rf_per_obs": None,
+                           "rf_annual": None, "reason": None}
+    clock = lean_psr_target(trading_days_per_year)
+    k = clock["trading_days_per_year"]
+    out["trading_days_per_year"] = k
+    out["trading_days_assumed"] = clock["assumed"]
+    for label, v in (("Sharpe Ratio", published_sharpe),
+                     ("Annual Standard Deviation", published_annual_stdev)):
+        if not isinstance(v, (int, float)) or isinstance(v, bool):
+            out["reason"] = (f"the engine published no usable {label} for this "
+                             f"run ({v!r}), so the rate it charged cannot be "
+                             f"recovered")
+            return out
+    r = _clean(returns)
+    if len(r) < 2:
+        out["reason"] = ("no usable return series, so the annual performance "
+                         "the engine's Sharpe was built on cannot be rebuilt")
+        return out
+    mu, sd = mean_std(r)
+    if _no_dispersion(mu, sd):
+        out["reason"] = ("the series has no dispersion, so the engine's Sharpe "
+                         "carries no information about the rate")
+        return out
+    recomputed = sd * math.sqrt(k)
+    gap = abs(recomputed - float(published_annual_stdev))
+    ann_perf = (1.0 + mu) ** k - 1.0
+    rf_annual = ann_perf - float(published_sharpe) * float(published_annual_stdev)
+    out.update({
+        "measurable": True,
+        "rf_annual": rf_annual,
+        "rf_per_obs": rf_annual / k,
+        "annual_performance": ann_perf,
+        "series_stdev_times_sqrt_clock": recomputed,
+        # The check, stated as a comparison rather than asserted as a fact. 227
+        # of 339 stored runs clear 5e-4; the other 112 miss it by a median of
+        # 7.8e-4 (p95 3.0e-3, max 1.6e-2), which is mostly the engine printing
+        # three decimals of a larger volatility rather than a different series
+        # — but the tail is real, so the flag is reported and not applied.
+        "reproduces_annual_stdev": gap < 5e-4,
+        "annual_stdev_gap": gap,
     })
     return out
 

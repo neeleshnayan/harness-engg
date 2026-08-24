@@ -109,11 +109,21 @@ def test_the_engine_basis_REFUSES_to_say_luck_and_names_the_hurdle():
     assert len(sentence) == 1, out["failures"]
     s = sentence[0]
     assert "THIS IS A SKILL HURDLE, NOT A LUCK TEST." in s
-    assert "puts its target at an annualised Sharpe of" in s
+    # AND IT NAMES THE HURDLE AS THE CONSTANT IT IS (D38). The sentence used to
+    # say the target had been INVERTED out of this run's own series, which was a
+    # true description of our arithmetic and a false description of the engine.
+    assert "HARDCODED target of 1/sqrt(252) per observation" in s
+    assert "an annualised Sharpe of exactly 1.00" in s
+    assert "true excess Sharpe > 1.00) >= 65.0%" in s
     # THE WORDS THAT WERE FALSE HERE ARE GONE. Matching the whole clause rather
     # than the word "luck", which appears in the corrected sentence too — a
     # shared word is satisfiable by the wrong branch (D27).
     assert "is not distinguishable from luck on this much history" not in s
+    # And the retired per-candidate wording, both halves, so neither can come
+    # back through a merge.
+    assert "puts its target at an annualised Sharpe of" not in s
+    assert "could not be recovered" not in s
+    assert "UNSTATED rather than zero" not in s
 
 
 def test_an_unimplemented_basis_fails_closed_and_names_the_two_it_knows():

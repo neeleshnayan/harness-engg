@@ -109,28 +109,34 @@ def test_an_unimplemented_premia_basis_fails_closed_like_the_alpha_one():
 # 2. WHAT THE HURDLE DEMANDS — solved against the target, never against zero
 # =========================================================================
 
-def test_the_engine_sentence_states_the_demand_AGAINST_THE_INVERTED_TARGET():
-    """THE DEFECT THIS CLOSES, and it was in the draft's own new code.
+def test_the_engine_sentence_states_the_demand_AGAINST_THE_CONSTANT_TARGET():
+    """THE DEFECT THIS CLOSES, in two rounds.
 
-    `required_sharpe_annualised` was solved at target 0.0 for BOTH bases and
-    then simply not quoted in the engine sentence. That left a precise,
-    confident, wrong number on every stored verdict — the demand of a
+    ROUND ONE (v4.4). `required_sharpe_annualised` was solved at target 0.0 for
+    BOTH bases and then simply not quoted in the engine sentence. That left a
+    precise, confident, wrong number on every stored verdict — the demand of a
     target-zero criterion, on a verdict produced by a criterion that does not
-    test one. The disclosure had the same defect as the sentence it was added
-    to fix.
+    test one.
 
-    Asserted by RE-DERIVING the figure independently here: the demanded Sharpe
-    must equal the bar solved against the run's own inverted target, and must
-    NOT equal the bar solved against zero. Two numbers that differ is the whole
-    proof; asserting only the first cannot tell them apart.
+    ROUND TWO (D38, adversary run-adversary-d37). The fix used a target
+    INVERTED out of each run's own series, on the stated ground that the engine
+    publishes none. LEAN hardcodes it: `1.0 / Math.Sqrt(tradingDaysPerYear)`,
+    PortfolioStatistics.cs:311, an annualised Sharpe of exactly 1.00 for every
+    candidate, on EXCESS returns. So the demand is solved against THAT, and
+    annualised on the ENGINE's clock rather than the candidate's calendar one.
 
-    THE FIXTURE HAS TO CARRY THE DISAGREEMENT, and the first draft of this test
-    did not — `_alpha(psr=20.0)` writes 20.0 into `robustness` AND builds a
-    series whose target-zero PSR is 20.0, so the inverted target came out at
-    zero and both bars agreed to four decimals. A fixture in which the defect
-    is invisible is not a test of it. So the series reads 90% at target zero
-    while the engine published 20%, which is the shape the four positive
-    controls actually had (2.128% published against 85.0% measured).
+    THREE-WAY DISCRIMINATION, because two of the three candidate answers are
+    the fund's own former ones and a test that only pins the right value cannot
+    say it moved. The demand must equal the bar against 1/sqrt(252) on a 252
+    clock, and must differ from BOTH the target-zero bar and the inverted-target
+    bar on the candidate's clock.
+
+    THE FIXTURE HAS TO CARRY THE DISAGREEMENT, and the first draft of the round
+    one test did not — `_alpha(psr=20.0)` writes 20.0 into `robustness` AND
+    builds a series whose target-zero PSR is 20.0, so the inverted target came
+    out at zero and both bars agreed to four decimals. So the series reads 90%
+    at target zero while the engine published 20%, which is the shape the four
+    positive controls actually had (2.128% published against 85.0% measured).
     """
     r = _alpha(psr=90.0)
     r["robustness"]["psr_pct"] = 20.0
@@ -143,45 +149,62 @@ def test_the_engine_sentence_states_the_demand_AGAINST_THE_INVERTED_TARGET():
         [str(d)[:10] for d in r["daily_returns"]["dates"]], len(series))
     assert k["usable"], k
     kk = float(k["obs_per_year"])
+    assert kk != 252.0, "the fixture cannot tell the two clocks apart"
 
-    ident = st.implied_target_sharpe(20.0, series)
-    assert ident["measurable"], ident
-    want = st.sharpe_bar_for_psr(65.0, series, ident["target_per_obs"])
+    hurdle = st.lean_psr_target()
+    want = st.sharpe_bar_for_psr(65.0, series, hurdle["per_obs"])
     assert want["measurable"], want
     against_zero = st.sharpe_bar_for_psr(65.0, series, 0.0)
     assert against_zero["measurable"], against_zero
+    inverted = st.implied_target_sharpe(20.0, series)
+    assert inverted["measurable"], inverted
+    old = st.sharpe_bar_for_psr(65.0, series, inverted["target_per_obs"])
+    assert old["measurable"], old
 
-    expected = round(float(want["sharpe_per_obs"]) * math.sqrt(kk), 4)
-    wrong = round(float(against_zero["sharpe_per_obs"]) * math.sqrt(kk), 4)
-    assert expected != wrong, "the fixture cannot tell the two targets apart"
+    expected = round(float(want["sharpe_per_obs"]) * math.sqrt(252.0), 4)
+    wrong_target = round(float(against_zero["sharpe_per_obs"]) * math.sqrt(252.0), 4)
+    wrong_v44 = round(float(old["sharpe_per_obs"]) * math.sqrt(kk), 4)
+    assert len({expected, wrong_target, wrong_v44}) == 3, (
+        "the fixture cannot tell the three answers apart")
     assert luck["required_sharpe_annualised"] == expected
-    assert luck["required_sharpe_annualised"] != wrong
+    assert luck["required_sharpe_clock"] == 252.0
+    assert luck["target_sharpe"] == round(hurdle["per_obs"], 8)
+    assert luck["engine_target_annualised"] == 1.0
 
     sentence = [f for f in out["failures"] if "probabilistic Sharpe" in f]
     assert len(sentence) == 1, out["failures"]
     s = sentence[0]
     assert "THIS IS A SKILL HURDLE, NOT A LUCK TEST." in s
-    assert "puts its target at an annualised Sharpe of" in s
-    assert "Clearing 65.0% against that target demands an annualised Sharpe" in s
+    assert "HARDCODED target of 1/sqrt(252) per observation" in s
+    assert "an annualised Sharpe of exactly 1.00" in s
+    assert "on EXCESS returns, subtracting a daily risk-free rate" in s
+    assert ("Clearing 65.0% against that target demands an annualised excess "
+            "Sharpe") in s
     assert f"{expected:+.2f}" in s
-    # and the words that are FALSE of this statistic stay gone.
+    # and the words that are FALSE of this statistic stay gone — the luck
+    # wording from before v4.4 AND the per-candidate wording from v4.4 itself.
     assert "is not distinguishable from luck on this much history" not in s
+    assert "puts its target at an annualised Sharpe of" not in s
+    assert "could not be recovered" not in s
     # PUNCTUATION, because the read-through caught what the assertions could
-    # not: the measurement clause borrowed the other branch's leading
-    # semicolon, splicing a `.;` into the middle of the line.
-    assert " This run measured " in s
+    # not: a clause once borrowed the other branch's leading semicolon,
+    # splicing a `.;` into the middle of the line.
     assert ".;" not in s
+    assert "  " not in s
 
 
-def test_an_unrecoverable_engine_target_leaves_the_demand_UNSTATED_not_zero():
-    """ABSENCE IS NEVER ZERO, applied to a disclosure.
+def test_a_run_with_NO_SERIES_still_states_the_target_and_only_drops_the_demand():
+    """WHAT D38 ACTUALLY BOUGHT, and the row count behind it.
 
-    With no usable series the engine's target cannot be inverted. The demand it
-    implies is then UNKNOWN — and a bar solved against a fallback zero would be
-    a confident number about a criterion nobody applied, which is the same
-    defect one field over. The criterion itself still refuses on the engine's
-    published figure, because that figure is what this basis reads: an absent
-    series does not make the hurdle unmeasurable, only its explanation.
+    Under v4.4 a run with no usable series had NO STATED TARGET: the sentence
+    said the engine's target "could not be recovered" and that what the level
+    demands "is UNSTATED rather than zero". That was honest about the fund's
+    inversion and wrong about the engine — 368 stored verdicts carried it. The
+    target never depended on the run, so it is stated here too.
+
+    The DEMAND still does depend on the run's shape, and stays absent. That is
+    the half that must not quietly acquire a fallback: a bar solved against
+    nothing would be a confident number about a series that does not exist.
     """
     r = _alpha(psr=20.0)
     r.pop("daily_returns")
@@ -191,44 +214,155 @@ def test_an_unrecoverable_engine_target_leaves_the_demand_UNSTATED_not_zero():
     luck = out["checks"]["luck"]
     assert luck["measurable"] is True            # the engine number is readable
     assert luck["evaluated_pct"] == 20.0
-    assert "engine_implied_target_annualised" not in luck
+    assert luck["engine_target_annualised"] == 1.0
+    assert luck["target_sharpe"] == round(st.lean_psr_target()["per_obs"], 8)
     assert luck.get("required_sharpe_annualised") is None
-    assert luck.get("engine_implied_target_note")
+    assert luck.get("required_sharpe_clock") is None
+    # the retired fields are GONE, not renamed and left behind
+    assert "engine_implied_target_annualised" not in luck
+    assert "engine_implied_target_note" not in luck
     s = [f for f in out["failures"] if "probabilistic Sharpe" in f][0]
-    assert "UNSTATED rather than zero" in s
-    assert "demands an annualised Sharpe" not in s
+    assert "an annualised Sharpe of exactly 1.00" in s
+    assert "no usable return series, so what the level demands OF IT is unstated" in s
+    assert "demands an annualised excess Sharpe" not in s
+    assert "UNSTATED rather than zero" not in s
+    assert "could not be recovered" not in s
 
 
-def test_an_UNINVERTIBLE_engine_psr_states_no_demand_even_with_a_full_series():
-    """MUTATION SURVIVOR M13, and it has a real population.
+def test_an_engine_PSR_of_exactly_zero_NO_LONGER_suppresses_the_demand():
+    """The v4.4 behaviour this fix deliberately reverses, kept as a test so the
+    reversal is visible rather than incidental.
 
-    The sibling test above removes the series, so both the target and the bar
-    go absent together and a `target = 0.0` fallback is invisible. THIS case
-    separates them: a perfectly usable 400-observation series with a published
-    PSR of exactly 0.0%, which pins the target at infinity and cannot be
-    inverted. The bar COULD be solved against a zero fallback here — and doing
-    so would put a precise, confident, wrong demand on the verdict, because the
-    criterion is not testing a target of zero.
+    A published PSR of exactly 0.0% pins the INVERSION at infinity, so under
+    v4.4 both the target and the demand went absent on such a run. Neither
+    depends on inverting anything: the target is a constant and the bar is a
+    function of the level and the series' n, skew and kurtosis — the reported
+    PSR is not an input to either. So a run the old code could say nothing
+    about now gets the full disclosure.
 
     NOT HYPOTHETICAL: three of the fund's 339 stored results carrying a series
-    publish exactly 0.0% (scratchpad/d37probe/target_census.py). Absence is
-    never zero, and this is the row where the difference is reachable.
+    publish exactly 0.0% (scratchpad/d37probe/target_census.py).
     """
     r = _alpha(psr=90.0)
     r["robustness"]["psr_pct"] = 0.0
-    assert len(r["daily_returns"]["strategy"]) > 100      # the series is fine
+    series = r["daily_returns"]["strategy"]
+    assert len(series) > 100                              # the series is fine
     out = evaluate(r, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK,
                    criteria={"psr_basis": "engine_reported",
                              "min_psr_pct": 65.0})
     luck = out["checks"]["luck"]
     assert luck["measurable"] is True          # the engine's figure is readable
     assert luck["evaluated_pct"] == 0.0
-    assert "engine_implied_target_annualised" not in luck
-    assert luck.get("required_sharpe_annualised") is None
-    assert "pins the target at infinity" in luck["engine_implied_target_note"]
+    assert luck["engine_target_annualised"] == 1.0
+    want = st.sharpe_bar_for_psr(65.0, series, st.lean_psr_target()["per_obs"])
+    assert want["measurable"], want
+    assert luck["required_sharpe_annualised"] == round(
+        float(want["sharpe_per_obs"]) * math.sqrt(252.0), 4)
+    # AND THE OLD REFUSAL IS PROVABLY THE THING THAT MOVED: inverting still
+    # cannot be done on this run, so a demand that reappeared by accident would
+    # have had to come from somewhere else.
+    assert st.implied_target_sharpe(0.0, series)["measurable"] is False
     s = [f for f in out["failures"] if "probabilistic Sharpe" in f][0]
-    assert "UNSTATED rather than zero" in s
-    assert "demands an annualised Sharpe" not in s
+    assert "demands an annualised excess Sharpe" in s
+    assert "UNSTATED rather than zero" not in s
+
+
+def test_the_engine_target_clock_is_READ_from_the_run_not_hardcoded_twice():
+    """MOVE IT, do not match it (D16).
+
+    An assertion that the sentence says `1/sqrt(252)` cannot distinguish a leg
+    that READS the run's stored `tradingDaysPerYear` from one that prints the
+    module constant regardless. So the run's configuration is moved to a clock
+    LEAN does not default to, and the whole disclosure has to follow it: the
+    per-observation target, the demand's clock, the sentence, and the flag that
+    says the clock was read rather than assumed.
+
+    The ANNUALISED target stays 1.00 by construction — 1/sqrt(K) annualised on
+    sqrt(K) is 1.00 for any K — and that invariance is the point of the hurdle,
+    so it is asserted rather than treated as a fixed constant that happens to
+    agree.
+    """
+    r = _alpha(psr=90.0)
+    r["robustness"]["psr_pct"] = 20.0
+    r["robustness"]["psr_inputs"] = {"trading_days_per_year": 260}
+    out = evaluate(r, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK,
+                   criteria={"psr_basis": "engine_reported",
+                             "min_psr_pct": 65.0})
+    luck = out["checks"]["luck"]
+    assert luck["engine_trading_days_per_year"] == 260.0
+    assert luck["engine_trading_days_assumed"] is False
+    assert luck["required_sharpe_clock"] == 260.0
+    assert luck["target_sharpe"] == round(1.0 / math.sqrt(260.0), 8)
+    assert luck["target_sharpe"] != round(1.0 / math.sqrt(252.0), 8)
+    assert luck["engine_target_annualised"] == 1.0
+    s = [f for f in out["failures"] if "probabilistic Sharpe" in f][0]
+    assert "HARDCODED target of 1/sqrt(260) per observation" in s
+    assert "read from this run's own stored configuration" in s
+    assert "1/sqrt(252)" not in s
+
+    # and the DEFAULT arm says it is a default, in the same words the reader
+    # needs to tell the two apart.
+    plain = evaluate(_alpha(psr=90.0), CLEAN_HOLDOUT, CLEAN_SWEEP,
+                     walkforward=CLEAN_WALK,
+                     criteria={"psr_basis": "engine_reported",
+                               "min_psr_pct": 65.0})["checks"]["luck"]
+    assert plain["engine_trading_days_assumed"] is True
+    assert plain["engine_trading_days_per_year"] == 252.0
+
+
+@pytest.mark.parametrize("stored", [0, -1, 0.0, "252", True, None, {}])
+def test_an_UNUSABLE_stored_clock_falls_back_and_SAYS_it_fell_back(stored):
+    """A stored configuration is a stored value, so it arrives malformed.
+
+    A zero or negative clock would make the target infinite or imaginary; a
+    string would raise inside a square root; `True` is not 1 trading day per
+    year. All of them fall back to the engine's default AND report
+    `engine_trading_days_assumed`, because a 252 that was read and a 252 that
+    was substituted are different facts about the run.
+    """
+    r = _alpha(psr=90.0)
+    r["robustness"]["psr_pct"] = 20.0
+    r["robustness"]["psr_inputs"] = {"trading_days_per_year": stored}
+    luck = evaluate(r, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK,
+                    criteria={"psr_basis": "engine_reported",
+                              "min_psr_pct": 65.0})["checks"]["luck"]
+    assert luck["engine_trading_days_per_year"] == 252.0
+    assert luck["engine_trading_days_assumed"] is True
+    assert luck["measurable"] is True
+
+
+def test_a_microscopic_level_is_an_OFF_SWITCH_but_a_VISIBLE_one():
+    """THE RESIDUAL THE RANGE CHECK DOES NOT CLOSE, pinned rather than papered.
+
+    D37's range check refuses a level outside (0, 100), and its comment claimed
+    that afterwards "the only way to decline the filter is the boolean". That
+    over-claims and the adversary measured the counter-example: 1e-12 is
+    strictly inside the interval, so it passes the check and then clears every
+    measurable reading.
+
+    No epsilon was invented to close it — a threshold with no measured basis is
+    worse than an open one, and these levels are control-layer values a human
+    moves in a versioned change. What this test pins is the pair of facts the
+    corrected comment now claims: the level DOES pass everything, and it is
+    VISIBLE in the verdict while doing so, which the silent skip was not.
+    """
+    r = _alpha(psr=90.0)
+    r["robustness"]["psr_pct"] = 0.001        # would fail any honest level
+    out = evaluate(r, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK,
+                   criteria={"psr_basis": "engine_reported",
+                             "min_psr_pct": 1e-12})
+    luck = out["checks"]["luck"]
+    assert luck["measurable"] is True
+    assert not [f for f in out["failures"] if "probabilistic Sharpe" in f]
+    # THE VISIBILITY HALF — and it is the half the comment now rests on.
+    assert luck["level_pct"] == 1e-12
+    assert luck["applied"] is True
+    assert out["criteria"]["min_psr_pct"] == 1e-12
+    # the ENDPOINT next door is still a refusal, so this is a residual and not
+    # a hole the range check failed to cover at all.
+    zero = evaluate(_alpha(psr=90.0), CLEAN_HOLDOUT, CLEAN_SWEEP,
+                    walkforward=CLEAN_WALK, criteria={"min_psr_pct": 0.0})
+    assert zero["checks"]["luck"]["measurable"] is False
 
 
 def test_both_readings_survive_the_revert_on_the_shipped_alpha_bar():

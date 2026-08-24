@@ -1159,8 +1159,17 @@ PREMIA_CRITERIA: dict[str, Any] = {
     # unconditionally: the claim was true of the one case the author had in mind
     # and false of every case the criterion exists to judge (adversary,
     # run-adversary-d36-prodgate2). `_luck_leg` now refuses any level outside
-    # (0, 100) outright, so the only way to decline this filter is the boolean
-    # below — which says so, in the verdict, where a reader will find it.
+    # (0, 100) outright, so a level of exactly 0 can no longer decline this
+    # filter silently.
+    #
+    # A LEVEL CAN STILL DECLINE IT IN EFFECT, and D38 says so rather than
+    # repeating the over-claim one round later: 1e-12 is strictly inside the
+    # interval, so it passes the range check and then clears every measurable
+    # reading. The difference the boolean below still buys is a RECORDED one —
+    # `applied: False` in the verdict, in a field named for the question —
+    # against a level that merely reads absurdly low. Both are visible; only one
+    # of them announces itself. See the residual note at `_luck_leg`'s range
+    # check for why no epsilon was invented to close the gap.
     "premia_require_luck_filter": True,
 }
 
@@ -1519,9 +1528,26 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
     # criterion is silently not applied, while the comment on
     # `premia_require_luck_filter` claims a zero cannot switch it off. That
     # claim is true only of an UNMEASURABLE advantage — the impersonator case —
-    # and false of everything the criterion is actually meant to judge. With
-    # this check the claim is true of both, and the only way to decline the
-    # filter is the boolean that says so in the verdict.
+    # and false of everything the criterion is actually meant to judge.
+    #
+    # WHAT THIS CHECK BUYS AND WHAT IT DOES NOT, corrected in D38 because the
+    # first wording over-claimed and the adversary measured the counter-example.
+    # It removes the ENDPOINTS: 0 and 100 are refusals now instead of silent
+    # off-switches. It does NOT make the boolean the only way to decline the
+    # filter — a level of 1e-12 is strictly inside (0, 100), passes this check,
+    # and then clears every measurable reading, so it is an off-switch with a
+    # different spelling.
+    #
+    # THAT RESIDUAL IS NAMED AND LEFT OPEN, not closed with an epsilon, for two
+    # reasons. An epsilon would be a new threshold with no measured basis, and a
+    # number invented to fill a field is worse than an empty one. And the
+    # residual is VISIBLE where the silent skip was not: `level_pct` and
+    # `applied` both ride the stored verdict, so a level of 1e-12 reads as a bar
+    # somebody set absurdly low — a governance question with an audit trail —
+    # rather than as a criterion nobody ran. These levels are control-layer
+    # values a human moves in a versioned change; the job here is to make the
+    # move legible, and `test_a_microscopic_level_is_an_OFF_SWITCH_but_a_VISIBLE
+    # _one` pins both halves.
     #
     # BOTH CLAIM TYPES, one check: the same hole is open on the alpha level, and
     # a guard that covers one of two callers is a guard with a documented
@@ -1645,44 +1671,72 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
     # at target 0.0 for both bases and simply not quoted in the engine sentence,
     # which left a wrong number on the verdict for anyone who read the field
     # instead of the prose.
+    #
+    # AND FOR THE ENGINE BASIS IT IS A KNOWN CONSTANT — READ, NOT INVERTED.
+    # v4.4 shipped a PER-CANDIDATE target recovered by inverting the engine's
+    # own statistic on each run's series, on the stated ground that "the engine
+    # publishes no target". That ground was wrong (adversary, run-adversary-d37,
+    # who read the engine instead of the run): LEAN hardcodes the target at
+    # `1.0 / Math.Sqrt(tradingDaysPerYear)` — an annualised Sharpe of exactly
+    # 1.00, the same for every candidate — and computes the statistic on EXCESS
+    # returns. See `statistics.lean_psr_target` for the citation and
+    # `statistics.implied_target_sharpe` for the two errors that produced the
+    # spurious 1.17-2.26 spread this leg used to print (raw instead of excess
+    # returns; the candidate's calendar clock instead of the engine's 252).
+    #
+    # So the disclosure gets SHORTER and truer, and one whole absence branch
+    # goes away with it: the target is now known even when the run carries no
+    # series at all, because it never depended on the run.
     target: Optional[float] = 0.0
+    bar_clock: Optional[float] = k
     if basis == "engine_reported":
-        # THE IDENTIFICATION, per candidate. The engine publishes no target and
-        # no benchmark Sharpe, so the only honest way to say what this number
-        # tests is to invert it out of the run's own series.
-        ident = st.implied_target_sharpe(engine, series) if series else {}
-        if ident.get("measurable"):
-            target = float(ident["target_per_obs"])
-            if k:
-                out["engine_implied_target_annualised"] = round(
-                    target * math.sqrt(float(k)), 4)
-        else:
-            # ABSENT, NEVER ZERO. Without the target there is no bar to state,
-            # and a bar stated against zero here would be a disclosure about a
-            # criterion nobody is applying.
-            target = None
-            why_no_target = (ident.get("reason")
-                             or "this run carries no usable return series")
-            out["engine_implied_target_note"] = (
-                f"the engine's target could not be recovered "
-                f"({why_no_target})")
+        # THE RUN'S OWN CLOCK WHEN THE BELT CAPTURED IT, the engine's default
+        # when it did not — and the payload says which, because a 252 that was
+        # read and a 252 that was assumed are different facts. Stored results
+        # predating the capture carry no configuration at all.
+        pin = rb.get("psr_inputs") if isinstance(rb, dict) else None
+        stored_k = (pin.get("trading_days_per_year")
+                    if isinstance(pin, dict) else None)
+        hurdle = st.lean_psr_target(stored_k)
+        target = float(hurdle["per_obs"])
+        bar_clock = float(hurdle["trading_days_per_year"])
+        out["target_sharpe"] = round(target, 8)
+        out["engine_target_annualised"] = round(float(hurdle["annualised"]), 4)
+        out["engine_trading_days_per_year"] = bar_clock
+        out["engine_trading_days_assumed"] = bool(hurdle["assumed"])
+        out["engine_target_source"] = hurdle["source"]
 
     # --- WHAT THE LEVEL DEMANDS, in the claim's own units ------------------
+    #
+    # ON THE TARGET'S OWN CLOCK, not the candidate's. The engine's target is
+    # 1/sqrt(252) PER OBSERVATION and annualises by sqrt(252); annualising the
+    # matching bar on the series' own calendar clock (~365 obs/yr on this fund's
+    # runs) would inflate it by sqrt(365.25/252) = 1.2039 and put the demand in
+    # units the target is not in. The target-zero branch keeps the candidate's
+    # clock, which is the right one for a statistic computed on that series.
     bar: dict[str, Any] = {"measurable": False}
     if target is not None:
         bar = (st.sharpe_bar_for_psr(level, series, target) if not is_premia
                else _bar_from_moments(level, moments))
-    if bar.get("measurable") and k:
+    if bar.get("measurable") and bar_clock:
         scale = (float(moments["stdev"])
                  if is_premia and moments is not None else 1.0)
         out["required_sharpe_annualised"] = round(
-            float(bar["sharpe_per_obs"]) * scale * math.sqrt(float(k)), 4)
+            float(bar["sharpe_per_obs"]) * scale * math.sqrt(float(bar_clock)), 4)
+        out["required_sharpe_clock"] = round(float(bar_clock), 2)
 
     if basis == "engine_reported":
         out["evaluated_pct"] = engine
+        # WHAT THE NUMBER IS, in the units a reader can check. Until D38 this
+        # said "whose target is not zero and is not published" — half right and
+        # wholly unhelpful: the target is not in the engine's statistics block,
+        # but it is in the engine's source, it is a constant, and saying so is
+        # the difference between a criterion a reader can argue with and one
+        # they can only defer to.
         out["statistic"] = (
-            "LEAN's published Probabilistic Sharpe Ratio, whose target is not "
-            "zero and is not published")
+            f"LEAN's published Probabilistic Sharpe Ratio: P(this strategy's "
+            f"true EXCESS Sharpe > an annualised "
+            f"{out['engine_target_annualised']:.2f})")
         # A GATE MUST RETURN A VERDICT, NEVER RAISE — and `engine` is a STORED
         # value from `robustness.psr_pct`, which may have been written by an
         # older belt, round-tripped through JSON, or truncated. Checked for
@@ -1736,42 +1790,63 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
         # WHAT THE HURDLE IS AND WHAT IT DEMANDS, in one sentence, because the
         # two halves are useless apart: a target nobody can compare to a
         # threshold is trivia, and a demand nobody can attribute to a target is
-        # the number the old sentence implied was zero. Both are per candidate
-        # and both are ABSENT when the series will not support them.
-        tgt = out.get("engine_implied_target_annualised")
-        identified = ("" if tgt is None else
-                      f" Inverting the engine's own statistic on this run's "
-                      f"series puts its target at an annualised Sharpe of "
-                      f"{tgt:+.2f}, NOT at zero.")
+        # the number the old sentence implied was zero.
+        #
+        # THE TARGET CLAUSE IS UNCONDITIONAL NOW. It used to be per candidate
+        # and therefore absent whenever the run's series would not support the
+        # inversion — 368 of the fund's stored verdicts said the target "could
+        # not be recovered" and what the level demands "is UNSTATED", and 288
+        # more quoted a per-candidate figure near 1.78 that was an artifact of
+        # inverting on raw returns and annualising on the wrong clock. The
+        # target never depended on the run: it is a constant in the engine's
+        # source, so it is stated on every verdict including the ones with no
+        # series at all. The DEMAND still depends on the run's shape, and stays
+        # absent when the series will not support it.
+        tgt = float(out["engine_target_annualised"])
+        # WHERE THE CLOCK CAME FROM, inline, because the target IS the clock:
+        # a reader who cannot tell a configuration that was read from a default
+        # that was assumed cannot check the hurdle against the run.
+        cited = ("the engine's default clock, since this run stored no "
+                 "configuration of its own"
+                 if out.get("engine_trading_days_assumed")
+                 else "read from this run's own stored configuration")
+        identified = (
+            f" LEAN measures that probability against a HARDCODED target of "
+            f"1/sqrt({out['engine_trading_days_per_year']:.0f}) per observation "
+            f"({cited}) — an annualised Sharpe of exactly {tgt:.2f} — on EXCESS "
+            f"returns, subtracting a daily risk-free rate inside the statistic. "
+            f"So what this criterion demands is P(this strategy's true excess "
+            f"Sharpe > {tgt:.2f}) >= {level}%.")
         req = out.get("required_sharpe_annualised")
         # NAMED `demand`, not `demanded`: the target-zero branch below has its
         # own `demanded` for a different sentence, and two clauses sharing one
         # name in one function is how the next editor edits the wrong one.
-        demand = ("" if req is None or tgt is None else
+        demand = ("" if req is None else
                   f" Clearing {level}% against that target demands an "
-                  f"annualised Sharpe of about {req:+.2f} on "
+                  f"annualised excess Sharpe of about {req:+.2f} on "
                   f"{out.get('n_obs')} observations of this shape.")
-        # Capitalised HERE and not in the field: the note is also a stored
-        # `reason`, where a leading capital reads wrong, and it opens a sentence
-        # here, where a leading lower case reads wrong. One string, two homes.
-        note = str(out.get("engine_implied_target_note") or "")
-        unstated = ("" if tgt is not None else
-                    f" {note[:1].upper()}{note[1:]}, so what this level demands "
-                    f"is UNSTATED rather than zero.")
+        no_demand = ("" if req is not None else
+                     " This run carries no usable return series, so what the "
+                     "level demands OF IT is unstated — the target above is "
+                     "not.")
         luck_note = ("" if out.get("luck_psr_pct") is None else
                      f" A target-zero reading of the same series — the question "
                      f"a luck filter actually asks — is "
                      f"{out['luck_psr_pct']}%.")
-        # A SENTENCE, not the target-zero branch's trailing clause. Every piece
-        # above ends in a full stop, so borrowing that branch's "; this run
-        # measured" spliced a `.;` into the middle of the line. Read, not
-        # asserted — no assertion in this file would have caught punctuation.
-        ran = ("" if out.get("sharpe_annualised") is None else
-               f" This run measured {out['sharpe_annualised']:+.2f}.")
+        # NO "this run measured" CLAUSE HERE, and its absence is deliberate. The
+        # only annualised Sharpe this leg holds is `sharpe_annualised`: RAW
+        # returns on the candidate's own calendar clock. Against a target that
+        # is EXCESS returns on the engine's 252 clock those are different units,
+        # and the engine's own published `Sharpe Ratio` is a third convention
+        # again (geometric annual performance over annual stdev — measured
+        # median +0.074 above the PSR's arithmetic basis over 339 stored runs,
+        # p05 +0.54, max +1.44). Quoting any of them beside a 1.00 target would
+        # be the same mislabelling this leg exists to end. The probability at
+        # the head of the sentence IS the run's measurement.
         return out, [
             f"the engine's probabilistic Sharpe {out['evaluated_pct']}% is "
             f"below {level}%. THIS IS A SKILL HURDLE, NOT A LUCK TEST."
-            f"{identified}{demand}{unstated}{luck_note}{ran}"]
+            f"{identified}{demand}{no_demand}{luck_note}"]
     demanded = ("" if out.get("required_sharpe_annualised") is None else
                 f", which on {out.get('n_obs')} observations of this shape "
                 f"demands an annualised "

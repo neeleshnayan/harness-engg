@@ -1552,7 +1552,15 @@ class LeanRunner:
             # `daily` is handed in UNDOWNSAMPLED and before the thinning above,
             # because the PSR capture needs the sample length the engine
             # actually scored — `equity` here is already 400 points.
-            "robustness": _robustness(stats, equity, dates, _orders(best), daily),
+            # `best.get("algorithmConfiguration")` carries the engine's own
+            # `tradingDaysPerYear`, which is the clock the PSR's hardcoded
+            # target is written against. Read from the RESULT rather than from
+            # the sibling `-summary.json`, because the result is what this fund
+            # stores and a hurdle recoverable only from a file on the belt
+            # host's disk is not recoverable from a stored verdict.
+            "robustness": _robustness(stats, equity, dates, _orders(best),
+                                      daily,
+                                      best.get("algorithmConfiguration")),
             "raw_files": sorted(p.name for p in res_dir.glob("*")),
         }
 
@@ -1596,7 +1604,8 @@ _PSR_IDENTIFYING_STATISTICS = (
 )
 
 
-def psr_inputs(stats: dict, daily: Optional[dict[str, Any]] = None
+def psr_inputs(stats: dict, daily: Optional[dict[str, Any]] = None,
+               config: Optional[dict[str, Any]] = None
                ) -> dict[str, Any]:
     """Everything that could identify the formula behind the reported PSR.
 
@@ -1617,22 +1626,44 @@ def psr_inputs(stats: dict, daily: Optional[dict[str, Any]] = None
         (0.11627 computed against 0.116 published); if a future engine build
         changes that, this is the field that says so instead of a silent
         17% shift in a statistic nobody re-derives.
+      * ``trading_days_per_year`` and ``target`` — the run's OWN
+        ``algorithmConfiguration.tradingDaysPerYear``, and the PSR hurdle that
+        follows from it. This is the falsifier for the whole engine-hurdle
+        story made mechanical: the target is ``1/sqrt(tradingDaysPerYear)``
+        (``statistics.lean_psr_target``), so a LEAN image that ships a
+        different clock moves the hurdle, and the only way to notice was to
+        grep new summary files by hand. Captured, so a stored verdict can be
+        re-read against the hurdle it was actually judged against. MEASURED at
+        capture time: 252 on 276 of 276 stored ``-summary.json`` files.
     """
+    cfg = config if isinstance(config, dict) else {}
+    tdy = cfg.get("tradingDaysPerYear")
+    if isinstance(tdy, bool) or not isinstance(tdy, (int, float)) or tdy <= 0:
+        tdy = None
+    from app.fund import statistics as _stats
     out: dict[str, Any] = {
         "statistics": {k: stats.get(k) for k in _PSR_IDENTIFYING_STATISTICS
                        if k in stats},
         "statistics_missing": [k for k in _PSR_IDENTIFYING_STATISTICS
                                if k not in stats],
+        # ABSENT WHEN ABSENT. A run whose configuration this fund did not
+        # capture must not report the engine's default as if it had been read;
+        # `target.assumed` then says the hurdle rests on the default.
+        "trading_days_per_year": tdy,
+        "target": _stats.lean_psr_target(tdy),
         "benchmark_sharpe_published": (
-            # Named as an ABSENCE rather than left out. The whole PSR question
-            # is "against which benchmark Sharpe", and the honest answer today
-            # is that the engine does not publish one.
+            # Named as an ABSENCE rather than left out. The engine's statistics
+            # block does not carry the target; its SOURCE does, and the two are
+            # different statements — see the note below.
             stats.get("Benchmark Sharpe Ratio")),
         "benchmark_sharpe_note": (
             None if "Benchmark Sharpe Ratio" in stats else
-            "the engine's statistics block publishes NO benchmark Sharpe; the "
-            "PSR's target is therefore not readable from the run and has to be "
-            "inverted out of the reported PSR"),
+            "the engine's statistics block publishes NO benchmark Sharpe, so "
+            "the PSR's target is not readable from the RESULT — but it is not "
+            "unpublished: LEAN hardcodes it at 1/sqrt(tradingDaysPerYear), an "
+            "annualised Sharpe of exactly 1.00, and `target` above states it. "
+            "Inverting it out of the reported PSR is a CHECK on that constant "
+            "(statistics.implied_target_sharpe), never the way to learn it"),
     }
     series = (daily or {}).get("strategy") if isinstance(daily, dict) else None
     dates = (daily or {}).get("dates") if isinstance(daily, dict) else None
@@ -1644,7 +1675,6 @@ def psr_inputs(stats: dict, daily: Optional[dict[str, Any]] = None
                      "zero"),
         }
         return out
-    from app.fund import statistics as _stats
     clock = _stats.observations_per_year(dates or [], len(series))
     out["observations"] = {
         "n": len(series),
@@ -2494,7 +2524,8 @@ def _annual_vol_pct(stats: dict) -> Optional[float]:
 
 def _robustness(stats: dict, equity: list[float], dates: list[str],
                 orders: list[dict],
-                daily: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+                daily: Optional[dict[str, Any]] = None,
+                config: Optional[dict[str, Any]] = None) -> dict[str, Any]:
     """Can this result be believed? Measured, never assumed.
 
     A backtest reports its return with the same confidence whether it rests on
@@ -2549,7 +2580,7 @@ def _robustness(stats: dict, equity: list[float], dates: list[str],
         # CAPTURE ONLY — no criterion reads this. The gate's most binding
         # criterion judges a statistic nobody has identified; this is the
         # evidence that identifies it, carried on every future verdict.
-        "psr_inputs": psr_inputs(stats, daily),
+        "psr_inputs": psr_inputs(stats, daily, config),
     }
     return out
 
