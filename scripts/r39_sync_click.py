@@ -37,9 +37,9 @@ print("=== R39 PHASE 1: reading the sync plan ===")
 plan = get("/fund/venue/sync/plan")
 rid = plan["run_id"]
 print(f"plan run_id: {rid}")
-print(f"projected_step_usd: {plan.get('projected_step_usd')}")
-print(f"projected_nav:      {plan.get('projected_nav')}")
+print(f"nav (projection block): {plan.get('nav')}")
 print(f"cash: {plan.get('cash')}")
+print(f"symbols_moving: {plan.get('symbols_moving')}")
 unmanaged = [x.get("symbol") if isinstance(x, dict) else x
              for x in (plan.get("unmanaged_after") or [])]
 print(f"unmanaged_after (should be the six orphans): {unmanaged}")
@@ -49,6 +49,10 @@ res = post("/fund/venue/sync/apply", {
     "run_id": rid,
     "approver": "neelesh",
     "confirm": rid[:8],
+    "reason": ("R39 Phase 1 (PM_R39_PLAN_2026-08-23.md, R38/R39-1 CEO-accepted): "
+               "align the book to the venue before closing the six legacy "
+               "orphans and rebuilding the sleeve - SYNC then SELL then REBUY "
+               "is the only sequence that never fabricates a fill."),
 })
 if res.get("HTTP_FAIL"):
     print("REFUSED:", res)
