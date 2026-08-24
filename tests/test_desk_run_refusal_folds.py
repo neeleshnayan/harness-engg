@@ -63,9 +63,43 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.fund import desk, tickets as tk, metrics
+import contextlib
+import datetime as _dt
+from unittest import mock
+
+from app.fund import desk, tickets as tk, metrics, ticketguard
 from app.fund.events import EventType
 from app.fund.projections.orders import OrdersProjection
+
+
+#: A FIXED INSTANT, so a fold's output is a function of its input alone.
+#: `desk.view` has no `now` parameter — it reads `datetime.now()` internally —
+#: and its `lifecycle.age_hours` is rounded to one decimal, i.e. SIX MINUTES.
+#: Two `view()` calls compared for equality therefore disagree whenever they
+#: straddle a six-minute boundary: rare, non-reproducible, and it would fail
+#: with the message "the refusal changed the desk view", sending the next
+#: builder hunting a defect that is not there. Measured with a 4000-second
+#: offset: exactly ONE path moves with the clock,
+#: `.requests[0].lifecycle.age_hours`.
+FROZEN = _dt.datetime(2026, 8, 25, 0, 0, 0, tzinfo=_dt.timezone.utc)
+
+
+@contextlib.contextmanager
+def frozen_clock():
+    """Freeze ``datetime.datetime.now`` for code that imports it per-call.
+
+    ``desk.view`` does ``from datetime import datetime`` INSIDE the function,
+    so the name resolves against the ``datetime`` MODULE at call time — which
+    is why patching the module attribute works here and patching ``desk``'s
+    own namespace would not.
+    """
+    class _Frozen(_dt.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return FROZEN if tz else FROZEN.replace(tzinfo=None)
+
+    with mock.patch.object(_dt, "datetime", _Frozen):
+        yield
 
 
 # ============================================================================
@@ -93,23 +127,36 @@ class _Store:
 
 def _approval_refused_on_desk_run(seq: int, ts: str, run_id: str = "run-hw4-probe",
                                   rec_id: int = 7, actor: str = "ceo") -> dict:
-    """One ``ApprovalRefused`` on a ``desk_run`` aggregate, shaped like the
-    real payload ``_refuse_if_redecided`` appends (``app/api/v1/fund.py``) —
-    not a minimal stub, so a fold keying on a field this producer actually
-    fills would be exercised rather than skipped by omission.
+    """One ``ApprovalRefused`` on a ``desk_run`` aggregate.
+
+    THE PAYLOAD IS BUILT BY THE REAL GUARD, not hand-typed. A first draft of
+    this helper wrote ``"guard": "legacy-redecision-v1"`` and
+    ``"kind": "redecision"`` — neither of which any producer has ever emitted —
+    under a docstring claiming it was "shaped like the real payload". The fold
+    invariance held either way (these folds never look inside), but a fixture
+    that MODELS a payload while claiming to mirror one is how the next reader
+    learns a field name that does not exist. Calling ``check_redecision`` makes
+    the fixture a CALL rather than a model, and it fails loudly the day the
+    refusal's shape changes.
     """
+    refusal = ticketguard.check_redecision(
+        [{"seq": seq - 1, "status": "accepted", "at": ts, "actor": actor}],
+        to="accepted", run_id=run_id, rec_id=rec_id)
+    assert refusal is not None, "the fixture must be built from a real refusal"
     return {
         "seq": seq, "ts": ts, "actor": actor,
         "aggregate_id": run_id, "aggregate_type": "desk_run",
-        "type": "ApprovalRefused",
+        "type": EventType.APPROVAL_REFUSED.value,
         "payload": {
-            "kind": "redecision", "target_id": run_id, "approver": actor,
-            "guard": "legacy-redecision-v1",
-            "reason": "ONE DECISION, ONE ROW: already recorded",
-            "row_ref": f"{run_id}#{rec_id}", "attempted": "accepted",
-            "recorded_status": "accepted", "recorded_at": ts,
-            "recorded_by": actor, "prior_same_status": 1,
-            "decision_count": 1, "at": ts,
+            "kind": refusal["kind"], "target_id": run_id, "approver": actor,
+            "guard": refusal["guard"], "reason": refusal["detail"],
+            "row_ref": refusal["row_ref"],
+            "attempted": refusal["attempted"],
+            "recorded_status": refusal["recorded_status"],
+            "recorded_at": refusal["recorded_at"],
+            "recorded_by": refusal["recorded_by"],
+            "prior_same_status": refusal["prior_same_status"],
+            "decision_count": refusal["decision_count"], "at": ts,
         },
     }
 
@@ -225,10 +272,39 @@ class TestTheDeskViewIsUnperturbed:
         with_refusals = _interleave(without, _refusals(start_seq=200))
 
         assert len(with_refusals) == len(without) + 3
-        left = desk.view(_Store(without), deskstore=None, pending_orders=None)
-        right = desk.view(_Store(with_refusals), deskstore=None,
-                          pending_orders=None)
+        with frozen_clock():
+            left = desk.view(_Store(without), deskstore=None,
+                             pending_orders=None)
+            right = desk.view(_Store(with_refusals), deskstore=None,
+                              pending_orders=None)
         assert left == right
+
+    def test_the_frozen_clock_is_ACTUALLY_in_effect(self):
+        """THE FREEZE'S OWN POSITIVE CONTROL, and it is not ceremony.
+
+        If ``frozen_clock`` silently stopped patching — a refactor of
+        ``desk.view``'s import, say — the equality test above would go back to
+        comparing two wall-clock reads and would pass on almost every run
+        while carrying the flake it was written to remove. A freeze nobody
+        checks is indistinguishable from no freeze at all.
+
+        THE EXPECTED VALUE IS DERIVED FROM THE CODE, NOT FROM THE OUTPUT.
+        ``deskcard.lifecycle_rail`` measures from the CURRENT STAGE's
+        timestamp, not from filing. ``req-open-2`` is approved and not
+        dispatched, so its current stage is ``awaiting_dispatch``, which
+        inherits the APPROVAL's stamp — 2026-08-20T01:00:00Z, "because the
+        clock the CEO cares about started when he said yes". Against FROZEN
+        (2026-08-25T00:00:00Z) that is 119.0 hours, not the 120.0 that filing
+        would give. Getting this wrong is how a test ends up asserting
+        whatever the code happened to print.
+        """
+        with frozen_clock():
+            v = desk.view(_Store(self._busy_stream()), deskstore=None,
+                          pending_orders=None)
+        rails = {r["request_id"]: r["lifecycle"] for r in v["requests"]}
+        rail = rails["req-open-2"]
+        assert rail["current"] == "awaiting_dispatch"
+        assert rail["age_hours"] == 119.0
 
     def test_positive_control_a_real_desk_event_DOES_change_the_view(self):
         without = self._busy_stream()
@@ -236,9 +312,11 @@ class TestTheDeskViewIsUnperturbed:
             "request_id": "req-brand-new-2", "task": "a view this test cares "
             "about", "seat": "coo", "trace_id": "req-brand-new-2",
             "at": "2026-08-21T02:00:00Z", "actor": "cto"}}]
-        left = desk.view(_Store(without), deskstore=None, pending_orders=None)
-        right = desk.view(_Store(plus_real), deskstore=None,
-                          pending_orders=None)
+        with frozen_clock():
+            left = desk.view(_Store(without), deskstore=None,
+                             pending_orders=None)
+            right = desk.view(_Store(plus_real), deskstore=None,
+                              pending_orders=None)
         assert left != right
         assert right["open_requests"] == left["open_requests"] + 1
 

@@ -298,29 +298,61 @@ class TestRedecisionLineage:
 # ============================================================================
 
 class TestCheckRedecisionToBoundary:
-    """``to`` must be a non-empty ``str`` before the guard even looks at the
-    row's history. Every value here would allow if the code did not stop
-    them here: the same fixed ``decisions`` list is recorded ``accepted``,
-    which WOULD refuse a genuine ``to="accepted"`` — so a wrongly-permissive
-    ``to`` check would show up as a missing refusal, not a crash."""
+    """``to`` must be a non-empty ``str`` before the guard looks at anything.
 
-    _ACCEPTED_ROW = [_decision("accepted", "t1", actor="ceo", seq=1)]
+    **THE ROW MUST HOLD THE DEGENERATE VALUE, or this class proves nothing.**
+    The first draft of these cases ran every ``to`` against a row recorded
+    ``accepted``, and every one of them passed for the wrong reason: ``None``,
+    ``0`` and ``123`` are all ``!= "accepted"``, so the ordinary
+    status comparison allows them whether or not the type check exists.
+    Deleting the guarded branch left the whole class green — a test that
+    cannot fail for the defect it names.
 
-    @pytest.mark.parametrize("to", ["", None, 0, 123, True, False],
-                             ids=["empty-str", "None", "int-0", "int-123",
-                                  "bool-True", "bool-False"])
-    def test_a_non_string_or_empty_to_always_allows(self, to):
-        result = ticketguard.check_redecision(
-            self._ACCEPTED_ROW, to=to, run_id="run-x", rec_id=1)
-        assert result is None
+    The case that makes the branch load-bearing is a row whose OWN recorded
+    status is the degenerate value: a malformed payload leaves
+    ``status=None``, and without the type check ``None == None`` would refuse
+    — the door would start rejecting decisions because an earlier event was
+    unreadable. That is the defect, and these cases are pointed at it.
+    """
+
+    @pytest.mark.parametrize("to", [None, "", 0, False],
+                             ids=["None", "empty-str", "int-0", "bool-False"])
+    def test_a_degenerate_to_allows_even_when_the_ROW_HOLDS_THE_SAME_VALUE(
+            self, to):
+        # The row's last decision records exactly what is being asked for, so
+        # only the type check can produce the allow.
+        row = [_decision(to, "t1", actor="ceo", seq=1)]
+        assert ticketguard.redecision_lineage(row)["recorded_status"] == to
+        assert ticketguard.check_redecision(
+            row, to=to, run_id="run-x", rec_id=1) is None
+
+    @pytest.mark.parametrize("to", [123, True],
+                             ids=["int-123", "bool-True"])
+    def test_a_non_string_to_allows_against_a_row_holding_it(self, to):
+        """``True == 1`` in Python, so a row recorded ``1`` and a ``to`` of
+        ``True`` compare equal. Only ``isinstance(to, str)`` separates them."""
+        row = [_decision(to, "t1", actor="ceo", seq=1)]
+        assert ticketguard.check_redecision(
+            row, to=to, run_id="run-x", rec_id=1) is None
 
     def test_the_control_positive_a_real_matching_string_does_refuse(self):
         """Without this, every case above could be passing because the guard
         never refuses anything, not because the ``to`` check works."""
         result = ticketguard.check_redecision(
-            self._ACCEPTED_ROW, to="accepted", run_id="run-x", rec_id=1)
+            [_decision("accepted", "t1", actor="ceo", seq=1)],
+            to="accepted", run_id="run-x", rec_id=1)
         assert result is not None
         assert result["refused"] is True
+
+    def test_a_row_whose_last_status_is_unreadable_does_not_lock_the_row(self):
+        """THE DEFECT IN ONE SENTENCE: an unreadable earlier event must not
+        make a later, legitimate decision impossible. Absence is not a state
+        the row holds."""
+        row = [_decision("accepted", "t1", actor="ceo", seq=1),
+               _decision(None, "t2", actor="ceo", seq=2)]
+        for status in ("accepted", "done", "rejected"):
+            assert ticketguard.check_redecision(
+                row, to=status, run_id="run-x", rec_id=1) is None
 
 
 #: The six status strings named in the contract, each exercised both as
