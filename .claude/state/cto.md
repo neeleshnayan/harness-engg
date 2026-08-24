@@ -1030,3 +1030,26 @@ distinguishes 'the data is now truthful' from 'it looks like what you
 approved'.** D42 fired accordingly (card look only, one surface, ~1h,
 acceptance = the CEO SEES it). D41 (gate clause) runs in the other repo -
 disjoint, suites serialized. Reading Room D26 immediately after D42.
+
+
+---
+
+## 2026-08-24 — TWO FILING RULES FROM THE CEO'S OWN DESK READS
+
+1. **NEVER FILE AN EXECUTED ACTION AS AN OPEN RECOMMENDATION.** The record
+   (run output/meta/STATE) carries what the chair did at resolve; a
+   recommendation row exists ONLY for an undecided ask. If a completed act
+   is filed as a rec for visibility, it is POSTED PRE-DECIDED (the decide
+   call in the same script). Measured: 16 chair-filed executed-at-resolve
+   rows swept from the desk in one pass after the CEO found one wearing
+   Accept/Reject buttons ("like WTF" - correct).
+2. **ONE DECISION, ONE ROW.** A seat re-surfacing a decided item (reminder,
+   scheduling, batch framing) declares a decision_ref, never a sibling
+   ask. R39: accepted seq 1122 (08-23), re-presented via the COO's Monday
+   row, decided 8 times. Ticket filed (decision identity); until it
+   lands, the chair's resolve pass checks new recs against existing
+   decisions the way it validates serves ids.
+   ALSO OPEN: the CEO view rendered a next_actor=nobody row with
+   Accept/Reject - routing resolved correctly server-side, so the VIEW's
+   filter admits nobody-rows; verify against D42's look-pass and fix
+   there if confirmed.
