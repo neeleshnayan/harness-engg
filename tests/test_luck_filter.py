@@ -112,9 +112,18 @@ def test_the_engine_basis_REFUSES_to_say_luck_and_names_the_hurdle():
     # AND IT NAMES THE HURDLE AS THE CONSTANT IT IS (D38). The sentence used to
     # say the target had been INVERTED out of this run's own series, which was a
     # true description of our arithmetic and a false description of the engine.
-    assert "HARDCODED target of 1/sqrt(252) per observation" in s
-    assert "an annualised Sharpe of exactly 1.00" in s
-    assert "true excess Sharpe > 1.00) >= 65.0%" in s
+    assert "HARDCODED target of 1/sqrt(252) = 0.062994 per observation" in s
+    # AND IT STATES THAT CONSTANT ON THE SERIES' OWN CLOCK (D41). The engine's
+    # 1.00 is the same target restated in a 252-day convention; on a series
+    # observed 261.64 times a year the bar the candidate faced is 1.02, and D38
+    # published the convention as the hurdle. Both appear; only one is called
+    # the demand.
+    assert "convention states that same target as an annualised Sharpe of exactly 1.00" in s
+    assert "that is a CONVERSION, not the bar this run faced" in s
+    tgt = out["checks"]["luck"]["engine_target_annualised"]
+    assert tgt != 1.0
+    assert f"true excess Sharpe > {tgt:.2f}) >= 65.0%" in s
+    assert "true excess Sharpe > 1.00) >= 65.0%" not in s
     # THE WORDS THAT WERE FALSE HERE ARE GONE. Matching the whole clause rather
     # than the word "luck", which appears in the corrected sentence too — a
     # shared word is satisfiable by the wrong branch (D27).

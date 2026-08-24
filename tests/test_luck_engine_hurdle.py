@@ -121,15 +121,24 @@ def test_the_engine_sentence_states_the_demand_AGAINST_THE_CONSTANT_TARGET():
     ROUND TWO (D38, adversary run-adversary-d37). The fix used a target
     INVERTED out of each run's own series, on the stated ground that the engine
     publishes none. LEAN hardcodes it: `1.0 / Math.Sqrt(tradingDaysPerYear)`,
-    PortfolioStatistics.cs:311, an annualised Sharpe of exactly 1.00 for every
-    candidate, on EXCESS returns. So the demand is solved against THAT, and
-    annualised on the ENGINE's clock rather than the candidate's calendar one.
+    PortfolioStatistics.cs:311, 0.062994 per observation on EXCESS returns. So
+    the demand is solved against THAT — and D38 then annualised it on the
+    ENGINE's 252 clock.
 
-    THREE-WAY DISCRIMINATION, because two of the three candidate answers are
-    the fund's own former ones and a test that only pins the right value cannot
-    say it moved. The demand must equal the bar against 1/sqrt(252) on a 252
-    clock, and must differ from BOTH the target-zero bar and the inverted-target
-    bar on the candidate's clock.
+    ROUND THREE (D41, adversary run-adversary-d38). Annualising on 252 states
+    the target in the engine's CONVENTION, not in the units of the series being
+    judged. LEAN applies the per-observation target to the series it was handed,
+    and this fund's series carry 365.25 observations a year, so the bar the
+    candidate actually faced is 0.062994*sqrt(365.25) = 1.2039 and what 65%
+    demands of it is 1.34 — while the verdict payload said 1.00 and 1.11 beside
+    a `sharpe_annualised` on the 365.25 clock. Three annualised fields, two
+    clocks, and the demand understated by 21% in the permissive direction.
+
+    FOUR-WAY DISCRIMINATION, because three of the four candidate answers are the
+    fund's own former ones and a test that only pins the right value cannot say
+    it moved. The demand must equal the bar against 1/sqrt(252) annualised on
+    THIS SERIES' clock, and must differ from the target-zero bar, from the
+    inverted-target bar, and from D38's same-bar-at-sqrt(252).
 
     THE FIXTURE HAS TO CARRY THE DISAGREEMENT, and the first draft of the round
     one test did not — `_alpha(psr=20.0)` writes 20.0 into `robustness` AND
@@ -161,26 +170,65 @@ def test_the_engine_sentence_states_the_demand_AGAINST_THE_CONSTANT_TARGET():
     old = st.sharpe_bar_for_psr(65.0, series, inverted["target_per_obs"])
     assert old["measurable"], old
 
-    expected = round(float(want["sharpe_per_obs"]) * math.sqrt(252.0), 4)
-    wrong_target = round(float(against_zero["sharpe_per_obs"]) * math.sqrt(252.0), 4)
-    wrong_v44 = round(float(old["sharpe_per_obs"]) * math.sqrt(kk), 4)
-    assert len({expected, wrong_target, wrong_v44}) == 3, (
-        "the fixture cannot tell the three answers apart")
+    # THE RIGHT ANSWER: the engine's constant target, annualised on the clock
+    # the series is actually observed at — the same clock every other annualised
+    # figure in the payload uses.
+    expected = round(float(want["sharpe_per_obs"]) * math.sqrt(kk), 4)
+    # D38's answer: the same bar, restated in the engine's 252-day convention.
+    wrong_engine_clock = round(float(want["sharpe_per_obs"]) * math.sqrt(252.0), 4)
+    # v4.4 round one: solved against a target of ZERO.
+    wrong_target = round(float(against_zero["sharpe_per_obs"]) * math.sqrt(kk), 4)
+    # v4.4 round two: solved against a target INVERTED out of this run.
+    wrong_inverted_target = round(float(old["sharpe_per_obs"]) * math.sqrt(kk), 4)
+    assert len({expected, wrong_engine_clock, wrong_target,
+                wrong_inverted_target}) == 4, (
+        "the fixture cannot tell the four answers apart")
     assert luck["required_sharpe_annualised"] == expected
-    assert luck["required_sharpe_clock"] == 252.0
+    # ONE CLOCK PER PAYLOAD, asserted as an identity between two fields rather
+    # than against a literal — a hardcoded 365.25 in the leg would satisfy a
+    # literal and this cannot be satisfied without reading the series' dates.
+    assert luck["required_sharpe_clock"] == luck["obs_per_year"] == round(kk, 2)
+    assert luck["required_sharpe_clock"] != 252.0
+    # THE PER-OBSERVATION CONSTANT is the target that needs no clock, and it is
+    # what a change to LEAN's numerator or default would move. Asserted here
+    # instead of the annualised identity `1/sqrt(K) * sqrt(K) == 1.00`, which
+    # holds for every K and therefore pins nothing.
     assert luck["target_sharpe"] == round(hurdle["per_obs"], 8)
-    assert luck["engine_target_annualised"] == 1.0
+    assert luck["target_sharpe"] == round(1.0 / math.sqrt(252.0), 8)
+    # AND THE HURDLE ON THIS RUN'S CLOCK IS NOT THE CONVENTION. Both are on the
+    # verdict; the one named for the run must not read as the one named for the
+    # engine, which is exactly what shipped.
+    assert luck["engine_target_annualised"] == round(
+        float(hurdle["per_obs"]) * math.sqrt(kk), 4)
+    assert luck["engine_target_annualised"] > 1.0
+    assert luck["engine_convention_annualised"] == 1.0
+    assert (luck["engine_target_annualised"]
+            != luck["engine_convention_annualised"])
 
     sentence = [f for f in out["failures"] if "probabilistic Sharpe" in f]
     assert len(sentence) == 1, out["failures"]
     s = sentence[0]
     assert "THIS IS A SKILL HURDLE, NOT A LUCK TEST." in s
-    assert "HARDCODED target of 1/sqrt(252) per observation" in s
-    assert "an annualised Sharpe of exactly 1.00" in s
+    assert "HARDCODED target of 1/sqrt(252) = 0.062994 per observation" in s
+    # THE CONVENTION IS DISCLOSED AND LABELLED AS ONE — it is the conversion a
+    # reader needs to reconcile this with LEAN's own docs, and it is exactly the
+    # number D38 presented as the hurdle.
+    assert "convention states that same target as an annualised Sharpe of exactly 1.00" in s
+    assert "that is a CONVERSION, not the bar this run faced" in s
+    # AND THE HURDLE IS STATED ON THE SERIES' OWN CLOCK, with the clock named.
+    assert f"measured at {round(kk, 2)} observations a year" in s
+    assert (f"the target is an annualised excess Sharpe of "
+            f"{luck['engine_target_annualised']:.2f}") in s
+    assert (f"P(this strategy's true excess Sharpe > "
+            f"{luck['engine_target_annualised']:.2f}) >= 65.0%") in s
     assert "on EXCESS returns, subtracting a daily risk-free rate" in s
     assert ("Clearing 65.0% against that target demands an annualised excess "
             "Sharpe") in s
     assert f"{expected:+.2f}" in s
+    # THE DEFECT'S OWN SENTENCE, asserted gone: D38 wrote the demand as a
+    # statement about a hurdle of 1.00, which is the conversion and not the bar.
+    assert "true excess Sharpe > 1.00)" not in s
+    assert f"{wrong_engine_clock:+.2f}" not in s
     # and the words that are FALSE of this statistic stay gone — the luck
     # wording from before v4.4 AND the per-candidate wording from v4.4 itself.
     assert "is not distinguishable from luck on this much history" not in s
@@ -205,7 +253,14 @@ def test_a_run_with_NO_SERIES_still_states_the_target_and_only_drops_the_demand(
     said the engine's target "could not be recovered" and that what the level
     demands "is UNSTATED rather than zero". That was honest about the fund's
     inversion and wrong about the engine — 368 stored verdicts carried it. The
-    target never depended on the run, so it is stated here too.
+    PER-OBSERVATION target never depended on the run, so it is stated here too.
+
+    WHAT D41 TAKES BACK, and it takes back exactly one thing: the ANNUALISED
+    restatement. Annualising needs a clock, the honest clock is the series' own
+    measured observation rate, and a run with no series has none. D38 filled that
+    hole with the engine's 252-day convention and printed 1.00 — a number
+    belonging to a series this run does not have. Absent is the honest reading,
+    and the constant that survives absence is the per-observation one.
 
     The DEMAND still does depend on the run's shape, and stays absent. That is
     the half that must not quietly acquire a fallback: a bar solved against
@@ -219,19 +274,34 @@ def test_a_run_with_NO_SERIES_still_states_the_target_and_only_drops_the_demand(
     luck = out["checks"]["luck"]
     assert luck["measurable"] is True            # the engine number is readable
     assert luck["evaluated_pct"] == 20.0
-    assert luck["engine_target_annualised"] == 1.0
+    # THE CONSTANT THAT SURVIVES ABSENCE — per observation, no clock needed.
     assert luck["target_sharpe"] == round(st.lean_psr_target()["per_obs"], 8)
+    # AND THE THREE FIGURES THAT NEED A CLOCK ARE ALL ABSENT TOGETHER. A payload
+    # that annualised any one of them here would be quoting a clock it does not
+    # have; they must go absent as a set or the set is not a set.
+    assert luck["engine_target_annualised"] is None
     assert luck.get("required_sharpe_annualised") is None
     assert luck.get("required_sharpe_clock") is None
+    assert luck.get("obs_per_year") is None
+    assert luck.get("sharpe_annualised") is None
+    # the ENGINE'S CONVENTION is not a fact about this run, so it is still
+    # stated — it is what makes the per-observation figure checkable at all.
+    assert luck["engine_convention_annualised"] == 1.0
     # the retired fields are GONE, not renamed and left behind
     assert "engine_implied_target_annualised" not in luck
     assert "engine_implied_target_note" not in luck
     s = [f for f in out["failures"] if "probabilistic Sharpe" in f][0]
-    assert "an annualised Sharpe of exactly 1.00" in s
+    assert "1/sqrt(252) = 0.062994 per observation" in s
+    assert "convention states that same target as an annualised Sharpe of exactly 1.00" in s
+    assert ("carries no measured observation rate, so that target cannot be "
+            "restated on its own clock") in s
     assert "no usable return series, so what the level demands OF IT is unstated" in s
     assert "demands an annualised excess Sharpe" not in s
     assert "UNSTATED rather than zero" not in s
     assert "could not be recovered" not in s
+    # THE D38 SENTENCE, asserted gone: a run with no series was told the bar it
+    # faced was 1.00 annualised. It faced no stated annualised bar at all.
+    assert "P(this strategy's true excess Sharpe > 1.00)" not in s
 
 
 def test_an_engine_PSR_of_exactly_zero_NO_LONGER_suppresses_the_demand():
@@ -258,11 +328,15 @@ def test_an_engine_PSR_of_exactly_zero_NO_LONGER_suppresses_the_demand():
     luck = out["checks"]["luck"]
     assert luck["measurable"] is True          # the engine's figure is readable
     assert luck["evaluated_pct"] == 0.0
-    assert luck["engine_target_annualised"] == 1.0
+    kk = float(st.observations_per_year(
+        [str(d)[:10] for d in r["daily_returns"]["dates"]],
+        len(series))["obs_per_year"])
+    assert luck["engine_target_annualised"] == round(
+        float(st.lean_psr_target()["per_obs"]) * math.sqrt(kk), 4)
     want = st.sharpe_bar_for_psr(65.0, series, st.lean_psr_target()["per_obs"])
     assert want["measurable"], want
     assert luck["required_sharpe_annualised"] == round(
-        float(want["sharpe_per_obs"]) * math.sqrt(252.0), 4)
+        float(want["sharpe_per_obs"]) * math.sqrt(kk), 4)
     # AND THE OLD REFUSAL IS PROVABLY THE THING THAT MOVED: inverting still
     # cannot be done on this run, so a demand that reappeared by accident would
     # have had to come from somewhere else.
@@ -282,10 +356,19 @@ def test_the_engine_target_clock_is_READ_from_the_run_not_hardcoded_twice():
     per-observation target, the demand's clock, the sentence, and the flag that
     says the clock was read rather than assumed.
 
-    The ANNUALISED target stays 1.00 by construction — 1/sqrt(K) annualised on
-    sqrt(K) is 1.00 for any K — and that invariance is the point of the hurdle,
-    so it is asserted rather than treated as a fixed constant that happens to
-    agree.
+    THE k=260 SELF-CORRECTION, kept and re-pointed. D38 asserted it on the
+    ANNUALISED target — 1/sqrt(K) annualised at sqrt(K) is 1.00 for every K — and
+    that is an identity a hardcoded 1.0 satisfies as happily as a computed one.
+    D41 asserts it where it discriminates: the PER-OBSERVATION target moves with
+    the stored clock, and so does the hurdle on the run's own clock, while
+    `engine_convention_annualised` — the field whose whole job is to state the
+    engine's 1.00 — is the only one that stays put.
+
+    AND THE ANNUALISATION CLOCK IS NOT THIS CLOCK. `tradingDaysPerYear` is the
+    convention the target was WRITTEN in; the series is OBSERVED at its own rate;
+    D38 used the first to annualise and that is the defect this file's round
+    three closes. So `required_sharpe_clock` must follow the SERIES even when the
+    stored configuration says 260.
     """
     r = _alpha(psr=90.0)
     r["robustness"]["psr_pct"] = 20.0
@@ -294,14 +377,27 @@ def test_the_engine_target_clock_is_READ_from_the_run_not_hardcoded_twice():
                    criteria={"psr_basis": "engine_reported",
                              "min_psr_pct": 65.0})
     luck = out["checks"]["luck"]
+    series = r["daily_returns"]["strategy"]
+    kk = float(st.observations_per_year(
+        [str(d)[:10] for d in r["daily_returns"]["dates"]],
+        len(series))["obs_per_year"])
     assert luck["engine_trading_days_per_year"] == 260.0
     assert luck["engine_trading_days_assumed"] is False
-    assert luck["required_sharpe_clock"] == 260.0
+    # THE SERIES' CLOCK, NOT THE CONFIGURATION'S — and they are close enough
+    # (261.64 against 260) that only an exact assertion tells them apart, which
+    # is why both are named here.
+    assert luck["required_sharpe_clock"] == luck["obs_per_year"] == round(kk, 2)
+    assert luck["required_sharpe_clock"] != 260.0
     assert luck["target_sharpe"] == round(1.0 / math.sqrt(260.0), 8)
     assert luck["target_sharpe"] != round(1.0 / math.sqrt(252.0), 8)
-    assert luck["engine_target_annualised"] == 1.0
+    # THE HURDLE FOLLOWS THE STORED CLOCK THROUGH THE TARGET, and the convention
+    # field does not move at all — which is what makes it a conversion.
+    assert luck["engine_target_annualised"] == round(
+        (1.0 / math.sqrt(260.0)) * math.sqrt(kk), 4)
+    assert luck["engine_convention_annualised"] == 1.0
     s = [f for f in out["failures"] if "probabilistic Sharpe" in f][0]
-    assert "HARDCODED target of 1/sqrt(260) per observation" in s
+    assert "HARDCODED target of 1/sqrt(260) = 0.062017 per observation" in s
+    assert "The engine's own 260-day convention" in s
     assert "read from this run's own stored configuration" in s
     assert "1/sqrt(252)" not in s
 
@@ -409,9 +505,10 @@ def test_a_premia_claim_ON_THE_ENGINE_BASIS_solves_its_bar_from_the_STRATEGY():
     # AND IT IS THE STRATEGY'S SERIES, re-derived independently — the invariant
     # above would also hold for some other correct-looking number.
     series = r["daily_returns"]["strategy"]
+    kk = float(luck["obs_per_year"])
     want = st.sharpe_bar_for_psr(65.0, series, st.lean_psr_target()["per_obs"])
     assert want["measurable"], want
-    assert req == round(float(want["sharpe_per_obs"]) * math.sqrt(252.0), 4)
+    assert req == round(float(want["sharpe_per_obs"]) * math.sqrt(kk), 4)
 
     # THE DEFECT'S OWN VALUE, so the assertion above is known to discriminate:
     # the advantage's moments against zero give a completely different figure.
@@ -419,7 +516,7 @@ def test_a_premia_claim_ON_THE_ENGINE_BASIS_solves_its_bar_from_the_STRATEGY():
     wrong = st.sharpe_bar_for_psr_from_moments(
         65.0, int(adv["n"]), float(adv["skew"]), float(adv["kurtosis"]), 0.0)
     wrong_v = round(float(wrong["sharpe_per_obs"]) * float(adv["stdev"])
-                    * math.sqrt(252.0), 4)
+                    * math.sqrt(kk), 4)
     assert req != wrong_v
     assert wrong_v < tgt, "the fixture no longer reproduces the defect's shape"
 

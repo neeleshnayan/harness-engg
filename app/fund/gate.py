@@ -1526,9 +1526,9 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
     candidate.
 
     WHAT THE HURDLE IS. LEAN hardcodes the PSR's target at
-    ``1.0 / Math.Sqrt(tradingDaysPerYear)`` — an annualised Sharpe of exactly
-    1.00, identical for every candidate — and computes the statistic on EXCESS
-    returns (PortfolioStatistics.cs:311-312, Statistics.cs:231-237; see
+    ``1.0 / Math.Sqrt(tradingDaysPerYear)`` — 0.062994 PER OBSERVATION,
+    identical for every candidate — and computes the statistic on EXCESS returns
+    (PortfolioStatistics.cs:311-312, Statistics.cs:231-237; see
     ``statistics.lean_psr_target``). v4.4 and D37 instead INVERTED a target out
     of each run's own series and reported a spread of 1.17 to 2.26; that spread
     was two errors of ours compounding — raw returns instead of excess, and the
@@ -1536,6 +1536,19 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
     from every sentence. The inversion survives only as a check
     (``statistics.implied_target_sharpe``), where corrected it lands at a median
     of 0.9996 over 336 stored candidates.
+
+    AND THE HURDLE IS STATED ON THE SERIES' OWN CLOCK (D41, adversary
+    run-adversary-d38). The engine's own comment annualises that constant at
+    ``sqrt(tradingDaysPerYear)`` and calls it "a 1 sharpe ratio", which is true
+    of a series observed 252 times a year. This fund's stored series are
+    LEAN's ``listPerformance``, one point per CALENDAR day: 365.25 observations
+    a year on all 339 stored results that carry one. The same per-observation
+    target on that clock is an annualised excess Sharpe of **1.2039**, and
+    that — not 1.00 — is what the candidate faced. So every annualised figure
+    in this payload is on the run's OWN measured clock, the engine's 1.00 rides
+    as ``engine_convention_annualised`` labelled as the conversion it is, and
+    ``sharpe_annualised`` goes ABSENT on this basis rather than sit one key away
+    from the demand in a different return convention.
 
     TWO REAL CONFIGURATIONS, and the shipped one differs BY CLAIM TYPE:
 
@@ -1561,10 +1574,12 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
     ships unconditionally, and it is not decoration: a criterion that reports a
     percentage without the target it was measured against, and without the
     Sharpe that percentage demands at this sample size, is asking a question in
-    units nobody can check. THE TARGET IS A CONSTANT and is therefore stated on
-    every verdict, including runs with no usable series; the DEMAND is a
-    function of this run's own sample size and shape and is absent when the
-    series will not support it. Neither is ever restated from a table.
+    units nobody can check. THE TARGET IS A CONSTANT PER OBSERVATION and is
+    therefore stated on every verdict, including runs with no usable series; its
+    ANNUALISED form needs the run's own clock and is absent when that is
+    unreadable; the DEMAND is a function of this run's own sample size and shape
+    and is absent when the series will not support it. None of the three is ever
+    restated from a table, and no two of them are ever on different clocks.
 
     WHICH QUANTITY, by claim type. An ALPHA claim asserts an edge, so the filter
     scores the strategy's own Sharpe. A PREMIA claim asserts a risk-adjusted
@@ -1799,9 +1814,45 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
             # whose demanded advantage came out at 0.99 while a candidate
             # passing the same level measured 0.37.
             scale = (float(moments["stdev"]) if moments is not None else 1.0)
-            out["sharpe_annualised"] = (
-                None if sr is None or k is None
-                else round(float(sr) * scale * math.sqrt(float(k)), 4))
+            ann = (None if sr is None or k is None
+                   else round(float(sr) * scale * math.sqrt(float(k)), 4))
+            # ONE CLOCK **AND ONE CONVENTION**, or the field is absent — and the
+            # second half is what D41 adds, because the first half alone would
+            # have blessed the defect it was sent to close.
+            #
+            # THE MEASUREMENT (scratchpad/d41probe/, the reviewer's own demo).
+            # On the engine basis the criterion scores LEAN's statistic, which is
+            # computed on EXCESS returns. The only annualised figure this leg can
+            # build is `sr * sqrt(K)` on the series it holds, and that series is
+            # RAW returns for an alpha claim and the ADVANTAGE for a premia claim
+            # configured onto this basis. Neither is in the hurdle's units. On the
+            # reviewer's own fixture (rf 5%/yr, a calendar-clock series) the raw
+            # figure sits +0.363 above the excess one — because LEAN subtracts
+            # rf/252 per observation from a series carrying 365.25 of them, so the
+            # rate a calendar series is actually charged is rf x 365.25/252. That
+            # gap is LARGER than the clock error this dispatch exists to fix, and
+            # it points the same way: a reader comparing the raw figure with
+            # `required_sharpe_annualised` reads PASS on four of the six rows the
+            # gate FAILS, before AND after the clock is corrected.
+            #
+            # SO IT IS REPORTED ABSENT AND KEPT BESIDE ITSELF. The number is not
+            # destroyed — `sharpe_annualised_raw` carries it, named for what it
+            # is — but the field a reader compares against the demand states
+            # nothing rather than something in the wrong units. Absence is
+            # honest; an incomparable number in a comparison field is not.
+            if basis == "engine_reported":
+                out["sharpe_annualised"] = None
+                out["sharpe_annualised_raw"] = ann
+                out["sharpe_annualised_absent"] = (
+                    "the engine's statistic is computed on EXCESS returns and "
+                    "this leg holds only "
+                    + ("this run's ADVANTAGE series"
+                       if moments is not None else "RAW returns")
+                    + ", so no annualised figure here is in the hurdle's units; "
+                      "the raw figure is kept as sharpe_annualised_raw and must "
+                      "not be compared with required_sharpe_annualised")
+            else:
+                out["sharpe_annualised"] = ann
         else:
             absent = reading.get("reason")
 
@@ -1832,42 +1883,89 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
     # goes away with it: the target is now known even when the run carries no
     # series at all, because it never depended on the run.
     target: Optional[float] = 0.0
-    bar_clock: Optional[float] = k
     if basis == "engine_reported":
         # THE RUN'S OWN CLOCK WHEN THE BELT CAPTURED IT, the engine's default
         # when it did not — and the payload says which, because a 252 that was
         # read and a 252 that was assumed are different facts. Stored results
         # predating the capture carry no configuration at all.
+        #
+        # NOTE WHICH CLOCK THIS IS: it is the clock the TARGET was WRITTEN in
+        # (`tradingDaysPerYear`, the engine's annualisation convention), not the
+        # rate the series is OBSERVED at. The two are different facts about the
+        # same run and D38 conflated them — see the block below.
         pin = rb.get("psr_inputs") if isinstance(rb, dict) else None
         stored_k = (pin.get("trading_days_per_year")
                     if isinstance(pin, dict) else None)
         hurdle = st.lean_psr_target(stored_k)
         target = float(hurdle["per_obs"])
-        bar_clock = float(hurdle["trading_days_per_year"])
         out["target_sharpe"] = round(target, 8)
-        out["engine_target_annualised"] = round(float(hurdle["annualised"]), 4)
-        out["engine_trading_days_per_year"] = bar_clock
+        out["engine_trading_days_per_year"] = float(
+            hurdle["trading_days_per_year"])
         out["engine_trading_days_assumed"] = bool(hurdle["assumed"])
         out["engine_target_source"] = hurdle["source"]
+        # THE ENGINE'S OWN RESTATEMENT, NAMED FOR ITS CLOCK. `1/sqrt(K)`
+        # annualised at `sqrt(K)` is 1.00 for every K, which is the sentence
+        # LEAN's own comment writes (`deannualize a 1 sharpe ratio`). It is a
+        # CONVERSION and it is disclosed as one; it is not the hurdle this fund's
+        # series face, and D38 published it as though it were.
+        out["engine_convention_annualised"] = round(
+            float(hurdle["annualised"]), 4)
+        # THE HURDLE, ON THE ONE CLOCK THIS PAYLOAD SPEAKS — the series' own
+        # measured observation rate, the same `obs_per_year` that annualises
+        # every other figure here. PER RUN, from the run's dates; never
+        # sqrt(252), never a constant.
+        #
+        # WHY THIS IS THE HONEST FORM (adversary, run-adversary-d38; the chair's
+        # clock ruling, cto.md 2026-08-24). LEAN applies its per-observation
+        # target to whatever series it was handed, and on this fund's runs that
+        # series is `listPerformance` sampled once per CALENDAR day. A candidate
+        # whose series carries 365.25 observations a year therefore faces
+        # `0.062994 * sqrt(365.25)` = an annualised excess Sharpe of 1.2039 —
+        # not 1.00. Measured on all 339 stored results carrying a usable series:
+        # obs_per_year 365.25 on every one of them, so the hurdle reads 1.2039
+        # on every one of them (min = median = max; reproduce
+        # `scratchpad/d41probe/clocks.py`). It is COMPUTED rather than written
+        # because a series sampled any other way faces a different number, and
+        # a constant here would be a fact about today's belt wearing the clothes
+        # of a fact about the engine.
+        #
+        # ABSENT WHEN THE CLOCK IS: no measured observation rate, no annualised
+        # restatement. `target_sharpe` above is per-observation and is stated
+        # either way, so nothing is lost except a number nobody could check.
+        out["engine_target_annualised"] = (
+            None if k is None else round(target * math.sqrt(float(k)), 4))
 
     # --- WHAT THE LEVEL DEMANDS, in the claim's own units ------------------
     #
-    # ON THE TARGET'S OWN CLOCK, not the candidate's. The engine's target is
-    # 1/sqrt(252) PER OBSERVATION and annualises by sqrt(252); annualising the
-    # matching bar on the series' own calendar clock (~365 obs/yr on this fund's
-    # runs) would inflate it by sqrt(365.25/252) = 1.2039 and put the demand in
-    # units the target is not in. The target-zero branch keeps the candidate's
-    # clock, which is the right one for a statistic computed on that series.
+    # ON THE SERIES' OWN CLOCK — THE SAME ONE EVERY OTHER FIGURE HERE USES, and
+    # this is the clause D41 corrects. D38 annualised the engine branch's demand
+    # at sqrt(tradingDaysPerYear) on the reasoning that "the engine's target is
+    # 1/sqrt(252) per observation and annualises by sqrt(252)". The first half is
+    # true and the second does not follow: the target is applied to the series
+    # LEAN was handed, whose observation rate this fund measures at 365.25/yr, so
+    # sqrt(252) restates the target in a convention and not in the units of the
+    # thing being judged. The consequence was a payload carrying THREE
+    # `*_annualised` fields on TWO clocks — `sharpe_annualised` at 365.25 beside
+    # a target and a demand at 252 — where the demand read 1.11 while the level
+    # actually required 1.34, a 21% understatement in the permissive direction.
+    #
+    # The conversion is not lost: `engine_convention_annualised` states the
+    # engine's own 1.00-at-252 form beside this, labelled as the convention it
+    # is. One clock per payload; conversions disclosed, never substituted.
     bar: dict[str, Any] = {"measurable": False}
     if target is not None:
         bar = (_bar_from_moments(level, moments) if scores_advantage
                else st.sharpe_bar_for_psr(level, series, target))
-    if bar.get("measurable") and bar_clock:
+    if bar.get("measurable") and k:
         scale = (float(moments["stdev"])
                  if scores_advantage and moments is not None else 1.0)
         out["required_sharpe_annualised"] = round(
-            float(bar["sharpe_per_obs"]) * scale * math.sqrt(float(bar_clock)), 4)
-        out["required_sharpe_clock"] = round(float(bar_clock), 2)
+            float(bar["sharpe_per_obs"]) * scale * math.sqrt(float(k)), 4)
+        # STATED, AND IT MUST AGREE WITH `obs_per_year`. Kept as its own field
+        # rather than dropped as redundant: a demand whose clock is implicit is
+        # exactly what let two clocks share one payload, and the invariant
+        # `required_sharpe_clock == obs_per_year` is now assertable.
+        out["required_sharpe_clock"] = round(float(k), 2)
 
     if basis == "engine_reported":
         out["evaluated_pct"] = engine
@@ -1877,10 +1975,19 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
         # but it is in the engine's source, it is a constant, and saying so is
         # the difference between a criterion a reader can argue with and one
         # they can only defer to.
+        #
+        # AND IT STATES THE TARGET IN THE UNITS THE PAYLOAD IS IN. Until D41 it
+        # quoted the engine's 1.00-at-252 restatement beside a `sharpe_annualised`
+        # on the series' own clock — one field's units borrowed for another
+        # field's number. The per-observation figure is the form that needs no
+        # clock at all; the annualised one rides only when a clock was measured.
+        own = out.get("engine_target_annualised")
         out["statistic"] = (
-            f"LEAN's published Probabilistic Sharpe Ratio: P(this strategy's "
-            f"true EXCESS Sharpe > an annualised "
-            f"{out['engine_target_annualised']:.2f})")
+            "LEAN's published Probabilistic Sharpe Ratio: P(this strategy's "
+            f"true EXCESS Sharpe > {target:.6f} per observation"
+            + (")" if own is None else
+               f", an annualised {own:.2f} on this run's measured "
+               f"{out.get('obs_per_year')} observations a year)"))
         # A GATE MUST RETURN A VERDICT, NEVER RAISE — and `engine` is a STORED
         # value from `robustness.psr_pct`, which may have been written by an
         # older belt, round-tripped through JSON, or truncated. Checked for
@@ -1936,17 +2043,27 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
         # threshold is trivia, and a demand nobody can attribute to a target is
         # the number the old sentence implied was zero.
         #
-        # THE TARGET CLAUSE IS UNCONDITIONAL NOW. It used to be per candidate
-        # and therefore absent whenever the run's series would not support the
-        # inversion — 368 of the fund's stored verdicts said the target "could
-        # not be recovered" and what the level demands "is UNSTATED", and 288
-        # more quoted a per-candidate figure near 1.78 that was an artifact of
-        # inverting on raw returns and annualising on the wrong clock. The
-        # target never depended on the run: it is a constant in the engine's
-        # source, so it is stated on every verdict including the ones with no
-        # series at all. The DEMAND still depends on the run's shape, and stays
-        # absent when the series will not support it.
-        tgt = float(out["engine_target_annualised"])
+        # THE PER-OBSERVATION TARGET CLAUSE IS UNCONDITIONAL. It used to be per
+        # candidate and therefore absent whenever the run's series would not
+        # support the inversion — 368 of the fund's stored verdicts said the
+        # target "could not be recovered" and what the level demands "is
+        # UNSTATED", and 288 more quoted a per-candidate figure near 1.78 that
+        # was an artifact of inverting on raw returns and annualising on the
+        # wrong clock. The target never depended on the run: it is a constant in
+        # the engine's source, so it is stated on every verdict including the
+        # ones with no series at all.
+        #
+        # ITS ANNUALISED RESTATEMENT IS NOT UNCONDITIONAL, and D41 stopped
+        # pretending otherwise. Annualising needs a clock; the honest clock is
+        # the series' own measured observation rate; a run with no readable
+        # dates has none. D38 wrote this sentence as if the annualised form were
+        # as run-independent as the per-observation one, which it can only be by
+        # borrowing the engine's convention — and borrowing it is what put a
+        # 1.00 in a sentence explaining a verdict decided against 1.20. The
+        # DEMAND has always depended on the run's shape and stays absent when the
+        # series will not support it.
+        conv = float(out["engine_convention_annualised"])
+        own = out.get("engine_target_annualised")
         # WHERE THE CLOCK CAME FROM, inline, because the target IS the clock:
         # a reader who cannot tell a configuration that was read from a default
         # that was assumed cannot check the hurdle against the run.
@@ -1954,25 +2071,56 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
                  "configuration of its own"
                  if out.get("engine_trading_days_assumed")
                  else "read from this run's own stored configuration")
+        # THE HURDLE IN THE READER'S UNITS, WITH THE CONVERSION SHOWN — the
+        # whole clause D41 rewrites. D38's version stated the engine's
+        # 1.00-at-252 restatement AS the hurdle: "what this criterion demands is
+        # P(true excess Sharpe > 1.00)". On a series carrying 365.25
+        # observations a year that sentence understates the demand by
+        # sqrt(365.25/252) = 1.2039, and the verdict it explains was reached
+        # against the larger number. The per-observation target is the fact that
+        # needs no clock, so it leads; the engine's own convention follows,
+        # labelled as a convention; the run's own clock closes it.
+        restated = (
+            f" This run's series is measured at {out.get('obs_per_year')} "
+            f"observations a year, so ON THAT CLOCK — the one every other "
+            f"annualised figure in this verdict uses — the target is an "
+            f"annualised excess Sharpe of {own:.2f}, and what this criterion "
+            f"demands is P(this strategy's true excess Sharpe > {own:.2f}) "
+            f">= {level}%."
+            if own is not None else
+            " This run carries no measured observation rate, so that target "
+            "cannot be restated on its own clock and the per-observation "
+            "figure above is the only form this verdict can state it in.")
         identified = (
             f" LEAN measures that probability against a HARDCODED target of "
-            f"1/sqrt({out['engine_trading_days_per_year']:.0f}) per observation "
-            f"({cited}) — an annualised Sharpe of exactly {tgt:.2f} — on EXCESS "
-            f"returns, subtracting a daily risk-free rate inside the statistic. "
-            f"So what this criterion demands is P(this strategy's true excess "
-            f"Sharpe > {tgt:.2f}) >= {level}%.")
+            f"1/sqrt({out['engine_trading_days_per_year']:.0f}) = "
+            f"{float(out['target_sharpe']):.6f} per observation ({cited}), on "
+            f"EXCESS returns, subtracting a daily risk-free rate inside the "
+            f"statistic. The engine's own "
+            f"{out['engine_trading_days_per_year']:.0f}-day convention states "
+            f"that same target as an annualised Sharpe of exactly {conv:.2f}; "
+            f"that is a CONVERSION, not the bar this run faced.{restated}")
         req = out.get("required_sharpe_annualised")
         # NAMED `demand`, not `demanded`: the target-zero branch below has its
         # own `demanded` for a different sentence, and two clauses sharing one
         # name in one function is how the next editor edits the wrong one.
         demand = ("" if req is None else
                   f" Clearing {level}% against that target demands an "
-                  f"annualised excess Sharpe of about {req:+.2f} on "
-                  f"{out.get('n_obs')} observations of this shape.")
+                  f"annualised excess Sharpe of about {req:+.2f} on the same "
+                  f"clock, on {out.get('n_obs')} observations of this shape.")
+        # TWO ABSENCES, TWO SENTENCES. A missing SERIES and unreadable DATES
+        # both leave the demand unstated, and they are different facts about
+        # the run — the first says there is nothing to solve a bar from, the
+        # second says the series is fine and its spacing is not. The single
+        # sentence this replaces sent a reader chasing a missing series when
+        # what was missing was a clock (D29's rule, applied to a disclosure).
         no_demand = ("" if req is not None else
                      " This run carries no usable return series, so what the "
                      "level demands OF IT is unstated — the target above is "
-                     "not.")
+                     "not." if len(series) < 2 else
+                     " This run's dates do not yield a usable observation "
+                     "rate, so what the level demands OF IT is unstated — the "
+                     "per-observation target above is not.")
         # NAME THE SERIES, because on this branch it is not always the same
         # one. For an alpha claim the target-zero reading is of the strategy's
         # own returns; for a PREMIA claim judged on the engine basis it is of
@@ -1985,20 +2133,26 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
         luck_note = ("" if out.get("luck_psr_pct") is None else
                      f" A target-zero reading of {which} — {asks} — is "
                      f"{out['luck_psr_pct']}%.")
-        # NO "this run measured" CLAUSE HERE, and its absence is deliberate. The
-        # only annualised Sharpe this leg holds is `sharpe_annualised`: RAW
-        # returns on the candidate's own calendar clock. Against a target that
-        # is EXCESS returns on the engine's 252 clock those are different units,
-        # and the engine's own published `Sharpe Ratio` is a third convention
-        # again (geometric annual performance over annual stdev). Measured over
-        # 339 stored runs, published MINUS the PSR's arithmetic basis: min
-        # -0.0002, p05 +0.002, MEDIAN +0.074, p95 +0.54, max +1.44 — a whole
-        # Sharpe point apart in the tail. (An earlier draft of this comment
-        # labelled the +0.54 as p05; it is p95. Caught by the Gauntlet, which is
-        # the second number in this dispatch that was right and mislabelled.)
-        # Quoting any of them beside a 1.00 target would
-        # be the same mislabelling this leg exists to end. The probability at
-        # the head of the sentence IS the run's measurement.
+        # NO "this run measured" CLAUSE HERE, and its absence is deliberate —
+        # now enforced by the payload rather than only by this comment. The only
+        # annualised Sharpe this leg can build is RAW returns (or, for a premia
+        # claim on this basis, the ADVANTAGE) on the candidate's own clock.
+        # Against a target that is EXCESS returns those are different units, and
+        # the engine's own published `Sharpe Ratio` is a third convention again
+        # (geometric annual performance over annual stdev). Measured over 339
+        # stored runs, published MINUS the PSR's arithmetic basis: min -0.0002,
+        # p05 +0.002, MEDIAN +0.074, p95 +0.54, max +1.44 — a whole Sharpe point
+        # apart in the tail. (An earlier draft of this comment labelled the +0.54
+        # as p05; it is p95. Caught by the Gauntlet.) Quoting any of them beside
+        # the target would be the same mislabelling this leg exists to end. The
+        # probability at the head of the sentence IS the run's measurement.
+        #
+        # D41: `sharpe_annualised` is now ABSENT on this basis for the same
+        # reason, with the figure preserved as `sharpe_annualised_raw`. A comment
+        # kept the wrong number out of the SENTENCE for one dispatch while the
+        # field stayed in the payload, one key away from the demand, inviting
+        # exactly the comparison the comment forbids — and on the reviewer's own
+        # fixture that comparison reads PASS on four of six rows the gate FAILS.
         return out, [
             f"the engine's probabilistic Sharpe {out['evaluated_pct']}% is "
             f"below {level}%. THIS IS A SKILL HURDLE, NOT A LUCK TEST."
