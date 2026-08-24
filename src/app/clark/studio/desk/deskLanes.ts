@@ -165,6 +165,40 @@ export function laneCount(
   };
 }
 
+/**
+ * Lane b's count, compared LIKE WITH LIKE (2026-08-24, the live 169-vs-187).
+ *
+ * The fund's `decided_awaiting_execution` deliberately EXCLUDES decided rows
+ * whose next act is also the CEO's — its partition puts those in his awaiting
+ * figure. This lane deliberately INCLUDES them: they are decided work. Both
+ * folds were right, and feeding the two different partitions into `laneCount`
+ * read as "a disagreement about which rows exist" when no row's existence was
+ * in dispute — two numbers that sound like the same number, the exact defect
+ * the spine's own counter was repaired from, reproduced between the repos.
+ *
+ * So the guard now compares the SAME partition (`sameBasis` = this page's
+ * decided rows whose next actor is neither the CEO nor unknown), and when the
+ * folds agree, the lane says what the remainder IS instead of alarming.
+ */
+export function decidedCount(
+  served: number | null | undefined, sameBasis: number, total: number,
+  pageReadable = true,
+): LaneCount {
+  const base = laneCount(served, sameBasis,
+    "decided work awaiting someone else", pageReadable);
+  if (base.note !== null) return { ...base, shown: total };
+  const alsoYours = total - sameBasis;
+  return {
+    value: total, shown: total, source: "page",
+    note: alsoYours > 0
+      ? `${total} decided in all: the fund counts ${sameBasis} awaiting `
+        + `someone else, and ${alsoYours} ${alsoYours === 1 ? "is a decided "
+        + "row" : "are decided rows"} whose next act is also yours — those `
+        + "appear under Awaiting you as well."
+      : null,
+  };
+}
+
 /** Rows of an actor, said plainly. `null` is a finding, not a blank. */
 function actorOf(rec: {
   next_actor_resolved?: string | null; next_actor?: string | null;
@@ -287,8 +321,12 @@ export function deskLanes(input: LaneInput): Lane[] {
       label: "Decided by you, awaiting execution",
       lede: "You said yes; these have not happened yet. Each names who has it "
         + "now — the missing third state this desk rendered as nothing.",
-      count: laneCount(load?.decided_awaiting_execution, decidedRows.length,
-        "decided work", readable),
+      count: decidedCount(load?.decided_awaiting_execution,
+        decidedLive.filter((r) => {
+          const a = actorOf(r);
+          return a !== null && a !== "ceo" && a !== "unknown";
+        }).length,
+        decidedRows.length, readable),
       rows: decidedRows,
       openByDefault: false,
       withdrawn: decidedAll.length - decidedLive.length,

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { deskLanes, lanesAccountedFor, laneCount, utcDay } from "./deskLanes.ts";
+import { deskLanes, lanesAccountedFor, laneCount, decidedCount, utcDay } from "./deskLanes.ts";
 import type {
   DeskSupersessionEdge, DeskView,
 } from "@/lib/fund_api";
@@ -388,4 +388,50 @@ test("lanesAccountedFor sums the rendered rows and excludes lane (a)'s cards", (
   }, { awaitingShown: 9, awaitingServed: 9 });
   assert.equal(lanesAccountedFor(ls), 2,
     "lane (a)'s nine cards are rendered by the page, not held here");
+});
+
+
+/* ------------------------------------------------ decidedCount (lane b) --- */
+
+test("decidedCount: same partition agrees -> total shown, remainder NAMED not alarmed", () => {
+  /* The live 169-vs-187 of 2026-08-24: 18 decided rows whose next act is also
+   * the CEO's. Both folds right; the old guard called it an existence
+   * disagreement. */
+  const c = decidedCount(169, 169, 187);
+  assert.equal(c.value, 187);
+  assert.equal(c.shown, 187);
+  assert.equal(c.source, "page");
+  assert.match(c.note!, /187 decided in all/);
+  assert.match(c.note!, /169 awaiting\s+someone else/);
+  assert.match(c.note!, /18 are decided rows/);
+  assert.match(c.note!, /Awaiting you as well/);
+  assert.doesNotMatch(c.note!, /disagreement about which rows exist/);
+});
+
+test("decidedCount: no remainder -> clean count, no note", () => {
+  const c = decidedCount(12, 12, 12);
+  assert.equal(c.value, 12);
+  assert.equal(c.note, null);
+});
+
+test("decidedCount: singular remainder reads as one row", () => {
+  const c = decidedCount(5, 5, 6);
+  assert.match(c.note!, /1 is a decided\s+row/);
+});
+
+test("decidedCount: a GENUINE partition disagreement still alarms, shown = total", () => {
+  /* served 10 vs sameBasis 14 is a real existence dispute; the alarm and the
+   * spine-sourced value survive, and shown reports what the lane renders. */
+  const c = decidedCount(10, 14, 20);
+  assert.equal(c.value, 10);
+  assert.equal(c.shown, 20);
+  assert.equal(c.source, "spine");
+  assert.match(c.note!, /disagreement about which rows exist/);
+});
+
+test("decidedCount: unreadable desk stays UNKNOWN, never a confident total", () => {
+  const c = decidedCount(null, 0, 0, false);
+  assert.equal(c.value, null);
+  assert.equal(c.source, "unknown");
+  assert.match(c.note!, /UNKNOWN/);
 });
