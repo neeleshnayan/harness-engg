@@ -58,7 +58,10 @@ from typing import Any, Optional
 DECISION_REF_GUARD_VERSION = "decision_ref_v1 (2026-08-24, highway slice 3)"
 
 #: THE TRANSITIONS THAT ASSERT A DECISION ON THE SUBSTANCE, and therefore the
-#: ones a second attempt at is a re-presentation.
+#: ones a SECOND RECORDING OF THE SAME ONE is a re-presentation. Note the
+#: precision: the guard fires on ``to`` matching a decision this ticket has
+#: ALREADY recorded, not on the ticket having been decided at all — see
+#: ``check_representation`` for the lifecycle the looser reading broke.
 #:
 #: ``approved`` and ``accepted`` only. The line is between DECIDING and
 #: CLOSING, and it is drawn exactly where ``ADVANCING_REC_STATUSES`` draws its
@@ -170,7 +173,24 @@ def check_representation(ticket: dict[str, Any], *, to: str,
     if to not in REDECISION_GUARDED:
         return None
     lin = lineage(ticket)
-    if not lin["decided"]:
+    # THE SAME DECISION AGAIN — not merely a second decision. This distinction
+    # is a DEFECT I wrote and then caught in the read-through, and it is worth
+    # the paragraph because the wrong version passed 57 tests.
+    #
+    # The first version refused any guarded transition on a ticket that had
+    # EVER been decided. That breaks the ordinary lifecycle: `filed ->
+    # approved -> in_flight -> returned -> accepted` contains two legitimate
+    # decisions (the CEO blessing the ask, then the human deciding yes on the
+    # output), and the guard would have refused the second on every ticket that
+    # ever got approved. A control that refuses correct work is not a stricter
+    # control; it is a broken one, and it would have been discovered by the
+    # first real user rather than by me.
+    #
+    # R39's shape is narrower and exact: the row is ALREADY at `accepted` and
+    # is asked for `accepted` again — eight times. So the predicate is "this
+    # ticket has already recorded a decision to THIS state".
+    prior = [t for t in lin["decisions"] if t.get("to") == to]
+    if not prior:
         return None
     # AN ACCOMPANIED RE-PRESENTATION IS NOT A BARE ONE — but it must land on
     # the terminal that matches what it claims. Supplying `decision_ref` while
@@ -178,11 +198,11 @@ def check_representation(ticket: dict[str, Any], *, to: str,
     # like compliance and produces a second live row anyway.
     if decision_ref or superseder_ref:
         return _refusal(
-            ticket, lin, to,
+            ticket, lin, to, prior=prior,
             detail=(
-                f"ticket {ticket.get('ticket_id')} was already decided "
-                f"({lin['decided_state']} at {lin['decided_at']} by "
-                f"{lin['decided_by']}), and a re-presentation that cites a "
+                f"ticket {ticket.get('ticket_id')} already recorded {to!r} "
+                f"(at {prior[-1].get('at')} by {prior[-1].get('actor')}), and "
+                f"a re-presentation that cites a "
                 f"reference must land on the terminal that reference means: "
                 f"decision_ref -> 'merged', superseder_ref -> 'superseded'. "
                 f"You asked for {to!r}, which would leave a second live row "
@@ -193,20 +213,25 @@ def check_representation(ticket: dict[str, Any], *, to: str,
         ticket, lin, to,
         detail=(
             f"ONE DECISION, ONE ROW. Ticket {ticket.get('ticket_id')} has "
-            f"already received a decision ({lin['decided_state']} at "
-            f"{lin['decided_at']} by {lin['decided_by']}; "
-            f"{lin['decision_count']} decision transition(s) on the record). "
+            f"already recorded {to!r} — {len(prior)} time(s), most recently at "
+            f"{prior[-1].get('at')} by {prior[-1].get('actor')}. "
             f"A decided ticket may not be presented bare for {to!r}. Two legal "
             f"outcomes: transition to 'merged' with decision_ref="
             f"{lin['canonical_ticket_id']!r} if this is the SAME decision, or "
             f"to 'superseded' with a superseder_ref naming the row that "
             f"replaces it if it is a NEW one. Design §1.5."),
-        hint="bare_representation")
+        hint="bare_representation", prior=prior)
 
 
 def _refusal(ticket: dict[str, Any], lin: dict[str, Any], to: str, *,
-             detail: str, hint: str) -> dict[str, Any]:
+             detail: str, hint: str,
+             prior: Optional[list] = None) -> dict[str, Any]:
     return {
+        # HOW MANY TIMES THIS EXACT DECISION WAS ALREADY RECORDED, beside the
+        # total. R39 is 8 of one; a ticket with two different decisions in a
+        # normal lifecycle is 2 of the total and 1 of this one, and the two
+        # numbers are the difference between the defect and the lifecycle.
+        "prior_same_state": len(prior or []),
         "refused": True,
         "guard": DECISION_REF_GUARD_VERSION,
         "hint": hint,

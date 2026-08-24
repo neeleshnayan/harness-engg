@@ -286,14 +286,40 @@ class TestTheDecisionRefRule:
 
         An assertion that the guard equals ``REDECISION_GUARDED`` cannot
         distinguish a read from a hardcoded duplicate that happens to agree.
-        Moving ``declined`` INTO the guarded set must change the answer.
+        Taking ``approved`` OUT of the guarded set must change the answer for
+        a ticket whose prior decision WAS ``approved``.
         """
-        assert ticketguard.check_representation(_ticket("accepted"),
-                                                to="declined") is None
-        monkeypatch.setattr(ticketguard, "REDECISION_GUARDED",
-                            ("approved", "accepted", "declined"))
-        assert ticketguard.check_representation(_ticket("accepted"),
-                                                to="declined") is not None
+        already_approved = _ticket("approved")
+        assert ticketguard.check_representation(already_approved,
+                                                to="approved") is not None
+        monkeypatch.setattr(ticketguard, "REDECISION_GUARDED", ("accepted",))
+        assert ticketguard.check_representation(already_approved,
+                                                to="approved") is None
+
+    def test_the_ORDINARY_LIFECYCLE_IS_NOT_REFUSED(self):
+        """THE DEFECT I WROTE AND CAUGHT IN THE READ-THROUGH, pinned.
+
+        ``filed -> approved -> in_flight -> returned -> accepted`` carries TWO
+        legitimate decisions: the CEO blessing the ask, and a human deciding
+        yes on the output. My first version refused any guarded transition on a
+        ticket that had ever been decided, which would have refused the
+        ``accepted`` at the end of every ticket the CEO ever approved. It
+        passed 57 tests, because not one of them walked the whole lifecycle.
+        """
+        t = _ticket("returned", transitions=[
+            {"from": None, "to": "filed", "at": "a", "actor": "cto",
+             "basis": "birth"},
+            {"from": "filed", "to": "approved", "at": "b", "actor": "ceo",
+             "basis": "decision"},
+            {"from": "approved", "to": "in_flight", "at": "c", "actor": "cto",
+             "basis": "dispatch"},
+            {"from": "in_flight", "to": "returned", "at": "d", "actor": "cto",
+             "basis": "transition"}])
+        assert ticketguard.lineage(t)["decided"] is True
+        assert ticketguard.check_representation(t, to="accepted") is None
+        # And the thing it DOES catch on the same ticket: a second `approved`.
+        r = ticketguard.check_representation(t, to="approved")
+        assert r is not None and r["prior_same_state"] == 1
 
     def test_decision_transitions_is_read_from_tickets_not_copied(self,
                                                                  monkeypatch):
@@ -393,169 +419,21 @@ class TestTheMergeTarget:
 
 
 # ============================================================================
-# THE DOOR
+# WHAT THIS FILE DELIBERATELY DOES NOT RE-TEST
 # ============================================================================
-
-class TestTheTransitionDoor:
-    def test_an_unknown_ticket_is_404_with_did_you_mean(self, client):
-        tid = _open(client)
-        r = _transition(client, tid[:8], "accepted")
-        assert r.status_code == 404
-        d = r.json()["detail"]
-        assert d["did_you_mean"] == [tid]
-        assert d["folds_consulted"] == ["tickets"]
-
-    def test_a_decision_transition_takes_the_approval_channel_guard(self, client):
-        tid = _open(client)
-        r = client.post(f"/api/v1/fund/tickets/{tid}/transition",
-                        json={"to": "accepted", "actor": "ceo"})
-        assert r.status_code == 403
-        assert "confirm echo" in r.json()["detail"]
-
-    def test_a_non_decision_transition_does_not(self, client):
-        """Firing a dispatch and recording a return are things the chair DOES
-        and then writes down, not permissions it grants itself."""
-        tid = _open(client)
-        r = client.post(f"/api/v1/fund/tickets/{tid}/transition",
-                        json={"to": "in_flight", "actor": "cto"})
-        assert r.status_code == 200, r.text
-
-    def test_an_unknown_target_state_is_422_not_a_silent_no_op(self, client):
-        tid = _open(client)
-        r = _transition(client, tid, "dine")
-        assert r.status_code == 422
-        assert r.json()["detail"]["allowed"] == list(tickets.TICKET_STATES)
-
-    def test_an_illegal_transition_is_refused_at_the_door(self, client):
-        """``filed`` does not go straight to ``returned``.
-
-        Refused here rather than accepted-and-silently-not-applied: a 200
-        followed by a transition the fold records as refused is the shape where
-        the caller believes it acted.
-        """
-        tid = _open(client)
-        r = client.post(f"/api/v1/fund/tickets/{tid}/transition",
-                        json={"to": "returned", "actor": "cto"})
-        assert r.status_code == 409
-        assert r.json()["detail"]["allowed_from"] == ["in_flight"]
-
-    def test_a_terminal_without_its_field_is_422(self, client):
-        tid = _open(client)
-        assert _transition(client, tid, "done").status_code == 422
-
-    def test_expired_is_refused_at_the_door(self, client):
-        tid = _open(client)
-        r = _transition(client, tid, "expired")
-        assert r.status_code == 422
-        assert "AGING_POLICY_VERSION" in r.json()["detail"]
-
-    def test_a_merge_into_a_ghost_is_refused(self, client):
-        tid = _open(client)
-        ghost = "99999999-9999-4999-8999-999999999999"
-        r = _transition(client, tid, "merged", decision_ref=ghost)
-        assert r.status_code == 422
-        # SHARED-WORD AUDIT: the phrase must be reachable ONLY by this branch.
-        # "refused" and "merged" appear in the terminal-requirement message
-        # too, so matching on either would pass for the wrong reason.
-        detail = r.json()["detail"]
-        assert "names no ticket this fold has ever seen" in detail
-        assert ghost in detail
-
-    def test_the_transition_records_whether_each_check_ran(self, client):
-        """`false` means the check was SKIPPED, never 'nothing was found'."""
-        tid = _open(client)
-        b = _transition(client, tid, "accepted").json()
-        assert b["fold_readable"] is True
-        assert b["supersession_readable"] is None
-        assert "no legacy ref" in b["supersession_basis"]
-
-    def test_the_door_appends_exactly_one_event_per_accepted_transition(self,
-                                                                       client):
-        tid = _open(client)
-        before = len(client.store.of_type("TicketTransitioned"))
-        _transition(client, tid, "accepted")
-        assert len(client.store.of_type("TicketTransitioned")) - before == 1
-
-    def test_a_refused_transition_appends_no_TicketTransitioned(self, client):
-        tid = _open(client)
-        _transition(client, tid, "accepted")
-        before = len(client.store.of_type("TicketTransitioned"))
-        _transition(client, tid, "accepted")
-        assert len(client.store.of_type("TicketTransitioned")) == before
-
-
-class TestTheOpenDoor:
-    def test_it_mints_a_full_uuid_and_never_takes_one(self, client):
-        import uuid as _uuid
-        tid = _open(client)
-        assert _uuid.UUID(tid).version == 4
-        # An id supplied by the caller is IGNORED, not honoured: the 8-char
-        # prefix habit is what rotted 54 of 56 linkages.
-        other = _open(client, ticket_id="1c53589f")
-        assert other != "1c53589f"
-
-    def test_an_unopenable_type_is_refused(self, client):
-        r = client.post("/api/v1/fund/tickets",
-                        json={"type": "sandwich", "subject": "x"})
-        assert r.status_code == 422
-        assert r.json()["detail"]["allowed"] == list(tickets.OPENABLE_TYPES)
-
-    def test_a_blank_subject_is_refused(self, client):
-        r = client.post("/api/v1/fund/tickets",
-                        json={"type": "ask", "subject": "   "})
-        assert r.status_code == 422
-
-    def test_an_unknown_reversibility_is_refused(self, client):
-        r = client.post("/api/v1/fund/tickets",
-                        json={"type": "ask", "subject": "s",
-                              "reversibility": "maybe"})
-        assert r.status_code == 422
-
-    def test_an_unknown_next_actor_is_refused_from_desks_own_vocabulary(
-            self, client, monkeypatch):
-        """READ from ``desk.NEXT_ACTORS``. Moving the vocabulary must move the
-        door — two answers to 'whose move is it' is the defect the highway
-        exists to stop multiplying."""
-        r = client.post("/api/v1/fund/tickets",
-                        json={"type": "ask", "subject": "s",
-                              "next_actor": "the-cat"})
-        assert r.status_code == 422
-        from app.fund import desk
-        monkeypatch.setattr(desk, "NEXT_ACTORS", desk.NEXT_ACTORS + ("the-cat",))
-        r = client.post("/api/v1/fund/tickets",
-                        json={"type": "ask", "subject": "s",
-                              "next_actor": "the-cat"})
-        assert r.status_code == 200, r.text
-
-
-class TestTheLinkDoor:
-    def test_both_ends_are_guarded(self, client):
-        a = _open(client)
-        r = client.post(f"/api/v1/fund/tickets/{a}/link",
-                        json={"link_kind": "parent",
-                              "target_id": "99999999-9999-4999-8999-999999999999"})
-        assert r.status_code == 404
-
-    def test_a_self_link_is_refused(self, client):
-        a = _open(client)
-        r = client.post(f"/api/v1/fund/tickets/{a}/link",
-                        json={"link_kind": "parent", "target_id": a})
-        assert r.status_code == 422
-
-    def test_an_unknown_link_kind_is_refused(self, client):
-        a, b = _open(client), _open(client)
-        r = client.post(f"/api/v1/fund/tickets/{a}/link",
-                        json={"link_kind": "vibes", "target_id": b})
-        assert r.status_code == 422
-
-    def test_a_decision_ref_link_lands_on_the_fold(self, client):
-        a, b = _open(client), _open(client)
-        r = client.post(f"/api/v1/fund/tickets/{a}/link",
-                        json={"link_kind": "decision_ref", "target_id": b})
-        assert r.status_code == 200, r.text
-        rows = client.get("/api/v1/fund/tickets?limit=5000").json()["tickets"]
-        row = next(x for x in rows if x["ticket_id"] == a)
-        assert row["canonical_ticket_id"] == b
+#
+# The transition, open and link doors are SLICE 2's, and `tests/
+# test_tickets_doors.py` covers them in 87 tests: the phantom guard and its
+# `did_you_mean`, the approval channel and its per-target echo, legality and
+# terminal precedence, terminal requirements, expiry being shut, the
+# supersession refusal and its three-valued disclosure.
+#
+# I WROTE 24 OF MY OWN AGAINST THOSE DOORS BEFORE DISCOVERING SLICE 2 HAD
+# LANDED THEM, AND DELETED ALL 24 RATHER THAN KEEPING BOTH. Two suites
+# asserting one door is not twice the confidence; it is two places for the
+# rule to be stated and one of them to go stale. What remains here is only
+# what slice 3 ADDS: the decision-lineage rule, its refusal event, and the
+# two escapes.
 
 
 # ============================================================================
