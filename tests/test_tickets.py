@@ -394,7 +394,13 @@ class TestTerminalPrecedence:
         event win would report it as done."""
         t = _by_id(folded)[R_DECLINED]
         assert t["state"] == "declined"
-        assert t["citation"] is None if "citation" in t else True
+        # The refused resolution must not have written its artifact either. The
+        # first version of this line was `assert t["citation"] is None if
+        # "citation" in t else True` — a conditional EXPRESSION that evaluates
+        # to True whenever the key is absent, which is always. A vacuous
+        # assertion that reads like a check is worse than no line at all.
+        assert "citation" not in t
+        assert "resolved_at" not in t
         assert [(x["from"], x["to"]) for x in t["refused_transitions"]] \
             == [("declined", "done")]
 
@@ -536,6 +542,17 @@ class TestAbsenceDiscipline:
         assert f["tickets"] is None and f["counts"] is None
         assert "UNKNOWN" in f["note"]
 
+    def test_a_generator_of_runs_is_not_counted_as_zero_runs(self):
+        """MEASURED BEFORE THE FIX: passing a generator folded 550
+        recommendations and reported ``runs_seen: 0``, because the census
+        re-listed an iterator the child loop had already drained. A coverage
+        count of zero beside rows read from those same runs is the silent-zero
+        shape pointed at the instrument's own reach."""
+        f = tickets.fold(_MemStore([]), runs=(r for r in _runs()),
+                         runs_limit=1000, now="2026-08-24T00:00:00Z")
+        assert f["counts"]["runs_seen"] == 2
+        assert f["counts"]["by_type"]["recommendation"] == 12
+
     def test_a_truncated_run_list_says_it_may_be_truncated(self):
         f = tickets.fold(_MemStore([]), runs=_runs()[:1], runs_limit=1,
                          now="2026-08-24T00:00:00Z")
@@ -616,6 +633,28 @@ class TestLegacyStatusAdapters:
         t = _by_id(f)["rec:r#1"]
         assert t["legacy_state_recognised"] is False
         assert t["legacy_status"] == "sideways"
+        assert t["state"] == "filed", \
+            "it lands WORKING, where the row stays visible and owed — a " \
+            "terminal guess would delete it from every queue"
+
+    def test_an_unrecognised_status_is_published_as_the_divergence_leg(self):
+        """THE ONE WAY THE RECONCILIATION CAN SILENTLY BREAK, made a number.
+        ``open_recommendations`` selects three known statuses, so a row outside
+        the vocabulary is invisible to ``desk_load`` and counted here. Zero on
+        the live record — which is why it had to be written down before it
+        stops being zero."""
+        rows = [{"run_id": "r", "seat": "s", "task": "t", "trace_id": None,
+                 "resolved_at": None,
+                 "recommendations": [_rec(1, "sideways"), _rec(2, "open")]}]
+        f = tickets.fold(_MemStore([]), runs=rows, now="2026-08-24T00:00:00Z")
+        assert f["reconciliation"]["recommendation_unrecognised_status"] == 1
+
+    def test_the_divergence_leg_is_zero_on_a_clean_population(self, folded):
+        """NULL TEST, with its domain size stated: 12 recommendation tickets
+        compared, every one of them carrying a recognised status."""
+        assert folded["counts"]["by_type"]["recommendation"] == 12
+        assert folded["reconciliation"]["recommendation_unrecognised_status"] \
+            == 0
 
 
 # ============================================================================

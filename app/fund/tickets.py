@@ -295,6 +295,13 @@ def fold(store: Any, runs: Optional[Iterable[dict[str, Any]]] = None,
     from app.fund.events import EventType
 
     at_now = now or datetime.now(timezone.utc).isoformat()
+    # MATERIALISED ONCE, because this function iterates `runs` twice — the
+    # child loop below and the census in `_counts`. Measured with a generator
+    # before the fix: 550 recommendations folded and `runs_seen: 0`, because
+    # the census re-listed an iterator the fold had already drained. A count
+    # of zero beside 550 rows read from those same zero runs is the silent-
+    # zero shape again, this time about the instrument's own coverage.
+    runs = None if runs is None else list(runs)
 
     tickets: dict[str, dict[str, Any]] = {}
     # THE ALIAS INDEX, and it is load-bearing rather than defensive. A ticket's
@@ -306,14 +313,19 @@ def fold(store: Any, runs: Optional[Iterable[dict[str, Any]]] = None,
     # break the thread. Both, indexed.
     by_alias: dict[str, str] = {}
     rows_for_actor: dict[str, dict[str, Any]] = {}
-    # Events naming an id no adapter has ever seen. THE PHANTOM COHORT: 12
-    # DeskRequestResolved and 7 DeskRequestApproved events on the live record
-    # name ids that are in neither fold — mostly the 8-character shorthand the
-    # desk itself prints, which is the defect `_refuse_unknown_request` was
-    # built to stop. Counted and listed here; never turned into a ticket,
-    # because a ticket born from a phantom would launder the defect into a row.
+    # Events naming an id no adapter has ever seen. THE PHANTOM COHORT: 17 on
+    # the live record — 10 DeskRequestResolved and 7 DeskRequestApproved —
+    # mostly the 8-character shorthand the desk itself prints, which is the
+    # defect `_refuse_unknown_request` was built to stop. Counted and listed
+    # here; never turned into a ticket, because a ticket born from a phantom
+    # would launder the defect into a row.
+    #
+    # THE NUMBER IS THE FOLD'S, NOT THE CENSUS'S, and the difference is the
+    # point: a raw census keyed on request_id and task_id alone calls 12
+    # resolutions phantom, and this fold recovers two of them through the
+    # alias index because their ids are TRACE strings. Reproduce:
+    # `scratchpad/hw1_probe2.py`.
     phantom: list[dict[str, Any]] = []
-    readable = True
 
     def _resolve(ident: Any) -> Optional[dict[str, Any]]:
         tid = by_alias.get(str(ident)) if ident else None
@@ -474,9 +486,15 @@ def fold(store: Any, runs: Optional[Iterable[dict[str, Any]]] = None,
         legacy = r.get("status") or "open"
         state = LEGACY_REC_STATE.get(legacy)
         if state is None:
-            # A status outside the known vocabulary is UNKNOWN, never quietly
-            # one of the ten — the same refusal `desk.next_actor` makes at
-            # desk.py:1102.
+            # AN UNRECOGNISED STATUS LANDS IN `filed` AND SAYS SO. It is NOT
+            # read as one of the ten quietly: `legacy_state_recognised` goes
+            # false on the row and the count rides the reconciliation, so a
+            # reader can see the fold could not read it. `filed` is the safe
+            # landing because it is WORKING — the row stays visible and owed,
+            # where a terminal guess would delete it from every queue.
+            # (An earlier version of this comment claimed the status was
+            # rendered UNKNOWN and the line below then made it `filed`; the
+            # comment and the code disagreed, and the code was the honest one.)
             state = "filed"
         t_row = _new_ticket(
             tid, type="recommendation", state="filed", subject=r.get("text"),
@@ -639,6 +657,17 @@ def _reconciliation(tickets: list[dict[str, Any]]) -> dict[str, Any]:
     ask_filed``, and pending orders are the one leg this fold cannot see: they
     are not a desk species. The field is named ``total_less_pending_orders``
     rather than ``total`` so nobody reads it as the whole figure.
+
+    **THE ONE CONDITION UNDER WHICH THESE LEGS CAN DIVERGE, named here rather
+    than left to be discovered when they do.** ``open_recommendations`` selects
+    the three statuses it knows (deskstore.py:743); a row carrying a status
+    outside the vocabulary is invisible to it and therefore to ``desk_load``,
+    while this fold lands it in ``filed`` and counts it. The fold's figure is
+    the more complete one, and ``recommendation_unrecognised_status`` publishes
+    the difference so a reader can reconcile by subtraction instead of
+    wondering. Zero on the live record 2026-08-24 — all 550 stored rows carry
+    one of the six known statuses — which is exactly why it needed writing down
+    before it stops being zero.
     """
     working = [t for t in tickets if not t["terminal"]]
     recs = [t for t in tickets if t["type"] == "recommendation"]
@@ -670,6 +699,9 @@ def _reconciliation(tickets: list[dict[str, Any]]) -> dict[str, Any]:
         "recommendation_ceo": ceo,
         "recommendation_decided_awaiting_execution": decided,
         "recommendation_open_elsewhere": elsewhere,
+        # The named divergence condition; see this function's docstring.
+        "recommendation_unrecognised_status": sum(
+            1 for t in recs if t.get("legacy_state_recognised") is False),
         "total_less_pending_orders": ceo + ask_legacy_open,
         "working_tickets": len(working),
         "arithmetic": (
