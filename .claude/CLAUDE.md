@@ -807,10 +807,14 @@ there in a year. That is the defect this section fixes.
   CEO decision from the original "the machine proposes; the human clicks" — written
   reason: an agentic fund's human belongs at the policy level, not the per-order
   level, and the controls this invariant was protecting are now measured, ticking,
-  and heartbeat-monitored. v3 envelope (2026-08-20, CEO-authorized;
-  supersedes v2 — this text corrected 2026-08-21 after the COO's triage
-  caught it stale: a doc drift, not a loosening, since v3 is strictly
-  tighter): exit-rule-triggered SELLs only, fresh, liveness proven, on the
+  and heartbeat-monitored. v4 envelope live (AUTOPOLICY_VERSION="v4",
+  autopolicy.py:143; v4's own header: "adds three checks, RELAXES NONE" —
+  this text corrected 2026-08-24 after the COO's triage #8 caught it stale
+  a THIRD time, again a doc drift in the tightening direction. The
+  structural fix is ticketed: nothing links the constant to this prose,
+  and GET /fund/autopolicy has been absent seven consecutive triages. The
+  v3 description below stands as the baseline v4 tightened from):
+  v3 (2026-08-20, CEO-authorized; supersedes v2): exit-rule-triggered SELLs only, fresh, liveness proven, on the
   paper venue — AND the trigger event must name the exact order (the marker
   string alone is forgeable), the rule must demonstrably predate the
   position, the mark must agree with the fund's own last struck mark within

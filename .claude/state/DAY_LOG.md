@@ -167,6 +167,25 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
   recorded absent, never zero).
 
 **MEASURED**
+- **TRIAGE #8 (the cascade audit, CEO-instructed): 24 accepted bundles
+  carry 31 members — 14 done / 11 still pending / 6 superseded; the
+  cascade ran ONCE in firm history; triage7#1 was clicked EIGHT times (a
+  button with no feedback).** The mechanism behind the sprawl measured:
+  the hygiene engine proposed 1 close of 73 because served-request ids
+  are declared in 8-char shorthand the exact-id join cannot read — and
+  the CHAIR'S OWN 08-23 resolves hit the same trap (three resolutions
+  recorded against phantom prefix-aggregates; re-resolved with full ids).
+  A quarter of the queue was DEAD, not unread. Chair executed at resolve:
+  11 requests closed full-id, R23/R24 marked shipped, the
+  register-evaluability ticket FILED (closing a four-triage gap),
+  dce47670 kept open (over-sweep guard), the id-normalization rider sent
+  into D39 mid-flight, CLAUDE.md's envelope paragraph corrected v3→v4
+  (third drift, tightening direction). Vishesh: first FULL decision
+  clearance in eight triages (6/6 decided between runs); his 7-decision
+  batch is on the CEO's desk as run-coo-triage8; two EVOLVEs applied
+  including his self-logged cardinal miss (he never audited his own
+  bundles' members). The 24 stale dispatch lamps closed and the two live
+  ones lit — the room now tells the truth the spine knows.
 - **THE CASCADE GAP, found by the CEO from his own chair**: accepting a
   COO bundle moved nothing underneath it - the constitution's cascade rule
   never had machinery, and un-run cascades are a large share of the

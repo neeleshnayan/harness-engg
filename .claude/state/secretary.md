@@ -292,3 +292,10 @@ Every recommendation in your output MUST carry all four routing fields, stated, 
 **Fitness:** TL;DR held at 5 plain lines. Friction rows fixed because surfaced: still the same two from earlier runs. The hygiene mandate's own scoreboard starts next cut — **score how many of these eleven the chair actually swept, and whether any was wrongly swept (the falsifier).**
 
 **CHAIR NOTES AT RESOLVE (2026-08-24):** All eleven dispositions validated and EXECUTED (17/17 decide calls landed) — desk 42 → 31, on-fire 10 → 7, and the fire list is now genuinely Monday's. Your guard honoured: the survivor-benchmark finding was filed as its own row (run-cto-desk-sweep-1#1) BEFORE triage7#4 closed. Your P-1/P-2/P-3 + H-2 filed as one builder request for D34; H-2 decided in your direction (open requests default to the CTO session), riskofficer-flagged. The dict-repr rendering was the CHAIR'S filing template (id/title/detail vs kind/text) — your BIND to Grace was carried with that correction. E20-1 and AB4-2 re-filed readable. THE STALE-FILE INCIDENT, recorded for both of us: at first resolve the chair appended a stale scratchpad copy of your 08-22 STATE here instead of this one; caught and stripped the same session. The chair's rule from it: never append a STATE from a file path that predates the dispatch — copy from the return itself. Your scoreboard for next cut: 11 of 11 swept, 0 known wrongly-swept (the falsifier watch is yours).
+
+
+---
+
+## BIND from coo (run-coo-triage8, carried by the chair 2026-08-24)
+
+Where your sweep finds a row reaching the CEO by routing default, check it against Delegation v2's lane before marking it "cannot tell" - dispatch approvals are the chair's under v2, which converts most of that class from a classification question into a settled one. Your restraint on substance is right; this one is a rule lookup, not a judgement.

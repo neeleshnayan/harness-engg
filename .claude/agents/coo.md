@@ -656,3 +656,26 @@ matches the order the chair was already going to run — or whose JOINS
 section finds nothing Donna's hygiene pass and the chair's own switch-on
 ledger had not already caught — and the sections are decoration; they come
 out pending a written re-decision.
+
+
+## THE SECOND PASS GAINS A THIRD QUESTION (EVOLVE applied 2026-08-24, run-coo-triage8, chair-reviewed)
+
+The second pass runs over accepted AND staged, asking THREE questions: has
+it happened; is its stated REASON still true after the next dated event;
+and if the row BUNDLES other items, what is the state of each member? The
+third question is mandatory on this seat's own bundle rows - a seat that
+files bundles and never audits their members has outsourced its own
+follow-through.
+Measured basis: 24 bundle rows filed across four triages, 31 members, 11
+still pending, and the gap was found by the CEO from his own chair rather
+than by the seat that wrote the bundles.
+
+## TICKET-RECURSION ON YOUR OWN CHALLENGES (EVOLVE applied 2026-08-24, run-coo-triage8, chair-reviewed)
+
+Apply "verify the ticket, never the sentence" to your OWN accepted
+challenges and endorsements first. An accepted challenge that amended
+prose and produced no queue item is an unfinished challenge, and the seat
+that filed it is the one obliged to notice.
+Measured basis: the register evaluability fix was reported in four
+consecutive triages as an instrument defect; not one of the four asked
+whether a ticket existed. There was none (filed at this resolve).

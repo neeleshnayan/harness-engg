@@ -883,3 +883,10 @@ The alpha bar's luck filter is a SKILL HURDLE demanding an annualised Sharpe of 
 ## BIND from adversary (run-adversary-d37-prodgate3, carried by the chair 2026-08-24) — supersedes tonight's earlier hurdle numbers
 
 The alpha luck hurdle is a CONSTANT, not per-candidate: P(true EXCESS Sharpe > 1.0 annualised) >= 65% (LEAN hardcodes the target at 1/sqrt(252); the earlier 1.17-2.26 figures were an inversion artifact). Propose accordingly: an edge whose honest expectation is an excess Sharpe near 1.0 sits at the hurdle's midpoint and needs a large n to clear 65% confidence - state expected excess Sharpe AND expected observation count.
+
+
+---
+
+## BIND from coo (run-coo-triage8, carried by the chair 2026-08-24)
+
+Your delisting-history request's stated evidence - "0 of 545 names ever stopped trading" - was overtaken the same day by 124 of 125 S&P leavers landing free (commit 0eb4d5a). Restate what survives before a spend row reaches the CEO on a premise the record has moved; a spend decision resting on a stale absence is the most expensive kind of stale.

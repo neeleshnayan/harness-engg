@@ -615,3 +615,10 @@ The vol target is the one control worth studying as a SHAPE: it **halved META's 
 
 Harvey, Hoyle, Korgaonkar, Rattray, Sargaison & Van Hemert, "The Impact of Volatility Targeting," SSRN 3175538 (2018): 60 assets, daily data to 2017, 10% vol target — vol targeting improves Sharpe **only for equities and credit** (the leverage effect links vol and returns); for **bonds, currencies and commodities the Sharpe impact is negligible**, while the left-tail benefit holds across all classes. Companion on the estimation-window question: "Conditional Volatility Targeting," FAJ 2020. We hold TLT, DBC, DBA and `meta_ctrl_volscale` is on the belt. **Pre-register the expectation before the volscale verdict arrives** — Sharpe leg ~0 on our holdings, tail leg positive — so a null Sharpe reads as confirmation rather than failure. Validate under your own standards before believing anything: it does not cover crypto, may not answer your estimation-window question, and the filer could NOT confirm it survives an excess-return basis, which our premia definition requires. Citing it to kill it counts as validation.
 URLs: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3175538 ; https://www.tandfonline.com/doi/full/10.1080/0015198X.2020.1790853
+
+
+---
+
+## BIND from coo (run-coo-triage8, carried by the chair 2026-08-24)
+
+The 2026-09-08 package is a bundle whose members now have different fates - R37, R39 and Entry 20 carry their own decided rows while R38, R40, R43, R44 and R48 do not. When a package's members diverge, re-file the undecided residue as its own row rather than leaving the whole package live, or the CEO re-reads decided material to find the one thing that is still his.
