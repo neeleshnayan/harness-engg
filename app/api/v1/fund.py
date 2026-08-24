@@ -2420,7 +2420,7 @@ def decide_recommendation(run_id: str, rec_id: int, req: RecDecision):
     # and the measured population includes `done` and `staged`. It is BEFORE
     # the store check on purpose: the refusal is a fact about the event log,
     # which is readable whether or not the desk table is.
-    redecision_readable = _refuse_if_redecided(
+    redecision_readable, redecision_basis = _refuse_if_redecided(
         run_id, rec_id, to=req.status, actor=req.actor)
     if ds is None:
         raise HTTPException(status_code=503, detail="needs FUND_STORE=postgres")
@@ -2449,14 +2449,16 @@ def decide_recommendation(run_id: str, rec_id: int, req: RecDecision):
                                  "supersession_readable": readable,
                                  # True = the row's decision history was read
                                  # and this status is a change; False = the
-                                 # event log could not be read and the guard
-                                 # was not consulted. Never None — this guard
-                                 # applies to every status.
+                                 # guard could not look, and `redecision_basis`
+                                 # says which of the two reasons. Never None —
+                                 # this guard applies to every status.
                                  "redecision_readable": redecision_readable,
+                                 "redecision_basis": redecision_basis,
                                  "at": datetime.now(timezone.utc).isoformat()},
                         actor=req.actor))
     return {**hit, "supersession_readable": readable,
-            "redecision_readable": redecision_readable}
+            "redecision_readable": redecision_readable,
+            "redecision_basis": redecision_basis}
 
 
 # ===========================================================================
@@ -3829,16 +3831,40 @@ def _refuse_if_superseded(ref: str, *, kind: str, target_id: str,
     raise HTTPException(status_code=409, detail=refusal)
 
 
+#: WHY THE GUARD COULD NOT LOOK, when it could not. A bare `readable: False`
+#: says the check did not run and stops there; these say which of three very
+#: different things happened, and only one of them is an outage.
+#:
+#: `store_cannot_answer` is not hypothetical and is the reason this vocabulary
+#: exists. Measured 2026-08-24 by walking the suite's ASTs for classes defining
+#: both `append` and `stream`: **23 event-store-shaped test doubles across 22
+#: files, of which 5 implement `by_aggregate`.** (A first pass wrote "19 and 7"
+#: from `grep -l`, which counts FILES mentioning the name rather than doubles
+#: implementing the method — re-derived rather than retyped.) Reproduce:
+#: `python scripts/instruments/hw4/store_double_census.py`.
+#:
+#: Those counts will move as the suite grows; the INVARIANT that matters and
+#: does not move is that some doubles cannot answer, so the fail-open path is
+#: reachable from inside the suite. Against such a store this guard fails open
+#: — correctly, since a store that could not be asked has not answered "no".
+#: What would be wrong is for that to be INDISTINGUISHABLE from a guard that
+#: ran and allowed, because then a test asserting a decision succeeded would be
+#: blessing an unwired control. `redecision_basis` is what tells them apart.
+REDECISION_BASIS_READ = "decision_events"
+REDECISION_BASIS_NO_METHOD = "store_cannot_answer"
+REDECISION_BASIS_ERROR = "store_error"
+
+
 def _refuse_if_redecided(run_id: str, rec_id: int, *, to: str,
-                         actor: str) -> bool:
+                         actor: str) -> tuple:
     """409-and-RECORD a row asked to re-record the status it already holds.
 
-    Returns ``redecision_readable`` — True when the row's decision history was
-    read and this status is a change, False when the log could not be read and
-    the guard was NOT consulted. Never None: unlike the supersession brake this
-    guard applies to every status, so "not applicable" is not one of its
-    answers, and writing None would let a reader take an unread guard for an
-    inapplicable one.
+    Returns ``(redecision_readable, redecision_basis)`` — True plus
+    ``decision_events`` when the row's history was read and this status is a
+    change; False plus a reason when the guard could NOT look. Never None:
+    unlike the supersession brake this guard applies to every status, so "not
+    applicable" is not one of its answers, and writing None would let a reader
+    take an unread guard for an inapplicable one.
 
     **DIRECTION: A TIGHTENING OF A LIVE, APPROVAL-ADJACENT PATH.** Stated
     plainly because this is the door the CEO's desk posts to, and because this
@@ -3885,18 +3911,25 @@ def _refuse_if_redecided(run_id: str, rec_id: int, *, to: str,
     """
     from app.fund import ticketguard
     from app.fund.events import Event, EventType
+    reader = getattr(_store, "by_aggregate", None)
+    if not callable(reader):
+        # A WIRING FACT, NOT AN OUTAGE, and told apart from one. Checked before
+        # the call rather than caught as an AttributeError, because a broad
+        # `except` would also swallow an AttributeError raised INSIDE a working
+        # `by_aggregate` and report a genuine defect as a degraded store.
+        return False, REDECISION_BASIS_NO_METHOD
     try:
-        events = _store.by_aggregate(run_id)
+        events = reader(run_id)
     except Exception:
         # The store, not the guard, is what failed. Reported as unreadable
         # rather than swallowed: "the guard did not refuse" and "the guard
         # could not look" are different facts and only one of them is a pass.
-        return False
+        return False, REDECISION_BASIS_ERROR
     refusal = ticketguard.check_redecision(
         ticketguard.decisions_for(events, run_id, rec_id),
         to=to, run_id=run_id, rec_id=rec_id)
     if refusal is None:
-        return True
+        return True, REDECISION_BASIS_READ
     _store.append(Event(
         aggregate_id=run_id, aggregate_type="desk_run",
         type=EventType.APPROVAL_REFUSED,
