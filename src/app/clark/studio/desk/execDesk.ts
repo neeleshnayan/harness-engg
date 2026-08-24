@@ -238,7 +238,7 @@ export function recItems(
  * Three deliberate acts, on purpose.
  */
 export const CONTRACT_DIGEST =
-  "0fdfb5123edf0ab0188ef09acadba87b8adc3ef6c72e2bc6a16499a0a5bdb593";
+  "c49516837a6a0033a65eae5be03a698d7c54a925827b3bab20f1a5f121d17fc2";
 
 /** What the live spine's contract digest says about this page's fixture.
  *  `null` = they agree and nothing is rendered. */
@@ -629,6 +629,38 @@ export function isSeatFiled(actor?: string | null): boolean {
  * is the first seat-filed ask the fund has produced, and renders as
  * "awaiting CEO approval" because NO DeskRequestApproved event exists yet.
  */
+/**
+ * What stage an ask is at — READ from the spine, derived only as a fallback.
+ *
+ * THE DIVERGENCE THIS CLOSES (2026-08-24, found by looking at the rendered
+ * page). An open desk request used to be `awaiting_ceo` here, decided by this
+ * function. The spine moved the same rule (`desk.OPEN_REQUEST_ACTOR`: an open
+ * request is blocked on the CHAIR dispatching it — 28 of the 49 requests
+ * resolved in the live log window carry no approval event at all), and this
+ * page went on listing **eleven** asks as decisions he owed. Its own
+ * reconciliation banner reported the two counts disagreeing by exactly eleven.
+ *
+ * Both suites were green over it, because each pinned its own side. That is
+ * the 11-vs-6 defect, for the third time, and the answer is the same one that
+ * worked twice before: the spine owns the rule and the client reads it.
+ *
+ * The DERIVED branch is kept for a spine that predates the field, and it
+ * reproduces the OLD behaviour exactly — degrade to yesterday, never to a
+ * guess.
+ */
+export function askStage(r: DeskView["requests"][number]): AskStage {
+  if (r.status === "declined") return "declined";
+  if (r.status === "resolved") return "resolved";
+  const spine = (r as { next_actor_resolved?: string | null })
+    .next_actor_resolved;
+  if (typeof spine === "string" && spine) {
+    // The CEO owes it only if the spine says the next actor is him. Everything
+    // else the chair fires — shown, never counted as his decision.
+    return spine === "ceo" ? "awaiting_ceo" : "cleared_to_trigger";
+  }
+  return r.status === "approved" ? "cleared_to_trigger" : "awaiting_ceo";
+}
+
 export function queuedAsks(requests: DeskView["requests"]): QueuedAsk[] {
   return requests
     .filter((r) => r.status !== "resolved")
@@ -647,9 +679,7 @@ export function queuedAsks(requests: DeskView["requests"]): QueuedAsk[] {
         subject: r.task ?? r.subject,
         note: r.note ?? null,
         at: r.at ?? null,
-        stage: (r.status === "declined" ? "declined"
-          : r.status === "approved" ? "cleared_to_trigger"
-            : "awaiting_ceo") as AskStage,
+        stage: askStage(r),
         approvedBy: r.approved_by ?? null,
         approvedAt: r.approved_at ?? null,
         declinedBy: r.declined_by ?? null,

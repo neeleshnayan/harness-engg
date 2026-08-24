@@ -21,6 +21,7 @@ import {
   moneyGap,
   asksForCeo, orderItems, queuedAsks, rankDeskItems, recItems,
   reversibilityOfKind, unwrapMemoMarkdown,
+  askStage,
 } from "./execDesk.ts";
 
 /* ------------------------------------------------------------- fixtures -- */
@@ -521,4 +522,58 @@ test("re-flowing never merges a heading into the text under it", () => {
 test("an absent memo body re-flows to an empty string, not to 'undefined'", () => {
   assert.equal(unwrapMemoMarkdown(null), "");
   assert.equal(unwrapMemoMarkdown(undefined), "");
+});
+
+/* ------------------------------------------------- the ask stage (D39) ---- */
+
+/**
+ * THE THIRD APPEARANCE OF THE 11-VS-6 DEFECT, closed the same way as the
+ * first two: the spine owns the rule, the client reads it.
+ *
+ * An open desk request was `awaiting_ceo` here, decided by this file. The
+ * spine moved the same rule on 2026-08-24 (an open request is blocked on the
+ * CHAIR dispatching it — 28 of the 49 requests resolved in the live log
+ * window carry no approval event at all), and this page went on listing
+ * ELEVEN asks as decisions the CEO owed. Its own reconciliation banner
+ * reported the counts disagreeing by exactly eleven, on screen, while both
+ * repos' suites stayed green.
+ */
+const ask = (o: Record<string, unknown>) =>
+  ({ request_id: "q", status: "open", ...o }) as unknown as
+    Parameters<typeof askStage>[0];
+
+test("the SPINE decides whose move an ask is, when it says", () => {
+  assert.equal(askStage(ask({ next_actor_resolved: "chair" })),
+               "cleared_to_trigger");
+  assert.equal(askStage(ask({ next_actor_resolved: "ceo" })), "awaiting_ceo");
+});
+
+test("the spine's answer beats the status, which is the whole repair", () => {
+  /* An OPEN request that the spine routes to the chair must NOT be counted as
+     his — that is the eleven rows. Deriving from `status` alone is what put
+     them back. */
+  assert.equal(askStage(ask({ status: "open", next_actor_resolved: "chair" })),
+               "cleared_to_trigger");
+});
+
+test("a spine with no annotation degrades to yesterday, not to a guess", () => {
+  assert.equal(askStage(ask({ status: "open" })), "awaiting_ceo");
+  assert.equal(askStage(ask({ status: "approved" })), "cleared_to_trigger");
+});
+
+test("terminal stages outrank the routing on both sides", () => {
+  /* Nothing follows a declined or resolved ask, and no annotation may claim
+     otherwise — the same precedence the spine's own `next_actor` applies to a
+     terminal recommendation. */
+  assert.equal(askStage(ask({ status: "declined",
+                              next_actor_resolved: "ceo" })), "declined");
+  assert.equal(askStage(ask({ status: "resolved",
+                              next_actor_resolved: "ceo" })), "resolved");
+});
+
+test("an unreadable annotation falls back rather than inventing a stage", () => {
+  assert.equal(askStage(ask({ status: "open", next_actor_resolved: "" })),
+               "awaiting_ceo");
+  assert.equal(askStage(ask({ status: "open", next_actor_resolved: null })),
+               "awaiting_ceo");
 });
