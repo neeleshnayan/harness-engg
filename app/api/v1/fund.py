@@ -2477,19 +2477,27 @@ def _ticket_fold():
     ONE FOLD, ONE PLACE — the view and the three doors of slice 2 all consult
     it, and two copies of "which runs feed the recommendation leg" is exactly
     how the fold and ``desk_load`` would drift apart while each looked right.
-    Raises nothing of its own: ``tickets.fold`` swallows an unreadable stream
-    and returns ``readable: False``.
+
+    ONE OUTAGE, ONE POLICY — the store's CONSTRUCTION is inside the try, and it
+    was not. ``_deskstore()`` builds a ``DeskStore`` on first call, so with
+    Postgres down the FIRST request after a restart raised out of it while
+    every later one (cache warm, or the recorder failing on ``runs()`` instead)
+    degraded quietly to an unknown recommendation leg. That is the identical
+    defect the D22 review found in ``_edges_by_target``, whose docstring says
+    it plainly: *a control whose behaviour depends on whether an unrelated
+    request warmed a cache has two policies and no way to tell which one ran.*
+    Now there is one: the leg is UNKNOWN, never zero, however the read failed.
     """
     from app.fund import tickets as tk
     runs, runs_limit = None, None
-    ds = _deskstore()
-    if ds is not None:
-        try:
+    try:
+        ds = _deskstore()
+        if ds is not None:
             runs, runs_limit = ds.runs(limit=TICKET_RUNS_LIMIT), TICKET_RUNS_LIMIT
-        except Exception as e:  # noqa: BLE001
-            # None, not [] — an unreadable recorder must not fold into "no
-            # recommendations". The fold reports the leg unknown.
-            logger.info("ticket fold: runs unavailable: %s", e)
+    except Exception as e:  # noqa: BLE001
+        # None, not [] — an unreadable recorder must not fold into "no
+        # recommendations". The fold reports the leg unknown.
+        logger.info("ticket fold: runs unavailable: %s", e)
     return tk.fold(_store, runs=runs, runs_limit=runs_limit)
 
 
@@ -3013,8 +3021,21 @@ def ticket_link(ticket_id: str, req: TicketLink):
     _refuse_unknown_ticket(ticket_id, index)
     _refuse_unknown_ticket(target, index)
 
-    cycle_checked = index is not None
-    if cycle_checked and kind == "parent":
+    # THREE ANSWERS, NOT TWO — the same shape as `supersession_checked`, and
+    # for the same reason. True: the walk ran. False: the fold was unreadable,
+    # so the phantom guard failed open (by design) and this link is recorded
+    # WITHOUT the check. None: no cycle is possible for this link kind, so
+    # nothing was checked and nothing needed to be.
+    #
+    # It read `index is not None` for every kind, which reported True on a
+    # `serves` link where no walk had run — an unrun check reading as a passed
+    # one, which is precisely the defect the supersession field was given a
+    # third answer to avoid. Caught on the read-through, not by the suite: the
+    # fail-open test uses `parent`, so the mutant that hardcodes this True died
+    # against a case where True was the right answer.
+    cycle_possible = kind == "parent"
+    cycle_checked = (index is not None) if cycle_possible else None
+    if cycle_checked:
         seen, cur = set(), target
         while cur and cur not in seen:
             seen.add(cur)
@@ -3030,9 +3051,7 @@ def ticket_link(ticket_id: str, req: TicketLink):
 
     payload = {"ticket_id": ticket_id, "link_kind": kind, "target_id": target,
                "basis": (req.basis or "").strip() or None,
-               # Whether the cycle check RAN. It cannot run when the fold is
-               # unreadable (the phantom guard fails open there, by design), and
-               # a link recorded without it must not read like a checked one.
+               # True / False / None — see the three answers above.
                "cycle_checked": cycle_checked,
                "at": datetime.now(timezone.utc).isoformat(),
                "actor": req.actor}

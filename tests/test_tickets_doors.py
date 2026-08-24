@@ -822,6 +822,29 @@ class TestTheLinkDoor:
         assert "cycle" in r.json()["detail"]["error"]
         assert len(store.events) == before
 
+    @pytest.mark.parametrize("kind,expected", [
+        ("parent", True),          # the walk ran
+        ("serves", None),          # no cycle is possible; nothing was checked
+        ("decision_ref", None),
+    ])
+    def test_cycle_checked_HAS_THREE_ANSWERS(self, client, kind, expected):
+        """FOUND ON THE READ-THROUGH, NOT BY THE SUITE, and the mutation pass
+        could not have found it either: ``cycle_checked`` read
+        ``index is not None`` for EVERY kind, so a ``serves`` link reported
+        ``True`` with no walk behind it. The fail-open test uses ``parent``,
+        where ``True`` is the right answer, so the mutant that hardcodes this
+        field died against a case that could not tell the difference.
+
+        An unrun check reading as a passed one is the same defect
+        ``supersession_checked`` was given a third answer to avoid — one field
+        in this diff had learned the lesson and its sibling had not.
+        """
+        a, b = _opened_id(client), _opened_id(client)
+        r = client.post(f"/api/v1/fund/tickets/{a}/link",
+                        json={"link_kind": kind, "target_id": b})
+        assert r.status_code == 200, r.text
+        assert r.json()["cycle_checked"] is expected
+
     def test_a_NON_parent_link_may_point_back_up_the_tree(self, client):
         """Only ``parent`` is a tree. ``serves`` and ``decision_ref`` are
         allowed to point anywhere, and refusing them on the parent chain would
@@ -970,8 +993,12 @@ class TestTheFoldItselfIsUnreadable:
         return TestClient(app)
 
     def test_the_link_door_fails_OPEN_through_the_real_index(self, blind_client):
+        """``parent``, deliberately: it is the one kind where a cycle IS
+        possible, so ``cycle_checked: False`` means "the walk was owed and
+        could not run". On any other kind the honest answer is None, and this
+        arm would then be asserting the wrong fact about the right status."""
         r = blind_client.post("/api/v1/fund/tickets/any-id/link",
-                              json={"link_kind": "serves",
+                              json={"link_kind": "parent",
                                     "target_id": "another-id"})
         assert r.status_code == 200, \
             "an unreadable fold must not turn a rendering guard into an outage"
@@ -987,6 +1014,31 @@ class TestTheFoldItselfIsUnreadable:
         r = blind_client.post("/api/v1/fund/tickets/any-id/transition",
                               json={"to": "in_flight", "actor": "cto"})
         assert r.status_code == 503
+
+    def test_a_deskstore_that_RAISES_ON_CONSTRUCTION_is_one_policy_not_two(
+            self, client, monkeypatch):
+        """ONE OUTAGE, ONE POLICY. ``_deskstore()`` BUILDS a ``DeskStore`` on
+        first call, and its construction sat outside the try — so with Postgres
+        down the first request after a restart raised a 500 while every later
+        one degraded quietly. A control whose behaviour depends on whether an
+        unrelated request warmed a cache has two policies and no way to tell
+        which one ran (the D22 finding, in a second place).
+
+        The recommendation leg must read UNKNOWN, never zero, however the read
+        failed — so this drives the CONSTRUCTION failure specifically, which is
+        the arm the old code got wrong.
+        """
+        from app.api.v1 import fund as fundapi
+
+        def _explode():
+            raise OSError("Postgres is down and the store cannot be built")
+
+        monkeypatch.setattr(fundapi, "_deskstore", _explode)
+        assert _open(client, subject="filed during the outage").status_code == 200
+        b = client.get("/api/v1/fund/tickets").json()
+        assert b["readable"] is True, "the event log is still readable"
+        assert b["counts"]["recommendations_read"] is False, \
+            "an unreadable recorder reports the leg UNKNOWN, never zero"
 
 
 class TestDidYouMeanIsAPrefixNotASubstring:
