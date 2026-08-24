@@ -2814,25 +2814,42 @@ class TicketTransition(BaseModel):
 def ticket_transition(ticket_id: str, req: TicketTransition):
     """Move a ticket, legally, with the guard its transition class demands.
 
-    FIVE CHECKS, IN THIS ORDER, and the order is the same reasoning
-    ``desk_approve`` records for its own (identity before lineage, so a caller
-    the allowlist is about to refuse never learns anything):
+    SIX CHECKS, IN THIS ORDER, and the order is the same reasoning
+    ``desk_approve`` records for its own (identity before anything else, so a
+    caller the allowlist is about to refuse never learns anything):
 
       1. **the vocabulary** — an unrecognised target state is 422 with the list,
-         never a silent no-op;
+         never a silent no-op. It runs first BECAUSE the guard depends on it:
+         whether a transition is guarded at all is a question about which class
+         of transition it is, and that cannot be answered before the word is
+         recognised. Nothing is leaked — this vocabulary is already served
+         publicly by ``GET /fund/tickets`` as ``states``;
       2. **the approval-channel guard**, for the decision transitions of
-         ``tickets.DECISION_TRANSITIONS``. REUSED, NOT REWRITTEN: ``
-         _guard_approval`` with ``DESK_APPROVAL_ALLOWLIST``, the same allowlist,
-         echo and verbatim-instruction rule the desk's approve door takes. A
-         threshold or identity that exists twice has already drifted once;
-      3. **the phantom guard** — ``_refuse_unknown_ticket``;
-      4. **legality** — ``tickets.ALLOWED_FROM``, read from the fold's own table
+         ``tickets.DECISION_TRANSITIONS``. REUSED, NOT REWRITTEN:
+         ``_guard_approval`` with ``DESK_APPROVAL_ALLOWLIST``, the same
+         allowlist, echo and verbatim-instruction rule the desk's approve door
+         takes. A threshold or identity that exists twice has already drifted
+         once;
+      3. **the terminal record** — ``tickets.TERMINAL_REQUIREMENTS``: no
+         citation, no close;
+      4. **the phantom guard** — ``_refuse_unknown_ticket``;
+      5. **legality** — ``tickets.ALLOWED_FROM``, read from the fold's own table
          rather than restated here. Terminal is terminal: no ``ALLOWED_FROM``
          entry admits a terminal source, so a closed ticket cannot be reopened
          through this door and a dispute is a NEW ``challenge`` ticket (§1.2);
-      5. **the supersession refusal**, for the advancing transitions of
+      6. **the supersession refusal**, for the advancing transitions of
          ``tickets.ADVANCING_TICKET_STATES`` — ``_refuse_if_superseded``,
          generalized by giving it the ticket's own row reference.
+
+    **CHECKS 2 AND 3 WERE THE OTHER WAY ROUND UNTIL A QA PASS REPRODUCED WHAT
+    THAT COST, and the docstring above them claimed this order while the code
+    had the other.** An actor OFF the allowlist asking to close a ticket
+    without a citation received ``422 "a 'done' transition must carry
+    'citation'"`` — the required field name handed to a caller the very next
+    line was going to refuse. Small information, but it is exactly the leak
+    this door's own stated principle forbids, and the docstring asserting the
+    safe order was doing the work of hiding it. Identity now runs first and a
+    test pins the pair (bad actor AND missing record must answer 403).
 
     503, NOT A FAIL-OPEN, WHEN THE FOLD CANNOT BE READ. The phantom guard fails
     open by design (it cannot tell "absent" from "unreadable", and a rendering
@@ -2851,6 +2868,15 @@ def ticket_transition(ticket_id: str, req: TicketTransition):
                     note="refused rather than appended: a transition to a state "
                          "no fold recognises would land as a refused transition "
                          "at replay and read as a 200 to the caller")
+
+    actor = req.actor
+    if to in tk.DECISION_TRANSITIONS:
+        # THE EXISTING GUARD, CALLED — not a second one written to look like it.
+        # FIRST, before any check that would describe the request back to the
+        # caller. See this function's docstring for what running it third cost.
+        actor = _guard_approval("ticket", ticket_id, req.actor, req.confirm,
+                                req.instruction, DESK_APPROVAL_ALLOWLIST)
+
     if to in tk.TERMINAL_REQUIREMENTS:
         field, why = tk.TERMINAL_REQUIREMENTS[to]
         if not (getattr(req, field, None) or "").strip():
@@ -2885,12 +2911,6 @@ def ticket_transition(ticket_id: str, req: TicketTransition):
             _refuse_422("an expiry must name the aging policy it swept under",
                         policy_version=req.policy_version,
                         expected=tk.AGING_POLICY_VERSION)
-
-    actor = req.actor
-    if to in tk.DECISION_TRANSITIONS:
-        # THE EXISTING GUARD, CALLED — not a second one written to look like it.
-        actor = _guard_approval("ticket", ticket_id, req.actor, req.confirm,
-                                req.instruction, DESK_APPROVAL_ALLOWLIST)
 
     index = _ticket_index()
     _refuse_unknown_ticket(ticket_id, index)

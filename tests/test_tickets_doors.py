@@ -462,6 +462,31 @@ class TestTheApprovalGuard:
         r = _transition(client, tid, "in_flight", actor="cto", confirm=None)
         assert r.status_code == 403
 
+    @pytest.mark.parametrize("to,missing", [
+        ("done", "citation"), ("declined", "reason"),
+        ("superseded", "superseder_ref"), ("merged", "decision_ref"),
+    ])
+    def test_a_refused_actor_never_learns_the_required_field(self, client, to,
+                                                             missing):
+        """FOUND BY A QA PASS, AND IT WAS A DOCSTRING LYING ABOUT ITS CODE.
+
+        The terminal-record check ran BEFORE the approval guard, so an actor
+        off the allowlist asking to close a ticket without a citation got
+        ``422 "a 'done' transition must carry 'citation'"`` — the required
+        field name handed to a caller the next line was going to refuse. The
+        function's own docstring asserted the safe order while the code had the
+        other one, which is how the leak survived a read.
+
+        The pair is what makes this test work: a bad actor AND a missing
+        record together. Every other guard test supplies the record, so none of
+        them could see which check ran first.
+        """
+        tid = _opened_id(client)
+        r = _transition(client, tid, to, actor="builder")
+        assert r.status_code == 403, \
+            f"a refused caller was told about {missing!r} before being refused"
+        assert missing not in str(r.json()["detail"])
+
     def test_the_guard_runs_BEFORE_the_lineage_is_handed_out(self, client):
         """``desk_approve`` moved this order for a reason: v1 handed the
         supersession lineage to ANY caller, including one the allowlist was
@@ -485,6 +510,26 @@ class TestLegality:
         r = _transition(client, tid, "dine")
         assert r.status_code == 422
         assert set(r.json()["detail"]["allowed"]) == set(tk.TICKET_STATES)
+
+    @pytest.mark.parametrize("intermediate", ["in_flight", "returned"])
+    def test_approval_cannot_run_BACKWARDS_up_the_lifecycle(self, client,
+                                                            intermediate):
+        """``ALLOWED_FROM["approved"]`` is the single-source tuple ``("filed",)``
+        and nothing probed that specific edge — the structural tests check
+        terminals-as-source and that the door reads the dict, neither of which
+        pins this one. Blessing work that is already IN FLIGHT is not a
+        harmless no-op: it would make ``approved`` reachable after a dispatch
+        and turn the approved-undispatched age series (failure #7's number)
+        into a clock that can be reset."""
+        tid = _opened_id(client)
+        assert _transition(client, tid, "in_flight", actor="cto",
+                           confirm=None).status_code == 200
+        if intermediate == "returned":
+            assert _transition(client, tid, "returned", actor="cto",
+                               confirm=None).status_code == 200
+        r = _transition(client, tid, "approved")
+        assert r.status_code == 409
+        assert r.json()["detail"]["allowed_from"] == ["filed"]
 
     def test_filed_does_not_jump_to_returned(self, client, store):
         tid = _opened_id(client)
@@ -1118,6 +1163,25 @@ class TestTheLegacyFoldsAreUntouched:
         client.post(f"/api/v1/fund/tickets/{tid}/link",
                     json={"link_kind": "serves", "target_id": D_CHAIR_BORN})
         return store
+
+    def test_THE_NULL_ARM_no_legitimate_traffic_produces_a_phantom(self, busy):
+        """THE ZERO, WITH ITS DOMAIN STATED — and the domain is the half that
+        makes it a result.
+
+        Three tests pin the POSITIVE phantom cases (an id no adapter has seen,
+        for each of the three event types). None pinned the negative: that a
+        store worked hard through every door produces NO phantoms. A phantom
+        detector that fired on legitimate traffic would be exactly as useless
+        as one that never fired, and only this arm can tell the difference.
+        """
+        folded = tk.fold(busy, runs=None, now="2026-08-25T00:00:00Z")
+        assert folded["phantom_events"] == []
+        # THE DOMAIN. Seven events compared — two legacy rows and the five
+        # ticket events the `busy` fixture drives through the three doors —
+        # against three tickets. A zero over an empty store would be this
+        # assertion passing while comparing nothing at all.
+        assert len(busy.events) == 7
+        assert len(folded["tickets"]) == 3
 
     def test_the_desk_view_is_byte_identical(self, busy):
         from app.fund.events import EventType
