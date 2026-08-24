@@ -78,6 +78,15 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
   do not enter a blind envelope.
 
 **BUILT**
+- **THE DATA FABRIC round (CEO 'yep')**: FRED key live and point-in-time
+  VERIFIED (vintage windows honored); GOLD dossier v1 dispatched (Doc,
+  third analytical-muscle pick, real-rates centerpiece now vintage-capable);
+  two chair probes landed big — SEC companyfacts (free PIT fundamentals,
+  458 concepts w/ filed dates) and **FMP's FREE tier serves the forward
+  earnings calendar with estimates** (the measured hole under the flagship,
+  closed at zero cost pending Doc's validation). Four fabric requests filed
+  with named consumers; three PLATFORM_FACTS entries; news/sentiment
+  explicitly NOT added (embargo). Norgate stays the CEO's click.
 - **D38 shipped THROUGH a four-strike API outage and is chair-verified**:
   the true-target sentence (LEAN's constant 1.00 excess Sharpe, read not
   inverted), the register draft rewritten, the corrected inversion's own
