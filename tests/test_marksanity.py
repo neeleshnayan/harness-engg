@@ -621,6 +621,13 @@ def test_the_approval_endpoint_refuses_and_records_the_refusal():
     assert p["quote_price"] == 100.00
     assert p["reference_mark"] == 415.04
     assert abs(p["move_pct"] - 75.9) < 0.1
+    # BOTH holdings folds on the record (d79f65b1). The riskofficer audits this
+    # channel from the event log, so a divergence between the fund's true book
+    # and the retired fill-sum has to be legible THERE, not in a log line — on
+    # 2026-08-24 the two disagreed about nine symbols and nothing recorded it.
+    assert p["held_qty"] == 1.0
+    assert p["held_qty_from_fills"] == 1.0
+    assert p["holdings_basis"] == "positions_projection"
 
 
 def test_a_mark_sanity_refusal_does_NOT_freeze_the_order():
