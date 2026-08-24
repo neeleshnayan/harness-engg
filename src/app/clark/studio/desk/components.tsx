@@ -169,11 +169,15 @@ export function RunRow({ run, showSeat = true }: { run: DeskRun; showSeat?: bool
             {run.verdict}
           </span>
         )}
-        {run.tokens != null && (
-          <span className={`font-mono text-[10px] tabular-nums ${KT.muted}`}>
-            {fmtTokens(run.tokens)} tok
-          </span>
-        )}
+        {/* THE SPEND-DEMOTION RULE (docs/design/RUN_PAGE_2026-08-24.md; CEO,
+            verbatim: *"this puts the spend on my focus lens; I am more
+            interested in the work being done. this can be a small mention per
+            ticket not the focus."*). The token count used to sit HERE, on the
+            card's face, beside the verdict — the second-most prominent thing
+            on a row about a piece of work. It moved to the metadata footer
+            below, which already carries the model, the trace and the cost
+            estimate; nothing is deleted and the figure is one click away on
+            every row that had it. */}
         <span className={`font-mono text-[10px] ${KT.muted}`}>
           {bullets.length ? (open ? "− why" : "+ why") : ""}
         </span>
@@ -195,6 +199,13 @@ export function RunRow({ run, showSeat = true }: { run: DeskRun; showSeat?: bool
           {run.trace_id && <> · trace {run.trace_id.slice(0, 8)}</>}
           {run.model && <> · model {run.model}</>}
           {run.resolved_at && <> · resolved {fmtAt(run.resolved_at)}</>}
+          {/* The spend, in the one place the spec allows it: the small muted
+              metadata line, beside the model and the trace. NOTHING IS LOST —
+              the figure that was on the face is here, verbatim, and an absent
+              one still says so rather than reading as zero. */}
+          {run.tokens != null
+            ? <> · {fmtTokens(run.tokens)} tok</>
+            : <> · tokens not recorded</>}
           {cost != null && <> · ≈{fmtUsd(cost)} est.</>}
         </p>
       )}
@@ -489,17 +500,26 @@ export function SeatTelemetryChips({ t, compact = false }: {
           </span>
         ) : null}
 
-        {typeof toks === "number" ? (
-          <span title={note}
-                className={`inline-flex items-center gap-1 rounded-full border border-[var(--kt-border)] px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.1em] ${KT.muted}`}>
-            <span className="tabular-nums text-[var(--kt-text)]">{tokensLabel(t)}</span>
-            tok
-            {t.costUsdToday != null && (
-              <span className="tabular-nums">· {costLabel(t)}</span>
-            )}
-          </span>
-        ) : null}
+        {/* THE TOKEN CHIP WAS HERE. It moved down to the quiet line (D42, the
+            SPEND-DEMOTION RULE — docs/design/RUN_PAGE_2026-08-24.md amends the
+            seat card's ledger zone: "the three-tile row is struck; a seat card
+            carries one quiet line"). A bordered chip at the same weight as
+            "running now" and "3 runs today" put the seat's spend among the
+            answers to "what is this seat DOING", which is the focus-lens
+            complaint in one component. */}
       </div>
+
+      {/* THE QUIET LINE. Runs are the work and stay a chip; tokens and cost
+          are a sentence underneath, at metadata scale. Absent stays absent —
+          a seat with no token figure says so below rather than rendering a
+          chip that is simply missing. */}
+      {typeof toks === "number" && (
+        <p className={`font-mono text-[10px] tabular-nums ${KT.muted}`}
+           title={note}>
+          {tokensLabel(t)} tok
+          {t.costUsdToday != null ? ` · ${costLabel(t)}` : ""}
+        </p>
+      )}
 
       {/* Full sentences, on the roomier surface (the floor's desk detail). */}
       {!compact && gap && (
