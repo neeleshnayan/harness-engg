@@ -393,6 +393,30 @@ test("fccb9cf3: EVERY page passes its OWN failure flag — a literal there is a 
   }
 });
 
+test("fccb9cf3: Donna's memo card gets a read STATE, not an `unreachable || "
+  + "payload === null` disjunction — the Gauntlet's find, on the page the rest "
+  + "of this ticket had already audited", () => {
+  /* `memo` is null before the first answer AND after a failure, so OR-ing the
+     two printed "Her memo could not be read — UNKNOWN, not absent" about a
+     fetch still in the air. This is a SOURCE check because the component's
+     branches are JSX returns; the rendered proof is the in-flight browser arm
+     in the dispatch report. */
+  const src = strip(CEO);
+  assert.ok(src.includes("const memoRead = readState(memo !== null, memoErr)"),
+    "the memo read must derive its own three states");
+  assert.ok(src.includes("<DailyMemoCard memo={memo} read={memoRead} />"),
+    "and the card must be handed the state, not the two raw values");
+  assert.ok(!src.includes("unreachable || memo === null"),
+    "the disjunction that collapsed the two is the defect itself");
+  // ORDER MATTERS INSIDE THE CARD: the loading branch must be tested before
+  // the unreadable one, or a pending read falls into the loud sentence again.
+  const card = src.slice(src.indexOf("function DailyMemoCard"));
+  const loading = card.indexOf('read === "loading"');
+  const failed = card.indexOf('read === "unreadable"');
+  assert.ok(loading > 0 && failed > 0, "both branches must exist");
+  assert.ok(loading < failed, "loading is decided first");
+});
+
 test("fccb9cf3: the CEO desk HANDS its derived state to the two folds that "
   + "choose a sentence from it — a literal argument there renders one state's "
   + "words in both, which is the ticket, and it survived a mutation pass", () => {
