@@ -37,7 +37,8 @@ import {
 } from "../cardState";
 import { deskLanes } from "../deskLanes";
 import {
-  REC_STAGE_LABEL, bodyWithTail, clampLine, recLifecycle,
+  ASK_HEADLINE_MAX, CARD_HEADLINE_MAX, REC_STAGE_LABEL, bodyWithTail,
+  clampLine, recLifecycle,
 } from "../cardAnatomy";
 import { isRecordRow } from "../recordRow";
 import { StageRail } from "../CardRail";
@@ -1073,7 +1074,11 @@ function RecCard({ item, onDecide, sources, now }: {
             well without a colour, and the design brief is explicit that
             hierarchy comes from type and space. */}
         <span className={`min-w-0 flex-1 font-mono text-[10px] ${KT.muted}`}>
-          {rankReason(item)}
+          {/* WITHOUT THE TWO FACTS THIS CARD ALREADY RENDERS. The due date is
+              in the chip at the top of the row and the wait is the rail's
+              age — printing either again is the same paragraph twice, which
+              is what the CEO called an infinite scroll. */}
+          {rankReason(item, { due: true, waiting: true })}
         </span>
         {rest && (
           <button type="button" onClick={() => setOpen((v) => !v)}
@@ -1616,7 +1621,8 @@ function AskRow({ ask, onDecided, sources }: {
      is the wall of prose the CEO rejected the card for. Nothing is lost: the
      tail goes behind "+ the incident", and `clampLine`'s test proves the
      rejoin is exact. */
-  const face = clampLine(ask.card.headline || ask.subject);
+  const face = clampLine(ask.card.headline || ask.subject,
+                         emphasised ? ASK_HEADLINE_MAX : CARD_HEADLINE_MAX);
 
   return (
     <div className={`${KT.panel} ${emphasised ? "p-4" : "p-3"} ${

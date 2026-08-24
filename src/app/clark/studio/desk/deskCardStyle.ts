@@ -53,6 +53,13 @@ export interface CardStyle {
    * fighting it: the card that is hardest to take back is the one whose name
    * must be readable at a glance.
    *
+   * THESE ARE APPROXIMATIONS AND THE COMMENT SAYS SO. A character count cannot
+   * guarantee a line in a proportional font — the 16px card fitted 59 wide
+   * characters and 65 narrow ones in the same 539px — so 62 is the midpoint of
+   * a measured range, not a bound. What the clamp guarantees is one line for a
+   * typical headline and occasionally two; what it removes is the seven-line
+   * paragraph that was rendering as a card's name.
+   *
    * Reproduce: `scratchpad/d42_probe_width.js` through `d42shot.js`.
    */
   headlineMax: number;

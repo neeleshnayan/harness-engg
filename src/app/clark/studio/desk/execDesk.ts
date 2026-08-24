@@ -464,10 +464,25 @@ const REVERSIBILITY_REASON: Record<Reversibility, string> = {
  * Absences are stated, never smoothed: an unpriced row says it is unpriced
  * rather than reading as a cheap one, and a $0 row says nothing moves rather
  * than reading as unimportant.
+ *
+ * `omit` EXISTS BECAUSE A FACT RENDERED TWICE ON ONE CARD IS CLUTTER (D42,
+ * found by looking at the rendered desk). The recommendation card printed
+ * "due 2026-08-26" in its chip AND again as this sentence's first clause, and
+ * after the lifecycle rail landed it printed "filed · 3.2h" above "waiting
+ * since 2026-08-24" — the same timestamp twice, once as an age and once as a
+ * date. Both defaults are FALSE, so every existing caller is unchanged; only
+ * a caller that demonstrably renders the fact itself may drop it.
  */
-export function rankReason(i: DeskItem): string {
+export interface RankReasonOmit {
+  /** The caller renders the date itself (the due chip). */
+  due?: boolean;
+  /** The caller renders the wait itself (the lifecycle rail's age). */
+  waiting?: boolean;
+}
+
+export function rankReason(i: DeskItem, omit: RankReasonOmit = {}): string {
   const parts: string[] = [];
-  if (i.dueDate) parts.push(`due ${i.dueDate}`);
+  if (i.dueDate && !omit.due) parts.push(`due ${i.dueDate}`);
   parts.push(REVERSIBILITY_REASON[i.reversibility]);
   if (i.moneyUsd == null) {
     parts.push("no dollar figure stated — ordered by age within its band, not priced as small");
@@ -476,7 +491,16 @@ export function rankReason(i: DeskItem): string {
   } else {
     parts.push(`$${i.moneyUsd.toLocaleString("en-US", { maximumFractionDigits: 2 })} at stake`);
   }
-  parts.push(i.waitingSince ? `waiting since ${i.waitingSince.slice(0, 10)}` : "undated");
+  /* THE WAIT IS OMITTED ONLY WHEN A CALLER ALREADY SHOWS IT — never because it
+     is inconvenient. `undated` still renders in that case: a caller's rail can
+     say "how long has this sat here" from a timestamp, and it says nothing at
+     all when there is no timestamp, which is exactly when this sentence must
+     speak. Absence keeps a voice. */
+  if (!omit.waiting) {
+    parts.push(i.waitingSince ? `waiting since ${i.waitingSince.slice(0, 10)}` : "undated");
+  } else if (!i.waitingSince) {
+    parts.push("undated");
+  }
   return parts.join(" · ");
 }
 

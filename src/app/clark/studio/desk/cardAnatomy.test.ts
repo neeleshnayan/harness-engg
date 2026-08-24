@@ -14,8 +14,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  CARD_HEADLINE_MAX, bodyWithTail, clampLine, nextMoveLine, recLifecycle,
-  rejoin,
+  ASK_HEADLINE_MAX, CARD_HEADLINE_MAX, bodyWithTail, clampLine, nextMoveLine,
+  recLifecycle, rejoin,
 } from "./cardAnatomy.ts";
 
 /** Verbatim from the CEO's desk, 2026-08-24 — the four headlines that ran to
@@ -35,6 +35,14 @@ const LIVE_HEADLINES = [
 ];
 
 /* -------------------------------------------------------------- the clamp - */
+
+test("THE 15px ASK FACE GETS A SMALLER BUDGET THAN THE 13px DEFAULT. Bigger "
+  + "type, fewer characters on a line — measured at ~80 for the ask's column, "
+  + "and a single shared number left every emphasised ask on two lines", () => {
+  assert.ok(ASK_HEADLINE_MAX < CARD_HEADLINE_MAX,
+    `${ASK_HEADLINE_MAX} must be under ${CARD_HEADLINE_MAX}`);
+  assert.ok(ASK_HEADLINE_MAX >= 40, "a budget under 40 is not a name, it is a stub");
+});
 
 test("a short headline is untouched and reports itself unclamped", () => {
   const c = clampLine("A short name");

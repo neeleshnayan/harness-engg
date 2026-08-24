@@ -232,6 +232,50 @@ test("every row can say WHY it is where it is, in words", () => {
     /^due 2026-09-08/);
 });
 
+/* --------------------------------------- rankReason's omissions (D42) ----- */
+
+const dated: DeskItem = {
+  key: "a", kind: "recommendation", moneyUsd: 630,
+  reversibility: "reversible", waitingSince: "2026-08-24T00:00:00Z",
+  dueDate: "2026-08-26",
+};
+
+test("D42: the DEFAULT is unchanged — every existing caller still gets the "
+  + "date and the wait, and this assertion is what makes the option safe to "
+  + "have added at all", () => {
+  const r = rankReason(dated);
+  assert.match(r, /^due 2026-08-26/);
+  assert.match(r, /waiting since 2026-08-24/);
+});
+
+test("D42: a caller that renders the due chip and the rail's age drops both, "
+  + "and KEEPS everything else — a card printed 'due 2026-08-26' in its chip "
+  + "and again in this sentence, and 'filed · 3.2h' above 'waiting since "
+  + "2026-08-24': the same two facts twice", () => {
+  const r = rankReason(dated, { due: true, waiting: true });
+  assert.doesNotMatch(r, /due 2026-08-26/);
+  assert.doesNotMatch(r, /waiting since/);
+  assert.match(r, /revertible by a commit/);
+  assert.match(r, /\$630 at stake/);
+});
+
+test("D42: the two omissions are INDEPENDENT — a caller with a chip and no "
+  + "rail must not silently lose the wait", () => {
+  assert.doesNotMatch(rankReason(dated, { due: true }), /due 2026-08-26/);
+  assert.match(rankReason(dated, { due: true }), /waiting since 2026-08-24/);
+  assert.match(rankReason(dated, { waiting: true }), /^due 2026-08-26/);
+  assert.doesNotMatch(rankReason(dated, { waiting: true }), /waiting since/);
+});
+
+test("D42: AN UNDATED ROW STILL SAYS 'undated' EVEN WHEN THE WAIT IS OMITTED. "
+  + "The caller's rail can only speak from a timestamp, so it says nothing at "
+  + "all in exactly the case where this sentence must — absence keeps a "
+  + "voice", () => {
+  const r = rankReason({ ...dated, waitingSince: null },
+                       { due: true, waiting: true });
+  assert.match(r, /undated/);
+});
+
 test("a seat's STATED reversibility beats the kind table", () => {
   /* The kind table's weak spot is the CEO's own queue: `awaits-ceo`, `batch`
    * and `challenge` are routing words that say nothing about the act, so every

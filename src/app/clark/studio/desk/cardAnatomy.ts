@@ -46,6 +46,23 @@
  */
 export const CARD_HEADLINE_MAX = 87;
 
+/**
+ * The budget for the EMPHASISED request card's 15px face.
+ *
+ * MEASURED THE SAME WAY, on the same page: at 15px in the ask card's ~670px
+ * column the boundary sits near 80 characters — a 78-character headline
+ * rendered on one line and an 86-character one wrapped. 76 keeps a margin.
+ *
+ * A CHARACTER BUDGET CANNOT GUARANTEE A LINE IN A PROPORTIONAL FONT, and this
+ * comment is the honest version of a claim the first draft made too strongly:
+ * "MMMM" and "iiii" are the same four characters and nowhere near the same
+ * width, so the guarantee here is "one line for a typical headline, sometimes
+ * two for a wide-glyph one — never the seven this replaced".
+ *
+ * Reproduce: `scratchpad/d42_probe_width.js` through `d42shot.js`.
+ */
+export const ASK_HEADLINE_MAX = 76;
+
 export interface ClampedLine {
   /** What the card renders. Carries a trailing ellipsis when it was cut. */
   line: string;
