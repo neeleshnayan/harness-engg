@@ -213,3 +213,53 @@ export function awaitingHeadline(input: AwaitingInput): AwaitingHeadline {
     reconciliation,
   };
 }
+
+/* ------------------------------------------------------- the shelf line --- */
+
+/**
+ * THE SHELF LINE — the hero number partitioned, and honest about not knowing.
+ *
+ * The line itself is the CEO's ("are you sure?" on seeing 51 awaiting him, and
+ * he was right: one number was conflating four obligations). What this
+ * function adds, D42, is the case the first cut did not have: **an unreadable
+ * desk rendered `0 to decide today · 0 decided — execution yours · 0 asks
+ * awaiting your routing call · 0 with no deadline` underneath a hero that
+ * correctly said `unknown`.** Four confident zeros beside an admitted unknown,
+ * about the same rows, on the CEO's own desk — found in the dead-spine pass,
+ * which is why that pass is not optional.
+ *
+ * `null` is the whole point of the return type. The caller renders a sentence,
+ * never a row of dashes the eye reads as zeroes.
+ */
+export interface DeskShelves {
+  decideToday: number;
+  exec: number;
+  asks: number;
+  noDeadline: number;
+}
+
+/** One card's worth of the two fields the shelves partition on. */
+export interface ShelfItem {
+  dueDate: string | null;
+  /** The spine's `execution_yours` as this page resolved it. */
+  executionYours: boolean;
+}
+
+/**
+ * @param readable did `/fund/desk` answer at all? `false` returns null.
+ * @param today the fund's UTC day, `YYYY-MM-DD` — passed in, never read from
+ *   the browser, because "due today" must mean the fund's day and because a
+ *   clock a test cannot set is a branch a test cannot reach.
+ */
+export function deskShelves(
+  readable: boolean, items: readonly ShelfItem[], asks: number, today: string,
+): DeskShelves | null {
+  if (!readable) return null;
+  let decideToday = 0, exec = 0, noDeadline = 0;
+  for (const it of items) {
+    if (it.executionYours) { exec += 1; continue; }
+    if (it.dueDate && it.dueDate <= today) decideToday += 1;
+    else noDeadline += 1;
+  }
+  return { decideToday, exec, asks, noDeadline };
+}

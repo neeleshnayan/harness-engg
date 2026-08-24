@@ -21,7 +21,9 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { readFileSync } from "node:fs";
 
-import { awaitingHeadline, chipShowsTotal } from "./deskAwaiting.ts";
+import {
+  awaitingHeadline, chipShowsTotal, deskShelves,
+} from "./deskAwaiting.ts";
 import { countCheck } from "./decisionList.ts";
 
 /* --------------------------------------------------- the served figure --- */
@@ -276,4 +278,60 @@ test("the chip can suppress its total, and does so only when asked", () => {
   const CTO = code(readFileSync(new URL("./cto/page.tsx", import.meta.url), "utf8"));
   assert.ok(!/total="already-on-screen"/.test(CTO),
     "the CTO console has no headline of its own — its chip must keep the total");
+});
+
+/* ------------------------------------------- the shelf line (D42) --------- */
+
+/* Found in D42's DEAD-SPINE PASS, which is why that pass is not optional: the
+   hero number correctly rendered "unknown" while the line directly beneath it
+   said "0 to decide today · 0 decided — execution yours · 0 asks awaiting your
+   routing call · 0 with no deadline" — four confident zeros about the same
+   rows, on the CEO's own desk. A partition of an unknown number is unknown. */
+
+const shelfItem = (dueDate: string | null, executionYours = false) =>
+  ({ dueDate, executionYours });
+
+test("D42: AN UNREADABLE DESK HAS NO SHELVES — null, so the caller renders a "
+  + "sentence. Four zeros beside an admitted `unknown` hero is the "
+  + "absence-as-zero error on this fund's most-read line", () => {
+  assert.equal(deskShelves(false, [], 0, "2026-08-24"), null);
+  // And it stays null even when rows happen to be in hand: unreadable is
+  // unreadable, and a partial fold is not a partition of the whole.
+  assert.equal(
+    deskShelves(false, [shelfItem("2026-08-24")], 3, "2026-08-24"), null);
+});
+
+test("D42: a readable desk with nothing on it is FOUR ZEROS, not null — an "
+  + "empty desk is a fact and must not read as an outage", () => {
+  assert.deepEqual(deskShelves(true, [], 0, "2026-08-24"),
+    { decideToday: 0, exec: 0, asks: 0, noDeadline: 0 });
+});
+
+test("D42: execution-yours WINS over the date. A row he already decided is "
+  + "not a decision he owes today, whatever its due date says", () => {
+  const s = deskShelves(true,
+    [shelfItem("2026-08-01", true), shelfItem("2026-08-01")], 0, "2026-08-24");
+  assert.deepEqual(s, { decideToday: 1, exec: 1, asks: 0, noDeadline: 0 });
+});
+
+test("D42: the boundary is INCLUSIVE — a row due exactly today is due today, "
+  + "and a row due tomorrow is not", () => {
+  const on = deskShelves(true, [shelfItem("2026-08-24")], 0, "2026-08-24");
+  assert.equal(on?.decideToday, 1);
+  const after = deskShelves(true, [shelfItem("2026-08-25")], 0, "2026-08-24");
+  assert.equal(after?.decideToday, 0);
+  assert.equal(after?.noDeadline, 1);
+  const before = deskShelves(true, [shelfItem("2026-08-23")], 0, "2026-08-24");
+  assert.equal(before?.decideToday, 1, "an OVERDUE row is still to decide today");
+});
+
+test("D42: THE SHELVES PARTITION — every card lands in exactly one of the "
+  + "three card shelves, so the line can never sum past the hero", () => {
+  const items = [
+    shelfItem(null), shelfItem("2026-08-24"), shelfItem("2026-09-01"),
+    shelfItem("2026-08-24", true), shelfItem(null, true),
+  ];
+  const s = deskShelves(true, items, 7, "2026-08-24")!;
+  assert.equal(s.decideToday + s.exec + s.noDeadline, items.length);
+  assert.equal(s.asks, 7, "asks are counted separately, never folded in");
 });

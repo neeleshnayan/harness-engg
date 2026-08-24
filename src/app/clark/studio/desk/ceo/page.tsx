@@ -23,7 +23,7 @@ import type { Decision, DecisionGroup } from "../decisionList";
 import {
   decisionList, foldedCounts, orderingHazard,
 } from "../decisionList";
-import { awaitingHeadline } from "../deskAwaiting";
+import { awaitingHeadline, deskShelves } from "../deskAwaiting";
 import { officerDesk } from "../officerQueues";
 import { CooTriageChip, ProvenanceChip } from "../components";
 import { cardStyle } from "../deskCardStyle";
@@ -264,6 +264,15 @@ export default function CeoDeskPage() {
   const cardItems = useMemo(
     () => list.all.flatMap((d) => (d.kind === "ask" ? [] : [d.item])), [list]);
 
+  /* THE FUND'S CLOCK, NOT THE BROWSER'S, in one place.
+     "Resolved today" must mean the fund's UTC day, and a card's "how long has
+     this sat here" must be measured on the same clock the lanes use — two
+     clocks on one page is the same class of defect as two counters, which this
+     desk has already shipped twice. Falls back to the browser only when the
+     spine sent no timestamp at all, and every reader is then a best effort
+     rather than wrong. */
+  const deskNow = engine?.at ?? new Date().toISOString();
+
   /* THE SHELVES. CEO, 2026-08-24, on seeing "51 AWAITING YOU": "are you
      sure?" — he was right. One number conflated four different obligations:
      things to DECIDE today, things he already decided whose EXECUTION is
@@ -272,18 +281,18 @@ export default function CeoDeskPage() {
      stays the served total (the integrity fold above is untouched); this
      line SHELVES it, computed from fields every row already carries — no
      new count, a partition of the existing one. */
-  const shelves = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    let decideToday = 0, exec = 0, noDeadline = 0;
-    for (const it of cardItems) {
-      if (executionYours(it)) { exec += 1; continue; }
-      const due = it.dueDate;
-      if (due && due <= today) decideToday += 1;
-      else noDeadline += 1;
-    }
-    const asks = list.all.filter((d) => d.kind === "ask").length;
-    return { decideToday, exec, asks, noDeadline };
-  }, [cardItems, list]);
+  const shelves = useMemo(
+    () => deskShelves(
+      desk !== null,
+      cardItems.map((it) => ({
+        dueDate: it.dueDate, executionYours: executionYours(it),
+      })),
+      list.all.filter((d) => d.kind === "ask").length,
+      // THE FUND'S DAY, not the browser's — "due today" is a claim about the
+      // fund's UTC day, and `deskNow` is the one clock this page reads.
+      deskNow.slice(0, 10),
+    ),
+    [desk, cardItems, list, deskNow]);
   const gap = useMemo(() => moneyGap(cardItems), [cardItems]);
   const coverage = useMemo(() => rankCoverage(cardItems), [cardItems]);
 
@@ -294,15 +303,6 @@ export default function CeoDeskPage() {
   const steer = useMemo(
     () => steeringSentence({ view: engine, needsYou: headline.value }),
     [engine, headline]);
-
-  /* THE FUND'S CLOCK, NOT THE BROWSER'S, in one place.
-     "Resolved today" must mean the fund's UTC day, and a card's "how long has
-     this sat here" must be measured on the same clock the lanes use — two
-     clocks on one page is the same class of defect as two counters, which this
-     desk has already shipped twice. Falls back to the browser only when the
-     spine sent no timestamp at all, and every reader is then a best effort
-     rather than wrong. */
-  const deskNow = engine?.at ?? new Date().toISOString();
 
   /* THE FIVE LANES. Lane (a) is the decision list this page already builds;
      the other four are folded here from the same payload, each carrying the
@@ -375,12 +375,27 @@ export default function CeoDeskPage() {
                 "51" alone reads as 51 decisions; the truth is four shelves
                 and only the first is this morning's. */}
             <p className={`mt-1 text-sm ${KT.body}`}>
-              <span className={steer.overdue ? KT.sev.warn : "font-medium"}>
-                {shelves.decideToday} to decide today
-              </span>
-              {" · "}{shelves.exec} decided — execution yours
-              {" · "}{shelves.asks} asks awaiting your routing call
-              {" · "}{shelves.noDeadline} with no deadline
+              {shelves === null ? (
+                /* FOUR ZEROES UNDER AN "unknown" HERO IS THE ABSENCE-AS-ZERO
+                   ERROR, on this fund's most-read line. Caught in D42's
+                   dead-spine pass: the hero said `unknown` and this line
+                   underneath it said "0 to decide today", about the same
+                   rows. A partition of an unknown number is unknown. */
+                <span className={KT.muted}>
+                  The desk could not be read, so how that number splits —
+                  today&apos;s decisions, your executions, your routing calls —
+                  is unknown too.
+                </span>
+              ) : (
+                <>
+                  <span className={steer.overdue ? KT.sev.warn : "font-medium"}>
+                    {shelves.decideToday} to decide today
+                  </span>
+                  {" · "}{shelves.exec} decided — execution yours
+                  {" · "}{shelves.asks} asks awaiting your routing call
+                  {" · "}{shelves.noDeadline} with no deadline
+                </>
+              )}
             </p>
             {/* THE ONE STEERING SENTENCE. Overdue is the single condition on
                 this desk that earns a colour, because it is the only one that
