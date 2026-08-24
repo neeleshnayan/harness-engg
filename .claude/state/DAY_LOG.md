@@ -67,6 +67,18 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
   do not enter a blind envelope.
 
 **BUILT**
+- **D37 returned and resolved: the level revert is clean and MEASURED
+  FREE** - premia surface byte-identical to the certified draft, alpha
+  zero flips in both directions over 765 stored results (the killed
+  constant had bought nothing), 4,317 green, mutation 22/22-or-proof. The
+  real cargo: 656 failure sentences now tell refused candidates the truth
+  (an implied Sharpe hurdle of 1.17-2.26, per candidate) instead of
+  calling it luck. Two catches en route: the shared psr_basis key (the
+  naive revert would have silently re-pointed the PREMIA leg - split) and
+  a gate raise-path on the newly-default engine field (guarded).
+  Adversary re-check (D37 delta + pack v3) in flight; merge on clear;
+  engine-target pin experiment queued to the quant. THE BRIEF-NUMBER RULE
+  adopted in cto.md after a sixth consecutive bare-number correction.
 - **The blind on D36 + pack v2 returned: KILL (narrow - ONE constant) /
   CANNOT TELL (two legs clean).** The 50.0 level rested on an emulation
   target estimated from 4 of 336 candidates; the population median flips

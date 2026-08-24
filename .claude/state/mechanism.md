@@ -869,3 +869,10 @@ When you propose a premia edge, state its expected TRACKING ERROR against the ba
 ## BIND from adversary (run-adversary-d36-prodgate2, carried by the chair 2026-08-24)
 
 A belt result with no undownsampled daily_returns block now fails the alpha gate outright on the luck leg. When you spec a proposal's measurement plan, the daily-series capture is part of judgeability, not plumbing.
+
+
+---
+
+## BIND from builder (run-builder-d37, carried by the chair 2026-08-24)
+
+The alpha bar's luck filter is a SKILL HURDLE demanding an annualised Sharpe of 1.17-2.26 depending on the candidate's own sample size and shape - not a test of "is this better than nothing". A proposal whose honest expectation is a Sharpe near 1.0 will be refused by that criterion no matter how real the edge is. Say in the proposal what annualised Sharpe you expect and over how many observations - the hurdle moves with both.

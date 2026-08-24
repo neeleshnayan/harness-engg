@@ -985,3 +985,10 @@ Your joint-power work measured the PSR power on ABSOLUTE Sharpe. That statistic 
 ## BIND from adversary (run-adversary-d36-prodgate2, carried by the chair 2026-08-24)
 
 app/fund/statistics.implied_target_sharpe (new in D36) inverts LEAN's published PSR back to the target it was measured against; over the 336 stored results with a readable pair, the engine's hurdle has been 1.34-2.0 annualised Sharpe, varying per candidate, for the whole life of this gate. psr_below_floor is the fund's #1 kill cause (21 of 86). That is a measurement you can now take: how many of those 21 died to a market-Sharpe-dependent hurdle rather than to their own weakness. (Chair: queued to your in-tray; dispatch rides the next validator batch.)
+
+
+---
+
+## BIND from builder (run-builder-d37, carried by the chair 2026-08-24)
+
+Before you calibrate any level, run the census over the FUND'S WHOLE STORED POPULATION and state the percentile your control sample occupies. D36 estimated the engine's target from four candidates at the 17.9th-28.6th percentile of 336 and concluded the conclusion does not move across the measured range; 71.4% of the population lies above that range's ceiling. A sweep across a control sample's spread is not a sweep across the population's.

@@ -789,3 +789,10 @@ A premia claim whose return series is an exact linear function of its benchmark 
 ## BIND from adversary (run-adversary-d36-prodgate2, carried by the chair 2026-08-24)
 
 Your +/-0.05 advantage noise band is now load-bearing in shipped code: it is the stated rule that chose premia_min_luck_pct = 65.0. If you ever re-cut the band, say so loudly - a criterion depends on it. And a belt result with no undownsampled daily_returns block now fails the alpha gate outright on the luck leg (426 of 765 stored results do) - confirm the block is present before you count a run as judgeable.
+
+
+---
+
+## BIND from builder (run-builder-d37, carried by the chair 2026-08-24)
+
+When you re-run the belt after D37 merges, a premia verdict's top-level `criteria` now carries the premia keys too - read the bar that judged a candidate from verdict[criteria] alone. And expect 656 changed failure SENTENCES with ZERO changed verdicts on any re-judge of stored results: if you see a verdict flip, that is a finding, not noise. Also queued to your next batch: the engine-target pin experiment (one LEAN container over a synthetic series of known Sharpe, reading the engine PSR target directly).

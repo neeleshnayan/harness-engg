@@ -801,3 +801,31 @@ which estimate of the shipped arm; the pre-committed falsifier saved it.
 (2) The kill->repair->clear loop's eighth iteration: D37 dispatched with
 the certified surface frozen and only the level + residual doc defects in
 scope.
+
+
+---
+
+## 2026-08-24 — D37 RESOLVED + THE BRIEF-NUMBER RULE (sixth consecutive measured brief defect, enough)
+
+D37 shipped the level revert clean: premia surface byte-identical to the
+certified draft; alpha revert measured FREE (zero flips both directions
+over 765 - the killed constant had bought nothing); the real cargo is 656
+corrected failure sentences now stating the per-candidate implied hurdle
+(1.17-2.26 annualised). Two defects caught in flight: the shared psr_basis
+key (a revert IS an item interaction - the premia leg would have been
+silently re-pointed) and a raise-path on the newly-default engine field.
+
+**THE BRIEF-NUMBER RULE, binding on the chair from now on: every number in
+a dispatch brief is either MEASURED (with the command that reproduces it)
+or labeled DERIVED (with its formula), never bare.** Six consecutive
+dispatches corrected a bare number in the chair's brief. This time the
+0.0909 I wrote as "the population median" was the adversary's clock-factor
+DERIVATION; the measured median is 0.0887. And the honesty note carried to
+the record: the adversary's rule-flip was demonstrated at 0.0909, not at
+0.0887 - the flip point lies in (0.0843, 0.0909); the kill stands on the
+estimate-vs-population ground regardless.
+
+Sequenced: adversary re-check (D37 delta + pack v3) in flight -> merge on
+clear -> apply the register-why draft (chair, register action) -> the
+engine-target pin experiment rides the quant's next batch. GATE_VERSION
+stays v4.4 (the draft never judged anything; no phantom version).

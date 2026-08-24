@@ -299,3 +299,26 @@ Measured basis: D36 — Junior B returned 50 passed and 5 refusals; two
 were the specification being wrong about a near-constant series, three
 were a real API precision ceiling. Zero were smoothed over. The refusals
 were worth more than the passes.
+
+
+## A CONSTANT REVERT IS A DEPENDENCY CHANGE (EVOLVE applied 2026-08-24, run-builder-d37, chair-reviewed)
+
+Before writing the comment that explains a reverted constant, grep every
+reader of the key you moved and run their tests. A value that two callers
+share is two decisions wearing one name, and reverting it for one caller
+silently re-decides for the other.
+Measured basis: D37 - reverting CRITERIA[psr_basis] for the alpha bar
+re-pointed the premia luck leg at the wrong statistic and turned 18 tests
+red; the fix (premia_psr_basis) was invisible from the brief and found only
+by running the suite two minutes after a two-line edit.
+
+## MEASURE A DISPUTED NUMBER BEFORE EITHER VERSION ENTERS A COMMENT (EVOLVE applied 2026-08-24, run-builder-d37, chair-reviewed)
+
+When a brief and a BIND (or two seats) give different values for the same
+statistic, that disagreement IS the finding - measure it yourself and
+record which construction produced each figure. Do not pick the one that
+appears in your brief.
+Measured basis: D37 - the brief's 0.0909 and the adversary's 0.0887 were
+both "the population median"; the first is a clock-factor derivation and
+the second is the measurement, and the derivation had already travelled
+into a dispatch brief as fact.
