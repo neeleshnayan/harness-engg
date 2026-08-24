@@ -810,22 +810,43 @@ class TestTheApprovalGuardCoversEveryDecision:
     makes the two sentences the same sentence.
     """
 
+    #: THE LIST IS THE DESIGN'S, TRANSCRIBED, NOT THE CODE'S — and the second
+    #: mutation pass is why. Parametrizing over ``tk.DECISION_TRANSITIONS``
+    #: killed neither M19 nor M20, because the mutant SHRINKS that constant and
+    #: the test's own domain shrank with it: the states the mutant removed were
+    #: never asked about. A test whose parameter list is read from the value
+    #: under test has asserted self-consistency and can prove nothing.
+    #:
+    #: So this is memo §2.3 in longhand — *"decision transitions (``approved``,
+    #: ``accepted``, ``declined``, all terminals)"* — expanded against §1.2's
+    #: five terminals, and ``test_the_constant_matches_the_design`` below is
+    #: what stops the transcription and the constant from drifting apart.
+    #:
+    #: ``expired`` is absent, and that is not a hole: it is refused outright
+    #: while ``AGING_POLICY_VERSION`` is None, by a check that runs BEFORE the
+    #: guard, so there is no admitted path through the guard to test.
+    #: ``TestTerminalRequirements`` pins that refusal instead.
+    _GUARDED = ("approved", "accepted", "declined", "done", "superseded",
+                "merged")
+
     #: The record each terminal must carry, so the door reaches the guard
-    #: rather than stopping at the 422 in front of it. Terminals with no
+    #: rather than stopping at the 422 in front of it. Transitions with no
     #: requirement pass an empty dict.
     _RECORD = {"done": {"citation": "an artifact"},
                "declined": {"reason": "not this quarter"},
                "superseded": {"superseder_ref": "req:the-newer-one"},
                "merged": {"decision_ref": "the-canonical-row"}}
 
-    @pytest.mark.parametrize("to", [t for t in tk.DECISION_TRANSITIONS
-                                    if t != "expired"])
+    def test_the_constant_matches_the_design(self):
+        """The transcription above against the code, in one place. If §2.3's
+        list and ``DECISION_TRANSITIONS`` ever diverge, this says so — and it
+        is the only test here that may read the constant, precisely because
+        checking the constant is its whole job."""
+        assert set(tk.DECISION_TRANSITIONS) == set(self._GUARDED) | {"expired"}
+
+    @pytest.mark.parametrize("to", _GUARDED)
     def test_EVERY_decision_transition_refuses_an_actor_off_the_allowlist(
             self, client, store, to):
-        """``expired`` is excluded and that is not a hole: it is refused
-        outright while ``AGING_POLICY_VERSION`` is None, by a check that runs
-        before the guard, so there is no admitted path to test. The test above
-        it pins that refusal."""
         tid = _opened_id(client)
         r = _transition(client, tid, to, actor="builder",
                         **self._RECORD.get(to, {}))
@@ -834,12 +855,10 @@ class TestTheApprovalGuardCoversEveryDecision:
         assert "allowlist" in r.json()["detail"]
         assert _by_id(store)[tid]["state"] == "filed"
 
-    @pytest.mark.parametrize("to", [t for t in tk.DECISION_TRANSITIONS
-                                    if t != "expired"])
+    @pytest.mark.parametrize("to", _GUARDED)
     def test_EVERY_decision_transition_demands_the_echo(self, client, to):
         tid = _opened_id(client)
-        r = _transition(client, tid, to, confirm=None,
-                        **self._RECORD.get(to, {}))
+        r = _transition(client, tid, to, confirm=None, **self._RECORD.get(to, {}))
         assert r.status_code == 403
         assert "confirm echo" in r.json()["detail"]
 
