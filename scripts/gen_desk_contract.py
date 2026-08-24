@@ -52,23 +52,29 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
 from app.fund import desk as desk_mod  # noqa: E402
+from app.fund import deskcard  # noqa: E402
+from app.fund import deskengine  # noqa: E402
 
 CONTRACT_PATH = REPO / "contract" / "desk_stage_contract.v1.json"
+CARD_CONTRACT_PATH = REPO / "contract" / "desk_card_contract.v1.json"
 
-#: How a spine verdict maps onto the page's three stages. THE MAPPING LIVES
-#: HERE, on the spine side, on purpose: the page must not own a routing rule of
-#: its own, and a mapping table in TypeScript would be the second definition
-#: this whole contract exists to prevent. The page consumes it; this states it.
+#: How a spine verdict maps onto the page's three stages.
 #:
-#: `status` is read for ONE thing and it is not routing: telling a row the CEO
-#: DECIDED and the firm owes back ("awaiting_execution") from an open row that
-#: was never his ("owned_elsewhere"). Both are uncounted; they are different
-#: facts and the desk has already paid once for confusing them.
-def stage_for(actor: str, status: Any) -> str:
-    if actor in ("ceo", "unknown"):
-        return "awaiting_decision"
-    decided = status in ("accepted", "staged")
-    return "awaiting_execution" if decided else "owned_elsewhere"
+#: MOVED INTO ``app/fund/deskcard.py`` ON 2026-08-24 AND ALIASED HERE. The
+#: mapping still lives on the spine side — the page must not own a routing rule
+#: of its own, and a mapping table in TypeScript would be the second definition
+#: this whole contract exists to prevent. But it lived in a GENERATOR SCRIPT,
+#: which the running spine never imports: the one definition both repos are
+#: pinned to could not be called by the code being pinned. It is now a function
+#: in the package, the spine annotates every row with its answer
+#: (``desk_stage``), and this script consumes it like everyone else. Behaviour
+#: is byte-identical: every ``expect.stage`` in the regenerated v1 file is
+#: unchanged, which is the assertion that matters. The DIGEST does move in the
+#: same commit, and not because of this — ``_annotated`` now attaches the card
+#: fields, so the embedded rows carry more keys. Two changes in one digest is
+#: worth saying out loud rather than letting a reviewer infer that a mapping
+#: move rewrote the contract.
+stage_for = deskcard.desk_stage
 
 
 #: The cases. Each one is a row shape the live corpus produces or the
@@ -344,6 +350,368 @@ def render(body: dict[str, Any]) -> str:
     return json.dumps(body, indent=2, ensure_ascii=False) + "\n"
 
 
+# ============================================================================
+# THE CARD CONTRACT (v1, 2026-08-24) — the SECOND boundary-crossing artifact
+#
+# The stage contract above binds ONE question: whose move is it, and does that
+# put the row on the CEO's number. It is a contract about a COUNT.
+#
+# This one binds a different question the same way: what does a row LOOK LIKE.
+# Nine renderable states, each of which the CEO's screen either got wrong or
+# could not express on 2026-08-24 — a repr instead of a sentence, a decided row
+# wearing an undecided row's buttons, a chair adjudication labelled as his own,
+# a bundle with no visible members, a supersession stated only in prose.
+#
+# TWO FILES RATHER THAN ONE, and that is the deliberate choice. Folding these
+# cases into the stage contract would move its digest on every card change,
+# which is precisely the file that must NOT churn: it is the one pinning a
+# threshold's population. Two contracts, two digests, one generator, one set of
+# rules. The generator is shared so neither can be regenerated without the
+# other being re-checked in the same command.
+# ============================================================================
+
+#: Each case is a row shape the LIVE corpus produced on 2026-08-24, with the
+#: measured count that made it worth a case. Nothing here states an expected
+#: answer: `desk_items` computes every field, so the file cannot encode a wish.
+CARD_CASES: list[dict[str, Any]] = [
+    {
+        "name": "open recommendation — nobody has decided it",
+        "why": "the baseline. 20 of the 34 rows on his live decision list. "
+               "Every other case is defined by how it must NOT look like this "
+               "one.",
+        "rec": {"status": "open", "kind": "awaits-ceo", "text": "Decide this."},
+    },
+    {
+        "name": "ACCEPTED, EXECUTION YOURS — the stuck lamp",
+        "why": "14 of the 34 rows on his live decision list (2026-08-24). He "
+               "accepted R39 at seq 1281, the write landed, the page refetched "
+               "— and the row came back with an Accept button on it, because "
+               "nothing on screen distinguished 'you decided this, now execute "
+               "it' from 'nobody has decided this'. A successful click and a "
+               "dead click were the same picture. `execution_yours` must be "
+               "true here and false on the row above, and NEITHER may change "
+               "any count: both are inside awaiting_decision.",
+        "rec": {"status": "accepted", "kind": "awaits-ceo", "next_actor": "ceo",
+                "text": "Approve R39 as one sequence.",
+                "decided_by": "ceo", "decided_at": "2026-08-24T09:12:00+00:00"},
+    },
+    {
+        "name": "accepted, and the chair owes the execution",
+        "why": "the ordinary decided row. Shown, never counted, and NOT "
+               "`execution_yours` — a fix that made every accepted row light "
+               "up would pass the case above and still be wrong.",
+        "rec": {"status": "accepted", "kind": "process",
+                "text": "Stage the exit rules.",
+                "decided_by": "ceo", "decided_at": "2026-08-24T09:12:00+00:00"},
+    },
+    {
+        "name": "CLOSED BY THE CHAIR — its own visible category",
+        "why": "CEO, verbatim 2026-08-24: 'your desk on the UI only marks "
+               "items as CEO approved... I cant form a view of whats closed "
+               "and adjudicated by you.' Of 227 live rows, 185 are decided — "
+               "122 by the CEO, 52 by the chair alone (co-cto 39, cto 13), 11 "
+               "via-chair — and the desk labelled all 185 the same way, which "
+               "is to say it labelled none of them. The citation is the "
+               "decision note, verbatim and untruncated.",
+        "rec": {"status": "accepted", "kind": "process",
+                "text": "Merge the D37 bundle.",
+                "decided_by": "co-cto", "decided_at": "2026-08-24T07:00:00+00:00",
+                "note": "Merged under delegation v2; suites green on the "
+                        "merged tree."},
+    },
+    {
+        "name": "approved by the CEO, staged by the chair — the via channel",
+        "why": "11 live rows. Distinct from both: his decision, the chair's "
+               "hand, and the bracketed instruction is the audit trail "
+               "delegation v2 promised. Lifted verbatim, never summarised.",
+        "rec": {"status": "accepted", "kind": "governance",
+                "text": "Adopt the request card schema.",
+                "decided_by": "neelesh-via-cto [Agree]",
+                "decided_at": "2026-08-24T08:00:00+00:00"},
+    },
+    {
+        "name": "DICT PAYLOAD — renders its title, never its repr",
+        "why": "P-1, measured: 2 of 227 live rows (run-cfo-8 recs 1 and 2) "
+               "rendered as a raw Python dict repr on the CEO's desk, both "
+               "`accepted`. The stored `text` is left exactly as stored; "
+               "`title_display` carries the repaired line and `detail` carries "
+               "what would otherwise have been lost behind it.",
+        "rec": {"status": "open", "kind": "harness_gap",
+                "text": "{'id': 'O4', 'title': 'Validate serves_requests ids "
+                        "at the filing door', 'detail': 'app/api/v1/fund.py:"
+                        "2136-2140 stores declared request ids with no check.'}"},
+    },
+    {
+        "name": "SUPERSEDED IN PROSE, with its superseder named",
+        "why": "the supersession TABLE is empty live (blocked: 0). One "
+               "decision note names a real superseder and must render a "
+               "followable edge.",
+        "rec": {"status": "accepted", "kind": "exit_rule",
+                "text": "The 2026-09-08 exit package.",
+                "decided_by": "cto", "decided_at": "2026-08-23T12:00:00+00:00",
+                "note": "SUPERSEDED BY THE R39 PLAN (run-pm-r39): R37 is with "
+                        "the adversary."},
+    },
+    {
+        "name": "SUPERSEDED-SOUNDING PROSE THAT NAMES NOTHING — the null case",
+        "why": "THE CASE THAT MUST RENDER NO EDGE, and the reason the parser "
+               "requires a named target. Six of the ten word-level 'supersed' "
+               "hits in the live corpus are ONE boilerplate sentence stapled "
+               "to unrelated resolutions, about two stray events and not about "
+               "the row at all. A word-match parser would have drawn six wrong "
+               "links on the CEO's control surface and one right one. A wrong "
+               "link looks exactly like a right one; a gap looks like a gap.",
+        "rec": {"status": "accepted", "kind": "process",
+                "text": "Recorded rather than hidden.",
+                "decided_by": "cto", "decided_at": "2026-08-23T12:00:00+00:00",
+                "note": "They are inert - they resolve nothing and were "
+                        "superseded by this correctly-addressed event minutes "
+                        "later."},
+    },
+    {
+        "name": "BUNDLE WITH MEMBERS — cascade pending",
+        "why": "the constitution's cascade rule (2026-08-21) has had no "
+               "machinery since it was written: nothing in the schema could "
+               "say which items a batch carried, so 'did the cascade happen' "
+               "was unanswerable except by reading prose. FOUR members, and "
+               "the arithmetic is 1 done / 2 pending / 1 not_open — each of "
+               "the three outcomes exercised at least once, on purpose. "
+               "`not_open` is the honest third: a finished recommendation "
+               "leaves the open population entirely, so absence means "
+               "'finished, or never filed, and this fold cannot tell which'. "
+               "It is never counted as done. This block executes nothing.",
+        "rec": {"status": "accepted", "kind": "batch",
+                "text": "Accept COO triage #8 as one batch.",
+                "decided_by": "ceo", "decided_at": "2026-08-24T09:00:00+00:00",
+                "members": [{"run_id": "run-member", "rec_id": 1},
+                            {"run_id": "run-member", "rec_id": 2},
+                            {"request_id": "req-structured"},
+                            {"request_id": "req-served"}]},
+    },
+    {
+        "name": "bundle members, referenced",
+        "why": "the two rows the bundle above points at: one still open, one "
+               "closed. Present so the cascade arithmetic (1 done, 1 pending, "
+               "1 unresolvable) is derived from real rows rather than from a "
+               "hand-written lookup.",
+        "rec": {"status": "open", "kind": "process", "text": "Member one.",
+                "run_id": "run-member", "rec_id": 1},
+    },
+]
+
+#: Desk-request cases. The structured schema is OPTIONAL forever; the fallback
+#: is not a deprecation path, it is the permanent shape of the 109 rows already
+#: filed.
+CARD_REQUEST_CASES: list[dict[str, Any]] = [
+    {
+        "name": "PROSE-ONLY REQUEST — the permanent fallback",
+        "why": "109 requests exist and none was filed under a schema that did "
+               "not exist. `structured` is false, the headline is the "
+               "subject's first LINE untouched, and the whole subject stays "
+               "available as the incident. No migration: rewriting an old "
+               "subject to look structured would invent a headline the filer "
+               "never wrote.",
+        "req": {"request_id": "req-prose", "kind": "build", "serves": "builder",
+                "status": "open", "at": "2026-08-22T10:00:00+00:00",
+                "subject": "DESK RENDERING + ROUTING (Donna P-1/P-2/P-3)\n"
+                           "Five rows rendered as raw Python reprs this "
+                           "weekend, including the two that were genuinely "
+                           "his."},
+    },
+    {
+        "name": "STRUCTURED REQUEST — the four questions",
+        "why": "the CEO-ratified card spec (KryptonPay/docs/design/"
+               "REQUEST_CARD_2026-08-24.md). Headline, summary, the wanted "
+               "checklist with per-item state, and an explicit actor+act — the "
+               "old 'CEO-APPROVED — TRIGGER IT' chip implied his move when it "
+               "was the chair's.",
+        "req": {"request_id": "req-structured", "kind": "build",
+                "serves": "builder", "status": "approved",
+                "at": "2026-08-22T10:00:00+00:00",
+                "approved_at": "2026-08-22T10:22:00+00:00",
+                "approved_by": "ceo",
+                "headline": "Repair the CEO's desk read path",
+                "summary": "His clicks land; the fold that renders them back "
+                           "to him does not.",
+                "incident": "Six defects pooled in a starved batch.",
+                "wanted": [{"text": "Dict payloads render their text",
+                            "state": "done"},
+                           {"text": "Cascade block under decided bundles",
+                            "state": "in_progress",
+                            "note": "spine half landed"},
+                           {"text": "Contract test crossing the boundary"}],
+                "next_move": {"actor": "the chair",
+                              "act": "batch this into a builder dispatch"}},
+    },
+    {
+        "name": "SERVED REQUEST — the rail reaches delivered",
+        "why": "the far end of the lifecycle, and the one member of the "
+               "cascade above that resolves to `done`. Requests keep their "
+               "terminal rows in `desk._requests`, so a request member's "
+               "closure is READABLE where a finished recommendation's is not "
+               "— which is why the cascade reports `done` and `not_open` as "
+               "two different facts rather than one optimistic one.",
+        "req": {"request_id": "req-served", "kind": "build", "serves": "builder",
+                "status": "resolved", "at": "2026-08-20T10:00:00+00:00",
+                "approved_at": "2026-08-20T10:30:00+00:00",
+                "approved_by": "neelesh-via-co-cto [lets go]",
+                "resolved_at": "2026-08-21T09:00:00+00:00",
+                "subject": "Ship the third dispatch state.",
+                "resolution": "SERVED by builder D30."},
+    },
+    {
+        "name": "next_move with an actor and no act — REFUSED",
+        "why": "both fields or neither. 'Next move: the chair' names an owner "
+               "and leaves the reader to guess the obligation, which is "
+               "exactly the defect the spec says the old chip had.",
+        "req": {"request_id": "req-halfmove", "kind": "build",
+                "serves": "builder", "status": "open",
+                "at": "2026-08-22T10:00:00+00:00", "subject": "Half a move.",
+                "next_move": {"actor": "the chair"}},
+    },
+]
+
+
+#: The id pool the shorthand cases resolve against. Two entries share the head
+#: ``abcd1234`` on purpose: the ambiguous case must be exercised by a pool that
+#: is genuinely ambiguous, not asserted from a comment.
+_ID_POOL = ["3eeb42d4-1111-4111-8111-111111111111",
+            "a26debb9-827a-47e9-9cac-c5ca1ba2213f",
+            "abcd1234-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            "abcd1234-bbbb-4bbb-8bbb-bbbbbbbbbbbb"]
+
+
+def build_cards() -> dict[str, Any]:
+    """The card contract, computed by ``desk_items`` over the cases above."""
+    recs = []
+    for i, c in enumerate(CARD_CASES, 1):
+        row = {"run_id": c["rec"].get("run_id", "card"),
+               "rec_id": c["rec"].get("rec_id", i),
+               "seat": "pm", "task": "contract", "artifact_path": None,
+               "trace_id": None, "resolved_at": "2026-08-24T06:00:00+00:00",
+               **c["rec"]}
+        recs.append(row)
+    reqs = [{**c["req"]} for c in CARD_REQUEST_CASES]
+
+    items = desk_mod.desk_items(recs, reqs)
+    by_ref = {}
+    for it in items:
+        key = (it.get("run_id"), it.get("rec_id")) if it["source"] == "recommendation" \
+            else it.get("request_id")
+        by_ref[key] = it
+
+    #: The fields a renderer is allowed to depend on. Enumerated rather than
+    #: dumping the whole item, so ADDING a field to `desk_items` does not churn
+    #: this digest — only changing one of the fields the CEO's card actually
+    #: reads does. A contract that broke on every unrelated addition would be
+    #: regenerated without being read, which is a contract nobody checks.
+    rec_fields = ("status", "next_actor_resolved", "execution_yours",
+                  "title", "title_display", "detail", "adjudication",
+                  "superseded_by", "cascade", "decided_by", "decided_at")
+    req_fields = ("status", "next_actor_resolved", "title_display", "summary",
+                  "detail", "wanted", "next_move", "structured", "lifecycle",
+                  "adjudication")
+
+    cases = []
+    for i, c in enumerate(CARD_CASES, 1):
+        it = by_ref[(c["rec"].get("run_id", "card"), c["rec"].get("rec_id", i))]
+        cases.append({"name": c["name"], "why": c["why"],
+                      "row": {k: recs[i - 1].get(k)
+                              for k in ("status", "kind", "text", "note",
+                                        "decided_by", "decided_at", "members",
+                                        "next_actor")
+                              if k in recs[i - 1]},
+                      "expect": {k: it.get(k) for k in rec_fields}})
+
+    req_cases = []
+    for c in CARD_REQUEST_CASES:
+        it = by_ref[c["req"]["request_id"]]
+        # `lifecycle.age_hours` is wall-clock and is EXCLUDED from the pinned
+        # expectation: a contract that embedded an age would be stale one
+        # second after it was written, and would fail every suite thereafter
+        # for a reason that has nothing to do with either repo. The rail's
+        # SHAPE is pinned; the clock is asserted separately, live.
+        exp = {k: it.get(k) for k in req_fields}
+        if isinstance(exp.get("lifecycle"), dict):
+            exp["lifecycle"] = {**exp["lifecycle"], "age_hours": "<wall-clock>"}
+        req_cases.append({"name": c["name"], "why": c["why"],
+                          "row": c["req"], "expect": exp})
+
+    body: dict[str, Any] = {
+        "contract": "desk_card",
+        "version": 1,
+        "rules_version": desk_mod.NEXT_ACTOR_RULES_VERSION,
+        "request_routing_version": desk_mod.REQUEST_ROUTING_VERSION,
+        "covers": ("what a desk row RENDERS as — the nine states the CEO's "
+                   "window either got wrong or could not express on "
+                   "2026-08-24. It binds no count; the stage contract binds "
+                   "the count."),
+        "lifecycle": list(deskcard.LIFECYCLE),
+        "wanted_states": list(deskcard.WANTED_STATES),
+        "adjudication_channels": [deskcard.CHANNEL_CEO,
+                                  deskcard.CHANNEL_VIA_CHAIR,
+                                  deskcard.CHANNEL_CHAIR, "unknown"],
+        "cases": cases,
+        "request_cases": req_cases,
+        # THE ID RULE, SHARED (COO triage #8 J1). It crosses the boundary
+        # because both sides handle request ids: the spine normalises an
+        # 8-character shorthand at the runs door and REFUSES one at the
+        # approve/resolve doors, and a client that posted a shorthand would now
+        # get a 404 where it used to get a phantom 200. Pinning the rule here
+        # means neither side can move it alone.
+        "id_rules": {
+            "min_prefix": deskengine.MIN_ID_PREFIX,
+            "doors_refusing_unknown_ids": [
+                "POST /fund/desk/requests/{id}/approve",
+                "POST /fund/desk/requests/{id}/decline",
+                "POST /fund/desk/requests/{id}/resolve"],
+            "note": ("a shorthand is normalised where it is RECORDED "
+                     "(meta.serves_requests, advisory) and refused where it "
+                     "would ACT (the three doors). A 200 against an id no "
+                     "fold has seen is the worst shape: the caller believes "
+                     "it acted and the real row is untouched."),
+            "cases": [
+                {"declared": d, "why": why,
+                 **deskengine.resolve_request_ids([d], _ID_POOL)}
+                for d, why in (
+                    ("3eeb42d4",
+                     "the live shorthand: 6 of 13 declarations, 0 closes"),
+                    ("a26debb9-827a-47e9-9cac-c5ca1ba2213f",
+                     "a full id, untouched and unreported"),
+                    ("abcd1234",
+                     "AMBIGUOUS — never guessed; picking one closes somebody "
+                     "else's ticket"),
+                    ("THE DESK, REDESIGNED",
+                     "prose: 2 live declarations. Kept verbatim, reported "
+                     "unresolved, never dropped"),
+                    ("3eeb42d",
+                     "seven characters — a typo, not a shorthand"),
+                )],
+        },
+        "expect_totals": {
+            # THE INVARIANT THIS FILE EXISTS FOR: the count does not move.
+            # `execution_yours` is a PICTURE over an unchanged number, and if
+            # a future change makes it a fourth stage these two figures
+            # separate and both suites go red.
+            "execution_yours": sum(1 for c in cases
+                                   if c["expect"]["execution_yours"]),
+            "counted_for_ceo": sum(
+                1 for c in cases
+                if c["expect"]["next_actor_resolved"] in deskcard.CEO_ACTORS),
+            "superseded_edges": sum(1 for c in cases
+                                    if c["expect"]["superseded_by"]),
+            "repaired_reprs": sum(
+                1 for c in cases
+                if c["expect"]["title_display"] != c["expect"]["title"]),
+            "requests_on_the_ceos_figure": sum(
+                1 for c in req_cases
+                if c["expect"]["next_actor_resolved"] in deskcard.CEO_ACTORS),
+        },
+    }
+    body["digest"] = hashlib.sha256(_canonical(body)).hexdigest()
+    return body
+
+
 def main() -> int:
     # `--check` NEVER WRITES, and that separation is not tidiness.
     #
@@ -355,20 +723,34 @@ def main() -> int:
     # to itself and pass over a routing change. A test that repairs the thing
     # it is checking is the bug-blessing pattern this whole contract exists to
     # stop, so the read path and the write path are different flags.
+    # BOTH CONTRACTS, ONE COMMAND. They are separate files with separate
+    # digests, and checking them separately would let one be regenerated while
+    # the other silently went stale — which is the drift the whole mechanism
+    # exists to make impossible.
+    pairs = ((CONTRACT_PATH, build), (CARD_CONTRACT_PATH, build_cards))
+
     if "--check" in sys.argv[1:]:
-        body = build()
-        if not CONTRACT_PATH.exists():
-            print(f"MISSING {CONTRACT_PATH}", file=sys.stderr)
-            return 1
-        onfile = CONTRACT_PATH.read_text(encoding="utf-8")
-        if onfile != render(body):
-            print("STALE — the checked-in contract does not match desk.py. "
-                  "Run without --check to regenerate.", file=sys.stderr)
-            return 1
-        print(f"OK digest {body['digest']}")
-        return 0
+        bad = False
+        for path, builder in pairs:
+            body = builder()
+            if not path.exists():
+                print(f"MISSING {path}", file=sys.stderr)
+                bad = True
+                continue
+            if path.read_text(encoding="utf-8") != render(body):
+                print(f"STALE — {path.name} does not match desk.py. "
+                      f"Run without --check to regenerate.", file=sys.stderr)
+                bad = True
+                continue
+            print(f"OK {path.name} digest {body['digest']}")
+        return 1 if bad else 0
 
     body = build()
+    cards = build_cards()
+    CARD_CONTRACT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CARD_CONTRACT_PATH.write_text(render(cards), encoding="utf-8", newline="\n")
+    print(f"wrote {CARD_CONTRACT_PATH}")
+    print(f"card digest   : {cards['digest']}")
     CONTRACT_PATH.parent.mkdir(parents=True, exist_ok=True)
     # Newline-terminated, LF, UTF-8, 2-space indent: readable in review, and the
     # digest is over the canonical form rather than this rendering, so a

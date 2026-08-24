@@ -1119,6 +1119,90 @@ def next_actor(rec: Any) -> dict[str, Any]:
                    "recommendation awaiting a decision awaits the CEO's"}
 
 
+#: WHOSE MOVE AN OPEN DESK REQUEST IS.
+#:
+#: **SHIPPED AS ``ceo`` — THE EXISTING BEHAVIOUR, UNCHANGED. The change the
+#: brief asked for is NOT applied, and the reason is a consequence the brief
+#: did not have.**
+#:
+#: P-2/H-2 asked for `chair` here, flagged as a loosening (it takes rows off
+#: the CEO's counter, so the COO triage trigger fires later). It was built,
+#: measured, rendered — and the rendered page showed a second consequence
+#: nobody had priced: **it removes the CEO's ask-approval control from his own
+#: page.** His page routes asks to a card that carries Approve/Decline only
+#: while the ask is on his list; route them to the chair and they render in the
+#: chair's dispatch lane, which is a one-line summary view with no approval
+#: control anywhere in it. The counter would have gone quiet and so would the
+#: button.
+#:
+#: A loosening that also REMOVES A CONTROL is not a builder's call. The
+#: constitution routes it to the adversary blind and then to the CEO's click,
+#: and it is filed that way with the measurements below attached, rather than
+#: applied here and mentioned in a diff.
+#:
+#: WHAT THE MEASUREMENTS STILL SAY, because they are the reason to revisit it:
+#:
+#: THE OLD READING RESTED ON A CIRCULAR MEASUREMENT, AND THAT IS THE NEW
+#: EVIDENCE. Both this module and ``desk_items`` justified ``ceo`` with: "all
+#: 25 DeskRequestApproved events carry `ceo` or a via-chair identity, none a
+#: chair acting alone." Re-measured 2026-08-24 at n=90 the ratio still holds —
+#: and it proves nothing, because ``DESK_APPROVAL_ALLOWLIST`` in
+#: ``app/api/v1/fund.py`` admits ONLY ``{ceo, neelesh, neelesh-via-cto,
+#: neelesh-via-co-cto}``. No other actor CAN approve a desk request. "Every
+#: approval came from the CEO" is a restatement of the allowlist, not a finding
+#: about whose move it is.
+#:
+#: THE NON-CIRCULAR MEASUREMENT SAYS THE OPPOSITE, and it is two counts over
+#: the live log (2026-08-24, ``GET /fund/events?limit=1000``, seq 335-1334):
+#:
+#:   * **28 of the 49 requests resolved in the window were NEVER approved.**
+#:     The modal path for an open request is that the chair picks it up and
+#:     serves it; 57% of served requests carry no approval event at all.
+#:   * **11 of the 11 currently-open requests were filed by ``cto``,
+#:     ``neelesh-via-cto`` or ``operator``** — the chair or the operator,
+#:     addressed to a seat. Not one is a seat-filed ask waiting for a blessing.
+#:
+#: The desk's own ``execution_note`` has said so since it was written:
+#: "Requests are picked up by the CTO session and dispatched to the bench."
+#: The approval step exists and remains the CEO's when it happens; it is not
+#: what an open request is BLOCKED on, and a counter that says otherwise puts
+#: the chair's dispatch queue on the CEO's desk.
+#:
+#: WHAT WOULD CHANGE THIS DECISION'S MIND, recorded at decision time: a
+#: placement for the CEO's ask-approval control that survives the rows leaving
+#: his list. Then this constant becomes ``"chair"`` in a one-line versioned
+#: change, and the measurements above are already the written reason.
+OPEN_REQUEST_ACTOR = "ceo"
+
+#: Bumped when the line above moves, so a client can tell which rule produced
+#: the number it is holding. v1 IS the pre-existing behaviour, named for the
+#: first time — the rule used to live untitled inside ``desk_items``.
+REQUEST_ROUTING_VERSION = ("request routing v1 (named 2026-08-24) — open -> "
+                           "ceo, approved -> chair")
+
+
+def open_request_actor(status: Any) -> str:
+    """Whose move a desk request is, from its status alone.
+
+    ``open`` -> the CEO (his blessing is the next act on the record's own
+    reading). ``approved`` -> the chair, which must dispatch it. Terminal ->
+    nobody, the same rule ``next_actor`` applies to a terminal recommendation.
+
+    NET BEHAVIOUR CHANGE FROM THE BASE COMMIT: ZERO. This is the rule
+    ``desk_items`` already applied inline, lifted into one named function so
+    that the spine, the counter and the CEO's page read one answer instead of
+    three — which is the repair that actually shipped here. The routing MOVE
+    that P-2/H-2 asked for is filed as a recommendation with its measurements;
+    see ``OPEN_REQUEST_ACTOR`` for why a builder did not apply it.
+    """
+    s = (status or "open").strip().lower() if isinstance(status, str) else "open"
+    if s in _TERMINAL_REQUEST_STATUSES:
+        return "nobody"
+    if s == "approved":
+        return "chair"
+    return OPEN_REQUEST_ACTOR
+
+
 def desk_load(open_recommendations: list[dict[str, Any]],
               pending_orders: Any, open_requests: Any,
               chair_backlog: Optional[dict[str, Any]] = None) -> dict[str, Any]:
@@ -1234,6 +1318,12 @@ def desk_load(open_recommendations: list[dict[str, Any]],
         "requests_awaiting_approval": _count(open_requests),
     }
     unreadable = sorted(k for k, v in parts.items() if v is None)
+    # THE OPEN-REQUEST LEG STILL COUNTS, and that is the shipped state rather
+    # than the one P-2/H-2 asked for. See `OPEN_REQUEST_ACTOR`: the move was
+    # built and measured, and the rendered page showed it would also remove the
+    # CEO's ask-approval control, which makes it a decision for the adversary
+    # blind and the CEO rather than for a builder. `requests_by_actor` below
+    # publishes the finding without acting on it.
     total = sum(v for v in parts.values() if v is not None)
     backlog = chair_backlog if isinstance(chair_backlog, dict) else None
     undispatched = (backlog or {}).get("requests_approved_undispatched")
@@ -1262,11 +1352,24 @@ def desk_load(open_recommendations: list[dict[str, Any]],
         # nothing waiting" is a claim and "nobody computed it" is not.
         "requests_approved_undispatched": undispatched,
         "chair_backlog": backlog,
+        # OPEN DESK REQUESTS, BY WHOSE MOVE IT IS. Kept apart from `by_actor`
+        # rather than folded into it: `by_actor` is documented as the
+        # recommendation census, and quietly widening what a published number
+        # counts is the "two numbers wearing one label" defect this module
+        # spends four paragraphs warning about.
+        "requests_by_actor": (
+            {a: sum(1 for r in open_requests
+                    if open_request_actor(
+                        (r or {}).get("status") if isinstance(r, dict)
+                        else None) == a)
+             for a in NEXT_ACTORS}
+            if isinstance(open_requests, list) else None),
         # Named explicitly so a reader of the payload can see WHAT was left out
         # of the total rather than having to diff two versions of this file.
         "excluded_from_total": (["requests_approved_undispatched"]
                                 if undispatched else []),
         "rules_version": NEXT_ACTOR_RULES_VERSION,
+        "request_routing_version": REQUEST_ROUTING_VERSION,
         # The shared contract this spine's routing was generated against, so a
         # client can tell whether its own copy still agrees. `None` = the file
         # could not be read or did not match itself; the page then says the
@@ -1288,6 +1391,13 @@ def desk_load(open_recommendations: list[dict[str, Any]],
                "never his to decide" if open_elsewhere else "")
             + (f". {decided_rows} are decided and awaiting execution"
                if decided_rows else "")
+            + (f". {parts['requests_awaiting_approval']} of them are open desk "
+               "request(s), counted as his — MEASURED AND DISPUTED: 28 of the "
+               "49 requests resolved in the last log window carry no approval "
+               "event at all, so the modal path is the chair serving them. "
+               "Moving them is a CEO decision because it would also take his "
+               "approve control off the page; see desk.OPEN_REQUEST_ACTOR"
+               if parts["requests_awaiting_approval"] else "")
             + (f". Separately, {undispatched} approved desk request(s) await "
                "DISPATCH by the chair — reported, and deliberately not added "
                "to the CEO's figure, because he already decided them"
@@ -1467,19 +1577,155 @@ def seat_telemetry(day_runs: Optional[list[dict[str, Any]]],
     }
 
 
-def _annotated(rec: Any) -> Any:
-    """One recommendation with its resolved next actor attached.
+def dispatched_request_ids(store: Any) -> set:
+    """Request ids a ``DeskDispatched`` event has ever named.
 
-    Three fields rather than one, because a reader who disagrees with the
-    routing needs to see WHY without opening the source: the actor, the basis
-    it was decided on (explicit / lifecycle / kind / default), and the sentence.
-    A surface that showed only the verdict would be asking to be trusted.
+    MOVED HERE 2026-08-24 from ``app/api/v1/fund.py``, which now delegates: the
+    lifecycle rail needs this fold on the ``/fund/desk`` path and the CEO
+    engine already needed it on the other, and two copies of a fold over the
+    same event type is how the request lifecycle drifts. Same reasoning
+    ``_chair_backlog`` already gives for delegating to ``metrics.friction``.
+
+    Returns an EMPTY SET when the store cannot be read, and the caller renders
+    the rail's `dispatched` stage as not-reached. That is the honest
+    degradation here: an unreadable dispatch log cannot prove a dispatch
+    happened, and claiming one would advance a stage on no evidence.
     """
+    from app.fund.events import EventType
+
+    out: set = set()
+    try:
+        for e in store.stream(since_seq=0, limit=100_000):
+            t = e.get("type") if isinstance(e, dict) else getattr(e, "type", None)
+            if getattr(t, "value", t) != EventType.DESK_DISPATCHED.value:
+                continue
+            p = (e.get("payload") if isinstance(e, dict)
+                 else getattr(e, "payload", None)) or {}
+            if p.get("request_id"):
+                out.add(str(p["request_id"]))
+    except Exception as e:  # noqa: BLE001
+        logger.info("dispatch fold unavailable: %s", e)
+    return out
+
+
+def _annotated_request(req: Any, dispatched_ids: Any = ()) -> Any:
+    """One desk request with its card fields and its lifecycle rail attached.
+
+    THE CARD SPEC (``KryptonPay/docs/design/REQUEST_CARD_2026-08-24.md``,
+    CEO-ratified after request ``0c295ec7`` rendered as a wall of prose: *"it
+    could have been designed in a far more intuitive and cleaner way"*). The
+    four questions a card must answer — what is this, where does it stand, what
+    is owed, whose move is it — are computed HERE, from the same two functions
+    ``desk_items`` uses, so the two surfaces cannot answer them differently.
+
+    ``next_actor_resolved`` is here for a measured reason. The CEO page derived
+    it in TypeScript, so when ``OPEN_REQUEST_ACTOR`` moved on this side the
+    page went on listing eleven asks as decisions he owed and its own
+    reconciliation banner reported the counts disagreeing by exactly that many
+    — both suites green. One rule, published, read by the client.
+
+    EVERY FIELD IS ADDITIVE AND PROSE-ONLY STAYS VALID FOREVER: a request filed
+    as a subject renders through the fallback with ``structured: false``, which
+    is what all 109 rows filed before the schema existed do. No migration.
+    """
+    from app.fund import deskcard
+
+    if not isinstance(req, dict):
+        return req
+    dispatched = {str(x) for x in (dispatched_ids or ())}
+    row = {**req, "dispatched": str(req.get("request_id")) in dispatched}
+    card = deskcard.request_card(req)
+    return {**row,
+            "next_actor_resolved": open_request_actor(req.get("status")),
+            "next_actor_basis": "request_lifecycle",
+            "headline": card["headline"],
+            "summary": card["summary"],
+            "incident": card["incident"],
+            "wanted": card["wanted"],
+            "next_move": card["next_move"],
+            "structured": card["structured"],
+            "lifecycle": deskcard.lifecycle_rail(row)}
+
+
+def status_index(open_recommendations: Any = (), requests: Any = ()) -> dict[str, Any]:
+    """Every row on this desk keyed by canonical ref, for the cascade fold.
+
+    Built ONCE over both populations rather than queried per member: a cascade
+    block that issued a lookup per member would make the CEO's page cost
+    O(members) round trips to render a reminder.
+    """
+    from app.fund.deskengine import rec_ref, req_ref
+
+    out: dict[str, Any] = {}
+    for rec in open_recommendations or []:
+        if isinstance(rec, dict) and rec.get("run_id") is not None:
+            out[rec_ref(rec["run_id"], rec.get("rec_id") or 0)] = \
+                rec.get("status") or "open"
+    for req in requests or []:
+        if isinstance(req, dict) and req.get("request_id"):
+            out[req_ref(req["request_id"])] = req.get("status") or "open"
+    return out
+
+
+def _annotated(rec: Any, status_by_ref: Optional[dict[str, Any]] = None) -> Any:
+    """One recommendation with its resolved next actor and its card fields.
+
+    Three routing fields rather than one, because a reader who disagrees with
+    the routing needs to see WHY without opening the source: the actor, the
+    basis it was decided on (explicit / lifecycle / kind / default), and the
+    sentence. A surface that showed only the verdict would be asking to be
+    trusted.
+
+    THE CARD FIELDS (2026-08-24) ARE ADDITIVE AND NONE OF THEM CHANGES A COUNT.
+    Every one is a rendering answer the CEO's page had to guess at or could not
+    ask: what does this row SAY (``text_display`` — 2 live rows were showing a
+    Python dict repr), is it a decision he still owes or one he already made
+    (``execution_yours`` — 14 of the 34 rows on his list), who closed it
+    (``adjudication`` — 52 rows closed by the chair, indistinguishable from his
+    own 122), and what replaced it (``superseded_by``). ``text`` itself is
+    NEVER rewritten: the stored value is what was stored, and a fold that
+    edited the record to make the screen tidier would be repairing the wrong
+    layer.
+    """
+    from app.fund import deskcard
+
     if not isinstance(rec, dict):
         return rec
     v = next_actor(rec)
-    return {**rec, "next_actor_resolved": v["actor"],
-            "next_actor_basis": v["basis"], "next_actor_why": v["why"]}
+    parts = deskcard.card_text(rec.get("text"))
+    out = {**rec, "next_actor_resolved": v["actor"],
+           "next_actor_basis": v["basis"], "next_actor_why": v["why"],
+           # THE REPAIR FOR ROWS ALREADY IN THE DATABASE. Fixing the filing
+           # door cannot reach a repr that was written last week; this can, and
+           # it does it on the way out without touching what is stored.
+           "text_display": parts["headline"],
+           "text_basis": parts["basis"],
+           "execution_yours": deskcard.execution_yours(v["actor"],
+                                                       rec.get("status")),
+           "desk_stage": deskcard.desk_stage(v["actor"], rec.get("status")),
+           "adjudication": deskcard.adjudication(rec),
+           "superseded_by": deskcard.superseded_by(rec.get("note")),
+           # THE CASCADE MUST BE ON *THIS* PATH, and it was not on the first
+           # cut — caught by looking at the rendered page rather than by any
+           # test. The CEO's cards are built from `/fund/desk`'s
+           # `open_recommendations`, which flow through here; `desk_items`
+           # (the `/fund/desk/ceo` engine) had the fold and this did not, so
+           # the cascade chip could never have appeared on the surface it was
+           # written for. A control with no caller is this firm's named worst
+           # failure, and it had reached a diff again.
+           #
+           # `status_by_ref` absent = the caller did not build the index, so
+           # membership CANNOT be resolved and the block is omitted entirely.
+           # Rendering it against an empty index would report every member as
+           # `not_open`, which reads as "nothing is outstanding" — an absence
+           # dressed as an answer.
+           "cascade": (deskcard.cascade(rec, status_by_ref)
+                       if status_by_ref is not None else None)}
+    # Only when there is one: an absent detail must be absent, not "".
+    detail = rec.get("detail") or parts["detail"]
+    if detail:
+        out["text_detail"] = detail
+    return out
 
 
 #: How many runs the desk payload carries. Named because it is TWO things: the
@@ -1526,8 +1772,16 @@ def view(store: Any, deskstore: Any = None,
     # two numbers claiming the same thing eight pixels apart. A client that
     # re-implemented this predicate in TypeScript would be a second definition
     # free to drift from the first — the defect class this module is fixing.
-    open_recs = [_annotated(r) for r in (open_recs or [])]
+    open_recs = open_recs or []
     open_reqs = [r for r in reqs if r["status"] == "open"]
+    # ONCE, not once per row. The index is built from the RAW rows before
+    # annotation and covers BOTH populations — a bundle may name a
+    # recommendation or a desk request. (Hoisted after the first version put
+    # the call inside the comprehension: 227 recommendations against 336 rows
+    # is ~76k dict writes to render one reminder chip.)
+    dispatched_ids = dispatched_request_ids(store)
+    index = status_index(open_recs, reqs)
+    open_recs = [_annotated(r, index) for r in open_recs]
     killed = [a for a in artifacts if a["status"] == "killed"]
     return {
         "roster": [{**r, "activity": activity.get(r["agent"],
@@ -1546,7 +1800,18 @@ def view(store: Any, deskstore: Any = None,
             "log, or tune thresholds",
         ],
         "artifacts": artifacts,
-        "requests": reqs,
+        # ANNOTATED WITH WHOSE MOVE IT IS, for the same reason recommendations
+        # are (2026-08-24). The CEO page derived this itself — an open request
+        # was `awaiting_ceo` in TypeScript — so when `OPEN_REQUEST_ACTOR` moved
+        # to the chair on this side, the page went on listing eleven asks as
+        # decisions he owed and its own reconciliation banner reported the two
+        # counts disagreeing by exactly that many. Caught by looking at the
+        # rendered page, which is the only place a divergence of this shape has
+        # ever been visible: both suites were green over it.
+        #
+        # One rule, published, read by the client. The client keeps its old
+        # derivation as the fallback for a spine that predates the field.
+        "requests": [_annotated_request(r, dispatched_ids) for r in reqs],
         # The flight recorder: every dispatch whole, and every recommendation
         # with the seat that made it - attribution is the point.
         "runs": runs,
@@ -1997,11 +2262,19 @@ def desk_items(open_recommendations: Iterable[dict[str, Any]],
     was posted TO; a pending order belongs to nobody on the bench and is
     attributed to ``execution`` — a machine-produced row on a human's queue.
     """
+    from app.fund import deskcard
     from app.fund.deskengine import rec_ref, req_ref
 
     sup = supersessions or {}
     dispatched = {str(x) for x in dispatched_request_ids}
     out: list[dict[str, Any]] = []
+
+    # WHAT EVERY ROW ON THIS DESK CURRENTLY IS, keyed by canonical ref, so a
+    # decided bundle can report its members' real states instead of the word
+    # "pending". `status_index` is the ONE definition — `view()` builds the
+    # same index for the `/fund/desk` path, and two copies of this loop would
+    # be two answers to "is that member still open" within one payload.
+    status_by_ref = status_index(open_recommendations, requests)
 
     for rec in open_recommendations or []:
         if not isinstance(rec, dict):
@@ -2009,11 +2282,17 @@ def desk_items(open_recommendations: Iterable[dict[str, Any]],
         ref = rec_ref(rec.get("run_id") or "", rec.get("rec_id") or 0) \
             if rec.get("run_id") is not None else None
         v = next_actor(rec)
+        parts = deskcard.card_text(rec.get("text"))
         out.append({
             "source": "recommendation", "ref": ref,
             "seat": rec.get("seat"),
             "run_id": rec.get("run_id"), "rec_id": rec.get("rec_id"),
+            # UNCHANGED, verbatim from the record. `title_display` beside it is
+            # the repaired rendering; keeping both means a reader can always
+            # see what was actually stored.
             "title": rec.get("text"),
+            "title_display": parts["headline"],
+            "detail": rec.get("detail") or parts["detail"],
             "kind": rec.get("kind"),
             "status": rec.get("status") or "open",
             "due_date": rec.get("due_date"),
@@ -2021,7 +2300,24 @@ def desk_items(open_recommendations: Iterable[dict[str, Any]],
             "reversibility": rec.get("reversibility"),
             "next_actor_resolved": v["actor"],
             "next_actor_basis": v["basis"],
-            "at": rec.get("resolved_at"),
+            # THE THREE FIELDS THE `on_fire` PROJECTION WAS MISSING. A row at
+            # `accepted` whose next move is still the CEO's own was
+            # indistinguishable on screen from one nobody had decided; his R39
+            # accept (seq 1281, 2026-08-24) landed and looked exactly like a
+            # dead click. `status` was already here; who decided it and when
+            # were not, so no renderer could say "you did this, at 09:12".
+            "decided_by": rec.get("decided_by"),
+            "decided_at": rec.get("decided_at"),
+            "execution_yours": deskcard.execution_yours(v["actor"],
+                                                        rec.get("status")),
+            "adjudication": deskcard.adjudication(rec),
+            # A supersession the TABLE does not know about because it was
+            # written in English. Only when the note names its superseder —
+            # see `deskcard.superseded_by`, where 6 of 10 word-level hits in
+            # the live corpus are one boilerplate sentence about something
+            # else entirely.
+            "superseded_by": deskcard.superseded_by(rec.get("note")),
+            "cascade": deskcard.cascade(rec, status_by_ref),
             "supersession": sup.get(ref) if ref else None,
         })
 
@@ -2030,25 +2326,40 @@ def desk_items(open_recommendations: Iterable[dict[str, Any]],
             continue
         rid = req.get("request_id")
         ref = req_ref(rid) if rid else None
+        row = {**req, "dispatched": str(rid) in dispatched}
+        card = deskcard.request_card(req)
         out.append({
             "source": "request", "ref": ref,
             "seat": req.get("seat") or req.get("serves"),
             "request_id": rid,
             "title": req.get("task") or req.get("subject"),
+            "title_display": card["headline"],
+            "summary": card["summary"],
+            "detail": card["incident"],
+            "wanted": card["wanted"],
+            "next_move": card["next_move"],
+            "structured": card["structured"],
+            "lifecycle": deskcard.lifecycle_rail(row),
             "kind": req.get("kind"),
             "status": req.get("status") or "open",
             "due_date": None,
             "money_at_stake": None,
             "reversibility": None,
-            # A desk request awaiting APPROVAL is the CEO's by the same
-            # measurement `desk_load` rests on: all 25 DeskRequestApproved
-            # events carry `ceo` or a via-chair identity, none a chair acting
-            # alone. After approval the move is the chair's.
-            "next_actor_resolved": ("ceo" if (req.get("status") or "open")
-                                    == "open" else "chair"),
+            "next_actor_resolved": open_request_actor(req.get("status")),
             "next_actor_basis": "request_lifecycle",
             "at": req.get("at"),
             "dispatched": str(rid) in dispatched,
+            "decided_by": req.get("approved_by") or req.get("declined_by"),
+            "decided_at": req.get("approved_at") or req.get("declined_at"),
+            "adjudication": deskcard.adjudication(
+                {"decided_by": req.get("approved_by")
+                 or req.get("declined_by"),
+                 "decided_at": req.get("approved_at")
+                 or req.get("declined_at"),
+                 "note": req.get("resolution")
+                 or req.get("decline_reason")}),
+            "superseded_by": deskcard.superseded_by(req.get("resolution")),
+            "cascade": None,
             "supersession": sup.get(ref) if ref else None,
         })
 

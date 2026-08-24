@@ -112,6 +112,17 @@ class FakeDeskStore:
                 "seat": "pm", "trace_id": None, "next_actor": next_actor}
 
 
+def appended(store):
+    """The events this CALL wrote, ignoring what the fixture seeded.
+
+    Added 2026-08-24: the approve door now refuses a request no fold has seen,
+    so these fixtures must SEED the `DeskRequested` they approve. Asserting on
+    `store.events` from index 0 would then be asserting on the seed. This asks
+    the question the tests actually mean — what did the endpoint write?
+    """
+    return [e for e in store.events if e["type"] != "DeskRequested"]
+
+
 def client(monkeypatch, store, deskstore=None, edges=None, intray=None):
     from app.api.v1 import fund as fundapi
     monkeypatch.setattr(fundapi, "_store", store)
@@ -1151,7 +1162,13 @@ def test_approving_a_superseded_request_is_refused_AFTER_the_guard_admits_the_ca
     calls = []
     monkeypatch.setattr(fundapi, "_guard_approval",
                         lambda *a, **k: calls.append(a) or "ceo")
-    store = MemStore()
+    # SEEDED WITH THE REQUEST IT APPROVES (2026-08-24). These fixtures
+    # approved `q1` against a store where `q1` had never been filed —
+    # which the approve door now refuses (COO triage #8 J1: a 200
+    # against an id no fold has seen wrote a PHANTOM aggregate while the
+    # real request stayed untouched). Seeding makes each test exercise
+    # what it claims to: a REAL request, with or without an edge.
+    store = MemStore([requested("q1")])
     edges = {deskengine.req_ref("q1"): _edge(target_ref=deskengine.req_ref("q1"),
                                              mode="killed", superseder_ref=None)}
     c = client(monkeypatch, store, edges=edges)
@@ -1159,8 +1176,8 @@ def test_approving_a_superseded_request_is_refused_AFTER_the_guard_admits_the_ca
                json={"actor": "ceo", "confirm": "q1"})
     assert r.status_code == 409
     assert len(calls) == 1, "the approval guard runs FIRST now"
-    assert [e["type"] for e in store.events] == ["ApprovalRefused"]
-    assert store.events[0]["payload"]["guard"] == "supersession_v1"
+    assert [e["type"] for e in appended(store)] == ["ApprovalRefused"]
+    assert appended(store)[0]["payload"]["guard"] == "supersession_v1"
     assert "DeskRequestApproved" not in [e["type"] for e in store.events]
 
 
@@ -1172,7 +1189,13 @@ def test_a_caller_the_allowlist_refuses_never_sees_the_lineage(monkeypatch):
     The real guard runs here — not a stub — because the fact under test is
     which refusal arrives first, and a stubbed guard cannot refuse.
     """
-    store = MemStore()
+    # SEEDED WITH THE REQUEST IT APPROVES (2026-08-24). These fixtures
+    # approved `q1` against a store where `q1` had never been filed —
+    # which the approve door now refuses (COO triage #8 J1: a 200
+    # against an id no fold has seen wrote a PHANTOM aggregate while the
+    # real request stayed untouched). Seeding makes each test exercise
+    # what it claims to: a REAL request, with or without an edge.
+    store = MemStore([requested("q1")])
     edges = {deskengine.req_ref("q1"): _edge(target_ref=deskengine.req_ref("q1"),
                                              mode="superseded_pending",
                                              dies_at_event="R39 step 4",
@@ -1186,8 +1209,8 @@ def test_a_caller_the_allowlist_refuses_never_sees_the_lineage(monkeypatch):
                  "rec:run-y#1"):
         assert leak not in str(body), f"the 403 leaked {leak!r}"
     # The channel guard's own refusal is still recorded, as it always was.
-    assert [e["type"] for e in store.events] == ["ApprovalRefused"]
-    assert store.events[0]["payload"]["reason"].startswith("approver 'mallory'")
+    assert [e["type"] for e in appended(store)] == ["ApprovalRefused"]
+    assert appended(store)[0]["payload"]["reason"].startswith("approver 'mallory'")
 
 
 def test_the_supersession_refusal_is_RECORDED_not_only_returned(monkeypatch):
@@ -1200,7 +1223,13 @@ def test_the_supersession_refusal_is_RECORDED_not_only_returned(monkeypatch):
     """
     from app.api.v1 import fund as fundapi
     monkeypatch.setattr(fundapi, "_guard_approval", lambda *a, **k: "ceo")
-    store = MemStore()
+    # SEEDED WITH THE REQUEST IT APPROVES (2026-08-24). These fixtures
+    # approved `q1` against a store where `q1` had never been filed —
+    # which the approve door now refuses (COO triage #8 J1: a 200
+    # against an id no fold has seen wrote a PHANTOM aggregate while the
+    # real request stayed untouched). Seeding makes each test exercise
+    # what it claims to: a REAL request, with or without an edge.
+    store = MemStore([requested("q1")])
     edges = {deskengine.req_ref("q1"): _edge(target_ref=deskengine.req_ref("q1"),
                                              mode="superseded_pending",
                                              dies_at_event="R39 step 4",
@@ -1209,8 +1238,8 @@ def test_the_supersession_refusal_is_RECORDED_not_only_returned(monkeypatch):
     r = c.post("/api/v1/fund/desk/requests/q1/approve",
                json={"actor": "ceo", "confirm": "q1"})
     assert r.status_code == 409
-    assert len(store.events) == 1
-    ev = store.events[0]
+    assert len(appended(store)) == 1
+    ev = appended(store)[0]
     assert ev["type"] == "ApprovalRefused"
     assert ev["aggregate_type"] == "desk_request" and ev["aggregate_id"] == "q1"
     p = ev["payload"]
@@ -1225,14 +1254,20 @@ def test_the_refusal_on_a_RECOMMENDATION_is_recorded_too(monkeypatch):
     to one file in a family is not applied to its siblings."""
     ds = FakeDeskStore()
     ref = deskengine.rec_ref("run-x", 1)
-    store = MemStore()
+    # SEEDED WITH THE REQUEST IT APPROVES (2026-08-24). These fixtures
+    # approved `q1` against a store where `q1` had never been filed —
+    # which the approve door now refuses (COO triage #8 J1: a 200
+    # against an id no fold has seen wrote a PHANTOM aggregate while the
+    # real request stayed untouched). Seeding makes each test exercise
+    # what it claims to: a REAL request, with or without an edge.
+    store = MemStore([requested("q1")])
     c = client(monkeypatch, store, deskstore=ds,
                edges={ref: _edge(target_ref=ref)})
     r = c.post("/api/v1/fund/desk/runs/run-x/recommendations/1",
                json={"status": "accepted", "actor": "ceo"})
     assert r.status_code == 409
-    assert [e["type"] for e in store.events] == ["ApprovalRefused"]
-    assert store.events[0]["payload"]["row_ref"] == ref
+    assert [e["type"] for e in appended(store)] == ["ApprovalRefused"]
+    assert appended(store)[0]["payload"]["row_ref"] == ref
     assert ds.decided == []
 
 
@@ -1246,12 +1281,18 @@ def test_an_approval_taken_during_an_outage_SAYS_SO_in_the_record(monkeypatch):
     """
     from app.api.v1 import fund as fundapi
     monkeypatch.setattr(fundapi, "_guard_approval", lambda *a, **k: "ceo")
-    store = MemStore()
+    # SEEDED WITH THE REQUEST IT APPROVES (2026-08-24). These fixtures
+    # approved `q1` against a store where `q1` had never been filed —
+    # which the approve door now refuses (COO triage #8 J1: a 200
+    # against an id no fold has seen wrote a PHANTOM aggregate while the
+    # real request stayed untouched). Seeding makes each test exercise
+    # what it claims to: a REAL request, with or without an edge.
+    store = MemStore([requested("q1")])
     c = client(monkeypatch, store, edges=None)     # unreadable, not empty
     r = c.post("/api/v1/fund/desk/requests/q1/approve", json={"actor": "ceo"})
     assert r.status_code == 200
     assert r.json()["supersession_readable"] is False
-    assert store.events[0]["payload"]["supersession_readable"] is False
+    assert appended(store)[0]["payload"]["supersession_readable"] is False
 
 
 def test_a_verified_approval_says_the_check_RAN(monkeypatch):
@@ -1259,19 +1300,31 @@ def test_a_verified_approval_says_the_check_RAN(monkeypatch):
     field that is only ever False is a field nobody can read a claim from."""
     from app.api.v1 import fund as fundapi
     monkeypatch.setattr(fundapi, "_guard_approval", lambda *a, **k: "ceo")
-    store = MemStore()
+    # SEEDED WITH THE REQUEST IT APPROVES (2026-08-24). These fixtures
+    # approved `q1` against a store where `q1` had never been filed —
+    # which the approve door now refuses (COO triage #8 J1: a 200
+    # against an id no fold has seen wrote a PHANTOM aggregate while the
+    # real request stayed untouched). Seeding makes each test exercise
+    # what it claims to: a REAL request, with or without an edge.
+    store = MemStore([requested("q1")])
     c = client(monkeypatch, store, edges={})       # readable, and empty
     r = c.post("/api/v1/fund/desk/requests/q1/approve", json={"actor": "ceo"})
     assert r.status_code == 200
     assert r.json()["supersession_readable"] is True
-    assert store.events[0]["payload"]["supersession_readable"] is True
+    assert appended(store)[0]["payload"]["supersession_readable"] is True
 
 
 def test_a_non_advancing_decision_reports_the_check_as_NOT_RUN_never_as_clean(monkeypatch):
     """None is not False and neither is True. Rejecting a row does not consult
     the brake, and the record must not imply that it did."""
     ds = FakeDeskStore()
-    store = MemStore()
+    # SEEDED WITH THE REQUEST IT APPROVES (2026-08-24). These fixtures
+    # approved `q1` against a store where `q1` had never been filed —
+    # which the approve door now refuses (COO triage #8 J1: a 200
+    # against an id no fold has seen wrote a PHANTOM aggregate while the
+    # real request stayed untouched). Seeding makes each test exercise
+    # what it claims to: a REAL request, with or without an edge.
+    store = MemStore([requested("q1")])
     c = client(monkeypatch, store, deskstore=ds, edges={})
     r = c.post("/api/v1/fund/desk/runs/run-x/recommendations/1",
                json={"status": "rejected", "actor": "ceo"})
@@ -1285,11 +1338,17 @@ def test_an_ordinary_request_still_approves(monkeypatch):
     """The tightening must be invisible to every row without an edge."""
     from app.api.v1 import fund as fundapi
     monkeypatch.setattr(fundapi, "_guard_approval", lambda *a, **k: "ceo")
-    store = MemStore()
+    # SEEDED WITH THE REQUEST IT APPROVES (2026-08-24). These fixtures
+    # approved `q1` against a store where `q1` had never been filed —
+    # which the approve door now refuses (COO triage #8 J1: a 200
+    # against an id no fold has seen wrote a PHANTOM aggregate while the
+    # real request stayed untouched). Seeding makes each test exercise
+    # what it claims to: a REAL request, with or without an edge.
+    store = MemStore([requested("q1")])
     c = client(monkeypatch, store, edges={})
     r = c.post("/api/v1/fund/desk/requests/q1/approve", json={"actor": "ceo"})
     assert r.status_code == 200
-    assert [e["type"] for e in store.events] == ["DeskRequestApproved"]
+    assert [e["type"] for e in appended(store)] == ["DeskRequestApproved"]
 
 
 # ================================================ 9. applying the policy ====
@@ -1461,7 +1520,9 @@ def test_a_failure_ABOVE_the_store_is_the_same_policy_not_a_500(monkeypatch):
 
     monkeypatch.setattr(fundapi, "_edges_by_target", boom)
     monkeypatch.setattr(fundapi, "_guard_approval", lambda *a, **k: "ceo")
-    store = MemStore()
+    # Seeded for the same reason as every other approve fixture: the door
+    # refuses an id no fold has seen (COO triage #8 J1).
+    store = MemStore([requested("q1")])
     monkeypatch.setattr(fundapi, "_store", store)
     app = FastAPI()
     app.include_router(fundapi.router, prefix="/api/v1")

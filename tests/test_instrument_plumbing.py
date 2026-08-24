@@ -290,7 +290,14 @@ class TestDeskLoad:
         import inspect
         import textwrap
 
-        chain = (desk_mod.desk_load, desk_mod.next_actor, desk_mod._norm_kind)
+        # `open_request_actor` joined the chain 2026-08-24 — the request rule
+        # lifted out of `desk_items` into one named function. It is added to
+        # the WALK as well as the whitelist on purpose: listing a helper
+        # without walking it would permit its callees unchecked, which turns
+        # this assertion into a formality the first time somebody extends the
+        # counter.
+        chain = (desk_mod.desk_load, desk_mod.next_actor, desk_mod._norm_kind,
+                 desk_mod.open_request_actor)
         called = set()
         for fn in chain:
             tree = ast.parse(textwrap.dedent(inspect.getsource(fn)))
@@ -306,7 +313,7 @@ class TestDeskLoad:
         # "replace"/"startswith" normalise a kind string.)
         assert called <= {"_count", "int", "len", "sum", "sorted", "join",
                           "values", "items", "isinstance", "get", "append",
-                          "next_actor", "_norm_kind",
+                          "next_actor", "_norm_kind", "open_request_actor",
                           "strip", "lower", "replace", "startswith"}, called
 
         # And the classifier must not read the recommendation's PROSE. The
