@@ -129,11 +129,15 @@ def gather(store: Any, order_id: str) -> dict[str, Any]:
         sync erased. The fund was told to do something structurally impossible.
       * GLD / INTC / MSFT / NVDA / SOFI / XLE — fill-sum ZERO, true book
         0.424471 / 1.608762 / 0.340051 / 0.749886 / 9.188190 / 2.749912. These
-        are positions the sync ADOPTED with no fill history — the custody
-        schema's ``foreign`` class, an actor outside the harness. The guard read
-        them as never-owned and took the new-symbol branch, skipping
-        corroboration on six real positions. That is the integrity case this
-        module exists to catch, and the wrong input walked it straight past.
+        are positions the sync ADOPTED with no fill history, and the mechanism
+        that produces them is deliberate: ``tradestream.py:196-204`` classifies
+        a venue event for an order this book never proposed as ``foreign`` and
+        REFUSES to invent a fill for it — "reported, never invented into the
+        ledger". So a position taken by an actor outside the harness reaches the
+        book only through a sync, and its fill history is empty by design. The
+        guard read that emptiness as never-owned, took the new-symbol branch,
+        and skipped corroboration on six real positions. That is the integrity
+        case this module exists to catch, and the wrong input walked it past.
 
     So the number is READ from ``PositionsProjection`` now, not re-derived. The
     projection is constructed WITHOUT a snapshot store deliberately: this guard

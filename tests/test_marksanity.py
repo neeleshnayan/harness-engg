@@ -383,8 +383,11 @@ def test_a_position_ADOPTED_by_the_sync_with_no_fill_history_is_REFUSED():
 
     At the same event the sync adopted GLD 0.424471, INTC 1.608762, MSFT
     0.340051, NVDA 0.749886, SOFI 9.188190 and XLE 2.749912 — six real
-    positions with NO fill history, the custody schema's ``foreign`` class (an
-    actor outside the harness). The fill-sum read every one of them as zero, so
+    positions with NO fill history. That emptiness is by design, not by
+    accident: ``tradestream.py:196-204`` classifies a venue event for an order
+    this book never proposed as ``foreign`` and refuses to invent a fill for it,
+    so a position taken by an actor outside the harness can only ever reach the
+    book through a sync. The fill-sum read every one of them as zero, so
     the guard took the never-owned branch and skipped corroboration on six
     positions the fund genuinely held. That is precisely the integrity case this
     module exists to catch, walked past by a wrong input.
