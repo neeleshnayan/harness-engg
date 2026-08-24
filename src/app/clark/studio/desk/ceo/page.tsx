@@ -23,7 +23,9 @@ import type { Decision, DecisionGroup } from "../decisionList";
 import {
   decisionList, foldedCounts, orderingHazard,
 } from "../decisionList";
-import { awaitingHeadline, deskShelves, heroFigure } from "../deskAwaiting";
+import {
+  awaitingHeadline, deskShelves, heroFigure, shelfAbsenceNote,
+} from "../deskAwaiting";
 import { officerDesk } from "../officerQueues";
 import { CooTriageChip, ProvenanceChip } from "../components";
 import { cardStyle } from "../deskCardStyle";
@@ -417,15 +419,7 @@ export default function CeoDeskPage() {
                    EITHER — it is not computed. Same null from `deskShelves`,
                    two different true sentences, chosen by the read state
                    rather than by the null. */
-                <span className={KT.muted}>
-                  {deskRead === "loading"
-                    ? `${READING_DESK} How that number splits — today's `
-                      + "decisions, your executions, your routing calls — is "
-                      + "not worked out yet."
-                    : "The desk could not be read, so how that number splits — "
-                      + "today's decisions, your executions, your routing "
-                      + "calls — is unknown too."}
-                </span>
+                <span className={KT.muted}>{shelfAbsenceNote(deskRead)}</span>
               ) : (
                 <>
                   <span className={steer.overdue ? KT.sev.warn : "font-medium"}>

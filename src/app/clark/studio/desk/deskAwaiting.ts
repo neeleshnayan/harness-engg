@@ -290,12 +290,31 @@ export interface ShelfItem {
 }
 
 /**
+ * The sentence that goes where the shelves would have been.
+ *
+ * `deskShelves` returns the same `null` for a pending read and a failed one —
+ * correctly, because neither can be partitioned — so the SENTENCE is what
+ * carries the difference, and it lives here rather than in the page's JSX for
+ * the reason `heroFigure` does: a decision inside a `.tsx` is a decision this
+ * repo's runner cannot execute. It was written in the JSX first and its two
+ * branches swapped silently under mutation with the whole suite green.
+ */
+export function shelfAbsenceNote(read: DeskRead): string {
+  if (read === "loading") {
+    return `${READING_DESK} How that number splits — today's decisions, your `
+      + "executions, your routing calls — is not worked out yet.";
+  }
+  return "The desk could not be read, so how that number splits — today's "
+    + "decisions, your executions, your routing calls — is unknown too.";
+}
+
+/**
  * @param read the state of the `/fund/desk` read. ONLY `readable` partitions
  *   anything: a pending read and a failed one both return null, because the
- *   partition of a number nobody has yet is not a row of zeroes. The CALLER
- *   holds the same `read` value and writes the sentence, so the two states
- *   get two different sentences from one source rather than one sentence
- *   from a boolean that cannot tell them apart.
+ *   partition of a number nobody has yet is not a row of zeroes. The sentence
+ *   for each is `shelfAbsenceNote`'s, so the two states get two different
+ *   sentences from one source rather than one sentence from a boolean that
+ *   cannot tell them apart.
  * @param today the fund's UTC day, `YYYY-MM-DD` — passed in, never read from
  *   the browser, because "due today" must mean the fund's day and because a
  *   clock a test cannot set is a branch a test cannot reach.

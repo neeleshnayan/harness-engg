@@ -2,7 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-import { awaitingHeadline, deskShelves, heroFigure } from "./deskAwaiting.ts";
+import {
+  awaitingHeadline, deskShelves, heroFigure, shelfAbsenceNote,
+} from "./deskAwaiting.ts";
 import { deskLanes, laneCount, decidedCount, laneGlyph } from "./deskLanes.ts";
 import { steeringSentence } from "./deskSteer.ts";
 import { readState } from "./deskRead.ts";
@@ -159,6 +161,21 @@ test("fccb9cf3: the shelf line has NO shelves while the read is in flight — "
     null, "rows in hand do not make the partition final");
 });
 
+test("fccb9cf3: the sentence that replaces the shelves says WHICH absence it "
+  + "is — the two branches swapped under mutation with the suite green while "
+  + "they lived in the page's JSX", () => {
+  const loading = shelfAbsenceNote("loading");
+  const failed = shelfAbsenceNote("unreadable");
+  assert.match(loading, /Reading the desk/);
+  assert.ok(!/could not be read/.test(loading),
+    "the pending sentence must not borrow the failure's words");
+  assert.match(failed, /The desk could not be read/);
+  assert.ok(!/Reading the desk/.test(failed),
+    "and the failure must not borrow the pending one's — 'Reading…' for a "
+    + "read that already failed is a progress bar for nothing in progress");
+  assert.notEqual(loading, failed);
+});
+
 test("fccb9cf3: an unreadable desk still has no shelves (unchanged), and a "
   + "READABLE one still returns real zeroes", () => {
   assert.equal(deskShelves("unreadable", [], 0, "2026-08-24"), null);
@@ -296,6 +313,27 @@ test("fccb9cf3: the CEO desk derives THREE read states — one per endpoint — 
     assert.ok(src.includes(`const ${name} = readState(${got}, ${failed})`),
       `${name} must be derived from its own payload AND its own failure flag; `
       + "the failure flag is what separates 'not yet' from 'not ever'");
+  }
+});
+
+test("fccb9cf3: EVERY page passes its OWN failure flag — a literal there is a "
+  + "page that can never report a failed read, and it survived the first "
+  + "mutation pass on two of the three", () => {
+  /* The mutant is `readState(x !== null, false)`: the suite stayed green
+   * because nothing asserted what the SECOND argument was. A page wired that
+   * way renders "reading…" for ever over a dead spine — the ticket's own
+   * defect with its polarity reversed, which is the worse direction. */
+  const wiring: [string, string][] = [
+    [strip(OFFICE), "readState(d !== null, err !== null)"],
+    [strip(SEAT), "readState(desk !== null, deskErr !== null)"],
+    [strip(CEO), "readState(desk !== null, err !== null)"],
+  ];
+  for (const [src, call] of wiring) {
+    assert.ok(src.includes(call), `expected the wiring \`${call}\``);
+  }
+  for (const [src] of wiring) {
+    assert.ok(!/readState\([^)]*,\s*(false|true)\s*\)/.test(src),
+      "a literal second argument means the failed state is unreachable");
   }
 });
 
