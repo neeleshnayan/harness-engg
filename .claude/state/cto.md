@@ -661,3 +661,20 @@ which makes filing them promptly a flow obligation, not bookkeeping.
 Axes stay distinct or the table collapses into one seat at three times
 the cost: Vishesh = blocked-on-a-missing-join; Grace = the date; Donna =
 what the CEO never needed to see.
+
+
+---
+
+## 2026-08-24 — WINS LEDGER: THE FIRST PREMIA PASS
+
+Entry 20 (announcement_premium, a9db39fdfab5) cleared gate v5r3-premia with
+zero failures — the first full premia pass in firm history. Excess
+advantage +0.871, gross 0.9987 inside the fail-closed ceiling, 8/9 folds,
+five caveats filed beside it (docs/ENTRY20_PREMIA_PASS_2026-08-24.md).
+What made it real: the pass survived a revoked predecessor, a killed
+label, and a gate rebuilt three times under adversary fire. The lesson
+worth keeping — the verdict's value came from the gauntlet, not the
+number. CEO, on the record: "superb work fable on seeing this through!
+first one's are always special." The credit is distributed: his premia
+ruling and falsifier, the adversary's three kill rounds, the quant's
+belt, the chair's loops. That distribution is the org working.
