@@ -4,7 +4,8 @@ import React, { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { KT } from "../theme";
 import { fmtAt } from "./seatLib";
-import type { Lane, LaneCount, LaneRow } from "./deskLanes";
+import { laneGlyph } from "./deskLanes";
+import type { Lane, LaneRow } from "./deskLanes";
 import type { LineageAnchor, LineageSources } from "./lineage";
 import { lineageFor } from "./lineage";
 import { LineageView } from "./LineageView";
@@ -31,21 +32,6 @@ import { LineageView } from "./LineageView";
  *     hue. The only chevron on the page is the one that says a thing opens.
  */
 
-/**
- * The glyph in the lane header.
- *
- * TWO KINDS OF NOT-A-NUMBER, and they must not share a word. `unknown` is a
- * finding — the fund was asked and could not say. `…` is a read still in
- * flight, which is not a finding about anything (ticket fccb9cf3: five lanes
- * said `unknown` for thirty seconds while the fetch was pending). It takes
- * the whole `LaneCount` rather than the value alone precisely because the
- * value cannot tell them apart; that is the defect, one level down.
- */
-function laneNumber(c: LaneCount): string {
-  if (c.value !== null) return String(c.value);
-  return c.source === "loading" ? "…" : "unknown";
-}
-
 export function LaneBlock({ lane, sources, children }: {
   lane: Lane;
   sources: LineageSources;
@@ -68,7 +54,7 @@ export function LaneBlock({ lane, sources, children }: {
           ? <ChevronDown size={14} className={`shrink-0 ${KT.muted}`} />
           : <ChevronRight size={14} className={`shrink-0 ${KT.muted}`} />}
         <span className={`${KT.numberLg} shrink-0 tabular-nums`}>
-          {laneNumber(c)}
+          {laneGlyph(c)}
         </span>
         <span className="min-w-0 flex-1">
           <span className={`${KT.label} block`}>{lane.label}</span>

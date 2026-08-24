@@ -437,18 +437,22 @@ test("the header count and the card count are ONE number in the source", () => {
   // Both rendered figures read the SAME fold, named site by site rather than
   // tallied — a count of occurrences would move with an added `?:` and pin
   // nothing.
-  /* THE PIN GAINED A THIRD STATE (2026-08-24, ticket fccb9cf3) AND LOST NO
-   * STRENGTH. It still requires the hero to read `headline.value` and still
-   * requires a null to render as a WORD — but the word `unknown` is now
-   * reserved for a read that actually failed, because rendering it for a read
-   * still in flight put the fund's loudest honesty sentence on the CEO's
-   * screen for thirty seconds about an outage that had not happened. */
+  /* THE PIN GOT WEAKER ON PURPOSE, BECAUSE THE THING IT PINNED MOVED SOMEWHERE
+   * A TEST CAN EXECUTE IT (2026-08-24, ticket fccb9cf3). This used to require
+   * the exact ternary `headline.value === null ? "unknown" : headline.value`
+   * in the JSX. That ternary gained a third state — `unknown` is now reserved
+   * for a read that FAILED, and a read still in flight renders `…` — and a
+   * three-way choice buried in a component is a decision node's type stripper
+   * can never run. So the choice lives in `deskAwaiting.heroFigure`, with its
+   * own behavioural tests, and what remains here is the property this test
+   * actually owns: the hero reads THE ONE FOLD and nothing else. */
   const hero = src.replace(/\s+/g, " ");
-  assert.ok(hero.includes(
-    '{headline.value === null ? (headline.source === "loading" ? "…" '
-    + ': "unknown") : headline.value}'),
-    "the header figure must be headline.value; a null must render as a word, "
-    + "and that word may only be `unknown` when the read is not loading");
+  assert.ok(hero.includes("{heroFigure(headline)}"),
+    "the header figure must be rendered from the one fold, by the one "
+    + "function — a second expression here is how 11 and 6 reached one screen");
+  assert.ok(!/headline\.value === null \?/.test(hero),
+    "the hero must not re-decide what a null means inside the JSX; that is "
+    + "the code path no test in this repo can execute");
   /* THE SECOND READER MOVED (D31), THE INVARIANT DID NOT. It used to be the
    * greeting card, which is deleted; it is the steering sentence now. The
    * steer says "N await you and the ranked list came back empty" in one

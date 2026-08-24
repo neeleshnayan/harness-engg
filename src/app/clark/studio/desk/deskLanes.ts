@@ -226,6 +226,25 @@ export function decidedCount(
   };
 }
 
+/**
+ * The glyph a lane header renders for its count.
+ *
+ * TWO KINDS OF NOT-A-NUMBER AND THEY MUST NOT SHARE A WORD. `unknown` is a
+ * finding — the fund was asked and could not say. `…` is a read still in
+ * flight, which is a finding about nothing (ticket fccb9cf3). It takes the
+ * whole `LaneCount` because the VALUE cannot tell them apart; that is the
+ * defect, one level down.
+ *
+ * IT LIVES HERE RATHER THAN IN `DeskLaneViews.tsx`, where it was, because
+ * node's type stripper refuses `.tsx` and a decision that only exists inside a
+ * component is a decision nothing can test. Same move, same reason, as
+ * `chipShowsTotal` in deskAwaiting.
+ */
+export function laneGlyph(c: LaneCount): string {
+  if (c.value !== null) return String(c.value);
+  return c.source === "loading" ? "…" : "unknown";
+}
+
 /** Rows of an actor, said plainly. `null` is a finding, not a blank. */
 function actorOf(rec: {
   next_actor_resolved?: string | null; next_actor?: string | null;

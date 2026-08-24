@@ -238,6 +238,26 @@ export function awaitingHeadline(input: AwaitingInput): AwaitingHeadline {
   };
 }
 
+/**
+ * THE HERO GLYPH — the largest thing on the CEO's desk, as one string.
+ *
+ * Extracted from the JSX for the reason this repo keeps re-learning: node's
+ * type stripper refuses `.tsx`, so a ternary inside a component is a decision
+ * no test can reach, and the only guard available for it is a source-text pin
+ * that a reformat breaks and a rename fools. It was a three-way ternary the
+ * day it decided the difference between "we could not find out" and "we have
+ * not been told yet" (ticket fccb9cf3), which is exactly the kind of decision
+ * that should not live where nothing can execute it.
+ *
+ * The `+` suffix rides here too, so the caller renders ONE expression. It can
+ * only ever attach to a real number: `atLeast` marks the served figure as a
+ * FLOOR, and there is no floor under a figure that does not exist.
+ */
+export function heroFigure(h: AwaitingHeadline): string {
+  if (h.value === null) return h.source === "loading" ? "…" : "unknown";
+  return h.atLeast ? `${h.value}+` : String(h.value);
+}
+
 /* ------------------------------------------------------- the shelf line --- */
 
 /**

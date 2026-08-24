@@ -23,7 +23,7 @@ import type { Decision, DecisionGroup } from "../decisionList";
 import {
   decisionList, foldedCounts, orderingHazard,
 } from "../decisionList";
-import { awaitingHeadline, deskShelves } from "../deskAwaiting";
+import { awaitingHeadline, deskShelves, heroFigure } from "../deskAwaiting";
 import { officerDesk } from "../officerQueues";
 import { CooTriageChip, ProvenanceChip } from "../components";
 import { cardStyle } from "../deskCardStyle";
@@ -394,13 +394,11 @@ export default function CeoDeskPage() {
                   work may be waiting that nobody can see. `…` is a read still
                   in flight — no finding, nothing to alarm about, and muted so
                   the eye passes over it. Rendering the first for the second is
-                  ticket fccb9cf3, thirty seconds of it on the CEO's screen. */}
+                  ticket fccb9cf3, thirty seconds of it on the CEO's screen.
+                  The choice itself is `heroFigure`, in a file tests can run. */}
               <span className={`${KT.hero} ${
                 headline.source === "loading" ? KT.muted : ""}`}>
-                {headline.value === null
-                  ? (headline.source === "loading" ? "…" : "unknown")
-                  : headline.value}
-                {headline.atLeast && "+"}
+                {heroFigure(headline)}
               </span>
               <span className={`${KT.label} pb-1`}>awaiting your decision</span>
             </p>
