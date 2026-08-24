@@ -21,11 +21,12 @@ every OTHER test in this repository measures — including the Tier-A gate tests
 whose whole job is to refuse a loosening. It is deliberately cheap: a compile
 pass over `app/`, no imports, no I/O beyond reading files.
 
-The three tests below the guard are what make the guard trustworthy: a PLANT
-(the guard can fail, and names the constant), a BOUNDARY (a disagreeing cache
-Python would discard is NOT reported as poisonous — the distinction is the
-whole finding), and a REGRESSION for a false-positive the scanner shipped with
-in its first hour, which accused seven innocent files.
+Everything below the guard is what makes the guard trustworthy, and it is more
+code than the guard by design: a PLANT (the guard can fail, and names the
+constant), a BOUNDARY (a disagreeing cache Python would discard is NOT reported
+as poisonous — that distinction is the whole finding), the two PEP 552 hash
+modes, and REGRESSIONS for the two false-positive classes the scanner shipped
+with in its first hour, which between them accused seven innocent files.
 """
 
 from __future__ import annotations
@@ -173,25 +174,64 @@ def test_a_module_WITHOUT_future_annotations_is_not_falsely_accused(tmp_path):
     assert counts["agree"] == 1, (counts, findings)
 
 
-@pytest.mark.parametrize("shape", ["frozenset", "set_in_tuple"])
-def test_marshalling_order_is_not_mistaken_for_a_difference(tmp_path, shape):
-    """Would catch: set-literal iteration order being read as a code change.
+def _equal_sets_in_different_order() -> tuple[frozenset, frozenset]:
+    """Two EQUAL frozensets whose iteration order genuinely differs.
 
-    `frozenset({'FILL','PTR','PTC'})` marshals in iteration order and its repr
-    differs between two honest compilations of the same bytes. This was a false
-    positive on the first pass; `app/fund/custody.py` was the file it accused.
+    Set iteration order is a function of the hash table's LAYOUT, and the layout
+    depends on construction history — not only on the contents. Growing a set
+    past a resize and then discarding the extras leaves a table sized for the
+    larger population, and the survivors land in different slots. Deterministic,
+    same-process, no hash-seed games.
     """
-    body = ("MEMBERS = frozenset({'FILL', 'PTR', 'PTC', 'ABC', 'XYZ'})\n"
-            if shape == "frozenset" else
-            "PAIRS = (frozenset({'a', 'b', 'c'}), frozenset({'d', 'e', 'f'}))\n")
-    src = tmp_path / "sets.py"
-    src.write_text(body + "def use():\n    return MEMBERS if 'MEMBERS' in "
-                          "dir() else PAIRS\n", encoding="utf-8")
-    py_compile.compile(str(src), cfile=str(sps.cached_path(src)), doraise=True)
+    members = ["FILL", "PTR", "PTC", "ABC", "XYZ"]
+    grown = set(members + [f"Z{i}" for i in range(8)])
+    for i in range(8):
+        grown.discard(f"Z{i}")
+    return frozenset(members), frozenset(grown)
 
-    findings, counts = sps.scan(tmp_path)
-    assert counts["poisonous"] == 0, (counts, findings)
-    assert counts["agree"] == 1, (counts, findings)
+
+@pytest.mark.parametrize("wrap", ["bare", "in_tuple"])
+def test_set_iteration_order_is_not_mistaken_for_a_code_change(wrap):
+    """Would catch: set-literal ORDER being read as a difference in meaning.
+
+    This was a real false positive, not a hypothetical: the scanner's first
+    pass accused `app/fund/custody.py` over
+    `frozenset({'FILL','PTR','PTC'})` against `frozenset({'PTC','FILL','PTR'})`
+    — the same constant, two orders. `_norm` sorts set members for exactly this
+    reason.
+
+    THE FIRST VERSION OF THIS TEST WAS VACUOUS AND THE MUTATION PASS SAID SO.
+    It wrote a source file, compiled it, and compared — but two compilations of
+    identical bytes usually produce identical ORDER, so it passed with `_norm`'s
+    set branch deleted. A comparator test has to contain a difference before it
+    can prove the comparator forgives one, so the fixture below ASSERTS that the
+    two orders differ before asserting that the scanner ignores it.
+    """
+    a, b = _equal_sets_in_different_order()
+    # THE FIXTURE'S OWN PRECONDITION. Without this the test proves nothing.
+    assert a == b, "the two sets must be equal"
+    assert list(a) != list(b), "the two sets must ITERATE differently"
+    assert repr(a) != repr(b), "a repr-based comparison must be able to differ"
+
+    template = compile("X = 0\n", "x.py", "exec", dont_inherit=True)
+    left = template.replace(co_consts=((a,) if wrap == "bare" else ((a, 1),)))
+    right = template.replace(co_consts=((b,) if wrap == "bare" else ((b, 1),)))
+
+    assert sps.first_difference(left, right) is None, \
+        sps.first_difference(left, right)
+
+
+def test_a_set_whose_MEMBERS_changed_is_still_reported(tmp_path):
+    """The other side of the boundary above: forgiving ORDER must not mean
+    forgiving CONTENT. A criterion set that quietly loses a member is precisely
+    the kind of change this scanner exists to surface.
+    """
+    template = compile("X = 0\n", "x.py", "exec", dont_inherit=True)
+    left = template.replace(co_consts=(frozenset({"FILL", "PTR", "PTC"}),))
+    right = template.replace(co_consts=(frozenset({"FILL", "PTR"}),))
+
+    detail = sps.first_difference(left, right)
+    assert detail is not None and "CONSTANT" in detail, detail
 
 
 @pytest.mark.parametrize(

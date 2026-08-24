@@ -829,3 +829,145 @@ def test_the_DEMAND_is_the_verdict_boundary_a_reader_can_check():
     assert min(margins) > 0.02, min(margins)
     # THE DISCRIMINATOR: the answer this dispatch replaced gets it wrong.
     assert agree_engine == 3, agree_engine
+
+
+# =========================================================================
+# 4. THE MUTATION SURVIVORS, closed
+#
+# Four mutants survived the D41 pass. Each was re-derived by hand before being
+# written down — a survivor is a gap or a retirement, never a note — and three
+# of the four were REAL gaps that all pointed at the same uncovered shape: a
+# run whose SERIES is fine and whose DATES are not. The D41 diff added a branch
+# for exactly that case and nothing exercised it.
+#
+# The fourth (`"annualised": per_obs * sqrt(kk)` hardcoded to `1.0`) is RETIRED
+# rather than closed, with its proof in `test_the_derived_annualised_form_*`.
+# =========================================================================
+
+def _no_clock_verdict():
+    """A usable series whose dates carry no readable spacing.
+
+    Every date identical, so `observations_per_year` refuses with `usable:
+    False` — the series is 400 real returns and the clock is absent. This is the
+    ONLY shape that separates "no series" from "no clock", and the gate now says
+    two different things about them.
+    """
+    r = _alpha(psr=20.0)
+    n = len(r["daily_returns"]["strategy"])
+    r["daily_returns"]["dates"] = ["2021-01-04"] * n
+    return evaluate(r, CLEAN_HOLDOUT, CLEAN_SWEEP,
+                    walkforward=CLEAN_WALK)["checks"]["luck"], r
+
+
+def test_a_run_with_a_SERIES_but_NO_READABLE_DATES_states_the_target_and_drops_only_the_clock():
+    """Mutants M3 and M10, both survivors of the first pass, both here.
+
+    M3 loosened the demand's guard from `and k` to `and (k or the engine's
+    clock)`, so a run with no measured observation rate would have had its
+    demand computed on 252 — the exact substitution this dispatch exists to
+    remove, re-entering through a fallback. It survived because no fixture had
+    a series without a clock.
+
+    M10 collapsed the two absence sentences into one, telling a reader with 400
+    perfectly good returns that the run "carries no usable return series". That
+    sends them hunting for a missing series when what is missing is the dates,
+    which is the misdirection D29's rule was written about.
+
+    WHAT MUST BE TRUE: the per-observation target is a constant and is stated;
+    everything that needs a clock is ABSENT rather than defaulted; and the
+    sentence names the DATES.
+    """
+    luck, _ = _no_clock_verdict()
+
+    # The clock is absent, and absence is not 252.
+    assert luck["obs_per_year"] is None
+    assert luck["engine_target_annualised"] is None
+    assert "required_sharpe_annualised" not in luck
+    assert "required_sharpe_clock" not in luck
+
+    # The constant does not depend on the run, so it is still stated.
+    assert luck["target_sharpe"] == round(st.lean_psr_target()["per_obs"], 8)
+    assert luck["measurable"] is True
+
+    # 400 real returns: this run is not short of a series, and the reading the
+    # series supports was still taken.
+    assert luck["n_obs"] == 400
+    assert luck["luck_psr_pct"] is not None
+
+
+def test_the_no_clock_sentence_names_the_DATES_and_not_a_missing_series():
+    """The SHARED-WORD half of M10: both absence sentences end in the same
+    fourteen words (`so what the level demands OF IT is unstated`), so an
+    assertion on that phrase passes under the mutant. The discriminating clause
+    is the only thing worth asserting on.
+    """
+    luck, r = _no_clock_verdict()
+    out = evaluate(r, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK)
+    sentence = next(f for f in out["failures"] if "probabilistic Sharpe" in f)
+
+    assert "dates do not yield a usable observation rate" in sentence
+    assert "carries no usable return series" not in sentence
+    # And the restatement clause says why it cannot annualise, rather than
+    # quietly annualising on the engine's convention.
+    assert "no measured observation rate" in sentence
+    assert "cannot be restated on its own clock" in sentence
+
+
+def test_the_statistic_sentence_states_the_PER_OBSERVATION_target_and_its_own_clock():
+    """Mutants M8 and M9.
+
+    M8 rounded the per-observation target in `statistic` from six decimals to
+    two — `0.06` — which is not a number a reader can check against
+    1/sqrt(252). M9 dropped the annualised clause entirely, leaving a
+    per-observation figure with no restatement in the units every other field
+    on the payload uses. Both survived: nothing asserted on the CONTENT of
+    `statistic`, only on its existence.
+
+    `statistic` is the field a human reads to find out what the criterion
+    asked. It carries both forms or it carries a riddle.
+    """
+    per_obs = st.lean_psr_target()["per_obs"]
+    out = _alpha_verdict()["checks"]["luck"]
+    k = float(out["obs_per_year"])
+
+    # Six decimals, and PINNED — not "contains the word Sharpe".
+    assert f"{per_obs:.6f}" in out["statistic"], out["statistic"]
+    assert "per observation" in out["statistic"]
+    # The annualised clause, on THIS run's measured clock, with the rate named
+    # so a reader can redo the arithmetic.
+    assert f"an annualised {round(per_obs * math.sqrt(k), 4):.2f}" in \
+        out["statistic"], out["statistic"]
+    assert f"{out['obs_per_year']} observations a year" in out["statistic"]
+
+    # AND THE CLAUSE IS CONDITIONAL, not decoration: strip the clock and it
+    # goes, rather than falling back to the engine's convention.
+    no_clock, _ = _no_clock_verdict()
+    assert "an annualised" not in no_clock["statistic"], no_clock["statistic"]
+    assert f"{per_obs:.6f}" in no_clock["statistic"]
+
+
+def test_the_derived_annualised_form_is_kept_though_no_test_can_kill_it():
+    """THE RETIREMENT, with its proof — mutant M16, `"annualised": per_obs *
+    sqrt(kk)` replaced by a literal `1.0`.
+
+    It survives, and it survives HONESTLY: the two forms are equal to within
+    one unit in the last place, and no field derived from them is rounded finer
+    than 1e-4. No test that asserts a true thing can distinguish them, so
+    writing one would be theatre.
+
+    The derived form is kept anyway, and the reason is coupling rather than
+    arithmetic: it gives a defect in `per_obs` a SECOND place to show up. Break
+    the square root and this figure moves off 1.00 while a hardcoded literal
+    would keep reassuring the reader. This test therefore pins the ULP claim —
+    if it ever stops holding, the retirement stops being valid and the mutant
+    becomes a real gap.
+    """
+    worst = 0.0
+    for k in list(range(1, 2000)) + [252, 365, 365.25, 1e6]:
+        out = st.lean_psr_target(k)
+        worst = max(worst, abs(out["annualised"] - 1.0))
+    # One ULP at 1.0 is 2.22e-16; allow two and no more.
+    assert worst <= 2 * 2.220446049250313e-16, worst
+    # ...and the verdict field that carries it rounds to 4 places, which is
+    # twelve orders of magnitude coarser. That is why the mutant is equivalent.
+    assert round(1.0 + worst, 4) == 1.0
