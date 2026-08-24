@@ -517,15 +517,71 @@ def fmt_bps(x: float) -> str:
 #: run-quant-metacontrols) put four known-good archetypes with POSITIVE mean
 #: returns through it and they scored 2.128, 1.398, 0.051 and 0.315 percent — on
 #: a statistic documented as P(true Sharpe > 0), which is impossible against a
-#: target of zero at any sample size. Inverting the engine's own figure on each
-#: run's own series recovers the target it was really measured against: an
-#: annualised Sharpe of 1.34 / 1.49 / 1.43 / 1.51 on those four. It was a SKILL
-#: HURDLE wearing a luck filter's sentence, and our own module at target zero
-#: reads the identical series at 85.0 / 90.4 / 50.2 / 78.3 — a disagreement of
-#: 40x, 65x, 249x and 983x respectively — a disagreement nobody could see
-#: because nothing captured both readings. ("40x" is the buyhold control alone;
-#: the figure travelled from the control report into this comment before anyone
-#: divided the other three.)
+#: target of zero at any sample size. It was a SKILL HURDLE wearing a luck
+#: filter's sentence, and our own module at target zero reads the identical
+#: series at 85.0 / 90.4 / 50.2 / 78.3 — a disagreement of 40x, 65x, 249x and
+#: 983x respectively — a disagreement nobody could see because nothing captured
+#: both readings. ("40x" is the buyhold control alone; the figure travelled from
+#: the control report into this comment before anyone divided the other three.)
+#:
+#: WHAT THE HURDLE IS — READ FROM THE ENGINE, CORRECTED IN D38. v4.4 and D37
+#: both said the target was unpublished and recovered it PER CANDIDATE by
+#: inverting the engine's own statistic on each run's series, which gave 1.34 /
+#: 1.49 / 1.43 / 1.51 annualised on the four controls and 1.17 to 2.26 across
+#: the stored population. THE SPREAD WAS OURS, NOT THE ENGINE'S. The adversary
+#: read the source instead of the runs (run-adversary-d37):
+#:
+#:     // deannualize a 1 sharpe ratio
+#:     var benchmarkSharpeRatio = 1.0d / Math.Sqrt(tradingDaysPerYear);
+#:     ProbabilisticSharpeRatio = Statistics.ProbabilisticSharpeRatio(
+#:         listPerformance, benchmarkSharpeRatio,
+#:         (double)riskFreeRate / tradingDaysPerYear).SafeDecimalCast();
+#:
+#: — QuantConnect/Lean, Common/Statistics/PortfolioStatistics.cs:311-312
+#: (master, fetched and re-read 2026-08-24), with Statistics.cs:231-237
+#: subtracting a per-sample risk-free rate inside `ObservedSharpeRatio`. So the
+#: target is a CONSTANT: an annualised Sharpe of exactly 1.00, identical for
+#: every candidate, on EXCESS returns. `tradingDaysPerYear` is 252 on 276 of 276
+#: of this fund's stored `-summary.json` files and is now captured per run into
+#: `robustness.psr_inputs.trading_days_per_year`, so a future image that moves
+#: it moves the stated hurdle with it instead of silently.
+#:
+#: OUR INVERSION HAD TWO ERRORS AND THE PRODUCT OF THEM IS THE WHOLE SPREAD:
+#: it inverted on RAW returns (recovering `1/sqrt(252) + rf_daily/sd_daily`,
+#: which varies with each run's volatility) and annualised on the CANDIDATE'S
+#: calendar clock rather than the engine's 252 (a further x1.2039). Corrected
+#: for both, the same inversion over the same 336 stored candidates recovers
+#: min 0.786 / MEDIAN 0.9996 / max 1.058 against the old 1.171 / 1.696 / 2.262
+#: — 78.6% within 0.01 of 1.00 (scratchpad/d38probe/recover.py, one read-only
+#: SELECT; the residual is our skew/kurtosis estimators against MathNet's, not
+#: the target). `statistics.implied_target_sharpe` survives as that CHECK and is
+#: off the sentence path entirely; `statistics.lean_psr_target` is what the
+#: verdict quotes.
+#:
+#: WHAT THAT COST BEFORE IT WAS CAUGHT, and what the correction moves —
+#: MEASURED by re-judging all 765 stored belt results on both trees rather than
+#: counted by eye (scratchpad/advd36/judge.py on d38base and this tree):
+#:
+#:     alpha verdict FLIPS                                     0
+#:     alpha failure-SET changed                             656
+#:     BASE: sentences saying "could not be recovered"       368
+#:     BASE: sentences quoting a per-candidate target        288
+#:     HEAD: sentences stating the constant                  656
+#:     HEAD: ...of which state no demand (no usable series)  365
+#:     premia verdict flips / sentence changes             0 / 0
+#:
+#: 368 verdicts told a reader the engine's target "could not be recovered" and
+#: that what the level demands "is UNSTATED rather than zero" — both false, the
+#: target never depended on the run — and 288 more quoted a confident
+#: per-candidate figure no engine ever used. Neither sentence can be produced by
+#: this file now. THE 368-vs-365 GAP IS THE OTHER HALF OF THE FIX: three stored
+#: candidates carry a full series and publish a PSR of exactly 0.0%, which pins
+#: the INVERSION at infinity, so v4.4 could say nothing about them. The bar is a
+#: function of the level and the series' shape, not of the reported PSR, so with
+#: the target known those three now get the full disclosure.
+#:
+#: NOTHING ELSE MOVES, and the premia row is the certified surface staying
+#: frozen — measured, not asserted.
 #:
 #: THE CHAIR'S RULING (cto.md, 2026-08-24) fixed the sentence unconditionally
 #: and set the level by measurement under a hard invariant: full-gauntlet
@@ -565,6 +621,19 @@ def fmt_bps(x: float) -> str:
 #: "the median" in this dispatch's brief; it is a clock-factor DERIVATION —
 #: 0.0755 x 1.2039 — not a measurement, and the measurement does not agree with
 #: it. Two constructions of one number, and only one of them was counted.)
+#:
+#: READ THAT CENSUS WITH D38'S CORRECTION IN HAND, because it changes what the
+#: numbers ARE without changing what the argument PROVES. Every figure in the
+#: census above — the sweep's 0.0700..0.0792, the population's 0.0613/0.0887/
+#: 0.1184 — is the UNCORRECTED inversion: `1/sqrt(252) + rf_daily/sd_daily`,
+#: not a target. The engine's per-observation target is 0.062994 on EXCESS
+#: returns for every one of them. So the calibration was not sweeping the
+#: engine's target at all; it was sweeping an rf-and-volatility artifact, and
+#: the four controls were unrepresentative of the population OF THAT ARTIFACT.
+#: The kill survives the correction because both sides of its comparison used
+#: the same construction — a control sample in the 17.9th-28.6th percentile of
+#: the very quantity being swept — and it is now sharper, not weaker: an
+#: emulation whose target varies per candidate cannot emulate a constant.
 #:
 #:     window  arm                        luck only   FULL GATE   invariant
 #:     700d    engine-equivalent @65%         44.0%        1.0%   (today)
@@ -627,13 +696,22 @@ def fmt_bps(x: float) -> str:
 #: and zero changed sentences. That is the certified surface staying frozen,
 #: measured rather than asserted.
 #:
-#: WHY NOT A DIFFERENT TARGET-ZERO LEVEL: because no defensible one exists yet.
-#: Choosing one needs the engine's target MEASURED rather than emulated from
-#: four candidates in the population's bottom quartile, and that measurement is
-#: a queued experiment — one LEAN container over a synthetic series whose true
-#: Sharpe is known, which reads the engine's target directly instead of
-#: inverting it out of runs. Until it lands, moving this pair is choosing a
-#: number over a population nobody has sampled.
+#: WHY NOT A DIFFERENT TARGET-ZERO LEVEL: because no defensible one exists yet,
+#: and D38 changes the REASON without changing the answer. D37 said the blocker
+#: was that the engine's target had never been measured, and named a queued
+#: experiment — one LEAN container over a synthetic series of known Sharpe — as
+#: the unlock. THAT EXPERIMENT IS RETIRED, not deferred: the target was never an
+#: empirical question about the engine, it was an arithmetic error in our
+#: inversion, and the answer is five lines of the engine's own source confirmed
+#: by 336 stored candidates at no container cost. Whoever holds that ticket
+#: should close it and reclaim the slot.
+#:
+#: What still blocks a calibrated target-zero level is the OTHER finding, which
+#: the correction leaves untouched: on a long-only equity population the
+#: target-zero statistic does not separate zero-skill draws at any level from 50
+#: to 99.9. A constant we now know exactly does not make a flat curve
+#: discriminating. Moving this pair still means choosing a number over a
+#: population nobody has sampled.
 #:
 #: THE REGISTER AGREES WITH THE CODE AGAIN, checked rather than assumed:
 #: `app/fund/judgement.py` registers `min_psr_pct` at 65.0, and under the draft
@@ -644,14 +722,22 @@ def fmt_bps(x: float) -> str:
 #: against a target-zero reading, and the number guards an engine skill hurdle
 #: — and a corrected text is drafted at
 #: docs/drafts/JUDGEMENT_MIN_PSR_WHY_2026-08-24.md. A register change is a
-#: human's act, so it is a draft and not a diff.
+#: human's act, so it is a draft and not a diff. (That draft was itself REWRITTEN
+#: in D38: its D37 text said the criterion applies "not one hurdle but a
+#: different one for every candidate" and built the reopening path on the
+#: 1.17-2.26 spread. A draft one chair action away from entering the register as
+#: the reason a threshold exists, refuted by the next review round — the draft
+#: says so at its head rather than quietly presenting the new version.)
 #:
-#: WHAT WOULD CHANGE THIS DECISION'S MIND: the engine-target pin experiment
-#: producing a MEASURED target that supports a calibrated target-zero level; or
-#: a zero-skill population on which the full-gauntlet rate MOVES with the level
-#: (any market-neutral or short-capable universe, where absolute Sharpe is no
-#: longer market beta in disguise); or a candidate refused by this criterion
-#: alone.
+#: WHAT WOULD CHANGE THIS DECISION'S MIND (restated in D38, because its first
+#: clause named an experiment that is now retired): a LEAN image that moves
+#: `algorithmConfiguration.tradingDaysPerYear` or the benchmark-Sharpe constant
+#: on PortfolioStatistics.cs:311 — the hurdle then moves with it, and
+#: `robustness.psr_inputs.trading_days_per_year` is captured on every new run so
+#: the check is mechanical; or a zero-skill population on which the
+#: full-gauntlet rate MOVES with the level (any market-neutral or short-capable
+#: universe, where absolute Sharpe is no longer market beta in disguise); or a
+#: candidate refused by this criterion alone.
 #:
 #: NOT FIXED HERE, and it is the honest limit of this pass: the 2000-day
 #: geometry two algorithms declare is UNREACHABLE on the pinned feed (1,378
@@ -960,13 +1046,19 @@ RF_BASES = ("realised_series", "constant")
 #: for the same reason an unrecognised rf basis does. BOTH ARE REAL and both are
 #: exercised by tests: the chair's ruling set the level by measurement under a
 #: hard invariant and wrote its own falsifier — "if no level holds full-gauntlet
-#: zero-skill FP constant, the ~1.34 hurdle STAYS with its sentence corrected to
-#: say so" — and a falsifier whose alternative branch does not exist cannot fire.
+#: zero-skill FP constant, the hurdle STAYS with its sentence corrected to say
+#: so" — and a falsifier whose alternative branch does not exist cannot fire.
+#: (The ruling's own shorthand for the hurdle was "~1.34", the figure the fund's
+#: uncorrected inversion produced on one control. The hurdle is an annualised
+#: 1.00; see the `GATE_VERSION` note. Nothing about the ruling turns on which.)
 #:
 #:   "target_zero_module"  — P(true Sharpe > 0), or for a premia claim P(true
 #:     advantage > 0), from `statistics.psr_from_moments`. The documented job.
-#:   "engine_reported"     — LEAN's published figure verbatim: an undisclosed
-#:     skill hurdle, labelled as one, with its target inverted per candidate.
+#:   "engine_reported"     — LEAN's published figure verbatim: a skill hurdle
+#:     the statistics block does not disclose, labelled as one, with its target
+#:     READ from the engine's source (`statistics.lean_psr_target`) — an
+#:     annualised Sharpe of exactly 1.00 on excess returns, the same for every
+#:     candidate.
 PSR_BASES = ("target_zero_module", "engine_reported")
 
 PREMIA_CRITERIA: dict[str, Any] = {
@@ -1192,9 +1284,10 @@ CRITERIA: dict[str, Any] = {
     # and the population census that settled it.
     #
     # WHAT SHIPS INSTEAD is the unconditional half of the chair's ruling: the
-    # SENTENCE. `_luck_leg` now inverts the engine's own figure per candidate and
-    # states the annualised Sharpe its target sits at and the annualised Sharpe
-    # this level demands against that target — and it never calls the result a
+    # SENTENCE. `_luck_leg` states the engine's own target — a hardcoded
+    # annualised Sharpe of 1.00 on excess returns, read from the engine's source
+    # rather than inverted out of the run (D38) — and the annualised excess
+    # Sharpe this level demands against it, and it never calls the result a
     # luck test. The target-zero reading of the same series is captured beside it
     # on every verdict (`checks["luck"]["luck_psr_pct"]`), which is the reading
     # that made the mislabelling visible in the first place and is what a future
@@ -1414,12 +1507,22 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
     with the words "the edge is not distinguishable from luck on this much
     history". Four positive controls with POSITIVE mean returns scored 2.128,
     1.398, 0.051 and 0.315 percent on a statistic documented as P(true Sharpe >
-    0) — impossible against a target of zero at any sample size. Inverting the
-    engine's own number on each run's own series recovers its target: an
-    annualised Sharpe of 1.34 to 1.51 on the four controls, stable within a
-    window and moving when the window moves. It is a SKILL HURDLE wearing a luck
-    filter's sentence, and our own module at target zero disagrees with it by
-    40x to 983x on the identical series, depending on the candidate.
+    0) — impossible against a target of zero at any sample size. It is a SKILL
+    HURDLE wearing a luck filter's sentence, and our own module at target zero
+    disagrees with it by 40x to 983x on the identical series, depending on the
+    candidate.
+
+    WHAT THE HURDLE IS. LEAN hardcodes the PSR's target at
+    ``1.0 / Math.Sqrt(tradingDaysPerYear)`` — an annualised Sharpe of exactly
+    1.00, identical for every candidate — and computes the statistic on EXCESS
+    returns (PortfolioStatistics.cs:311-312, Statistics.cs:231-237; see
+    ``statistics.lean_psr_target``). v4.4 and D37 instead INVERTED a target out
+    of each run's own series and reported a spread of 1.17 to 2.26; that spread
+    was two errors of ours compounding — raw returns instead of excess, and the
+    candidate's calendar clock instead of the engine's 252 — and D38 removes it
+    from every sentence. The inversion survives only as a check
+    (``statistics.implied_target_sharpe``), where corrected it lands at a median
+    of 0.9996 over 336 stored candidates.
 
     TWO REAL CONFIGURATIONS, and the shipped one differs BY CLAIM TYPE:
 
@@ -1429,8 +1532,9 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
         PREMIA BAR, where the statistic demonstrably separates the population.
       * ``engine_reported`` — the engine's number, kept selectable and kept
         HONEST. Whoever selects it gets a sentence that says it is a skill
-        hurdle, states the target inverted out of the run itself, and states the
-        Sharpe the level demands AGAINST THAT TARGET. SHIPPED ON THE ALPHA BAR,
+        hurdle, states the engine's own constant target and where the clock
+        behind it came from, and states the excess Sharpe the level demands
+        AGAINST THAT TARGET. SHIPPED ON THE ALPHA BAR,
         where a target-zero reading was measured not to discriminate at all
         (100% of 200 zero-skill baskets clear it at every level 50..99.9) and no
         defensible level therefore exists yet.
@@ -1444,9 +1548,10 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
     ships unconditionally, and it is not decoration: a criterion that reports a
     percentage without the target it was measured against, and without the
     Sharpe that percentage demands at this sample size, is asking a question in
-    units nobody can check. Both are computed per candidate — never restated
-    from a table, which is how the previous four-number identification would
-    have gone stale the first time a window moved.
+    units nobody can check. THE TARGET IS A CONSTANT and is therefore stated on
+    every verdict, including runs with no usable series; the DEMAND is a
+    function of this run's own sample size and shape and is absent when the
+    series will not support it. Neither is ever restated from a table.
 
     WHICH QUANTITY, by claim type. An ALPHA claim asserts an edge, so the filter
     scores the strategy's own Sharpe. A PREMIA claim asserts a risk-adjusted
