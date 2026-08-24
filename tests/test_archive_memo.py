@@ -40,6 +40,21 @@ REPO = Path(__file__).resolve().parents[1]
 REAL_ARCHIVES = REPO / "docs" / "archives"
 
 
+def daily_stems() -> list[str]:
+    """Date-stem files only — the Dailies these tests are about.
+
+    docs/archives/ also holds COMPLETING SECTIONS (`YYYY-MM-DD-completing.md`,
+    shape established 2026-08-24 by the secretary's run 6): a §2-style record
+    for the tail of a day whose Daily was cut early. Those carry no Daily
+    section by design, and `archive_memo` correctly refuses their stem — so
+    globbing them here asserted a contract they never made. `archives()`
+    already lists them with `date: None`; the memo card never serves them.
+    """
+    import re
+    return sorted(p.stem for p in REAL_ARCHIVES.glob("*.md")
+                  if re.fullmatch(r"\d{4}-\d{2}-\d{2}", p.stem))
+
+
 @pytest.fixture
 def fake_archives(tmp_path, monkeypatch):
     """Point the module at a temp directory. Returns it."""
@@ -65,7 +80,7 @@ class TestTheRealArchives:
         BELIEF about the format, and the belief here was wrong — the two files
         disagree with each other.
         """
-        found = sorted(p.stem for p in REAL_ARCHIVES.glob("*.md"))
+        found = daily_stems()
         assert len(found) >= 2, (
             "this regression needs both real archive shapes on disk; it is "
             f"reading {REAL_ARCHIVES} and found {found}")
@@ -84,7 +99,7 @@ class TestTheRealArchives:
         first line. It is the sixty-second read — the one paragraph he is
         promised he can act on — and starting it with a label is starting it
         with noise."""
-        for day in sorted(p.stem for p in REAL_ARCHIVES.glob("*.md")):
+        for day in daily_stems():
             m = desk_mod.archive_memo(day)
             assert m["tldr"], f"{day}: no headline was found at all"
             first = m["tldr"].splitlines()[0]
@@ -100,7 +115,7 @@ class TestTheRealArchives:
         including) `# THE RECORD`". The long record is nine sections; leaking
         it into the card would put the whole day on the CEO's desk under a
         heading that says it is the short version."""
-        for day in sorted(p.stem for p in REAL_ARCHIVES.glob("*.md")):
+        for day in daily_stems():
             m = desk_mod.archive_memo(day)
             if not m["has_long_record"]:
                 continue
