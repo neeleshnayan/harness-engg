@@ -1632,9 +1632,8 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
             # criterion nobody is applying.
             target = None
             out["engine_implied_target_note"] = (
-                ident.get("reason")
-                or "no usable return series, so the engine's target cannot be "
-                   "recovered and the Sharpe this level demands cannot be stated")
+                f"the engine's target could not be recovered "
+                f"({ident.get('reason') or 'this run carries no usable return series'})")
 
     # --- WHAT THE LEVEL DEMANDS, in the claim's own units ------------------
     bar: dict[str, Any] = {"measurable": False}
@@ -1699,18 +1698,27 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
                     f" Clearing {level}% against that target demands an "
                     f"annualised Sharpe of about {req:+.2f} on "
                     f"{out.get('n_obs')} observations of this shape.")
+        # Capitalised HERE and not in the field: the note is also a stored
+        # `reason`, where a leading capital reads wrong, and it opens a sentence
+        # here, where a leading lower case reads wrong. One string, two homes.
+        note = str(out.get("engine_implied_target_note") or "")
         unstated = ("" if tgt is not None else
-                    f" The engine's target could not be recovered here "
-                    f"({out.get('engine_implied_target_note')}), so what this "
-                    f"level demands is UNSTATED rather than zero.")
+                    f" {note[:1].upper()}{note[1:]}, so what this level demands "
+                    f"is UNSTATED rather than zero.")
         luck_note = ("" if out.get("luck_psr_pct") is None else
                      f" A target-zero reading of the same series — the question "
                      f"a luck filter actually asks — is "
                      f"{out['luck_psr_pct']}%.")
+        # A SENTENCE, not the target-zero branch's trailing clause. Every piece
+        # above ends in a full stop, so borrowing that branch's "; this run
+        # measured" spliced a `.;` into the middle of the line. Read, not
+        # asserted — no assertion in this file would have caught punctuation.
+        ran = ("" if out.get("sharpe_annualised") is None else
+               f" This run measured {out['sharpe_annualised']:+.2f}.")
         return out, [
             f"the engine's probabilistic Sharpe {out['evaluated_pct']}% is "
             f"below {level}%. THIS IS A SKILL HURDLE, NOT A LUCK TEST."
-            f"{identified}{demanded}{unstated}{luck_note}{measured}"]
+            f"{identified}{demanded}{unstated}{luck_note}{ran}"]
     demanded = ("" if out.get("required_sharpe_annualised") is None else
                 f", which on {out.get('n_obs')} observations of this shape "
                 f"demands an annualised "
