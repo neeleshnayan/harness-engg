@@ -543,6 +543,38 @@ def test_a_broken_book_fold_does_not_crash_the_guard():
     assert v["basis"] == "holdings_unreadable"
 
 
+def test_the_absence_branches_claim_only_what_they_READ_never_never():
+    """No branch may say "never" about the strike history. It reads ONE strike.
+
+    Found by mutation, not by the suite: M14 restored the old wording and every
+    test still passed. The guard reads the LAST NavStruck only, so "the fund has
+    never struck a mark for it" is a claim about a history it did not look at —
+    and this repair makes that branch reachable for DBC, TLT and DBA, all of
+    which the fund priced in earlier strikes. A guard whose whole purpose is to
+    stop confident sentences about unchecked numbers must not print one.
+
+    Asserted in both directions so the phrasing cannot drift back: the honest
+    clause must be present AND the overclaiming word must be absent.
+    """
+    s = MemStore()
+    _filled(s, "DBC", "buy", 8.122157)
+    _reconciled(s, {"DBC": 0.0})
+    _struck(s, {"SPY": 762.95})
+    _proposed(s, "o", "DBC", 21.79, side="buy")
+    allowed = marksanity.check(s, "o")
+    assert allowed["basis"] == "no_reference_new_symbol"
+    assert "the last NAV strike carries no mark" in allowed["reason"]
+    assert "never" not in allowed["reason"].lower(), allowed["reason"]
+
+    # The CEO's strict flag takes the sibling branch; it made the same claim.
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(marksanity, "NEW_SYMBOL_WITHOUT_REFERENCE_REFUSES", True)
+        strict = marksanity.check(s, "o")
+    assert strict["basis"] == "no_reference_strict"
+    assert "the last NAV strike carries no mark" in strict["reason"]
+    assert "never" not in strict["reason"].lower(), strict["reason"]
+
+
 def test_the_repair_did_not_touch_the_bound_or_the_CEOs_flag():
     """Two values this ticket was explicitly forbidden to move.
 
