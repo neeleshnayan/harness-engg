@@ -188,13 +188,47 @@ def scan(root: pathlib.Path) -> tuple[list[Finding], dict[str, int]]:
 
 
 def clear(root: pathlib.Path) -> int:
+    """Remove the caches this scanner would READ, and no others.
+
+    SKIP_DIRS IS HONOURED HERE TOO, and that is not tidiness: run against a
+    live checkout, an unfiltered walk would delete the virtualenv's caches —
+    thousands of files this instrument never inspects and whose sources it
+    cannot see. A cleaner with a wider reach than the thing it is cleaning for
+    is a footgun waiting for the first person who runs it outside a worktree.
+    """
     removed = 0
     for d in sorted(root.rglob("__pycache__")):
+        if not SKIP_DIRS.isdisjoint(p for p in d.parts if p != "__pycache__"):
+            continue
         if ".git" in d.parts:
             continue
         shutil.rmtree(d, ignore_errors=True)
         removed += 1
     return removed
+
+
+def repopulate(root: pathlib.Path) -> int:
+    """Compile every source the scanner reads, with the import machinery.
+
+    `py_compile` routes through `importlib`'s `source_to_code`, so this writes
+    exactly the bytecode an import would have written — the right compiler, and
+    the same file set `scan` walks.
+
+    NOT `compileall.compile_dir`: it has no notion of SKIP_DIRS and would
+    descend into `venv/` and `lean_workspace/` on a live checkout, which is
+    slow, noisy, and compiles code this instrument makes no claim about. The
+    earlier version did exactly that and got away with it only because a git
+    worktree happens to contain neither.
+    """
+    import py_compile
+    n = 0
+    for src in sources(root):
+        try:
+            py_compile.compile(str(src), doraise=True)
+            n += 1
+        except Exception:            # a syntactically invalid file is data
+            pass
+    return n
 
 
 def _report(findings: list[Finding], counts: dict[str, int]) -> None:
@@ -211,9 +245,8 @@ def main(argv: list[str]) -> int:
         print(f"cleared {clear(root)} __pycache__ directories")
         return 0
     if "--null" in argv:
-        import compileall
         print(f"cleared {clear(root)} __pycache__ directories")
-        compileall.compile_dir(str(root), quiet=2, force=True)
+        print(f"recompiled {repopulate(root)} sources")
         findings, counts = scan(root)
         _report(findings, counts)
         if counts["agree"] == 0:
