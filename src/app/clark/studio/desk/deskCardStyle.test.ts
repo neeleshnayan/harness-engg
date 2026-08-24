@@ -44,17 +44,17 @@ test("the guard itself detects the trap it was written for", () => {
    * character-for-character what the page had — `${KT.card} p-4`, which the
    * browser rendered as 20px. */
   assert.ok(cardStyleIsSound({
-    container: `${KT.card} p-4`, text: "", weight: "hard",
+    container: `${KT.card} p-4`, text: "", headlineMax: 74, weight: "hard",
   }), "`${KT.card} p-4` is the exact defect and must be caught");
   assert.ok(cardStyleIsSound({
-    container: "no padding at all", text: "", weight: "hard",
+    container: "no padding at all", text: "", headlineMax: 74, weight: "hard",
   }), "zero padding utilities must be caught");
   /* And it must NOT fire on the correct composition, which happens to be
    * textually identical to KT.card. The first version of the guard checked
    * `container.includes(KT.card)` and failed exactly here — a redundant check
    * whose only effect was a false positive on the one style that was right. */
   assert.equal(cardStyleIsSound({
-    container: `${KT.panel} p-5`, text: "", weight: "irreversible",
+    container: `${KT.panel} p-5`, text: "", headlineMax: 62, weight: "irreversible",
   }), null, "KT.panel + one padding utility is the correct composition");
 });
 
@@ -117,4 +117,32 @@ test("the page uses the tested scale and does not roll its own", () => {
     "a `${KT.card} p-N` on the decision list is the invisible-class trap: "
     + "KT.card already carries p-5 and Tailwind resolves by stylesheet order, "
     + "so the padding written here would not be the padding rendered");
+});
+
+/* ---------------------------------------------- the headline budget (D42) - */
+
+test("THE HEADLINE BUDGET SHRINKS AS THE TYPE GROWS. A bigger card needs a "
+  + "SHORTER name to stay on one line, and the first clamp used one number "
+  + "for all three sizes — which left the 16px card rendering two lines, "
+  + "which is the thing the clamp exists to stop", () => {
+  const budget = (r: string) => cardStyle(r).headlineMax;
+  assert.ok(budget("irreversible") < budget("hard"),
+            "16px holds fewer characters than 14px");
+  assert.ok(budget("hard") < budget("reversible"),
+            "14px holds fewer characters than 13px");
+});
+
+test("every budget is a plausible one-line width — a zero or a missing value "
+  + "would clamp every headline to nothing and look like a data outage", () => {
+  for (const r of ["irreversible", "hard", "reversible", "unclassified"]) {
+    const n = cardStyle(r).headlineMax;
+    assert.equal(typeof n, "number", r);
+    assert.ok(n >= 40 && n <= 120, `${r}: ${n} is not a line's worth`);
+  }
+});
+
+test("unclassified shares the hard budget, exactly as it shares the type — a "
+  + "budget that disagreed with the type scale would clamp to a width the "
+  + "card does not have", () => {
+  assert.equal(cardStyle("unclassified").headlineMax, cardStyle("hard").headlineMax);
 });

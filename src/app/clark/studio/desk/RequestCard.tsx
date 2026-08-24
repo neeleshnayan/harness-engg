@@ -27,6 +27,8 @@
  * filer never wrote.
  */
 
+import type React from "react";
+
 import type { AskCard, AskLifecycle } from "./execDesk";
 import { KT } from "../theme";
 /* `ageLabel` and the stage labels live in `cardState.ts`, not here, and the
@@ -81,7 +83,7 @@ function Wanted({ items }: { items: AskCard["wanted"] }) {
 }
 
 export function RequestCardBody({ card, subject, open, onToggle,
-                                  headlineShown }: {
+                                  headlineShown, trailing }: {
   card: AskCard;
   /** The raw subject, for the prose fallback and the details section. */
   subject: string;
@@ -97,6 +99,8 @@ export function RequestCardBody({ card, subject, open, onToggle,
    *  line makes the comparison mean what it says: is there anything the face
    *  is NOT showing? */
   headlineShown?: string | null;
+  /** The caller's own toggles, rendered INSIDE this card's toggle row. */
+  trailing?: React.ReactNode;
 }) {
   const detail = card.incident ?? (card.structured ? null : subject);
   /* The details toggle is offered only when the collapsed body says something
@@ -129,11 +133,24 @@ export function RequestCardBody({ card, subject, open, onToggle,
         </p>
       )}
 
-      {hasMore && (
-        <button type="button" onClick={onToggle} aria-expanded={open}
-                className={`mt-2 font-mono text-[10px] ${KT.accent} hover:underline`}>
-          {open ? "− the incident" : "+ the incident"}
-        </button>
+      {/* THE TOGGLE ROW. A ROW, not a bare button, and D42 paid for the
+          difference: the incident toggle and the caller's own lineage toggle
+          are inline elements from two different components, so with no flex
+          parent they rendered welded together as "+ the incident+ lineage".
+          The recommendation card has always put its toggles in exactly this
+          container with exactly this gap; the request card now wears the same
+          one, and a caller's extra toggle goes in `trailing` so it cannot
+          land outside the row again. */}
+      {(hasMore || trailing) && (
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+          {hasMore && (
+            <button type="button" onClick={onToggle} aria-expanded={open}
+                    className={`font-mono text-[10px] ${KT.accent} hover:underline`}>
+              {open ? "− the incident" : "+ the incident"}
+            </button>
+          )}
+          {trailing}
+        </div>
       )}
       {open && hasMore && (
         <p className={`mt-2 whitespace-pre-wrap border-t border-[var(--kt-border)] pt-2 text-[12px] leading-relaxed ${KT.body}`}>

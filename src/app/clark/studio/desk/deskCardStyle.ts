@@ -38,6 +38,24 @@ export interface CardStyle {
   container: string;
   /** The headline's type. */
   text: string;
+  /**
+   * How many characters of headline fit on ONE line at this type size.
+   *
+   * MEASURED IN THE BROWSER (D42, CDP probe over the live CEO desk, binary
+   * search for the longest prefix that still renders at single-line height):
+   * the 16px card is 539px wide and holds **61-65** characters; the 13px card
+   * is 555-670px wide and holds **87-96**. The first draft of the clamp used
+   * one number for all three and justified it with "~640px of 14px text,
+   * roughly 90 characters" — both halves of that were wrong, and the 16px
+   * cards rendered two lines where the point of the clamp was one.
+   *
+   * A BIGGER TYPE NEEDS A SHORTER NAME, which is the scale working rather than
+   * fighting it: the card that is hardest to take back is the one whose name
+   * must be readable at a glance.
+   *
+   * Reproduce: `scratchpad/d42_probe_width.js` through `d42shot.js`.
+   */
+  headlineMax: number;
   weight: CardWeight;
 }
 
@@ -52,6 +70,7 @@ export function cardStyle(reversibility: string): CardStyle {
     return {
       container: `${KT.panel} p-5`,
       text: "text-[16px] leading-relaxed",
+      headlineMax: 62,
       weight: "irreversible",
     };
   }
@@ -59,12 +78,20 @@ export function cardStyle(reversibility: string): CardStyle {
     return {
       container: `${KT.panel} p-4`,
       text: "text-[14px] leading-relaxed",
+      // Interpolated between the two measured points: 14px sits between the
+      // 16px card's 62 and the 13px card's 87, and its column is the same
+      // width as the 16px one.
+      headlineMax: 74,
       weight: "hard",
     };
   }
   return {
     container: `${KT.panel} p-3`,
     text: "text-[13px] leading-snug",
+    // The narrowest measured column (555px) held 87; taking the floor of the
+    // measured range rather than its top means a wide card wastes a little
+    // room and a narrow one never wraps.
+    headlineMax: 87,
     weight: "reversible",
   };
 }

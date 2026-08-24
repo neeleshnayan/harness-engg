@@ -25,15 +25,26 @@
  */
 
 /**
- * How long a card's headline may be before it stops being a name.
+ * The DEFAULT headline budget, for callers with no type scale of their own.
  *
- * MEASURED, not chosen. At this page's card width (~640px of 14px text) a line
- * holds roughly 90 characters; the four cards on the CEO's live desk at the
- * time of writing carried first sentences of 190, 152, 148 and 121 characters,
- * i.e. every one of them ran to two or three lines. 96 leaves the common
- * one-liner untouched and cuts the paragraph.
+ * MEASURED, AND THE FIRST NUMBER I WROTE HERE WAS WRONG. The draft said "at
+ * this page's card width (~640px of 14px text) a line holds roughly 90
+ * characters" and neither half survived the browser: a CDP binary search over
+ * the rendered desk (`scratchpad/d42_probe_width.js`) found the 16px card is
+ * **539px** wide and holds **61–65** characters, and the 13px card is 555–670px
+ * and holds **87–96**. One budget cannot serve three type sizes, so the real
+ * per-scale numbers live on `CardStyle.headlineMax` in `deskCardStyle.ts`,
+ * beside the type they belong to.
+ *
+ * 87 is kept here as the default because it is the FLOOR of the measured
+ * 13px range — the scale the request card and the shared `RecRow` use. It
+ * over-clamps a wide card by a few characters and never wraps a narrow one.
+ *
+ * What the clamp is worth, measured on the same page: the four recommendation
+ * headlines on the CEO's live desk were 190, 152, 148 and 121 characters, and
+ * the first bench ask rendered SEVEN lines as its own name.
  */
-export const CARD_HEADLINE_MAX = 96;
+export const CARD_HEADLINE_MAX = 87;
 
 export interface ClampedLine {
   /** What the card renders. Carries a trailing ellipsis when it was cut. */

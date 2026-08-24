@@ -943,7 +943,10 @@ function RecCard({ item, onDecide, sources, now }: {
   const cascade = cascadeOf(r);
   const chip = cascadeChip(cascade);
   const lamp = rowLamp(item, feedback);
-  const face = clampLine(parts.headline);
+  /* The budget follows the TYPE SCALE, measured per size — see
+     `CardStyle.headlineMax`. A single number clamped the 16px card to two
+     lines, which is the thing the clamp exists to stop. */
+  const face = clampLine(parts.headline, scale.headlineMax);
   const rail = recLifecycle(r, now);
   /* The detail behind the toggle: whatever the spine extracted from a dict
      payload, else the rest of the prose. Never both — a card that showed the
@@ -1662,14 +1665,14 @@ function AskRow({ ask, onDecided, sources }: {
           filing and then sat idle 2.5 days. */}
       <RequestCardBody card={ask.card} subject={ask.subject}
                        headlineShown={face.line}
-                       open={incident} onToggle={() => setIncident((v) => !v)} />
-      {sources && (
-        <button type="button" onClick={() => setChain((v) => !v)}
-                aria-expanded={chain}
-                className={`mt-1 font-mono text-[10px] ${KT.accent} hover:underline`}>
-          {chain ? "− lineage" : "+ lineage"}
-        </button>
-      )}
+                       open={incident} onToggle={() => setIncident((v) => !v)}
+                       trailing={sources ? (
+                         <button type="button" onClick={() => setChain((v) => !v)}
+                                 aria-expanded={chain}
+                                 className={`font-mono text-[10px] ${KT.accent} hover:underline`}>
+                           {chain ? "− lineage" : "+ lineage"}
+                         </button>
+                       ) : null} />
       {chain && sources && (
         <LineageInline anchor={{ kind: "request", requestId: ask.requestId }}
                        sources={sources} />
