@@ -1608,6 +1608,46 @@ def dispatched_request_ids(store: Any) -> set:
     return out
 
 
+def dispatched_task_ids(store: Any) -> set:
+    """Every ``task_id`` a ``DeskDispatched`` event has ever named.
+
+    THE OTHER HALF OF THE DISPATCH FOLD, and a different question from
+    ``dispatched_request_ids`` above: that one answers "which REQUESTS have
+    been dispatched", this one answers "which ids does a dispatch address".
+    For chair-born work — a dispatch with no backing request — the second set
+    is the only one that contains the id at all.
+
+    IT EXISTS BECAUSE A LAMP HAD NO DOOR (ticket d03c09b6). ``_activity``
+    closes a dispatch on ``DeskRequestResolved`` naming its ``task_id``
+    (desk.py:781-790), and 30 resolutions on the live record have landed that
+    way. The phantom guard on the resolve door consults only ``_requests``,
+    which folds ``DeskRequested`` and knows nothing about a chair-born
+    dispatch — so since that guard landed (2026-08-24) a CTO-born dispatch has
+    had NO legitimate close path at all. Measured the same day: 24 chair-born
+    dispatches, 8 of them still open with no way to close them.
+
+    Returns an EMPTY SET when the store cannot be read, for the same reason
+    ``dispatched_request_ids`` does: an unreadable dispatch log cannot prove a
+    dispatch happened, and the caller (a refusal guard) must not admit an id on
+    no evidence. The failure direction here is REFUSE, which is the safe one.
+    """
+    from app.fund.events import EventType
+
+    out: set = set()
+    try:
+        for e in store.stream(since_seq=0, limit=100_000):
+            t = e.get("type") if isinstance(e, dict) else getattr(e, "type", None)
+            if getattr(t, "value", t) != EventType.DESK_DISPATCHED.value:
+                continue
+            p = (e.get("payload") if isinstance(e, dict)
+                 else getattr(e, "payload", None)) or {}
+            if p.get("task_id"):
+                out.add(str(p["task_id"]))
+    except Exception as e:  # noqa: BLE001
+        logger.info("dispatch task fold unavailable: %s", e)
+    return out
+
+
 def _annotated_request(req: Any, dispatched_ids: Any = ()) -> Any:
     """One desk request with its card fields and its lifecycle rail attached.
 

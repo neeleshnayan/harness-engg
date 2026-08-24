@@ -1977,12 +1977,21 @@ def desk_resolve(request_id: str, req: DeskResolve):
     supposed to happen did not. A 404 is a tightening in front of an untouched
     write path — it can only refuse, and a real request takes exactly the path
     it took yesterday.
+
+    IT ALSO CLOSES A DISPATCH (ticket d03c09b6, 2026-08-24). This is the door
+    ``_activity`` already watches: it retires a seat's lamp on a
+    ``DeskRequestResolved`` naming the dispatch's ``task_id``
+    (desk.py:781-790), and 30 resolutions on the live record have landed that
+    way. The guard above did not read that fold, so from the day it shipped a
+    CTO-born dispatch had no legitimate close path and 8 lamps were left
+    burning. ``allow_dispatch=True`` is that repair, bounded to this one door;
+    see ``_refuse_unknown_request`` for what it does and does not widen.
     """
     from app.fund.events import Event, EventType
     if not (req.resolution or "").strip():
         raise HTTPException(status_code=422,
                             detail="name the artifact that served this request")
-    _refuse_unknown_request(request_id)
+    _refuse_unknown_request(request_id, allow_dispatch=True)
     payload = {"request_id": request_id, "resolution": req.resolution.strip(),
                "trace_id": (req.trace_id or "").strip() or request_id,
                "at": datetime.now(timezone.utc).isoformat(), "actor": req.actor}
@@ -2623,8 +2632,46 @@ def _supersession_check(ref: str) -> dict:
         return {"refusal": None, "supersession_readable": False}
 
 
-def _refuse_unknown_request(request_id: str) -> None:
+def _refuse_unknown_request(request_id: str, *,
+                            allow_dispatch: bool = False) -> None:
     """404 a request id no fold has ever seen. Never raises for any other cause.
+
+    **THE LAMP-CLOSE FIX (ticket d03c09b6, 2026-08-24) IS THE
+    ``allow_dispatch`` FLAG, AND ITS DIRECTION IS STATED OUT LOUD BECAUSE IT
+    WIDENS WHAT A DOOR ADMITS.**
+
+    The guard's own first sentence is "an id no FOLD has ever seen" — and it
+    consulted exactly one fold. There are two. ``desk._requests`` folds
+    ``DeskRequested``; ``desk._activity`` folds ``DeskDispatched`` and closes a
+    dispatch on a ``DeskRequestResolved`` naming its ``task_id``
+    (desk.py:781-790). A CTO-born dispatch — no backing request, 24 of them on
+    the live record — exists only in the second, so from the day this guard
+    landed its resolve door returned 404 for every one of them. **Eight
+    chair-born dispatches are open today with no legitimate way to close
+    them**, which is failure #4 in the ticket-highway design's own table: *any
+    dispatch exists that no legitimate event can close*.
+
+    So the implementation now matches the specification, and the widening is
+    bounded three ways rather than blanket:
+
+      1. **Only the RESOLVE door passes it.** ``desk_approve`` is byte-identical
+        to yesterday. Approving a chair-born dispatch is meaningless — there is
+        no request to bless — and it would write a ``DeskRequestApproved``
+        against an aggregate ``_requests`` ignores, which is the exact
+        phantom shape this guard exists to stop. Measured before choosing:
+        of the 7 live ``DeskRequestApproved`` events naming an id outside the
+        requests fold, ZERO name a dispatch task_id, so no historical use is
+        being served by widening the approval door.
+      2. **The admitted set is the record's own, not a pattern.** An id is
+        admitted because a ``DeskDispatched`` event named it, never because it
+        looks like a uuid.
+      3. **True phantoms are still refused.** The 8-character shorthands
+        sitting in Postgres as aggregate ids (``1c53589f`` and friends) are in
+        neither fold and still 404 — there is a test that fails if they stop.
+
+    ``did_you_mean`` draws from whatever set THIS door accepts, so at the
+    resolve door it now also expands a dispatch shorthand. The help mechanism
+    is unchanged; its pool follows the door.
 
     THE PHANTOM AGGREGATE (COO triage #8 J1, 2026-08-24). ``desk_resolve`` and
     ``desk_approve`` appended without ever looking the request up, so a POST
@@ -2647,13 +2694,22 @@ def _refuse_unknown_request(request_id: str) -> None:
     own controls (the allowlist, the echo, the supersession check) are
     untouched either way.
     """
-    from app.fund.desk import _requests
+    from app.fund.desk import _requests, dispatched_task_ids
     try:
         known = {r.get("request_id") for r in _requests(_store)}
     except Exception as e:  # noqa: BLE001
         logger.warning("request existence check unavailable, proceeding "
                        "WITHOUT it for %s: %s", request_id, e)
         return
+    if allow_dispatch:
+        # Its own fold, and it swallows its own read failure by returning an
+        # empty set — so an unreadable dispatch log narrows this door back to
+        # requests-only rather than opening it. The two failure directions are
+        # deliberately opposite: the requests read fails OPEN (refusing every
+        # approval because a read failed would turn a rendering guard into an
+        # outage on the approval path), and the dispatch read fails CLOSED
+        # (it can only ever ADD ids, so losing it can only refuse).
+        known = known | dispatched_task_ids(_store)
     if request_id in known:
         return
     from app.fund.deskengine import MIN_ID_PREFIX
@@ -2665,6 +2721,12 @@ def _refuse_unknown_request(request_id: str) -> None:
         detail={
             "error": "no such desk request",
             "request_id": request_id,
+            # WHICH FOLDS WERE CONSULTED, on the refusal itself. A caller
+            # holding a dispatch id refused by the approve door should be able
+            # to see that the approve door does not read the dispatch fold,
+            # rather than conclude the id does not exist.
+            "folds_consulted": (["requests", "dispatches"] if allow_dispatch
+                                else ["requests"]),
             # THE HELP THE 200 USED TO WITHHOLD. The shorthand is what the
             # desk prints, so the caller is almost always one expansion away;
             # naming the full id costs nothing and is what turns the refusal
