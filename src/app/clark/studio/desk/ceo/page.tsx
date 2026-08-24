@@ -431,21 +431,6 @@ export default function CeoDeskPage() {
                 </>
               )}
             </p>
-            {/* THE ONE STEERING SENTENCE. Overdue is the single condition on
-                this desk that earns a colour, because it is the only one that
-                is true whether or not anybody clicks. */}
-            <p className={`mt-2 max-w-3xl text-[15px] leading-relaxed ${
-              steer.overdue ? KT.sev.warn : "text-[var(--kt-text)]"}`}>
-              {steer.text}
-            </p>
-            <p className={`mt-1 text-xs ${KT.muted}`}>
-              {/* Kept from the old header: the spine's own ranking key, so a
-                  reader can disagree with the steer above rather than absorb
-                  it. */}
-              {engine?.decisions?.ranked_by
-                ? `ranked by ${engine.decisions.ranked_by}`
-                : "the spine stated no ranking key"}
-            </p>
             {/* WHICH FOLD PRODUCED THAT NUMBER. A figure this build computed
                 and a figure the fund computed are different claims, and the
                 one time the reader must know is the one time nothing used to
@@ -457,6 +442,62 @@ export default function CeoDeskPage() {
                 {headline.note}
               </p>
             )}
+            {/* ── THE STEERING SENTENCE, DEMOTED (2026-08-24) ─────────────────
+                IT WAS THE LARGEST THING IN THE HEADER. Measured on the live
+                desk before this change: 73px tall at 15px in the warn amber,
+                282 characters, THREE lines — taller than the hero line (41px)
+                and 30% of the header's whole 244px. Three amber lines arguing
+                for attention directly under a spec whose first rule is that
+                the number is the only hero-scale thing on the page and whose
+                design brief says hierarchy comes from type and space, never
+                colour. The CEO reads this header first, every day.
+
+                DEMOTED, NOT DELETED — its content is real and it is the one
+                sentence that says what to do next. It moves into the same
+                metadata register the spend-demotion rule put the token counts
+                in (docs/design/RUN_PAGE_2026-08-24.md: "the work is the face;
+                the spend is a footnote"): 12px, below the shelves and below
+                the caveat about the number, joined to the ranking key it has
+                always been arguing with.
+
+                THE COLOUR GOES; THE SIGNAL DOES NOT. Overdue is still the one
+                condition on this desk that earns a hue — it is the only one
+                true whether or not anybody clicks — but it earns it ON THE
+                COUNT, in the shelf line above, where it already is. Spending
+                it a second time on three lines of prose about the same fact is
+                the two-counters defect wearing colour: one condition, two
+                alarms, and the prose one is thirty times the area. Demoting
+                the size and keeping the amber was tried first and LOOKED at:
+                three amber lines at 12px are still three amber lines, and the
+                CEO's complaint was about the amber. Nothing is silenced — the
+                words "due TODAY" and "N days OVERDUE" are in the sentence
+                either way, and `steer.overdue` still drives the count above.
+
+                THE ONE CASE THIS COSTS, named rather than hidden: desk read
+                DOWN and engine read UP. The shelf line is then the failure
+                sentence (no count to colour) and this line is muted, so an
+                overdue commitment is stated in words with no hue anywhere.
+                That reader is already looking at an outage banner; a reader
+                with everything working sees the colour on the number. */}
+            {/* The reading measure STAYS. Widening this line to the header's
+                full 873px was tried and MEASURED: identical text wrapped to
+                exactly 59px at both 768px and 873px, so the cap costs nothing
+                and a 40-em metadata line would be harder to scan for no gain.
+                Recorded because the guess going in was that it would save a
+                line, and it did not. */}
+            <p className={`mt-2 max-w-3xl text-xs leading-relaxed ${KT.muted}`}>
+              {steer.text}
+              {" · "}
+              {/* The spine's own ranking key, so a reader can disagree with
+                  the steer rather than absorb it. Same register now, and on
+                  the same line: they are one thought, and they were two
+                  paragraphs only because the steer used to be a headline. */}
+              <span className={KT.muted}>
+                {engine?.decisions?.ranked_by
+                  ? `ranked by ${engine.decisions.ranked_by}`
+                  : "the spine stated no ranking key"}
+              </span>
+            </p>
             <p className={`mt-2 text-xs ${KT.muted}`}>
               <Link href="/clark/studio/desk" className={`${KT.accent} hover:underline`}>
                 back to the floor
