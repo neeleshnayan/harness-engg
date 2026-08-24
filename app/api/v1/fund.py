@@ -2432,6 +2432,83 @@ def decide_recommendation(run_id: str, rec_id: int, req: RecDecision):
 
 
 # ===========================================================================
+# THE TICKET HIGHWAY, slice 1 — docs/design/TICKET_HIGHWAY_V1_2026-08-24.md
+#
+# ONE READ-ONLY ENDPOINT OVER ONE READ-ONLY FOLD. No door, no event type, no
+# staging table; those are slices 2 and 4. Slice 1 ships value alone by making
+# the desk's three existing species legible as one lifecycle, and it can only
+# be a rendering: `app/fund/tickets.py` appends nothing and an AST test says so.
+# ===========================================================================
+
+#: How many run rows the ticket fold reads for its recommendation leg. A SAFETY
+#: VALVE, NOT A PAGE SIZE — the same distinction `DeskStore.all_runs` makes in
+#: its own docstring, and for the same measured reason: the last cap on this
+#: table was read as a count and truncated the firm's first spend meter to half
+#: of lifetime. 145 runs live on 2026-08-24, so this does not bite; if it ever
+#: does, `counts.runs_truncated` says so rather than the number quietly
+#: shrinking.
+#:
+#: `runs()` and NOT `all_runs()`: all_runs omits the `recommendations` column
+#: entirely (deskstore.py:563-575), so a fold built on it reports zero
+#: recommendation tickets against a record holding 550. The fold refuses to
+#: read that as zero, but the right fix is to hand it the rows that carry the
+#: column.
+TICKET_RUNS_LIMIT = 1000
+
+#: Default page size for the ticket list. The COUNTS AND THE RECONCILIATION ARE
+#: ALWAYS OVER THE WHOLE POPULATION and never over the page — the served-vs-
+#: shown honesty this desk already practises, because a census computed over a
+#: truncated page is a smaller number wearing a total's name.
+TICKET_PAGE_LIMIT = 200
+
+
+@router.get("/fund/tickets")
+def tickets_view(ticket_type: Optional[str] = Query(None, alias="type"),
+                 state: Optional[str] = Query(None),
+                 limit: int = Query(TICKET_PAGE_LIMIT, ge=1, le=5000)):
+    """Every desk request, dispatch and recommendation as one ticket population.
+
+    DEGRADES RATHER THAN REFUSES when the recommendation store is absent. A
+    spine without Postgres can still read the event log, so the ask and
+    dispatch legs are real and the recommendation leg is reported UNKNOWN —
+    `counts.recommendations_read: false`. Returning 503 for the whole payload
+    would throw away two thirds of a readable answer; returning zero
+    recommendations would be a lie. Same choice `desk.view` already makes.
+    """
+    from app.fund import tickets as tk
+
+    runs, runs_limit = None, None
+    ds = _deskstore()
+    if ds is not None:
+        try:
+            runs, runs_limit = ds.runs(limit=TICKET_RUNS_LIMIT), TICKET_RUNS_LIMIT
+        except Exception as e:  # noqa: BLE001
+            # None, not [] — an unreadable recorder must not fold into "no
+            # recommendations". The fold reports the leg unknown.
+            logger.info("ticket fold: runs unavailable: %s", e)
+    folded = tk.fold(_store, runs=runs, runs_limit=runs_limit)
+    rows = folded["tickets"]
+    if rows is None:
+        return {**folded, "shown": None, "total": None, "truncated": None,
+                "filters": {"type": ticket_type, "state": state},
+                "limit": limit}
+    if ticket_type:
+        rows = [r for r in rows if r["type"] == ticket_type]
+    if state:
+        rows = [r for r in rows if r["state"] == state]
+    total = len(rows)
+    return {**folded, "tickets": rows[:limit], "shown": min(total, limit),
+            # `total` is the count AFTER filtering and BEFORE the page cap, so
+            # a reader can tell a filter from a truncation. `counts.total` above
+            # it is the unfiltered population; two different questions, two
+            # different fields, neither borrowing the other's name.
+            "total": total, "truncated": total > limit,
+            "filters": {"type": ticket_type, "state": state},
+            "limit": limit,
+            "types": list(tk.TICKET_TYPES), "states": list(tk.TICKET_STATES)}
+
+
+# ===========================================================================
 # THE DESK ENGINE v1 — docs/DESK_ENGINE_V1_2026-08-23.md
 #
 # Six CEO instructions, one sitting. Everything below is desk-family: seat
