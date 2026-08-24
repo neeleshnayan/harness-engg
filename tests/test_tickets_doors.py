@@ -964,3 +964,185 @@ class TestADuplicateOpenNeverOverwrites:
         assert row["subject"] == "the original"
         assert [r["basis"] for r in row["refused_transitions"]] == \
             ["duplicate-open"]
+
+
+# ============================================================================
+# BOUNDARY TABLES — a mechanical breadth pass. Every inequality and every
+# closed vocabulary in the doors, probed AT its edge rather than well inside
+# or well outside it. Each parametrized case states in a comment which side
+# of the boundary it sits on, because a boundary test that does not say so is
+# indistinguishable from an arbitrary one six months later.
+#
+# A SHARED-WORD HAZARD FOUND WHILE WRITING THESE, reported rather than
+# silently worked around (both are reproducible on this file's own doors):
+#
+#   1. ``"challenge"`` is live in TWO unrelated refusals. It is a member of
+#      ``OPENABLE_TYPES``, so it appears in the open door's 422 ``allowed``
+#      list whenever an unknown ``type`` is refused (e.g. filing
+#      ``type="lesson"``) — see ``TestTheOpenDoorValidates`` above. It is
+#      ALSO the word the transition door's 409 ``note`` uses to point a
+#      terminal-reopen refusal at its escape hatch (``TestLegality
+#      .test_a_terminal_ticket_cannot_be_REOPENED``). A bare
+#      ``"challenge" in str(response.json())`` cannot tell "you named a type
+#      this fold does not open" from "this ticket is terminal, file a
+#      challenge instead" — the two are different doors, different status
+#      codes (422 vs 409), and different reasons. Every existing assertion on
+#      this word already keys on the specific field (``detail["note"]``
+#      vs ``detail["allowed"]``), which is what keeps it safe; a future test
+#      that loosens that to a whole-body substring check would not be.
+#   2. ``"decision_ref"`` is live in TWO unrelated vocabularies. It is a
+#      ``TERMINAL_REQUIREMENTS`` field name (the ``merged`` terminal's
+#      required record) and, separately, a ``LINK_KINDS`` value (what
+#      ``POST .../link`` may be asked to record). A refusal naming the first
+#      ("a 'merged' transition must carry 'decision_ref'") and a link body
+#      naming the second (``{"link_kind": "decision_ref", ...}``) share the
+#      token even though one is "you forgot to cite the canonical row" and
+#      the other is "here is the edge to record" — different endpoints,
+#      different meanings, same eight characters.
+#   3. THE MILDER, STRUCTURAL VERSION: the word ``"unknown"`` leads FIVE
+#      distinct 422 refusals in these doors (``unknown ticket type``,
+#      ``unknown next_actor``, ``unknown reversibility``, ``unknown ticket
+#      state``, ``unknown link_kind``). None of the tests in this file key on
+#      that word alone — every one asserts the specific field name instead
+#      (``where in str(detail)`` with ``where`` set to ``"type"``,
+#      ``"reversibility"``, and so on) — which is exactly the discipline that
+#      keeps five refusals that share a leading word from being confused with
+#      one another. Named here so the next test written against these doors
+#      inherits the reason rather than rediscovering it.
+# ============================================================================
+
+class TestMoneyAtStakeBoundary:
+    """The door's one inequality: ``money_at_stake < 0`` refuses, so the
+    boundary is zero itself, not some small positive epsilon."""
+
+    @pytest.mark.parametrize("value,accepted", [
+        (0.0, True),     # the boundary itself: `0.0 < 0` is False -> ACCEPTED
+        (-0.0, True),    # IEEE negative zero: `-0.0 < 0` is ALSO False -> ACCEPTED
+        (-0.01, False),  # one cent on the negative side -> REFUSED
+        (1e9, True),     # a large positive value, far from the boundary -> ACCEPTED
+    ])
+    def test_the_negative_boundary(self, client, store, value, accepted):
+        r = _open(client, money_at_stake=value)
+        if accepted:
+            assert r.status_code == 200, r.text
+            tid = r.json()["ticket_id"]
+            assert _by_id(store)[tid]["money_at_stake"] == value
+        else:
+            assert r.status_code == 422
+            # Structured field, not prose — `money_at_stake` is the one
+            # numeric key this refusal echoes back, so it cannot be
+            # satisfied by a different validation's message.
+            assert r.json()["detail"]["money_at_stake"] == value
+
+
+class TestDueDateBoundary:
+    """``due_date`` takes exactly one check — ``strptime`` on the STRIPPED
+    string against ``%Y-%m-%d`` — and nothing here says a due date must be in
+    the future, so a past date is on the ACCEPTED side same as a future one."""
+
+    @pytest.mark.parametrize("value", [
+        "0001-01-01",  # datetime.MINYEAR — the shortest representable calendar year
+        "9999-12-31",  # datetime.MAXYEAR — the longest representable calendar year
+        "2028-02-29",  # a leap day that EXISTS: 2028 % 4 == 0
+        "2020-01-01",  # a date already in the past -> still ACCEPTED
+    ])
+    def test_accepted_at_the_edge(self, client, store, value):
+        tid = _opened_id(client, due_date=value)
+        assert _by_id(store)[tid]["due_date"] == value
+
+    def test_a_leap_day_that_does_not_exist_is_refused(self, client, store):
+        """2027 is not divisible by 4 — Feb 29 2027 never happens on any
+        calendar, so `strptime` refuses it the same way it refuses
+        `2026-02-31` above."""
+        before = len(store.events)
+        r = _open(client, due_date="2027-02-29")
+        assert r.status_code == 422
+        assert r.json()["detail"]["due_date"] == "2027-02-29"
+        assert len(store.events) == before
+
+    def test_a_trailing_space_is_STRIPPED_not_refused(self, client, store):
+        """The door validates ``req.due_date.strip()`` (fund.py) and then
+        stores ``(req.due_date or "").strip() or None`` — both reads strip,
+        so a trailing space is accepted AND the fold holds the trimmed date,
+        never the raw string with the space still on it."""
+        tid = _opened_id(client, due_date="2026-12-31 ")
+        assert _by_id(store)[tid]["due_date"] == "2026-12-31"
+
+
+class TestMinIdPrefixBoundary:
+    """``_refuse_unknown_ticket`` expands a prefix into ``did_you_mean`` only
+    at or above ``deskengine.MIN_ID_PREFIX`` (read here, never restated). The
+    two existing phantom-guard tests each pin one side of this line
+    (``test_an_eight_char_shorthand_is_refused_WITH_the_expansion`` and
+    ``test_a_prefix_shorter_than_the_minimum_offers_no_expansion``); this
+    parametrizes all three lengths so the transition is one table rather than
+    two separate tests a reader has to align by hand."""
+
+    @pytest.mark.parametrize("delta,expect_expansion", [
+        (-1, False),  # MIN_ID_PREFIX - 1: one below the floor -> no expansion
+        (0, True),    # MIN_ID_PREFIX exactly: the floor itself -> expansion offered
+        (1, True),    # MIN_ID_PREFIX + 1: one above the floor -> expansion offered
+    ])
+    def test_the_expansion_floor(self, client, delta, expect_expansion):
+        tid = _opened_id(client)
+        prefix = tid[:MIN_ID_PREFIX + delta]
+        r = _transition(client, prefix, "in_flight")
+        assert r.status_code == 404
+        assert r.json()["detail"]["did_you_mean"] == ([tid] if expect_expansion
+                                                       else [])
+
+
+class TestSubjectBoundary:
+    """``subject`` takes one check — ``.strip()`` must be non-empty — and no
+    upper bound anywhere in this door. Empty and whitespace-only both land on
+    the refused side of that one check; a single character and a very long
+    string both clear it because nothing here rejects on length."""
+
+    @pytest.mark.parametrize("subject", ["", "\t\n "])
+    def test_empty_or_whitespace_only_is_refused(self, client, store, subject):
+        before = len(store.events)
+        r = _open(client, subject=subject)
+        assert r.status_code == 422
+        # Structured field: the door's own `error` string, not a substring
+        # search over the whole body.
+        assert r.json()["detail"]["error"] == "a ticket needs a subject"
+        assert len(store.events) == before
+
+    def test_a_single_character_is_accepted(self, client, store):
+        tid = _opened_id(client, subject="x")
+        assert _by_id(store)[tid]["subject"] == "x"
+
+    def test_a_very_long_subject_is_accepted(self, client, store):
+        """No max length is enforced anywhere in ``TicketOpen`` or the door —
+        a 10,000-character subject is exactly as legal as a one-character
+        one, because nothing here checks."""
+        subject = "x" * 10_000
+        tid = _opened_id(client, subject=subject)
+        assert _by_id(store)[tid]["subject"] == subject
+
+
+class TestConfirmEchoBoundary:
+    """The approval guard compares ``confirm`` against ``target_id[:8]`` by
+    EXACT string equality (``_guard_approval``, fund.py) — not a prefix or
+    ``startswith`` check. That distinction is the whole point of this table:
+    ``target_id[:8]`` is itself a PREFIX of ``target_id[:9]``, so a guard
+    written as a prefix comparison would wrongly accept nine characters. This
+    one does not, because it compares for equality, not containment."""
+
+    def test_seven_chars_is_refused(self, client):
+        tid = _opened_id(client)
+        r = _transition(client, tid, "accepted", confirm=tid[:7])
+        assert r.status_code == 403
+
+    def test_eight_chars_is_accepted(self, client):
+        tid = _opened_id(client)
+        r = _transition(client, tid, "accepted", confirm=tid[:8])
+        assert r.status_code == 200, r.text
+
+    def test_nine_chars_is_refused(self, client):
+        """THE NEAR MISS: ``tid[:8]`` is a PREFIX of ``tid[:9]``. Refused
+        here proves the guard is doing exact-equality (``!=``) rather than
+        `str.startswith`, which would have let this one slip through."""
+        tid = _opened_id(client)
+        r = _transition(client, tid, "accepted", confirm=tid[:9])
+        assert r.status_code == 403
