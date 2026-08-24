@@ -2398,6 +2398,11 @@ def decide_recommendation(run_id: str, rec_id: int, req: RecDecision):
     disposition is *withdraw it*, and an engine that blocked the withdrawal
     along with the approval would leave the row wedged on the desk forever.
     Closing a door must never be harder than opening one.
+
+    A ROW CANNOT RE-RECORD THE STATUS IT ALREADY HOLDS (the narrow decision
+    guard, 2026-08-24, CEO's decision with the numbers in front of him). Every
+    status CHANGE passes exactly as before. See `_refuse_if_redecided` for the
+    direction statement and the measured refusal count.
     """
     ds = _deskstore()
     from app.fund.deskengine import rec_ref
@@ -2410,6 +2415,13 @@ def decide_recommendation(run_id: str, rec_id: int, req: RecDecision):
         readable = _refuse_if_superseded(rec_ref(run_id, rec_id),
                                          kind="desk_run",
                                          target_id=run_id, actor=req.actor)
+    # RUNS ON EVERY STATUS, unlike the supersession brake above, because a
+    # duplicate `rejected` is the same nothing-event as a duplicate `accepted`
+    # and the measured population includes `done` and `staged`. It is BEFORE
+    # the store check on purpose: the refusal is a fact about the event log,
+    # which is readable whether or not the desk table is.
+    redecision_readable = _refuse_if_redecided(
+        run_id, rec_id, to=req.status, actor=req.actor)
     if ds is None:
         raise HTTPException(status_code=503, detail="needs FUND_STORE=postgres")
     from app.fund.events import Event, EventType
@@ -2435,9 +2447,16 @@ def decide_recommendation(run_id: str, rec_id: int, req: RecDecision):
                                  # advance the row); False = the edge store was
                                  # unreadable and the brake was not consulted.
                                  "supersession_readable": readable,
+                                 # True = the row's decision history was read
+                                 # and this status is a change; False = the
+                                 # event log could not be read and the guard
+                                 # was not consulted. Never None — this guard
+                                 # applies to every status.
+                                 "redecision_readable": redecision_readable,
                                  "at": datetime.now(timezone.utc).isoformat()},
                         actor=req.actor))
-    return {**hit, "supersession_readable": readable}
+    return {**hit, "supersession_readable": readable,
+            "redecision_readable": redecision_readable}
 
 
 # ===========================================================================
@@ -3805,6 +3824,97 @@ def _refuse_if_superseded(ref: str, *, kind: str, target_id: str,
                  "edge_id": refusal.get("edge_id"),
                  "mode": refusal.get("mode"),
                  "superseder_ref": refusal.get("superseder_ref"),
+                 "at": datetime.now(timezone.utc).isoformat()},
+        actor=actor or "unknown"))
+    raise HTTPException(status_code=409, detail=refusal)
+
+
+def _refuse_if_redecided(run_id: str, rec_id: int, *, to: str,
+                         actor: str) -> bool:
+    """409-and-RECORD a row asked to re-record the status it already holds.
+
+    Returns ``redecision_readable`` — True when the row's decision history was
+    read and this status is a change, False when the log could not be read and
+    the guard was NOT consulted. Never None: unlike the supersession brake this
+    guard applies to every status, so "not applicable" is not one of its
+    answers, and writing None would let a reader take an unread guard for an
+    inapplicable one.
+
+    **DIRECTION: A TIGHTENING OF A LIVE, APPROVAL-ADJACENT PATH.** Stated
+    plainly because this is the door the CEO's desk posts to, and because this
+    module abstained from it one dispatch ago on exactly that ground. The CEO
+    decided it on 2026-08-24 with the census in front of him. What it can
+    refuse, measured over the whole log (seq 1-1545) with
+    ``scripts/instruments/hw4/redecision_census.py``:
+
+      ================  ==========================================
+      caller            events this rule would have refused
+      ================  ==========================================
+      ``ceo``           18   (the desk's approve/accept clicks)
+      ``cto``           13   (chair sweeps and closures)
+      ``co-cto``         5
+      ``neelesh-via-cto``1
+      **total**         **37 of 678 in five months**
+      ================  ==========================================
+
+    Every one of the 37 is a second event recording a status the row already
+    held — an event that changed no state and made one decision look like two.
+    None of the 136 rows carrying a genuine multi-status progression is
+    touched. ``scripts/desk_sweep.py`` — the chair's bulk-closure instrument,
+    which posts ``done`` — is the caller most exposed: 237 rows in the record
+    have already recorded ``done``, so re-sweeping any of them now refuses.
+    That is the intended behaviour and the script was taught to report it as
+    ALREADY rather than FAIL in the same commit; a control that makes the
+    chair's own tooling print failures for no-ops is a defect, not a
+    tightening.
+
+    IT FAILS OPEN AND SAYS SO. If the event log cannot be read, the decision
+    proceeds with ``redecision_readable: False`` on the event and in the
+    response. The alternative — failing closed — would take the CEO's entire
+    decide door dark on an event-store outage, which is a far worse trade than
+    the 37-events-in-five-months this guard prevents. Absence is reported
+    absent; it is not reported as "checked".
+
+    THIS IS THE FOURTH PRODUCER of ``ApprovalRefused`` (channel guard, mark
+    sanity, supersession, and now this), and the knock-on
+    ``_refuse_if_superseded`` discloses applies unchanged:
+    ``mode._controls_have_fired`` is satisfied by the type appearing in the
+    store at all. A re-decision refusal genuinely is an approval refused on the
+    approval path, so nothing false is told — but whoever owns that
+    precondition should know a fourth producer exists.
+    """
+    from app.fund import ticketguard
+    from app.fund.events import Event, EventType
+    try:
+        events = _store.by_aggregate(run_id)
+    except Exception:
+        # The store, not the guard, is what failed. Reported as unreadable
+        # rather than swallowed: "the guard did not refuse" and "the guard
+        # could not look" are different facts and only one of them is a pass.
+        return False
+    refusal = ticketguard.check_redecision(
+        ticketguard.decisions_for(events, run_id, rec_id),
+        to=to, run_id=run_id, rec_id=rec_id)
+    if refusal is None:
+        return True
+    _store.append(Event(
+        aggregate_id=run_id, aggregate_type="desk_run",
+        type=EventType.APPROVAL_REFUSED,
+        payload={"kind": refusal["kind"], "target_id": run_id,
+                 "approver": actor or "", "guard": refusal["guard"],
+                 "reason": refusal["detail"],
+                 "row_ref": refusal["row_ref"],
+                 # THE LINEAGE ON THE RECORD TOO, not only in the response —
+                 # "who was stopped from re-recording what, and when the row
+                 # first took that status" is the question this event exists to
+                 # answer later, and the response is gone the moment the caller
+                 # closes its terminal.
+                 "attempted": to,
+                 "recorded_status": refusal["recorded_status"],
+                 "recorded_at": refusal["recorded_at"],
+                 "recorded_by": refusal["recorded_by"],
+                 "prior_same_status": refusal["prior_same_status"],
+                 "decision_count": refusal["decision_count"],
                  "at": datetime.now(timezone.utc).isoformat()},
         actor=actor or "unknown"))
     raise HTTPException(status_code=409, detail=refusal)

@@ -47,14 +47,22 @@ connection, and never imports the API layer — the door calls IT, which is the
 same direction of dependency the fold already insists on. That is what makes it
 testable against a replay of the eight real events without a spine.
 
-WHAT IT DELIBERATELY DOES NOT DO, stated so nobody reads more into it. **The
-legacy ``POST /fund/desk/runs/{run_id}/recommendations/{rec_id}/decide`` door —
-where all eight of those events actually landed — is UNTOUCHED by this module.**
-Wiring the guard into that door would change the behaviour of a live,
-approval-adjacent path that the CEO's desk posts to today, and would refuse
-decisions that the record shows the chair genuinely makes. That is a decision
-for a human with the numbers in front of them, not a side effect of a slice.
-This guard protects the ticket door, which has no legacy callers at all.
+TWO DOORS, TWO RULES, AND THE DIFFERENCE IS DELIBERATE.
+
+``check_representation`` guards the TICKET door (slice 3). It is the broader
+rule: it refuses a decided ticket presented BARE for a decision it has already
+recorded, and it accepts two escapes — cite the canonical row (``merged`` +
+``decision_ref``) or name the replacement (``superseded`` + ``superseder_ref``).
+
+``check_redecision`` guards the LEGACY door
+``POST /fund/desk/runs/{run_id}/recommendations/{rec_id}`` — where all eight
+R39 events actually landed. **This module abstained from that door until
+2026-08-24, when the CEO decided to wire it with the numbers in front of him**
+(the abstention paragraph that stood here is preserved in this file's history
+and in ``git log`` for ``tests/test_ticket_decision_ref.py``, whose
+``TestTheLegacyDoorIsUntouched`` existed precisely to make the day of the
+change loud). The legacy rule is NARROWER than the ticket rule and the
+narrowness is the whole safety argument — see ``check_redecision``.
 """
 
 from __future__ import annotations
@@ -283,6 +291,221 @@ def _refusal(ticket: dict[str, Any], lin: dict[str, Any], to: str, *,
 # Deleted rather than wired, because slice 2's version is strictly better: it
 # also requires an `expired` sweep to NAME its policy version. `merge_target_
 # error` below stays, and stays because `ticket_transition` calls it.
+
+
+# ===========================================================================
+# THE LEGACY DOOR — the narrow form, wired 2026-08-24 on the CEO's decision.
+# ===========================================================================
+
+#: Bumped when the LEGACY rule changes, published on every refusal beside the
+#: ticket door's own version. TWO DOORS, TWO VERSION STRINGS, on purpose: an
+#: auditor reading an ``ApprovalRefused`` off ``/fund/events`` must be able to
+#: tell which rule refused without inspecting the aggregate type, and the two
+#: rules are genuinely different (see ``check_redecision``).
+LEGACY_REDECISION_GUARD_VERSION = (
+    "decision_ref_v1-legacy (2026-08-24, narrow re-decision form)")
+
+#: The event type the legacy door writes, and therefore the only one that
+#: counts as a decision on a recommendation row. Named rather than inlined
+#: because ``decisions_for`` and the door's own append must agree about it, and
+#: two spellings of one event name is a fold that reads zero for a year.
+LEGACY_DECISION_EVENT = "DeskRecommendationDecided"
+
+
+def decisions_for(events: Any, run_id: Any, rec_id: Any) -> list[dict[str, Any]]:
+    """Every decision this ONE recommendation row has recorded, oldest first.
+
+    Takes the raw event dicts for a ``desk_run`` aggregate — what
+    ``EventStore.by_aggregate(run_id)`` returns — and narrows them to the
+    decisions on one ``rec_id``. Pure: no store, no connection, no API import,
+    so the guard is testable against a replay of the eight real R39 events
+    without a spine, exactly as ``lineage`` is.
+
+    ``rec_id`` IS COMPARED AS A STRING. The path parameter arrives as an
+    ``int``, the JSONB payload round-trips whatever was written, and the
+    record holds both spellings; an ``==`` on mixed types silently matches
+    nothing, which would make this guard read "never decided" on every row and
+    fail open forever with a green suite. That is the ``54 of 56`` linkage
+    shape, and it costs one ``str()`` to not have.
+
+    ORDER COMES FROM ``seq``, not from the payload's ``at``. ``at`` is written
+    by the door from its own clock and two doors on two hosts can disagree;
+    ``seq`` is the store's own total order and is what "already recorded"
+    means here. Events without a ``seq`` sort last in arrival order rather
+    than being dropped — an unsequenced event is still a decision.
+    """
+    out: list[dict[str, Any]] = []
+    for i, e in enumerate(events or []):
+        if not isinstance(e, dict):
+            continue
+        if e.get("type") != LEGACY_DECISION_EVENT:
+            continue
+        p = e.get("payload")
+        p = p if isinstance(p, dict) else {}
+        if str(p.get("rec_id")) != str(rec_id):
+            continue
+        if p.get("run_id") is not None and str(p.get("run_id")) != str(run_id):
+            continue
+        seq = e.get("seq")
+        out.append({
+            "seq": seq,
+            "status": p.get("status"),
+            "at": p.get("at"),
+            # The DECIDER is the event's actor. The payload has no actor field
+            # of its own, so reading `payload["actor"]` would give None on
+            # every real row and put "by None" in a refusal message.
+            "actor": e.get("actor"),
+            "_order": (0, seq, i) if isinstance(seq, int) else (1, 0, i),
+        })
+    out.sort(key=lambda d: d["_order"])
+    for d in out:
+        d.pop("_order", None)
+    return out
+
+
+def redecision_lineage(decisions: list[dict[str, Any]]) -> dict[str, Any]:
+    """What this row has already recorded — ``{}``-shaped, always readable.
+
+    ``recorded_status`` is the status the row currently holds ACCORDING TO THE
+    LOG, which is the fact the narrow rule compares against. Measured
+    2026-08-24 over the whole log: that agrees with the ``fund_agent_runs``
+    row's ``status`` column on **491 of 491** rows that carry a decision event,
+    with zero disagreements — so the two instruments say the same thing today.
+    The guard reads the LOG rather than the column because only the log carries
+    the lineage (when, by whom, how many times); the column holds one value and
+    has already been overwritten seven times on R39's row. Reproduce the
+    agreement with ``scripts/instruments/hw4/redecision_census.py``.
+
+    ``same_status_run`` is the CURRENT unbroken run of that status, not every
+    occurrence of it ever. The difference is the reopen: one row in the record
+    (``run-pm-sleeve-v2#15``) went ``accepted -> done -> open -> accepted ->
+    staged``, and citing the pre-reopen acceptance as "when this was decided"
+    would point a reader at a decision the reopen already undid.
+    """
+    if not decisions:
+        return {"decided": False, "decision_count": 0, "recorded_status": None,
+                "recorded_at": None, "recorded_by": None, "same_status_run": 0,
+                "first_ever_at": None, "basis": "no_decision_events"}
+    last = decisions[-1]
+    status = last.get("status")
+    # Walk back from the end; the run ENDS at the first event whose status
+    # differs. A comprehension over every match would count the pre-reopen
+    # acceptances too, which is the ever-repeat rule this one is not.
+    run_len = 0
+    for d in reversed(decisions):
+        if d.get("status") != status:
+            break
+        run_len += 1
+    first_of_run = decisions[len(decisions) - run_len]
+    ever = [d for d in decisions if d.get("status") == status]
+    return {
+        "decided": True,
+        "decision_count": len(decisions),
+        "recorded_status": status,
+        "recorded_at": first_of_run.get("at"),
+        "recorded_by": first_of_run.get("actor"),
+        "same_status_run": run_len,
+        # DIFFERS FROM `recorded_at` ONLY ON A REOPEN, and is published anyway
+        # rather than conditionally: a field that appears only sometimes is a
+        # field every consumer must branch on, and the branch is where the
+        # absence gets read as a zero.
+        "first_ever_at": ever[0].get("at") if ever else None,
+        "seqs": [d.get("seq") for d in decisions],
+        "basis": "decision_events",
+    }
+
+
+def check_redecision(decisions: list[dict[str, Any]], *, to: Any,
+                     run_id: Any, rec_id: Any) -> Optional[dict[str, Any]]:
+    """The NARROW rule for the legacy door. ``None`` to allow; a dict to 409.
+
+    **REFUSE A DECISION THAT RE-RECORDS THE STATUS THIS ROW ALREADY HOLDS.
+    EVERY STATUS CHANGE PASSES UNTOUCHED.** That is the whole rule, and its
+    two halves were measured before it was written
+    (``scripts/instruments/hw4/redecision_census.py``, whole log, seq 1-1545,
+    2026-08-24):
+
+      * It refuses **37 of 678** decision events over five months — the
+        consecutive-repeat population. Those 37 sit on **27 rows**; the worst
+        is R39's ``run-triage7-decisions#1``, eight ``accepted`` events at seqs
+        1122, 1123, 1195, 1201, 1202, 1203, 1253, 1281, of which this rule
+        refuses the last seven.
+      * It touches **none** of the **136 rows carrying a genuine multi-status
+        progression** (``accepted -> done`` and its kin), because none of those
+        transitions re-records a status the row already holds.
+
+    NOTE THE NUMBER THE BRIEF FOR THIS WORK CARRIED, because it is a label
+    slip worth not repeating: "28 same-status repeats — 13 accepted, 12 done,
+    3 staged". Those three legs are exact, but they count **ROWS carrying at
+    least one repeat**, not events. The event figures are 37 (consecutive) and
+    38 (ever-repeat). The refusal count of this control is 37.
+
+    **WHY CONSECUTIVE AND NOT "EVER RECORDED".** Exactly one row in the whole
+    record is ``A -> B -> A``: ``run-pm-sleeve-v2#15`` went ``accepted ->
+    done -> open -> accepted -> staged``. A rule reading "has this row ever
+    recorded ``accepted``" would have refused that fourth event — a genuine
+    re-acceptance after a genuine reopen. A control that refuses correct work
+    is not a stricter control; it is a broken one, and this module's own first
+    draft made exactly that mistake one dispatch ago (see the paragraph inside
+    ``check_representation``). The measured cost of getting it wrong is one
+    real row; the measured benefit of the narrow form is 37 of the 38.
+
+    **WHY THERE IS NO STATUS CARVE-OUT, unlike ``REDECISION_GUARDED``.** The
+    ticket rule excludes ``declined`` and the terminals so that closing a row
+    never becomes harder than opening it. That concern does not arise here,
+    and the reason is structural rather than a judgement call: this rule
+    refuses status ``S`` only when the row ALREADY holds ``S``, so for every
+    row and every other status the door is exactly as open as it was. No row
+    can be trapped, because the only thing refused is the transition that
+    would change nothing. A ``done`` row can still be reopened, rejected,
+    re-accepted or noted; it merely cannot be marked ``done`` twice.
+
+    **THIS GUARD CANNOT STOP A RE-PRESENTATION** — the same subject filed as a
+    fresh ``(run_id, rec_id)``, which is the OTHER half of the R39 defect and
+    the larger one (a dozen-odd distinct identities). Nothing about a new row
+    is visible from this row's history. Named here so the control is not read
+    as doing more than it does; ``check_representation`` and the ticket
+    highway are where that half lives.
+    """
+    # A blank or absent target cannot equal a recorded status in any
+    # meaningful sense, and comparing two Nones would refuse every decision on
+    # a row whose last payload was malformed. Fail open, loudly, on nonsense.
+    if not isinstance(to, str) or not to:
+        return None
+    lin = redecision_lineage(decisions)
+    if lin["recorded_status"] != to:
+        return None
+    prior = lin["same_status_run"]
+    return {
+        "refused": True,
+        "guard": LEGACY_REDECISION_GUARD_VERSION,
+        "hint": "already_at_this_status",
+        "kind": "desk_recommendation",
+        "run_id": run_id,
+        "rec_id": rec_id,
+        "row_ref": f"{run_id}#{rec_id}",
+        "attempted": to,
+        "recorded_status": lin["recorded_status"],
+        "recorded_at": lin["recorded_at"],
+        "recorded_by": lin["recorded_by"],
+        "prior_same_status": prior,
+        "decision_count": lin["decision_count"],
+        "first_ever_at": lin["first_ever_at"],
+        # `prior` COUNTS THE EVENTS ALREADY ON THE RECORD, so it is 1 the first
+        # time this refusal fires and 8 on R39's ninth attempt. An earlier
+        # draft said "N time(s) since", which read as "N MORE times after the
+        # first" and was wrong by one at every value — the kind of sentence a
+        # suite cannot see and a reader trusts.
+        "detail": (
+            f"ONE DECISION, ONE ROW. {run_id}#{rec_id} already records "
+            f"{to!r} — recorded {prior} time(s), first at "
+            f"{lin['recorded_at']} by {lin['recorded_by']}, out of "
+            f"{lin['decision_count']} decision(s) on this row in total. "
+            f"Re-recording a status the row already holds writes a second "
+            f"event that changes nothing and makes one decision look like "
+            f"two. Any status CHANGE is accepted as before; if this row needs "
+            f"to move, send the status it should move TO."),
+    }
 
 
 def merge_target_error(ticket_id: str, decision_ref: Optional[str],
