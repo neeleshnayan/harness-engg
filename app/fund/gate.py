@@ -1639,7 +1639,7 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
     bar: dict[str, Any] = {"measurable": False}
     if target is not None:
         bar = (st.sharpe_bar_for_psr(level, series, target) if not is_premia
-               else _bar_from_moments(level, moments, target))
+               else _bar_from_moments(level, moments))
     if bar.get("measurable") and k:
         scale = (float(moments["stdev"])
                  if is_premia and moments is not None else 1.0)
@@ -1732,8 +1732,8 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
         f"that is not distinguishable from luck"]
 
 
-def _bar_from_moments(level: float, moments: Optional[dict[str, Any]],
-                      target: float = 0.0) -> dict[str, Any]:
+def _bar_from_moments(level: float, moments: Optional[dict[str, Any]]
+                      ) -> dict[str, Any]:
     """The level's Sharpe bar for a leg whose SERIES the payload does not hold.
 
     The advantage is stored as moments (the series is deliberately not kept), so
@@ -1741,18 +1741,21 @@ def _bar_from_moments(level: float, moments: Optional[dict[str, Any]],
     moments give an absent bar: a disclosure must never be able to break the
     verdict it explains.
 
-    ``target`` is the Sharpe the level is demanded AGAINST, and it is a
-    parameter rather than a zero because the caller now has two bases to serve:
-    zero for the target-zero statistic, and the engine's own inverted target for
-    ``engine_reported``. A bar solved against the wrong target is a precise
-    number about a criterion nobody applied.
+    THE TARGET IS ZERO HERE AND CANNOT BE ANYTHING ELSE — stated rather than
+    passed in, because a parameter that can only ever hold one value is a
+    decoration, and this one was: it survived mutation M13's sibling by being
+    unreachable. The caller only has a non-zero target under
+    ``engine_reported``, which inverts it out of ``series`` — and the premia
+    branch fills ``moments`` and leaves ``series`` empty, so there is nothing to
+    invert and the caller does not compute a bar at all. If a premia claim ever
+    gains a stored SERIES, this becomes reachable and takes the parameter back.
     """
     if not moments or not moments.get("measurable"):
         return {"measurable": False}
     from app.fund import statistics as st
     return st.sharpe_bar_for_psr_from_moments(
         level, int(moments["n"]), float(moments["skew"]),
-        float(moments["kurtosis"]), target)
+        float(moments["kurtosis"]), 0.0)
 
 
 def _premia_leg(result: dict[str, Any], pc: dict[str, Any]

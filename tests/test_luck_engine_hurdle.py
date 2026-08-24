@@ -199,6 +199,38 @@ def test_an_unrecoverable_engine_target_leaves_the_demand_UNSTATED_not_zero():
     assert "demands an annualised Sharpe" not in s
 
 
+def test_an_UNINVERTIBLE_engine_psr_states_no_demand_even_with_a_full_series():
+    """MUTATION SURVIVOR M13, and it has a real population.
+
+    The sibling test above removes the series, so both the target and the bar
+    go absent together and a `target = 0.0` fallback is invisible. THIS case
+    separates them: a perfectly usable 400-observation series with a published
+    PSR of exactly 0.0%, which pins the target at infinity and cannot be
+    inverted. The bar COULD be solved against a zero fallback here — and doing
+    so would put a precise, confident, wrong demand on the verdict, because the
+    criterion is not testing a target of zero.
+
+    NOT HYPOTHETICAL: three of the fund's 339 stored results carrying a series
+    publish exactly 0.0% (scratchpad/d37probe/target_census.py). Absence is
+    never zero, and this is the row where the difference is reachable.
+    """
+    r = _alpha(psr=90.0)
+    r["robustness"]["psr_pct"] = 0.0
+    assert len(r["daily_returns"]["strategy"]) > 100      # the series is fine
+    out = evaluate(r, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK,
+                   criteria={"psr_basis": "engine_reported",
+                             "min_psr_pct": 65.0})
+    luck = out["checks"]["luck"]
+    assert luck["measurable"] is True          # the engine's figure is readable
+    assert luck["evaluated_pct"] == 0.0
+    assert "engine_implied_target_annualised" not in luck
+    assert luck.get("required_sharpe_annualised") is None
+    assert "pins the target at infinity" in luck["engine_implied_target_note"]
+    s = [f for f in out["failures"] if "probabilistic Sharpe" in f][0]
+    assert "UNSTATED rather than zero" in s
+    assert "demands an annualised Sharpe" not in s
+
+
 def test_both_readings_survive_the_revert_on_the_shipped_alpha_bar():
     """The capture is the reason the mislabelling was findable at all, and it
     must not have been a casualty of reverting the basis that consumed it. On a
