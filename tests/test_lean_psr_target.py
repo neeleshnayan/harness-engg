@@ -14,6 +14,16 @@ itself, the clock-aware target, the exact algebraic inversion (both
 directions — with and without the rf/clock correction), and the recovery of
 the engine's own risk-free rate. A regression in any of these should fail a
 test here before it fails a verdict.
+
+AND ONE OF THEM IS NOW TIED TO REAL ENGINE OUTPUT (D41, section M). Everything
+above section K is the module checked against itself: assertions of the form
+"``lean_psr_target`` returns 1/sqrt(k)" cannot tell a right constant from a
+wrong one, only a consistent one. Section M compares the constant the gate reads
+against the target three STORED LEAN runs imply, so a change to
+``LEAN_TRADING_DAYS_PER_YEAR`` or to the ``1.0`` numerator stops agreeing with
+the engine's own bytes — which is the mechanical falsifier the ``min_psr_pct``
+register entry claims to have. Verified by planting both mutants: each fails
+that test by name.
 """
 
 from __future__ import annotations
@@ -364,6 +374,68 @@ def test_corrected_inversion_lands_near_one_on_real_candidates():
             rf_per_obs=rf["rf_per_obs"], trading_days_per_year=k)
         assert implied["measurable"] is True, cand["job_id"]
         assert implied["target_annualised"] == pytest.approx(1.0, abs=0.02), cand["job_id"]
+
+
+#: The measured agreement between what real engine output implies and what
+#: ``lean_psr_target`` says, plus headroom. Over the three fixture candidates the
+#: recovered per-observation target deviates from 1/sqrt(252) by +0.000445,
+#: -0.000052 and -0.000055 — the reconstruction's skew/kurtosis estimators, not
+#: the target moving. 0.0006 admits all three with a third to spare and is
+#: PROVEN below to reject the neighbouring clocks, which is what makes it a
+#: tolerance rather than a shrug.
+TARGET_RECOVERY_TOLERANCE = 0.0006
+
+
+# ---------------------------------------------------------------------------
+# M. The constant the GATE reads, checked against real engine output
+# ---------------------------------------------------------------------------
+
+def test_the_recovered_target_MATCHES_THE_MODULE_CONSTANT_on_real_candidates():
+    """THE EVALUATOR THE FALSIFIER WAS MISSING (D41).
+
+    Test K above asserts the recovered target lands near the literal 1.00. That
+    pins the arithmetic and pins NOTHING about the constant the gate actually
+    reads: `lean_psr_target()` could return any per-observation figure at all and
+    test K would still pass, because it never calls it. The register's
+    `falsified_by` claimed a LEAN change to `tradingDaysPerYear` or to the 1.0d
+    numerator would be caught mechanically, and until this test there was no
+    production caller and no test that could catch either — the zero-callers
+    residual, one layer down from the one this fund keeps finding.
+
+    MOVE IT, DO NOT MATCH IT (D16), and the move here is the one that matters:
+    the value under test is compared against REAL ENGINE BYTES rather than
+    against another copy of itself. Change `LEAN_TRADING_DAYS_PER_YEAR`, or the
+    numerator in `1.0 / math.sqrt(kk)`, and the module's constant stops agreeing
+    with what three stored LEAN runs imply — which is exactly the event the
+    register says would reopen the criterion.
+
+    THE TOLERANCE IS PROVEN TO DISCRIMINATE, in the same test, because a
+    tolerance that admits everything would make this vacuous: the neighbouring
+    clocks 240 and 260 are rejected on every candidate.
+    """
+    k = FIXTURE["trading_days_per_year"]
+    constant = st.lean_psr_target()["per_obs"]
+    assert st.lean_psr_target()["trading_days_per_year"] == k, (
+        "the fixture's engine clock and the module's fallback have diverged — "
+        "one of them is now describing a different engine")
+    for cand in FIXTURE["candidates"]:
+        returns = cand["daily_returns"]
+        rf = st.engine_risk_free_per_obs(
+            cand["published_sharpe_ratio"],
+            cand["published_annual_standard_deviation"], returns, k)
+        implied = st.implied_target_sharpe(
+            cand["published_psr_pct"], returns,
+            rf_per_obs=rf["rf_per_obs"], trading_days_per_year=k)
+        assert implied["measurable"] is True, cand["job_id"]
+        recovered = float(implied["target_per_obs"])
+        assert recovered == pytest.approx(
+            constant, abs=TARGET_RECOVERY_TOLERANCE), cand["job_id"]
+        # THE DISCRIMINATING HALF: the same comparison against a clock LEAN does
+        # not use must FAIL, on every candidate, or the tolerance above is
+        # admitting the defect it exists to catch.
+        for other in (240, 260):
+            assert abs(recovered - 1.0 / math.sqrt(other)) > \
+                TARGET_RECOVERY_TOLERANCE, (cand["job_id"], other)
 
 
 # ---------------------------------------------------------------------------
