@@ -20,7 +20,8 @@ import {
   SeatTelemetry, costLabel, telemetryNote, tokensLabel,
 } from "./deskTelemetry";
 import { ChipTotal, chipShowsTotal } from "./deskAwaiting";
-import { isRecordRow, recordRowNote } from "./recordRow";
+import { NOBODY, isRecordRow, recordRowNote } from "./recordRow";
+import { nextMoveLine } from "./cardAnatomy";
 
 /**
  * The desk's shared rendering vocabulary.
@@ -115,6 +116,24 @@ export function RecRow({ r, onDecide }: {
     <div className={`${KT.card} flex flex-wrap items-center gap-3 p-3`}>
       <ProvenanceChip kind="agent" seat={r.seat} recId={r.rec_id} />
       <span className="min-w-0 flex-1 text-sm leading-snug">{r.text}</span>
+      {/* QUESTION 4 OF THE RATIFIED CARD — WHOSE MOVE IS IT (D42).
+          This flat list showed a row's STATUS and nothing about its owner, so
+          32 of the 54 rows under "awaiting a decision" were the chair's and a
+          reader could not tell. The arrow chip is `DeskMatrix`'s existing
+          idiom rather than a second invention, the reason rides the tooltip,
+          and the CEO's own rows show nothing: "→ ceo" on the CEO's queue is a
+          badge on every row, which is how a badge stops meaning anything. A
+          record row is skipped too — its sentence below already says it. */}
+      {(() => {
+        const move = nextMoveLine(r);
+        if (!move || move.actor === "ceo" || move.actor === NOBODY) return null;
+        return (
+          <span className={`shrink-0 font-mono text-[10px] ${KT.muted}`}
+                title={move.why ?? "the spine stated no reason"}>
+            → {move.actor}
+          </span>
+        );
+      })()}
       {r.status === "open" && isRecordRow(r) ? (
         /* No control, and a sentence where the buttons were. A record row
            whose controls simply vanished would read as a rendering failure.

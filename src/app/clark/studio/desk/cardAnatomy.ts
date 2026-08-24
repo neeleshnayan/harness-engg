@@ -5,10 +5,12 @@
  * request card's four questions on the ASK payload and stopped there; the CEO
  * then asked *"SO WHAT DID WE DO?"*, and the honest answer was that the DATA
  * became truthful while the page still looked like the thing he had rejected.
- * Two gaps, both measured on his live desk (2026-08-24, 238 recommendations,
- * 109 requests):
+ * Two gaps, both measured on his live desk (2026-08-24: 238 open
+ * recommendations, 116 requests — the request count grows through the day, so
+ * the number that matters is the INVARIANT beside it: **0 of them structured**,
+ * i.e. every single one renders through the prose fallback):
  *
- *   * **The headline was the dump.** All 109 requests are prose-only, and the
+ *   * **The headline was the dump.** Every request is prose-only, and the
  *     spine's `card.headline` for a prose ask is the subject's first LINE —
  *     which, for a subject with no newline in it, is the whole subject. On the
  *     rendered page that is seven lines of body copy sitting where the spec
@@ -40,9 +42,12 @@
  * 13px range — the scale the request card and the shared `RecRow` use. It
  * over-clamps a wide card by a few characters and never wraps a narrow one.
  *
- * What the clamp is worth, measured on the same page: the four recommendation
- * headlines on the CEO's live desk were 190, 152, 148 and 121 characters, and
- * the first bench ask rendered SEVEN lines as its own name.
+ * What the clamp is worth, RE-DERIVED (the first version of this sentence said
+ * 190/152/148/121 and every one of the four was wrong — caught by the Gauntlet,
+ * confirmed by me): `memoParts(text).headline` for the four recommendations on
+ * the CEO's live decision list is **188, 163, 158 and 138** characters, and the
+ * first bench ask rendered SEVEN lines as its own name.
+ * Reproduce: `scratchpad/d42_recount.mjs`.
  */
 export const CARD_HEADLINE_MAX = 87;
 
@@ -155,7 +160,17 @@ function hoursBetween(from: string | null, nowIso: string): number | null {
   const a = Date.parse(from);
   const b = Date.parse(nowIso);
   if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
-  return (b - a) / HOUR_MS;
+  const hours = (b - a) / HOUR_MS;
+  /* A NEGATIVE AGE IS NOT AN AGE — it is two clocks disagreeing, and it must
+     not render. `now` is the spine's `engine.at` when the desk engine is
+     readable and the BROWSER's clock when it is not, so a browser a minute
+     ahead of the server turns a fresh row into "filed · -0.0h". Null is the
+     honest answer and it is the same answer an unreadable timestamp gets: we
+     cannot say how long. It is NOT clamped to zero — zero would assert the row
+     was filed this instant, which is the absence-as-zero error wearing a
+     plausible number. Found by a junior's -1h case, which the spec did not
+     ask about. */
+  return hours < 0 ? null : hours;
 }
 
 /**

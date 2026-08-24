@@ -53,6 +53,15 @@ test("an absent, empty or blank actor is null, never a string", () => {
   assert.equal(routedActor(undefined), null);
 });
 
+test("a NON-STRING actor is absence. The payload is JSON, the TypeScript "
+  + "type is erased at runtime, and a number in that field would otherwise "
+  + "reach `.trim()`", () => {
+  assert.equal(routedActor({ next_actor_resolved: 7 as never }), null);
+  assert.equal(routedActor({ next_actor_resolved: [] as never }), null);
+  assert.equal(isRecordRow({ status: "open", next_actor_resolved: 0 as never }),
+    false);
+});
+
 /* ------------------------------------------------------- the predicate ---- */
 
 test("THE INCIDENT ROW: the live nobody row is a record row", () => {

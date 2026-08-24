@@ -19,7 +19,13 @@ import {
 } from "./cardAnatomy.ts";
 
 /** Verbatim from the CEO's desk, 2026-08-24 — the four headlines that ran to
- *  two or three rendered lines. Lengths: 190, 152, 148, 121. */
+ *  two or three rendered lines.
+ *
+ *  LENGTHS 188, 163, 158, 138, and they are asserted below rather than stated,
+ *  because the first version of this comment said 190/152/148/121 and all four
+ *  were wrong. A number in a comment that nothing checks is a number that
+ *  drifts; a number a test re-derives cannot.
+ *  Reproduce against the live spine: `scratchpad/d42_recount.mjs`. */
 const LIVE_HEADLINES = [
   "MONDAY 1 of 3 (before 12:30Z): APPROVE R39 AS ONE SEQUENCE, stop conditions "
   + "binding on you too - no probe at broker means everything stops; "
@@ -33,6 +39,12 @@ const LIVE_HEADLINES = [
   "NO DEADLINE: SIGN OR REVERSE the desk-counter predicate (live unsigned 3 "
   + "triages; 7% looser; the change is right, unsigned is the defect).",
 ];
+
+test("THE FIXTURE'S OWN LENGTHS, ASSERTED RATHER THAN ASSERTED-IN-PROSE. The "
+  + "docstring above claimed 190/152/148/121 in its first version and every "
+  + "one was wrong; a length a test re-derives cannot drift", () => {
+  assert.deepEqual(LIVE_HEADLINES.map((h) => h.length), [188, 163, 158, 138]);
+});
 
 /* -------------------------------------------------------------- the clamp - */
 
@@ -177,6 +189,28 @@ test("an empty-string timestamp is absence, not the epoch", () => {
     { status: "accepted", resolved_at: NOW, decided_at: "" }, NOW);
   assert.equal(l.stages[1].state, "future",
     "an undated decision is not a decision");
+});
+
+test("A NEGATIVE AGE IS NOT AN AGE. `now` is the spine's clock when the desk "
+  + "engine is readable and the BROWSER's when it is not, so a browser one "
+  + "minute ahead turns a fresh row into 'filed · -0.0h'. Null — the same "
+  + "answer an unreadable timestamp gets — and NOT zero, which would assert "
+  + "the row was filed this instant", () => {
+  const future = "2026-08-24T13:00:00+00:00"; // one hour after NOW
+  assert.equal(recLifecycle({ status: "open", resolved_at: future }, NOW).ageHours,
+    null);
+  // A one-second skew is the realistic case and must behave the same way.
+  assert.equal(recLifecycle(
+    { status: "open", resolved_at: "2026-08-24T12:00:01+00:00" }, NOW).ageHours,
+    null);
+});
+
+test("a NON-STRING actor is absence, not an actor. The payload is JSON and "
+  + "the TypeScript type is erased at runtime, so a number or an object in "
+  + "that field reaches this function", () => {
+  assert.equal(nextMoveLine({ next_actor_resolved: 7 as never }), null);
+  assert.equal(nextMoveLine({ next_actor_resolved: {} as never }), null);
+  assert.equal(nextMoveLine({ next_actor_resolved: true as never }), null);
 });
 
 /* ------------------------------------------------------ whose move is it -- */
