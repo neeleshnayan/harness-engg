@@ -408,3 +408,24 @@ the source that it is not a behaviour fix - otherwise the comment claims a
 defect that never existed. Measured basis: HW1 M39 - reverting `elsewhere`
 from a direct count to `working - ceo - decided` killed no test, because the
 three predicates are exclusive and exhaustive.
+
+
+## A ZERO FROM A VERIFICATION TOOL NEEDS ITS DOMAIN BEFORE IT NEEDS BELIEF (EVOLVE applied 2026-08-24, run-builder-d43, co-CTO reviewed)
+
+Extends the null-test rule from measurement scripts to THE TOOLS THAT GATE THE
+WORK. Re-run any tool that reports "0 problems" in a way that would make it
+report a NON-zero, or state by hand what it compared. Measured basis: D43's
+merge gate returned `changed 0 ordinary, 0 sensitive, 0 forbidden` over a
+19-file diff because `--branch` was pointed at the builder's own branch - a
+clean PASS with the forbidden-surface check comparing the tip against itself.
+The hand check (19 files listed, 0 matching the forbidden globs) took thirty
+seconds and is what makes the claim mean anything.
+
+## A UI CHANGE IS MEASURED ON A WARM ROUTE, AND THE COLD ONE IS ITS OWN ARM (EVOLVE applied 2026-08-24, run-builder-d43, co-CTO reviewed)
+
+Extends the look-pass. After any dev-server restart or env switch, navigate
+ONCE to compile and measure on the SECOND navigation - a cold route renders
+the initial/loading state whatever the backend is doing, and D43's first
+"failed-spine" capture was a true loading render misread as a defect for ten
+minutes. The same fact is the instrument: to reproduce a pending state
+deliberately, shoot the first navigation.

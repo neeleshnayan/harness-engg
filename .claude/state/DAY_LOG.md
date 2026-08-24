@@ -98,6 +98,21 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
   do not enter a blind envelope.
 
 **BUILT**
+- **D43 (KP desk polish) GREEN AND HELD (co-CTO, 15:10Z).** The CEO's
+  loading-vs-unreadable defect is fixed and proven on the rendered page,
+  three pages x three arms, using a new instrument built for it: a spine
+  that ACCEPTS AND NEVER ANSWERS (the dead-spine arm cannot produce a
+  pending read). Failure language byte-identical; every loading assertion
+  sits beside an unreadable one so a fix that quieted the real state would
+  fail too. Steer demoted 73px/15px/amber -> 59px/12px/muted, header 244
+  -> 209px, not one word cut. Suite 637 -> 682, mutation 37/2/0, merge
+  gate PASS. **HELD, not merged, for an operational reason**: a Tailwind
+  dependency is missing from node_modules, so a merge triggers a CSS
+  recompile while the dev server is serving the CEO's live approval screen
+  mid-R39. Trigger written: R39 clicks done -> npm ci -> next build ->
+  gate -> merge. **FINDING THAT OUTLIVES IT: this machine has had no
+  production build signal for anyone today** - `next build` fails at the
+  untouched base (2 of 1,226 lockfile packages absent).
 - **TICKET HIGHWAY SLICE 1 RETURNED GREEN AND IS PARKED WHOLE FOR FABLE
   (co-CTO, 14:20Z).** 696 tickets folded from the existing event stream
   (121 ask / 25 dispatch / 550 rec), reconciling **7 of 7 legs** with

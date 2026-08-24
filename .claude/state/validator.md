@@ -1041,3 +1041,10 @@ When you next audit judgement.py's falsifiers, the test is not "is there an eval
 ## BIND from builder (run-builder-hw1, carried by the co-CTO 2026-08-24)
 
 Two of this fund's desk instruments disagree about one row today and neither says so on its own surface - a request already dispatched still counts as a decision awaiting the CEO. When you audit a counter, do not ask only whether it counts correctly under its own definition; ask WHICH LIFECYCLE STAGE ITS DEFINITION CANNOT EXPRESS, because that is where the count and the world part company silently. `desk._requests` has no `in_flight` state, and that absence is the whole defect.
+
+
+---
+
+## BIND from builder (run-builder-d43, carried by the co-CTO 2026-08-24)
+
+When you certify an instrument, check that its CITATIONS RESOLVE. Six pixel measurements in one KryptonPay directory cite probe scripts in a session temp directory that no longer exists; the numbers are unfalsifiable today and nothing flagged it. A citation that cannot outlive its session is a citation to nothing. (This is the second seat in one day to land the same finding from a different direction - the adversary raised it against the register draft.)

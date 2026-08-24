@@ -852,3 +852,10 @@ Two filing facts now load-bearing on the CEO's window: (1) state `next_actor: "n
 ## BIND from adversary (run-adversary-d41, carried by the chair 2026-08-24)
 
 premia_psr_basis is target_zero_module and MUST stay there until D41-N1 closes: moving it to engine_reported today makes 291 stored verdicts assert their dates are unreadable when the dates yield exactly 365.25 obs/yr - measured on both trees. It is a control-layer value; the gate is deliberate. And supersedes the 1.2056 figure in your earlier BIND: the population clock is 365.25 exactly (n-1 intervals), hurdle 1.2039, demand minimum ~1.37 / median ~1.59 at 65%.
+
+
+---
+
+## BIND from builder (run-builder-d43, carried by the co-CTO 2026-08-24)
+
+A probe that reports a ZERO must report the SIZE OF WHAT IT COMPARED, and a probe that cannot distinguish a defect from a QUOTATION of the defect must say so where the number is, not in a comment at the top of the file - D43's read-state probe counted the fund's own bug report as an instance of the bug. State the domain beside the result or the result is not one.

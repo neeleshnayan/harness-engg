@@ -2335,3 +2335,52 @@ control-layer blocker and the free builder slot went to that instead. Slice 2
 is Fable's to sequence anyway (approval-path doors, adversary blind first).
 
 **[Fable @ resolve]**:
+
+
+---
+
+## 2026-08-24 15:10Z — TIER-2 NOT TAKEN — D43 (KP desk polish) resolved and HELD, with a written merge trigger
+
+**What**: the loading-vs-unreadable fix the CEO reported from his own screen
+this morning came back green — suite 637 → 682 (0 fail), mutation 37 killed /
+2 retired-with-proof / 0 survived, merge gate PASS on the actually-merged tree
+(19 ordinary, 0 sensitive, 0 forbidden). Bundle `kpp.bundle` verifies. Run
+recorded, STATE appended, two BINDS carried (validator, quant), two EVOLVEs
+applied. **I did not merge it, although the handover authorised me to.**
+
+**Why held — the charter reason is the weaker one, so I state the real one
+first.** `@alloc/quick-lru` is a **Tailwind** dependency and it is missing from
+the live `node_modules` (co-CTO verified both missing packages by hand). A
+merge triggers a CSS recompile on the touched routes — and **the dev server on
+:3000 is at this moment serving the CEO's approval screen** (verified 200 in
+0.84s) with three orders parked behind the mark-sanity blocker. Merging, or
+running the `npm ci` that would fix the build, risks taking down the one
+surface he needs to finish R39. **A rendering fix is not worth a live click
+surface mid-execution.**
+
+**The charter reasons, secondary but real**: `next build` is RED — though red
+at the UNTOUCHED BASE with a byte-identical signature, which the builder
+proved in a second worktree rather than arguing, so it is an environment
+defect and not this diff's; and the diff reaches `scripts/ui/**` and
+`studio/theme.ts` (the `KT.heroDim` token), beyond the `studio/desk/**` scope
+the handover named.
+
+**TRIGGER, written so it is not a vague "later"**: R39 clicking complete (or
+the CEO says the desk is free) → `npm ci` in KryptonPay → `next build` once →
+`scripts/merge_builder.py` against `claude/krypton-fund-agentic-j8r2mu` →
+merge. Any chair may execute it; nothing about it is Tier 3.
+
+**A finding this dispatch produced that outlives it**: **this machine has had
+no production build signal for anyone today.** `next build` fails at the base
+commit. Every KryptonPay merge today — D42, and the lane fix — was gated on
+suite + tsc only. Not an error by anyone (the gate ran what exists), but the
+record should say what was and was not verified.
+
+**Carried into my own practice, not merely noted**: `merge_builder.py` returns
+a clean PASS reading "changed 0 ordinary, 0 sensitive, 0 forbidden" when
+`--branch` names the builder's own branch — it merges the tip into itself. I
+re-verified the forbidden-surface claim by hand over all 19 files rather than
+trusting the gate's line. **A zero from a gate needs its domain before it needs
+belief.**
+
+**[Fable @ resolve]**:
