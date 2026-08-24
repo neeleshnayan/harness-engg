@@ -1535,11 +1535,32 @@ class LeanRunner:
             # four lines below — the same reason `daily_returns` is computed
             # here and not from the downsampled curve.
             "exposure": gross_exposure(charts),
+            # AND WHAT IT WEIGHED ON EACH DAY, for the cash-carry credit. The
+            # maxima above answer "was this book levered"; only the dated series
+            # answers "how much of it sat in cash on the day the bar charged it
+            # a cash rate". Stored rather than threaded through the enricher
+            # because a premia payload that cannot be REBUILT from a stored
+            # result is a payload no probe and no re-judgement can check — and
+            # this fund verifies far more off stored results than off live runs.
+            # MEASURED, not estimated (candidate 331b61ee31b1, 2026-08-24):
+            # 42,490 bytes of invested weight — 1,937 dated readings — on a
+            # 117,544-byte result whose `daily_returns` block is already 71,944
+            # bytes and is carried for exactly the same reason. Reproduce with
+            # `len(json.dumps(invested_weights(charts)))`.
+            "invested_weight": invested_weights(charts),
             "orders": _orders(best),
             # `daily` is handed in UNDOWNSAMPLED and before the thinning above,
             # because the PSR capture needs the sample length the engine
             # actually scored — `equity` here is already 400 points.
-            "robustness": _robustness(stats, equity, dates, _orders(best), daily),
+            # `best.get("algorithmConfiguration")` carries the engine's own
+            # `tradingDaysPerYear`, which is the clock the PSR's hardcoded
+            # target is written against. Read from the RESULT rather than from
+            # the sibling `-summary.json`, because the result is what this fund
+            # stores and a hurdle recoverable only from a file on the belt
+            # host's disk is not recoverable from a stored verdict.
+            "robustness": _robustness(stats, equity, dates, _orders(best),
+                                      daily,
+                                      best.get("algorithmConfiguration")),
             "raw_files": sorted(p.name for p in res_dir.glob("*")),
         }
 
@@ -1583,15 +1604,25 @@ _PSR_IDENTIFYING_STATISTICS = (
 )
 
 
-def psr_inputs(stats: dict, daily: Optional[dict[str, Any]] = None
+def psr_inputs(stats: dict, daily: Optional[dict[str, Any]] = None,
+               config: Optional[dict[str, Any]] = None
                ) -> dict[str, Any]:
     """Everything that could identify the formula behind the reported PSR.
 
-    Capture only: NO criterion reads any of this, and adding one would be a
-    threshold change. What it buys is that the next reader can answer "against
-    what target?" from a stored verdict instead of from a new belt run.
+    Capture, and NO CRITERION'S PASS/FAIL READS ANY OF IT — wiring one to a
+    verdict would be a threshold change. What it buys is that the next reader
+    can answer "against what target?" from a stored verdict instead of from a
+    new belt run.
 
-    Three things travel together and they answer different halves of the
+    ONE FIELD IS READ ON THE GATE SIDE, and D38 states the boundary rather than
+    leaving the sentence above quietly false: `_luck_leg` reads
+    ``trading_days_per_year`` to state the engine's hurdle in the failure
+    sentence. The engine hurdle's verdict is ``psr_pct >= min_psr_pct`` and
+    touches neither the target nor the clock, so what this field moves is a
+    DISCLOSURE. A future change that let it move a verdict is the threshold
+    change this paragraph exists to make visible.
+
+    Four things travel together and they answer different halves of the
     question:
 
       * ``statistics`` — the engine's own numbers, verbatim, unparsed.
@@ -1604,22 +1635,48 @@ def psr_inputs(stats: dict, daily: Optional[dict[str, Any]] = None
         (0.11627 computed against 0.116 published); if a future engine build
         changes that, this is the field that says so instead of a silent
         17% shift in a statistic nobody re-derives.
+      * ``trading_days_per_year`` and ``target`` — the run's OWN
+        ``algorithmConfiguration.tradingDaysPerYear``, and the PSR hurdle that
+        follows from it. This is the falsifier for the whole engine-hurdle
+        story made mechanical: the target is ``1/sqrt(tradingDaysPerYear)``
+        (``statistics.lean_psr_target``), so a LEAN image that ships a
+        different clock moves the hurdle, and the only way to notice was to
+        grep new summary files by hand. Captured, so a stored verdict can be
+        re-read against the hurdle it was actually judged against. MEASURED at
+        capture time: 252 on 276 of 276 stored ``-summary.json`` files.
     """
+    cfg = config if isinstance(config, dict) else {}
+    tdy = cfg.get("tradingDaysPerYear")
+    # `math.isfinite` as well as `> 0`: a NaN fails every comparison, so
+    # `tdy <= 0` alone let NaN and inf through and the capture reported them as
+    # the run's clock. Same guard, same reason, as `statistics.lean_psr_target`.
+    if (isinstance(tdy, bool) or not isinstance(tdy, (int, float))
+            or not math.isfinite(tdy) or tdy <= 0):
+        tdy = None
+    from app.fund import statistics as _stats
     out: dict[str, Any] = {
         "statistics": {k: stats.get(k) for k in _PSR_IDENTIFYING_STATISTICS
                        if k in stats},
         "statistics_missing": [k for k in _PSR_IDENTIFYING_STATISTICS
                                if k not in stats],
+        # ABSENT WHEN ABSENT. A run whose configuration this fund did not
+        # capture must not report the engine's default as if it had been read;
+        # `target.assumed` then says the hurdle rests on the default.
+        "trading_days_per_year": tdy,
+        "target": _stats.lean_psr_target(tdy),
         "benchmark_sharpe_published": (
-            # Named as an ABSENCE rather than left out. The whole PSR question
-            # is "against which benchmark Sharpe", and the honest answer today
-            # is that the engine does not publish one.
+            # Named as an ABSENCE rather than left out. The engine's statistics
+            # block does not carry the target; its SOURCE does, and the two are
+            # different statements — see the note below.
             stats.get("Benchmark Sharpe Ratio")),
         "benchmark_sharpe_note": (
             None if "Benchmark Sharpe Ratio" in stats else
-            "the engine's statistics block publishes NO benchmark Sharpe; the "
-            "PSR's target is therefore not readable from the run and has to be "
-            "inverted out of the reported PSR"),
+            "the engine's statistics block publishes NO benchmark Sharpe, so "
+            "the PSR's target is not readable from the RESULT — but it is not "
+            "unpublished: LEAN hardcodes it at 1/sqrt(tradingDaysPerYear), an "
+            "annualised Sharpe of exactly 1.00, and `target` above states it. "
+            "Inverting it out of the reported PSR is a CHECK on that constant "
+            "(statistics.implied_target_sharpe), never the way to learn it"),
     }
     series = (daily or {}).get("strategy") if isinstance(daily, dict) else None
     dates = (daily or {}).get("dates") if isinstance(daily, dict) else None
@@ -1631,7 +1688,6 @@ def psr_inputs(stats: dict, daily: Optional[dict[str, Any]] = None
                      "zero"),
         }
         return out
-    from app.fund import statistics as _stats
     clock = _stats.observations_per_year(dates or [], len(series))
     out["observations"] = {
         "n": len(series),
@@ -2012,21 +2068,46 @@ def premia_inputs(result: dict[str, Any], rf_bars: Any = None,
     ``gross_measurable`` are carried here from the engine's own exposure chart
     (``gross_exposure``), and the gate refuses what it cannot measure.
 
-    THREE MEASURABILITY FLAGS, deliberately, because they answer different
-    questions and only two of them are read by a criterion.
+    THE FOURTH DEFECT THIS CLOSES, added 2026-08-24 from the positive-control
+    round (quant, run-quant-metacontrols). Subtracting the realised cash rate
+    from a book that HELD cash charges it a rate the engine never paid it: LEAN
+    pays 0% on idle balances. The correction is per observation and it is
+    ``w_t * rf_t`` in place of ``rf_t`` — see ``invested_weights`` for the
+    arithmetic and for why the benchmark leg is not credited. It ADMITS
+    candidates, which is why it is versioned, disclosed and adversary-reviewed
+    rather than shipped as a bug fix.
+
+    AND THE ADVANTAGE ITSELF IS NOW MEASURED, not only the two legs. A premia
+    claim asserts that ``SR_s - SR_b`` is positive, so ``advantage`` carries the
+    moments of the series whose mean IS that difference
+    (``statistics.sharpe_advantage_series``) and the gate's luck filter scores
+    THAT rather than the strategy's absolute Sharpe.
+
+    FOUR MEASURABILITY FLAGS, deliberately, because they answer different
+    questions and only three of them are read by a criterion.
     ``measurable`` is the RAW pair — it gates ``gate.volatility_check``, which
     is capture only, and its meaning is unchanged from schema 1.
     ``excess_measurable`` is the pair the premia CRITERION is judged on, and it
     is False whenever the cash leg could not be read. ``gross_measurable`` says
     whether the book's leverage is known, and it is INDEPENDENT of both: a run
     can have a perfect excess pair and an unreadable exposure chart, and that
-    run's premia claim is not measurable even though its Sharpe is. Collapsing
-    any two of them would have made one outage delete another capture.
+    run's premia claim is not measurable even though its Sharpe is.
+    ``cash_credit["measurable"]`` says whether the invested weight is known, and
+    ``excess_measurable`` is INDEPENDENT of it — deliberately, and this sentence
+    is the corrected one (the draft claimed a dependency the code never had;
+    adversary, run-adversary-d36-prodgate2). ``excess_measurable`` keeps its
+    v5r3 meaning and is computed from the UNCREDITED pair, because the uncredited
+    pair is what the shipped criterion judges: ``premia_credit_idle_cash`` is
+    OFF, and a candidate whose invested weight could not be read must still be
+    judgeable on the bar that is actually applied. Coupling the two would have
+    made a credit outage refuse candidates the shipped bar can measure
+    perfectly well. Collapsing any of them would make one outage delete another
+    capture.
     """
     from app.fund import statistics as _stats
 
     out: dict[str, Any] = {"measurable": False, "excess_measurable": False,
-                           "gross_measurable": False, "schema": 3}
+                           "gross_measurable": False, "schema": 4}
     # THE BOOK'S LEVERAGE, carried into the premia payload BEFORE any of the
     # early returns below. A payload that says nothing about gross exposure is
     # the payload the D29 kill was written about, and a reader should get the
@@ -2193,15 +2274,137 @@ def premia_inputs(result: dict[str, Any], rf_bars: Any = None,
         out["reason"] = (strat.get("reason") or bench.get("reason")
                          or "one leg carried no usable dispersion")
 
+    # --- the CASH CREDIT, which decides what "excess" even means -----------
+    #
+    # The engine pays 0% on idle cash and the bar subtracts the realised rate
+    # from both legs, so a cash-heavy book is charged a rate it never earned.
+    # `invested_weights` carries the why; what happens HERE is the alignment,
+    # and the alignment is where it could go wrong quietly: a weight read off
+    # the wrong date credits the wrong day's rate.
+    #
+    # FAIL CLOSED ON A WEIGHT THIS CANNOT PLACE. Every observation in the common
+    # window needs a weight. A missing day is NOT assumed fully invested (that
+    # would credit nothing and keep the bias) and NOT assumed all cash (that
+    # would credit the maximum) — it makes the excess pair unmeasurable, exactly
+    # as an unreadable cash rate does.
+    credit: dict[str, Any] = {
+        "measurable": False,
+        "basis": "invested weight per date, from the engine's exposure chart",
+        "reason": None,
+    }
+    wmap: dict[str, float] = {}
+    invested_weight = result.get("invested_weight")
+    if not isinstance(invested_weight, dict):
+        credit["reason"] = (
+            "this result carries no invested-weight series, so the share of the "
+            "book sitting in cash is UNKNOWN — it was measured by a belt older "
+            "than the one that reads the engine's exposure chart per date. The "
+            "engine pays 0% on that cash and this bar subtracts the realised "
+            "rate from it, so judging without it charges the book a rate it "
+            "never earned")
+    elif not invested_weight.get("measurable"):
+        credit["reason"] = invested_weight.get("reason") or (
+            "the invested-weight series could not be read")
+    else:
+        supplied = invested_weight.get("weights") or {}
+        missing = [d for d in common if d not in supplied]
+        if missing:
+            credit["reason"] = (
+                f"the exposure chart carries no invested weight for "
+                f"{len(missing)} of the {len(common)} days in the comparison "
+                f"window (first {missing[0]}) — an unweighted day would have to "
+                f"be assumed either fully invested or fully in cash, and both "
+                f"are inventions")
+        else:
+            wmap = {d: float(supplied[d]) for d in common}
+            vals = [wmap[d] for d in common]
+            credited = [(1.0 - wmap[d]) * rfmap[d] for d in common] if rfmap else []
+            cr_leg = (_stats.leg_moments(credited, common) if credited else {})
+            credit.update({
+                "measurable": True,
+                "n": len(vals),
+                "mean_invested_weight": round(sum(vals) / len(vals), 6),
+                "mean_cash_weight": round(1.0 - sum(vals) / len(vals), 6),
+                "min_invested_weight": round(min(vals), 6),
+                "max_invested_weight": round(max(vals), 6),
+                # WHAT THE CREDIT IS WORTH, annualised on the legs' own clock, so
+                # a reader can see the size of the correction without re-deriving
+                # it from two Sharpes.
+                "credited_annual_pct": _round_or_none(
+                    cr_leg.get("ann_return_pct"), 4),
+            })
+    out["cash_credit"] = credit
+
     # --- the EXCESS pair, which is what the criterion is judged on ---------
+    #
+    # TWO STAGES, deliberately. The UNCREDITED pair needs only the cash series,
+    # so it is captured whenever the cash series is readable — a credit outage
+    # must not delete the capture that would let a reader see what the previous
+    # version of this bar would have said. Only the CREDITED strategy leg
+    # depends on the weights; `excess_measurable` does NOT, and is set below
+    # from the uncredited pair alone. (The draft's docstring and this comment
+    # both claimed the dependency; the code never had it. Second copy of one
+    # false sentence, four lines from the assignment that refutes it.)
     if rfmap and out["measurable"]:
         rf_leg = _stats.leg_moments([rfmap[d] for d in common], common)
-        s_ex = _stats.leg_moments([smap[d] - rfmap[d] for d in common], common)
+        # THE BENCHMARK IS NOT CREDITED, and that is not an oversight: every
+        # benchmark leg this belt builds is a fully-invested buy-and-hold basket
+        # or the engine's own single-name curve, so its invested weight is 1 by
+        # construction and `w_b * rf` IS `rf`.
         b_ex = _stats.leg_moments([bmap[d] - rfmap[d] for d in common], common)
-        out["strategy_excess"] = s_ex
+        # KEPT FOR COMPARABILITY, never judged. This is the leg v5r3 judged, and
+        # the gap between the two advantages is the size of the bias — a reader
+        # who cannot see it cannot audit the correction that removed it.
+        s_ex_unc = _stats.leg_moments(
+            [smap[d] - rfmap[d] for d in common], common)
+        # THE JUDGED PAIR IS THE UNCREDITED ONE AND `excess_measurable` KEEPS
+        # ITS v5r3 MEANING. The credit is CAPTURED here and SELECTED at judge
+        # time by `premia_credit_idle_cash`, which ships OFF — crediting admits
+        # candidates, and a loosening does not get to arrive as a parse-time
+        # default nobody voted on. Storing both pairs is what lets the criterion
+        # own the choice instead of the belt baking it in before anyone reads a
+        # threshold.
+        out["strategy_excess"] = s_ex_unc
         out["benchmark_excess"] = b_ex
-        out["excess_measurable"] = bool(s_ex.get("measurable")
+        out["strategy_excess_uncredited"] = s_ex_unc
+        out["excess_measurable"] = bool(s_ex_unc.get("measurable")
                                         and b_ex.get("measurable"))
+        if credit["measurable"]:
+            # THE CREDITED LEG: `w_t * rf_t`, not `rf_t`. The book is charged
+            # the cash rate only on the part of it that was actually invested.
+            #
+            # THE FORMULA IS SYMMETRIC AND THAT IS WORTH SAYING OUT LOUD. At
+            # w < 1 it CREDITS idle cash; at w > 1 it CHARGES the borrow, which
+            # is engine-priced financing — the thing v5r3's note named as the
+            # open policy question and as the CEO's click rather than a code
+            # change. It is not reachable here: `premia_max_gross_exposure`
+            # refuses any book whose MAXIMUM gross exceeds the ceiling before
+            # the gate reads a single one of these numbers, and a maximum at or
+            # below 1.0 means every w_t is too. No clamp is applied precisely
+            # because a clamp would be a SECOND copy of the ceiling's belief
+            # living in a different file, and two copies of one predicate is a
+            # defect this fund has already paid for. The ceiling owns leverage;
+            # this owns cash.
+            #
+            # THE PIN, AND IT IS STRUCTURAL RATHER THAN CHECKED. The credit uses
+            # `rfmap` — the SAME object, over the same dates, that the benchmark
+            # leg two lines above is subtracted with, and that the gate's
+            # `premia_rf_basis`/`premia_rf_symbol` selected. There is no second
+            # rate series anywhere in this function to drift from it. This
+            # matters because a credit applied at a DIFFERENT rate is the D23
+            # constant-rf kill re-entering from the other side: a flat 4.0%
+            # credited against a realised subtraction buys a book at w=0.2
+            # roughly +0.167 of Sharpe out of nothing. `test_the_credit_and_the_
+            # subtraction_are_ONE_series` fails if anyone introduces a second.
+            s_ex_cr = _stats.leg_moments(
+                [smap[d] - wmap[d] * rfmap[d] for d in common], common)
+            out["strategy_excess_credited"] = s_ex_cr
+            out["credited_measurable"] = bool(s_ex_cr.get("measurable")
+                                              and b_ex.get("measurable"))
+        else:
+            out["credit_absent_reason"] = (
+                f"the cash credit could not be measured, so no credited pair "
+                f"was formed: {credit.get('reason')}")
         rf_meta.update({
             "window": {"first": common[0], "last": common[-1],
                        "n": len(common)},
@@ -2225,11 +2428,56 @@ def premia_inputs(result: dict[str, Any], rf_bars: Any = None,
         # what failed is the raw pair. Overwriting the rf block's reason would
         # make a stored payload say the cash series was the problem when it was
         # not — a diagnosis that names the wrong cause sends the next reader to
-        # the wrong place.
+        # the wrong place. The credit's own outage is reported on the same key
+        # from inside the branch above, with its own sentence.
         out["excess_absent_reason"] = (
             "the raw pair was not measurable, so no excess pair was formed")
     out.setdefault("strategy_excess", None)
     out.setdefault("benchmark_excess", None)
+    out.setdefault("strategy_excess_uncredited", None)
+    out.setdefault("strategy_excess_credited", None)
+    out.setdefault("credited_measurable", False)
+
+    # --- the ADVANTAGE, which is what a PREMIA luck filter must score -------
+    #
+    # A premia claim asserts `SR_s - SR_b > 0`, so the luck filter belongs on
+    # THAT quantity and not on the strategy's absolute Sharpe. The moments of the
+    # advantage series are stored here (the series itself is not, for the same
+    # reason `leg_moments` stores six numbers instead of a curve) and the gate
+    # scores them with the same `psr_from_moments` the alpha bar uses.
+    #
+    # BOTH ARMS, because the criterion chooses between them at judge time and a
+    # probability attached to the quantity nobody is testing is worse than none.
+    # `advantage` is the SHIPPED one (uncredited); `advantage_credited` is what
+    # the same statistic says once idle cash is credited, and the pair is what
+    # makes the loosening auditable instead of arguable.
+    def _advantage(strategy_leg: list[float], basis: str) -> dict[str, Any]:
+        block = _stats.sharpe_advantage_series(
+            strategy_leg, [bmap[d] - rfmap[d] for d in common])
+        block["basis"] = basis
+        # THE CROSS-CHECK, computed rather than asserted in a comment: the
+        # advantage series' own mean, annualised, IS the Sharpe advantage the
+        # criterion compares against its margin. If these two ever disagree, the
+        # difference series is not measuring the inequality it is named after.
+        if block.get("measurable"):
+            kk = (out.get("strategy_excess") or {}).get("obs_per_year")
+            block["advantage_annualised"] = (
+                None if not kk else block["mean_per_obs"] * math.sqrt(float(kk)))
+        return block
+
+    no_pair = {"measurable": False, "reason": (
+        "no excess pair was formed, so the advantage between the two legs does "
+        "not exist to be scored")}
+    out["advantage"] = (_advantage([smap[d] - rfmap[d] for d in common],
+                                   "uncredited")
+                        if out["excess_measurable"] and rfmap else dict(no_pair))
+    out["advantage_credited"] = (
+        _advantage([smap[d] - wmap[d] * rfmap[d] for d in common], "credited")
+        if out["credited_measurable"] and rfmap and wmap else
+        {"measurable": False,
+         "reason": (credit.get("reason")
+                    or "no credited pair was formed, so its advantage does not "
+                       "exist to be scored")})
 
     # THE DISAGREEMENT, measured on every run rather than rediscovered. When
     # the engine's leg was discarded, `daily_returns["benchmark"]` still holds
@@ -2289,7 +2537,8 @@ def _annual_vol_pct(stats: dict) -> Optional[float]:
 
 def _robustness(stats: dict, equity: list[float], dates: list[str],
                 orders: list[dict],
-                daily: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+                daily: Optional[dict[str, Any]] = None,
+                config: Optional[dict[str, Any]] = None) -> dict[str, Any]:
     """Can this result be believed? Measured, never assumed.
 
     A backtest reports its return with the same confidence whether it rests on
@@ -2341,10 +2590,12 @@ def _robustness(stats: dict, equity: list[float], dates: list[str],
         # re-derives.
         "engine_annual_vol_pct": _annual_vol_pct(stats),
         "periods": _periods(equity, dates),
-        # CAPTURE ONLY — no criterion reads this. The gate's most binding
-        # criterion judges a statistic nobody has identified; this is the
-        # evidence that identifies it, carried on every future verdict.
-        "psr_inputs": psr_inputs(stats, daily),
+        # THE STATISTIC IS IDENTIFIED NOW (D38) — this block is the evidence,
+        # carried on every future verdict. Its one reader on the gate side is
+        # `trading_days_per_year`, and that read moves a DISCLOSURE and never a
+        # verdict: the engine hurdle's pass/fail is `psr_pct >= level` and
+        # touches neither the target nor the clock. See `psr_inputs`.
+        "psr_inputs": psr_inputs(stats, daily, config),
     }
     return out
 
@@ -2440,6 +2691,117 @@ LONG_RATIO_SUFFIX = "Long Ratio"
 SHORT_RATIO_SUFFIX = "Short Ratio"
 
 
+def _exposure_by_timestamp(series: dict) -> tuple[dict, dict, list[str]]:
+    """The engine's exposure chart, joined per timestamp. ONE reader, two users.
+
+    ``gross_exposure`` wants the maxima; ``invested_weights`` wants the dated
+    series. Writing the classify-and-sum loop twice would be two answers to "what
+    was this book holding" that could drift apart silently — and the drift would
+    land in a criterion (the ceiling) and a correction (the cash credit) that
+    must agree about the same book by construction.
+    """
+    longs: dict[Any, float] = {}
+    shorts: dict[Any, float] = {}
+    unclassified: list[str] = []
+    for name, block in (series or {}).items():
+        label = str(name)
+        if label.endswith(LONG_RATIO_SUFFIX):
+            bucket = longs
+        elif label.endswith(SHORT_RATIO_SUFFIX):
+            bucket = shorts
+        else:
+            unclassified.append(label)
+            continue
+        for pt in ((block or {}).get("values")
+                   or (block or {}).get("Values") or []):
+            if not isinstance(pt, (list, tuple)) or len(pt) < 2:
+                continue
+            try:
+                value = abs(float(pt[-1]))
+            except (ValueError, TypeError):
+                continue
+            bucket[pt[0]] = bucket.get(pt[0], 0.0) + value
+    return longs, shorts, unclassified
+
+
+def invested_weights(charts: Any) -> dict[str, Any]:
+    """The book's INVESTED FRACTION per date, for the cash-carry credit.
+
+    THE DEFECT THIS EXISTS TO CLOSE (quant, run-quant-metacontrols, 2026-08-24).
+    LEAN pays 0% on idle cash, and the premia bar subtracts the realised cash
+    return from BOTH legs. So a book that sat half in cash is charged a rate it
+    never earned, while its fully-invested benchmark is charged one it did:
+
+        engine    r_t = w_t * a_t                       (cash pays nothing)
+        reality   r_t = w_t * a_t + (1 - w_t) * rf_t
+        excess    r_t - rf_t   is charged, when the honest figure is
+                  r_t - w_t * rf_t
+
+    The bias is exactly ``(1 - w_t) * rf_t`` per observation, it runs in the
+    KILL direction, and it is the symmetric twin of the free-borrow hole the
+    gross-exposure ceiling closes above 1.0x.
+
+    LONG-ONLY, AND IT REFUSES OTHERWISE. Cash held against a SHORT book is not
+    ``1 - gross``: short proceeds earn interest the engine also does not pay, and
+    modelling that is a different correction. Every LEAN run this fund has on
+    disk is long-only (max short 0.0 on 108 of 108 runs with a statistics block,
+    scratchpad/d32/census_exposure2.py; re-confirmed on the four control
+    candidates 2026-08-24), so the shape is refused rather than guessed at.
+
+    ABOVE 1.0x THE CREDIT GOES NEGATIVE, and that is left alone deliberately: it
+    is arithmetic, not a financing model, and the premia bar refuses a book above
+    the gross ceiling before any of it is read. This function does not decide
+    that question and must not be read as pricing leverage.
+    """
+    out: dict[str, Any] = {
+        "measurable": False, "weights": {}, "n": 0,
+        "source": f"lean chart {EXPOSURE_CHART!r}", "reason": None,
+    }
+    if not isinstance(charts, dict):
+        out["reason"] = ("this result carries no charts block, so the book's "
+                         "invested weight could not be read")
+        return out
+    chart = charts.get(EXPOSURE_CHART)
+    series = ((chart or {}).get("series") or (chart or {}).get("Series")
+              if isinstance(chart, dict) else None)
+    if not isinstance(series, dict) or not series:
+        out["reason"] = (f"this run has no readable {EXPOSURE_CHART!r} chart, so "
+                         f"the share of the book sitting in cash is UNKNOWN — "
+                         f"and an unknown cash weight is not a zero one")
+        return out
+    longs, shorts, unclassified = _exposure_by_timestamp(series)
+    if unclassified:
+        out["reason"] = (
+            f"the {EXPOSURE_CHART!r} chart carries series this reader cannot "
+            f"classify as long or short ({', '.join(sorted(unclassified))}); an "
+            f"invested weight summed over an unknown series is wrong in a "
+            f"direction nobody can see")
+        return out
+    if any(v > 0 for v in shorts.values()):
+        out["reason"] = (
+            "this book holds SHORT exposure, and the cash a short book earns is "
+            "not one minus its gross — short proceeds earn interest the engine "
+            "also does not pay, which is a different correction than this one")
+        return out
+    weights: dict[str, float] = {}
+    for ts, value in longs.items():
+        day = _iso_or_none(ts)
+        if day is None:
+            continue
+        # A DAY THAT APPEARS TWICE KEEPS ITS LARGEST READING. The chart is one
+        # point per day on every run measured, so this cannot fire today; if a
+        # future engine samples intraday, the largest invested reading is the
+        # SMALLEST cash credit, which is the direction that cannot manufacture
+        # an advantage.
+        weights[day] = max(weights.get(day, 0.0), float(value))
+    if not weights:
+        out["reason"] = (f"the {EXPOSURE_CHART!r} chart's series carry no values "
+                         f"this reader could place on a date")
+        return out
+    out.update({"measurable": True, "weights": weights, "n": len(weights)})
+    return out
+
+
 def gross_exposure(charts: Any) -> dict[str, Any]:
     """MAX GROSS EXPOSURE over the run, read from the engine's own chart.
 
@@ -2510,27 +2872,7 @@ def gross_exposure(charts: Any) -> dict[str, Any]:
                          f"the book's gross exposure is UNKNOWN")
         return out
     out["series"] = sorted(str(k) for k in series)
-    longs: dict[Any, float] = {}
-    shorts: dict[Any, float] = {}
-    unclassified: list[str] = []
-    for name, block in series.items():
-        label = str(name)
-        if label.endswith(LONG_RATIO_SUFFIX):
-            bucket = longs
-        elif label.endswith(SHORT_RATIO_SUFFIX):
-            bucket = shorts
-        else:
-            unclassified.append(label)
-            continue
-        for pt in ((block or {}).get("values")
-                   or (block or {}).get("Values") or []):
-            if not isinstance(pt, (list, tuple)) or len(pt) < 2:
-                continue
-            try:
-                value = abs(float(pt[-1]))
-            except (ValueError, TypeError):
-                continue
-            bucket[pt[0]] = bucket.get(pt[0], 0.0) + value
+    longs, shorts, unclassified = _exposure_by_timestamp(series)
     if unclassified:
         out["unclassified_series"] = sorted(unclassified)
         out["reason"] = (

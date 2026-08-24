@@ -8,18 +8,30 @@ approves everything.
 
 import pytest
 
+from premia_feed import daily_returns_block, series_with_psr
 from app.fund.gate import CRITERIA, evaluate
 
 
-def _good_result(**over):
+def _good_result(psr_pct: float = 80.0, **over):
+    """A clean alpha candidate.
+
+    ``psr_pct`` is the LUCK READING the criterion will take, and it is set by
+    building a series that measures it rather than by writing a number into
+    `robustness`. From v4.4 the criterion scores the run's own observations with
+    our own module at target zero; the engine's published figure is captured
+    beside it and is no longer what decides. Both are set here to the same value
+    so a fixture cannot accidentally depend on which one is read — a test that
+    wants them to DISAGREE says so explicitly (`test_the_two_psr_readings...`).
+    """
     r = {
         "total_return_pct": 20.0,
         "benchmark_return_pct": 10.0,
         "capacity_usd": None,
         "capacity": {"capacity_usd": 5_000_000.0},
+        "daily_returns": daily_returns_block(series_with_psr(psr_pct)),
         "robustness": {
             "total_orders": 40,
-            "psr_pct": 80.0,
+            "psr_pct": psr_pct,
             "costs": {"slippage_modelled": True},
         },
     }
@@ -42,7 +54,7 @@ def test_a_clean_candidate_passes():
     out = evaluate(_good_result(), GOOD_HOLDOUT, GOOD_SWEEP,
                    walkforward=GOOD_WALKFORWARD)
     assert out["passed"] is True, out["failures"]
-    assert out["gate_version"] == "v4.3"
+    assert out["gate_version"] == "v4.4"
     # Passing is not deployment, and the wording says so.
     assert "different claim from" in out["verdict"]
 
@@ -63,11 +75,27 @@ def test_too_few_trades_fails():
 
 
 def test_low_psr_fails_even_with_a_great_return():
-    """The trap the whole system exists to catch: 100% win rate on 3 trades."""
-    r = _good_result(total_return_pct=500.0)
-    r["robustness"]["psr_pct"] = 22.0
+    """The trap the whole system exists to catch: 100% win rate on 3 trades.
+
+    THE REFUSAL IS UNCHANGED; THE SENTENCE IS NOT, and v4.4-as-shipped is
+    exactly that trade. The shipped basis is the engine's published figure, so
+    22% still fails a 65% bar — but the failure no longer says "not
+    distinguishable from luck", because the engine's target is not zero and that
+    sentence was false about it. It now names the hurdle and states the target
+    inverted out of this run.
+
+    ASSERTED ON THE WHOLE CLAUSE, never the shared word: "luck" appears in the
+    corrected sentence too (D27), so matching it would let either branch satisfy
+    this test.
+    """
+    r = _good_result(psr_pct=22.0, total_return_pct=500.0)
     out = evaluate(r, GOOD_HOLDOUT, GOOD_SWEEP)
-    assert any("distinguishable from luck" in f for f in out["failures"])
+    assert out["passed"] is False
+    hurdle = [f for f in out["failures"] if "probabilistic Sharpe" in f]
+    assert len(hurdle) == 1, out["failures"]
+    assert "THIS IS A SKILL HURDLE, NOT A LUCK TEST." in hurdle[0]
+    assert "is not distinguishable from luck on this much history" not in \
+        hurdle[0]
 
 
 def test_trailing_buy_and_hold_fails():
@@ -160,7 +188,8 @@ def test_the_bar_is_data_and_can_be_tightened():
     assert tighter["criteria"]["min_psr_pct"] == 95.0
     # and the default is untouched by that call
     # v2 raised this from 50%: measured nulls reached ~57% on this history, so
-    # the old floor sat inside the noise it was meant to exclude.
+    # the old floor sat inside the noise it was meant to exclude. The v4.4 draft
+    # moved it to 50.0 against a different statistic and D37 reverted both.
     assert CRITERIA["min_psr_pct"] == 65.0
 
 
@@ -416,10 +445,10 @@ def test_the_version_records_which_bar_was_applied():
     # v4.2's and the 30-month verdict is unchanged, but the fold floor became a
     # DENSITY over the covered window, so a candidate judged on a longer window
     # is judged against a different bar. Same name would be the lie.
-    assert GATE_VERSION == "v4.3"
+    assert GATE_VERSION == "v4.4"
     out = evaluate(_good_result(), GOOD_HOLDOUT, GOOD_SWEEP,
                    walkforward=GOOD_WALKFORWARD)
-    assert out["gate_version"] == "v4.3"
+    assert out["gate_version"] == "v4.4"
     # v1 is kept intact so an old verdict remains interpretable.
     assert CRITERIA_V1["min_psr_pct"] == 50.0
     # v1 must state what it did NOT require, not merely omit it: `evaluate`

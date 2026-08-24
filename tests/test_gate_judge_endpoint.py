@@ -5,7 +5,7 @@ docs/reviews/ADVERSARY_D23_D24_2026-08-23.md, non-loosening defect 1):
 
     "POST /fund/lean/gate/judge/{job_id} (fund.py:2548-2566) accepts no
     claim_type — a premia candidate re-judged there silently reverts to the
-    alpha bar and is stamped v4.3. The factory path IS wired."
+    alpha bar and is stamped v4.4. The factory path IS wired."
 
 And the reason it survived to be found by a reviewer rather than by the suite:
 before this file, ZERO tests had ever called this endpoint. That is the same
@@ -85,7 +85,7 @@ def test_the_default_is_alpha_and_is_stamped_v43(client):
     r = client.post(URL, params={"sweep_id": "S1"})
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["gate_version"] == "v4.3"
+    assert body["gate_version"] == "v4.4"
     assert body["checks"]["claim_type"] == "alpha"
     assert body["checks"]["must_beat_benchmark_applied"] is True
     assert any("expensive way to hold the underlying" in f
@@ -104,7 +104,7 @@ def test_a_premia_candidate_is_judged_by_the_PREMIA_bar_not_the_alpha_one(
     r = client.post(URL, params={"sweep_id": "S1", "claim_type": "premia"})
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["gate_version"] == "v5r3-premia"
+    assert body["gate_version"] == "v5r4-premia"
     assert body["checks"]["claim_type"] == "premia"
     assert body["checks"]["must_beat_benchmark_applied"] is False
     assert not any("expensive way to hold the underlying" in f
