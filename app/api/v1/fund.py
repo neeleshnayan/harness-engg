@@ -2471,6 +2471,28 @@ TICKET_RUNS_LIMIT = 1000
 TICKET_PAGE_LIMIT = 200
 
 
+def _ticket_fold():
+    """The ticket population, folded once, as every reader here sees it.
+
+    ONE FOLD, ONE PLACE — the view and the three doors of slice 2 all consult
+    it, and two copies of "which runs feed the recommendation leg" is exactly
+    how the fold and ``desk_load`` would drift apart while each looked right.
+    Raises nothing of its own: ``tickets.fold`` swallows an unreadable stream
+    and returns ``readable: False``.
+    """
+    from app.fund import tickets as tk
+    runs, runs_limit = None, None
+    ds = _deskstore()
+    if ds is not None:
+        try:
+            runs, runs_limit = ds.runs(limit=TICKET_RUNS_LIMIT), TICKET_RUNS_LIMIT
+        except Exception as e:  # noqa: BLE001
+            # None, not [] — an unreadable recorder must not fold into "no
+            # recommendations". The fold reports the leg unknown.
+            logger.info("ticket fold: runs unavailable: %s", e)
+    return tk.fold(_store, runs=runs, runs_limit=runs_limit)
+
+
 @router.get("/fund/tickets")
 def tickets_view(ticket_type: Optional[str] = Query(None, alias="type"),
                  state: Optional[str] = Query(None),
@@ -2503,16 +2525,7 @@ def tickets_view(ticket_type: Optional[str] = Query(None, alias="type"),
                                 f"exist reads exactly like zero rows for one "
                                 f"that does"})
 
-    runs, runs_limit = None, None
-    ds = _deskstore()
-    if ds is not None:
-        try:
-            runs, runs_limit = ds.runs(limit=TICKET_RUNS_LIMIT), TICKET_RUNS_LIMIT
-        except Exception as e:  # noqa: BLE001
-            # None, not [] — an unreadable recorder must not fold into "no
-            # recommendations". The fold reports the leg unknown.
-            logger.info("ticket fold: runs unavailable: %s", e)
-    folded = tk.fold(_store, runs=runs, runs_limit=runs_limit)
+    folded = _ticket_fold()
     rows = folded["tickets"]
     if rows is None:
         # `types`/`states` ride the degraded branch too: they are the
@@ -2537,6 +2550,476 @@ def tickets_view(ticket_type: Optional[str] = Query(None, alias="type"),
             "filters": {"type": ticket_type, "state": state},
             "limit": limit,
             "types": list(tk.TICKET_TYPES), "states": list(tk.TICKET_STATES)}
+
+
+# ===========================================================================
+# THE TICKET HIGHWAY, slice 2 — THE DOORS (§2.3)
+#
+# Three POSTs and one generalized phantom guard. DIRECTION, stated per door
+# because this firm sends every loosening to the adversary blind:
+#
+#   * `POST /fund/tickets` — NEW SURFACE. It admits exactly what
+#     `POST /fund/desk/requests` already admits (an `actor` string from the
+#     body, no allowlist), and it appends a NEW event type on a NEW aggregate
+#     type. No existing caller can do anything it could not do yesterday.
+#   * `POST /fund/tickets/{id}/transition` — NEW SURFACE, on the approval
+#     path, and therefore STRICTLY TIGHTER than its legacy siblings: every
+#     decision transition takes the whole approval-channel guard (allowlist +
+#     confirm echo + the verbatim-instruction rule), where `desk_decline`
+#     takes none of it. See `tickets.DECISION_TRANSITIONS` for why declining
+#     is guarded here and not there.
+#   * `POST /fund/tickets/{id}/link` — NEW SURFACE, bookkeeping only. Both
+#     ends are validated against the fold; nothing it writes is read by any
+#     control in this slice.
+#
+# NOTHING BELOW WIDENS AN EXISTING CALLER'S POWERS. The legacy desk doors are
+# byte-identical, `_refuse_unknown_request` is untouched (this slice does not
+# call it), and no threshold, envelope or guard value moves.
+# ===========================================================================
+
+
+def _ticket_index() -> Optional[dict]:
+    """``{ticket_id: ticket}`` for the doors, or None when the fold is unreadable.
+
+    **None IS THE FAIL-OPEN SIGNAL and it is deliberate.** See
+    ``_refuse_unknown_ticket`` for the direction argument; this function's only
+    job is to make "we could not look" a value rather than an exception, so the
+    two failure modes cannot be confused at the call site.
+    """
+    try:
+        folded = _ticket_fold()
+    except Exception as e:  # noqa: BLE001
+        logger.warning("ticket fold unavailable: %s", e)
+        return None
+    rows = folded.get("tickets")
+    if rows is None:
+        logger.warning("ticket fold unreadable: %s", folded.get("note"))
+        return None
+    return {t["ticket_id"]: t for t in rows}
+
+
+def _refuse_unknown_ticket(ticket_id: str, index: Optional[dict]) -> None:
+    """404 a ticket id the fold has never seen. THE PHANTOM GUARD, generalized.
+
+    This is ``_refuse_unknown_request`` (fund.py, the desk doors) pointed at the
+    ticket fold instead of ``desk._requests``, and it exists for the same
+    measured reason: ``desk_resolve`` and ``desk_approve`` appended without ever
+    looking the row up, so a POST against the 8-character shorthand the desk
+    itself prints returned **200** and wrote an event against an aggregate no
+    fold reads. Bare ids like ``1c53589f`` are sitting in Postgres today. A 200
+    against a phantom is the worst available shape: the caller believes it
+    acted, the record says something happened, and the thing that was supposed
+    to happen did not.
+
+    ONE FOLD, NOT TWO. The desk guard had to grow an ``allow_dispatch`` flag
+    because it consulted ``desk._requests`` while chair-born dispatches live
+    only in ``desk._activity`` — two folds, one door, and eight lamps that no
+    legitimate event could close. **The ticket fold has no such split**: asks,
+    dispatches, recommendations and door-born tickets are all first-class rows
+    in one population, so there is no flag here and nothing for one to widen.
+    This slice does not call ``_refuse_unknown_request`` at all.
+
+    **FAILS OPEN ON AN UNREADABLE FOLD, DELIBERATELY, AND SAYS SO IN THE LOG.**
+    If the fold cannot be read this cannot distinguish "no such ticket" from
+    "cannot tell", and refusing every call because a READ failed would turn a
+    rendering guard into an outage on the approval path. The guard's job is to
+    catch a typo, not to gate the channel; the channel's own controls (the
+    allowlist, the echo, the supersession check) are untouched either way. The
+    direction is inherited from ``_refuse_unknown_request`` unchanged and on
+    purpose — one guard family, one failure policy, so nobody has to remember
+    which of two guards fails which way.
+
+    NOTE THE ONE PLACE THIS SLICE DOES **NOT** FAIL OPEN: the transition door
+    refuses with 503 when it cannot read the ticket's CURRENT STATE. Identity
+    and legality are different questions. Admitting an append whose legality
+    could not be checked would produce an event the fold refuses at replay —
+    a 200 the caller believes and the record does not honour, which is the
+    exact shape this guard exists to end.
+    """
+    if index is None:
+        logger.warning("ticket existence check unavailable, proceeding "
+                       "WITHOUT it for %s", ticket_id)
+        return
+    if ticket_id in index:
+        return
+    from app.fund.deskengine import MIN_ID_PREFIX
+    hits = sorted(k for k in index
+                  if k and len(ticket_id) >= MIN_ID_PREFIX
+                  and k.startswith(ticket_id))
+    raise HTTPException(
+        status_code=404,
+        detail={
+            "error": "no such ticket",
+            "ticket_id": ticket_id,
+            # Which fold was consulted, on the refusal itself — the field the
+            # desk guard grew after a caller holding a dispatch id could not
+            # tell "that id does not exist" from "this door does not read that
+            # fold". There is exactly one fold here and it says so.
+            "folds_consulted": ["tickets"],
+            "did_you_mean": hits,
+            "note": ("this id matches no ticket in the fold. Refused rather "
+                     "than recorded: appending here would write an event "
+                     "against an aggregate that does not exist, return 200, "
+                     "and leave the real ticket untouched"),
+        })
+
+
+def _ticket_supersession_ref(ticket: Optional[dict]) -> Optional[str]:
+    """The supersession-store key for this ticket, or None if it has none.
+
+    The edge store's vocabulary is ``req:<uuid>`` and ``rec:<run>#<n>``
+    (``deskengine.parse_ref``) — it predates tickets and this slice does not
+    extend it. So a ticket that IS one of those rows can be checked, and a
+    dispatch, a challenge or a door-born ticket CANNOT.
+
+    Returning None is not "no edge exists"; it is "this ticket has no key in
+    that store". The caller must publish ``supersession_checked: false`` rather
+    than let a ticket with no key read as a ticket with a clean check — the
+    difference between an unrun check and a passed one is the whole of what the
+    D22 review found missing from the fail-open leg.
+    """
+    from app.fund.deskengine import parse_ref, req_ref
+    if not ticket:
+        return None
+    if ticket.get("type") == "recommendation":
+        # A recommendation ticket's id IS its `rec_ref` — the fold mints it
+        # that way (tickets.py) precisely so a second identity never exists.
+        tid = ticket.get("ticket_id")
+        return tid if parse_ref(tid) else None
+    if ticket.get("type") == "ask" and ticket.get("request_id"):
+        return req_ref(ticket["request_id"])
+    return None
+
+
+class TicketOpen(BaseModel):
+    """Filing a ticket. Types, and the three routing fields, at birth."""
+    type: str
+    subject: str
+    filed_for: Optional[str] = None
+    parent_id: Optional[str] = None
+    kind: Optional[str] = None
+    actor: str = "cto"
+    trace_id: Optional[str] = None
+    # THE THREE FIELDS THE DESK CANNOT ROUTE WITHOUT. Measured (builder D9):
+    # `kind` is free text with 84 distinct values across 219 recommendations,
+    # so routing on it moves 18.7% of rows; `due_date` is the desk's TOP
+    # ranking key and separates ZERO rows because nothing has ever written it.
+    # This door is where they get written.
+    next_actor: Optional[str] = None
+    due_date: Optional[str] = None
+    reversibility: Optional[str] = None
+    money_at_stake: Optional[float] = None
+
+
+def _refuse_422(error: str, **detail) -> None:
+    raise HTTPException(status_code=422, detail={"error": error, **detail})
+
+
+@router.post("/fund/tickets")
+def ticket_open(req: TicketOpen):
+    """File a ticket. NEW SURFACE — it widens no existing caller's powers.
+
+    Admission is the same as ``POST /fund/desk/requests``: an ``actor`` from the
+    body, no allowlist. Filing work has never been an approval-guarded act here
+    and this door does not make it one — what a ticket may then DO is guarded at
+    the transition door, which is where the decisions are.
+
+    IDS ARE FULL uuid4, ALWAYS (§1.1). Prefixes are accepted at doors only to
+    produce ``did_you_mean`` and are never stored; the 8-character-prefix habit
+    is what rotted 54 of 56 linkages.
+
+    ``filed_for`` IS DELIBERATELY NOT VALIDATED AGAINST A ROSTER, and the reason
+    is measured rather than lazy: this codebase carries TWO seat vocabularies
+    that disagree — ``desk.ROSTER`` and ``desk.REQUEST_KINDS.values()`` — and a
+    ticket can legitimately be filed for the ``chair`` or the ``ceo``, who are
+    in neither. Validating against the wrong one would refuse legitimate seats
+    (the exact defect that made a seat missing from ``REQUEST_KINDS`` report no
+    runs at all). An unvalidated string is honest; a wrong refusal is not.
+    """
+    import uuid
+
+    from app.fund import tickets as tk
+    from app.fund.desk import FILEABLE_NEXT_ACTORS
+    from app.fund.events import Event, EventType
+
+    ttype = (req.type or "").strip().lower()
+    if ttype not in tk.OPENABLE_TYPES:
+        _refuse_422("unknown ticket type", type=req.type,
+                    allowed=list(tk.OPENABLE_TYPES))
+    if not (req.subject or "").strip():
+        _refuse_422("a ticket needs a subject",
+                    note="'do research' is not an ask anyone can act on, and a "
+                         "blank subject renders as a blank row forever")
+    # Read from `desk`, never restated. `FILEABLE_NEXT_ACTORS` excludes
+    # `unknown` on purpose: `unknown` is what the SPINE concludes when it
+    # cannot tell, not something a filer may claim.
+    if req.next_actor is not None and req.next_actor not in FILEABLE_NEXT_ACTORS:
+        _refuse_422("unknown next_actor", next_actor=req.next_actor,
+                    allowed=list(FILEABLE_NEXT_ACTORS))
+    if req.reversibility is not None and req.reversibility not in tk.REVERSIBILITY:
+        _refuse_422("unknown reversibility", reversibility=req.reversibility,
+                    allowed=list(tk.REVERSIBILITY))
+    if req.due_date is not None:
+        try:
+            # STRICT, AND strptime IS THE STRICTNESS. `2026-02-31` matches any
+            # shape check you would write by hand and is not a date; a due date
+            # that can never arrive is a row that can never age.
+            datetime.strptime(req.due_date.strip(), "%Y-%m-%d")
+        except (ValueError, AttributeError):
+            _refuse_422("due_date must be a real calendar date as YYYY-MM-DD",
+                        due_date=req.due_date)
+    if req.money_at_stake is not None and req.money_at_stake < 0:
+        _refuse_422("money_at_stake cannot be negative",
+                    money_at_stake=req.money_at_stake)
+
+    if req.parent_id:
+        # THE PHANTOM GUARD ON THE PARENT. A ticket whose parent does not exist
+        # is an unlinkable row born linked — the 54-of-56 rot, freshly made.
+        _refuse_unknown_ticket(req.parent_id, _ticket_index())
+
+    tid = str(uuid.uuid4())
+    payload = {"ticket_id": tid, "type": ttype,
+               "subject": req.subject.strip(),
+               "filed_for": (req.filed_for or "").strip() or None,
+               "parent_id": req.parent_id or None,
+               "kind": (req.kind or "").strip() or None,
+               "next_actor": req.next_actor,
+               "due_date": (req.due_date or "").strip() or None,
+               "reversibility": req.reversibility,
+               "money_at_stake": req.money_at_stake,
+               "trace_id": (req.trace_id or "").strip() or tid,
+               "at": datetime.now(timezone.utc).isoformat(),
+               "actor": req.actor}
+    _store.append(Event(aggregate_id=tid, aggregate_type="ticket",
+                        type=EventType.TICKET_OPENED,
+                        payload=payload, actor=req.actor))
+    return payload
+
+
+class TicketTransition(BaseModel):
+    to: str
+    actor: str = "cto"
+    basis: Optional[str] = None
+    citation: Optional[str] = None
+    reason: Optional[str] = None
+    decision_ref: Optional[str] = None
+    superseder_ref: Optional[str] = None
+    staged_ref: Optional[str] = None
+    policy_version: Optional[str] = None
+    confirm: Optional[str] = None      # approval-channel guard v1: echo of id[:8]
+    instruction: Optional[str] = None  # via-cto: the CEO's quoted instruction
+
+
+@router.post("/fund/tickets/{ticket_id}/transition")
+def ticket_transition(ticket_id: str, req: TicketTransition):
+    """Move a ticket, legally, with the guard its transition class demands.
+
+    FIVE CHECKS, IN THIS ORDER, and the order is the same reasoning
+    ``desk_approve`` records for its own (identity before lineage, so a caller
+    the allowlist is about to refuse never learns anything):
+
+      1. **the vocabulary** — an unrecognised target state is 422 with the list,
+         never a silent no-op;
+      2. **the approval-channel guard**, for the decision transitions of
+         ``tickets.DECISION_TRANSITIONS``. REUSED, NOT REWRITTEN: ``
+         _guard_approval`` with ``DESK_APPROVAL_ALLOWLIST``, the same allowlist,
+         echo and verbatim-instruction rule the desk's approve door takes. A
+         threshold or identity that exists twice has already drifted once;
+      3. **the phantom guard** — ``_refuse_unknown_ticket``;
+      4. **legality** — ``tickets.ALLOWED_FROM``, read from the fold's own table
+         rather than restated here. Terminal is terminal: no ``ALLOWED_FROM``
+         entry admits a terminal source, so a closed ticket cannot be reopened
+         through this door and a dispute is a NEW ``challenge`` ticket (§1.2);
+      5. **the supersession refusal**, for the advancing transitions of
+         ``tickets.ADVANCING_TICKET_STATES`` — ``_refuse_if_superseded``,
+         generalized by giving it the ticket's own row reference.
+
+    503, NOT A FAIL-OPEN, WHEN THE FOLD CANNOT BE READ. The phantom guard fails
+    open by design (it cannot tell "absent" from "unreadable", and a rendering
+    guard must not become an outage). Legality is a different question: without
+    the current state this door would append a transition the fold REFUSES at
+    replay, returning 200 for something that never happened. That is the shape
+    the phantom guard exists to end, so the honest answer is "ask again".
+    """
+    from app.fund import tickets as tk
+    from app.fund.events import Event, EventType
+
+    to = (req.to or "").strip().lower()
+    if to not in tk.TICKET_STATES:
+        _refuse_422("unknown ticket state", to=req.to,
+                    allowed=list(tk.TICKET_STATES),
+                    note="refused rather than appended: a transition to a state "
+                         "no fold recognises would land as a refused transition "
+                         "at replay and read as a 200 to the caller")
+    if to in tk.TERMINAL_REQUIREMENTS:
+        field, why = tk.TERMINAL_REQUIREMENTS[to]
+        if not (getattr(req, field, None) or "").strip():
+            # NO CITATION, NO CLOSE — the Donna-sweep rule made mechanical
+            # (§1.2's terminal table). Each terminal names the one thing the
+            # record must carry, and the door is where it becomes a refusal
+            # rather than a convention somebody remembers.
+            _refuse_422(f"a {to!r} transition must carry {field!r}",
+                        required=field, why=why)
+    if to == "expired":
+        # THE AGING POLICY IS NOT RATIFIED, SO EXPIRY IS SHUT. §1.2 makes the
+        # policy behind an expiry sweep a CEO decision; none exists. A door
+        # that closes aged work under no stated rule is how a queue gets
+        # quietly emptied instead of quietly worked. One constant turns it on,
+        # in a versioned change with a name in it.
+        if tk.AGING_POLICY_VERSION is None:
+            raise HTTPException(
+                status_code=422,
+                detail={"error": "expiry is not available",
+                        "note": "memo §1.2 makes the aging policy behind an "
+                                "expiry sweep CEO-ratified, and none exists. "
+                                "tickets.AGING_POLICY_VERSION is None; setting "
+                                "it is a versioned human change, not a call "
+                                "this door may make"})
+        # AND WHEN IT IS RATIFIED, THE SWEEP MUST NAME IT. §1.2's terminal
+        # table requires an expiry to carry its policy version; a sweep that
+        # closes work under an unnamed rule is unauditable even when the rule
+        # exists. Written now rather than left for the commit that flips the
+        # constant, because that commit will be a one-line change nobody
+        # re-reads this door for.
+        if (req.policy_version or "").strip() != tk.AGING_POLICY_VERSION:
+            _refuse_422("an expiry must name the aging policy it swept under",
+                        policy_version=req.policy_version,
+                        expected=tk.AGING_POLICY_VERSION)
+
+    actor = req.actor
+    if to in tk.DECISION_TRANSITIONS:
+        # THE EXISTING GUARD, CALLED — not a second one written to look like it.
+        actor = _guard_approval("ticket", ticket_id, req.actor, req.confirm,
+                                req.instruction, DESK_APPROVAL_ALLOWLIST)
+
+    index = _ticket_index()
+    _refuse_unknown_ticket(ticket_id, index)
+    if index is None:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "the ticket fold is unreadable",
+                    "ticket_id": ticket_id,
+                    "note": "this door cannot check whether the transition is "
+                            "legal without the ticket's current state, and "
+                            "appending one the fold would refuse at replay "
+                            "returns 200 for something that never happened"})
+    row = index[ticket_id]
+    frm = row["state"]
+    if frm not in tk.ALLOWED_FROM.get(to, ()):
+        raise HTTPException(
+            status_code=409,
+            detail={"error": "illegal transition",
+                    "ticket_id": ticket_id, "from": frm, "to": to,
+                    "allowed_from": list(tk.ALLOWED_FROM.get(to, ())),
+                    "terminal": frm in tk.TERMINAL_STATES,
+                    "note": ("terminal is terminal: no reopen transition exists "
+                             "and a dispute with a closed ticket is a NEW "
+                             "ticket of type 'challenge', linked to this one"
+                             if frm in tk.TERMINAL_STATES else
+                             f"a ticket at {frm!r} does not advance to {to!r}")})
+
+    supersession_readable = None
+    ref = _ticket_supersession_ref(row)
+    if to in tk.ADVANCING_TICKET_STATES and ref:
+        supersession_readable = _refuse_if_superseded(
+            ref, kind="ticket", target_id=ticket_id, actor=actor)
+
+    payload = {"ticket_id": ticket_id, "from": frm, "to": to, "actor": actor,
+               "basis": (req.basis or "").strip() or "transition",
+               "citation": req.citation, "reason": req.reason,
+               "decision_ref": req.decision_ref,
+               "superseder_ref": req.superseder_ref,
+               "staged_ref": req.staged_ref,
+               "policy_version": req.policy_version,
+               # WHETHER THE BRAKE WAS CHECKED AT ALL, and it has THREE
+               # answers, not two. True: checked against a readable edge store.
+               # False: the store could not be read and this went through
+               # anyway (the accepted fail-open, now visible in the record).
+               # None: this ticket has no key in the supersession store, or the
+               # transition was not an advancing one — the check did not apply.
+               # Collapsing the third into either of the others would let an
+               # unrun check read as a passed one.
+               "supersession_readable": supersession_readable,
+               "supersession_checked": supersession_readable is not None,
+               "at": datetime.now(timezone.utc).isoformat()}
+    _store.append(Event(aggregate_id=ticket_id, aggregate_type="ticket",
+                        type=EventType.TICKET_TRANSITIONED,
+                        payload=payload, actor=req.actor))
+    return payload
+
+
+class TicketLink(BaseModel):
+    link_kind: str
+    target_id: str
+    basis: Optional[str] = None
+    actor: str = "cto"
+
+
+@router.post("/fund/tickets/{ticket_id}/link")
+def ticket_link(ticket_id: str, req: TicketLink):
+    """Record one edge between two tickets. BOTH ENDS ARE VALIDATED.
+
+    A link is bookkeeping and takes no approval guard — it grants nobody
+    anything and no control in this slice reads what it writes. What it must
+    not do is create the rot it exists to end, so:
+
+      * both ids go through the phantom guard, not just the one in the path.
+        A link to a ticket that does not exist is exactly the 54-of-56 defect,
+        freshly manufactured at a door built to prevent it;
+      * a ticket may not link to ITSELF;
+      * a ``parent`` link that would close a CYCLE is refused. Any consumer
+        walking the tree would loop forever, and "the tree" is what
+        ``parent_id`` means.
+
+    ``decision_ref`` is RECORDED here and ENFORCED in slice 3, where a decided
+    ticket re-presented bare becomes a 409 with its lineage (§1.5). Said plainly
+    so the next builder does not assume the enforcement half already exists.
+    """
+    from app.fund import tickets as tk
+    from app.fund.events import Event, EventType
+
+    kind = (req.link_kind or "").strip().lower()
+    if kind not in tk.LINK_KINDS:
+        _refuse_422("unknown link_kind", link_kind=req.link_kind,
+                    allowed=list(tk.LINK_KINDS))
+    target = (req.target_id or "").strip()
+    if not target:
+        _refuse_422("a link needs a target_id")
+    if target == ticket_id:
+        _refuse_422("a ticket cannot link to itself",
+                    ticket_id=ticket_id, link_kind=kind)
+
+    index = _ticket_index()
+    _refuse_unknown_ticket(ticket_id, index)
+    _refuse_unknown_ticket(target, index)
+
+    cycle_checked = index is not None
+    if cycle_checked and kind == "parent":
+        seen, cur = set(), target
+        while cur and cur not in seen:
+            seen.add(cur)
+            if cur == ticket_id:
+                _refuse_422(
+                    "that parent link would close a cycle",
+                    ticket_id=ticket_id, target_id=target,
+                    chain=sorted(seen),
+                    note="parent_id is a tree; a cycle in it makes every "
+                         "consumer that walks the ancestry loop forever")
+            nxt = index.get(cur)
+            cur = (nxt or {}).get("parent_id")
+
+    payload = {"ticket_id": ticket_id, "link_kind": kind, "target_id": target,
+               "basis": (req.basis or "").strip() or None,
+               # Whether the cycle check RAN. It cannot run when the fold is
+               # unreadable (the phantom guard fails open there, by design), and
+               # a link recorded without it must not read like a checked one.
+               "cycle_checked": cycle_checked,
+               "at": datetime.now(timezone.utc).isoformat(),
+               "actor": req.actor}
+    _store.append(Event(aggregate_id=ticket_id, aggregate_type="ticket",
+                        type=EventType.TICKET_LINKED,
+                        payload=payload, actor=req.actor))
+    return payload
 
 
 # ===========================================================================
