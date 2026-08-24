@@ -907,3 +907,27 @@ MACHINERY ticket filed to D34 (members field + CASCADE PENDING chip - a
 reminder surface, never auto-execution). Standing rule until the machinery
 lands: at every resolve, ask "did the CEO accept any BUNDLE since last
 sweep?" and run its cascade in the same pass.
+
+
+---
+
+## 2026-08-24 — THE BUILD-SCOPE RULE (CEO: "this builder is taking 2 hrs... Something seems very wrong on builder runs")
+
+The defect was the chair's: THE BATCHING RULE WAS MEASURED ON A REVIEW
+SEAT AND APPLIED TO A BUILD SEAT. An adversary batch costs ~200k tokens
+whether it carries 1 or 3 artifacts (marginal artifact ~ free); a builder
+batch pays LINEAR wall-clock per item. D39 accreted ~14 items across two
+repos plus THREE mid-flight amendments, on top of four outage kills.
+Grace's meter had the warning in it all along (builder median 3,246s,
+68.6% of window spend).
+
+THE RULE, from D40 on: a build dispatch is ONE surface, ~5 coherent
+items, an honest ~1h estimate. Riders QUEUE for the next dispatch, never
+amend a running one — sole exception: a correctness kill (the D36
+cash-credit class) where finishing wrong work costs more than the
+re-context. Latency-sensitive singles ship solo. The stated trade-off:
+more merges and review rounds, accepted — a two-hour black box costs CEO
+trust, and trust is the desk's product. Companion: the seat card's NOW
+zone + D33's fan-out must make long dispatches LOOK alive (stages, not a
+frozen lamp) — a correct duration that renders as silence still reads as
+"something is very wrong."
