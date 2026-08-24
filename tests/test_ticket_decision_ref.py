@@ -431,6 +431,42 @@ class TestTheMergeTarget:
 # WHAT THIS SLICE DOES NOT CHANGE
 # ============================================================================
 
+class TestTheMergeTargetAtTheDoor:
+    """MUTANT M41 SURVIVED WITHOUT THIS, and the reason is instructive.
+
+    The door test that covered ``merge_target_error`` lived in the block of 24
+    I deleted when slice 2's doors landed — it was one of the few in that block
+    that tested MY code rather than slice 2's, and it went out with the rest.
+    The pure-function tests in ``TestTheMergeTarget`` kept passing, which is
+    exactly how an uncalled check looks from the inside.
+    """
+
+    def test_a_merge_into_a_ghost_is_refused_AT_THE_DOOR(self, client):
+        ghost = "99999999-9999-4999-8999-999999999999"
+        tid = _open(client)
+        before = len(client.store.appended)
+        r = _transition(client, tid, "merged", decision_ref=ghost)
+        assert r.status_code == 422
+        # SHARED-WORD AUDIT: this sentence is reachable only from
+        # `merge_target_error`'s unknown-target branch. "refused" and "merged"
+        # both appear in the terminal-requirement refusal too.
+        assert "names no ticket this fold has ever seen" in str(r.json()["detail"])
+        assert len(client.store.appended) == before, \
+            "a refused merge must append nothing"
+
+    def test_a_merge_into_ITSELF_is_refused_at_the_door(self, client):
+        tid = _open(client)
+        r = _transition(client, tid, "merged", decision_ref=tid)
+        assert r.status_code == 422
+        assert "cannot be merged into itself" in str(r.json()["detail"])
+
+    def test_a_merge_into_a_REAL_row_still_lands(self, client):
+        """The check can only REFUSE — the ordinary path is untouched."""
+        canonical, dup = _open(client), _open(client)
+        assert _transition(client, dup, "merged",
+                           decision_ref=canonical).status_code == 200
+
+
 class TestTheCensusInstrument:
     """The measurement behind this file's own claims, under test.
 

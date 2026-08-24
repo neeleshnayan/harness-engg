@@ -3012,7 +3012,21 @@ def lessons_view(seat: Optional[str] = Query(None),
         })
     # UNCONSUMED FIRST, OLDEST FIRST. The board's job is to make the
     # never-carried lesson the most conspicuous row on it.
-    out.sort(key=lambda x: (x["consumed"], -(x["age_hours"] or 0.0)))
+    #
+    # SORTED ON `filed_at`, NOT ON `age_hours`, AND THE DIFFERENCE IS MEASURED.
+    # `tickets._age_hours` rounds to three decimals — 3.6 seconds — so three
+    # lessons filed in the same second all carry the SAME age, the sort becomes
+    # a tie, and Python's stability then hands the order to whatever the fold
+    # happened to produce (newest first). The test written for this ordering
+    # failed on exactly that. The filing instant has full resolution and needs
+    # no arithmetic; the id breaks the remaining tie so the order is TOTAL and
+    # two calls cannot disagree.
+    #
+    # An UNREADABLE `filed_at` sorts to the very top ("" < any ISO string), and
+    # that is the right direction rather than an accident: a lesson whose own
+    # filing time cannot be read is precisely a row somebody should look at.
+    out.sort(key=lambda x: (x["consumed"], x["filed_at"] or "",
+                            x["ticket_id"]))
     consumed = sum(1 for x in out if x["consumed"])
     return {
         "readable": True, "lessons": out[:limit], "shown": min(len(out), limit),

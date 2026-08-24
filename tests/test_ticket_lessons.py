@@ -83,6 +83,17 @@ class TestTheBindsGrammar:
         assert p["lessons"] == [{"seat": "quant", "lesson": "do the thing",
                                  "raw": p["lessons"][0]["raw"]}]
 
+    @pytest.mark.parametrize("heading", ["## BINDS", "### Binds", "#binds",
+                                         "##   binds   "])
+    def test_the_heading_is_read_forgivingly(self, heading):
+        """MUTANT M16 SURVIVED WITHOUT THIS. ``BINDS_HEADING`` accepts one to
+        six hashes and any case; every fixture in this file wrote exactly
+        ``## BINDS``, so narrowing the pattern to ``#{2}`` changed nothing any
+        test could see. The TICKETS heading had this table and BINDS did not —
+        a gap between two siblings, which is the shape that survives review."""
+        p = ticketstaging.parse_binds_block(f"{heading}\n- quant — a lesson\n")
+        assert p["block_present"] is True and len(p["lessons"]) == 1
+
     def test_the_block_ends_at_the_next_heading(self):
         p = ticketstaging.parse_binds_block(BINDS)
         assert "pm" not in {x["seat"] for x in p["lessons"]}
@@ -310,6 +321,19 @@ class TestAnUnconsumedLessonAges:
         assert row["age_basis"] == "event_timestamps"
         assert row["age_hours"] is not None
 
+    def test_a_CARRIED_lesson_reports_the_OTHER_basis(self, client):
+        """MUTANT M37 SURVIVED WITHOUT THIS. ``lag_basis`` has three values and
+        every test asserted only ``"unconsumed"``, so collapsing the whole
+        expression to that constant killed nothing. **A three-valued field
+        needs a test on more than one of its values**, or it is a constant with
+        a conditional's shape."""
+        tid = _lesson(client)
+        client.post(f"/api/v1/fund/tickets/{tid}/consumed",
+                    json={"consumed_by_dispatch": "run-quant-d5"})
+        row = client.get("/api/v1/fund/tickets/lessons").json()["lessons"][0]
+        assert row["lag_basis"] == "event_timestamps"
+        assert row["consumption_lag_hours"] is not None
+
     def test_unconsumed_sorts_above_consumed(self, client):
         carried = _lesson(client, subject="this one was carried")
         client.post(f"/api/v1/fund/tickets/{carried}/consumed",
@@ -318,6 +342,34 @@ class TestAnUnconsumedLessonAges:
         b = client.get("/api/v1/fund/tickets/lessons").json()
         assert b["lessons"][0]["ticket_id"] == waiting
         assert b["lessons"][0]["consumed"] is False
+
+    def test_within_the_unconsumed_group_the_OLDEST_is_first(self, client):
+        """MUTANT M36 SURVIVED WITHOUT THIS. The old sort key was
+        ``(consumed, -age)``; dropping the minus reverses the ordering while
+        the consumed/unconsumed split — the only thing the test above checked —
+        survives untouched. **The board's whole job is to make the
+        longest-ignored lesson the most conspicuous row on it**, and a mutant
+        that puts the newest at the top defeats exactly that.
+
+        AND IT FOUND A SECOND DEFECT WHILE BEING WRITTEN: the sort keyed on
+        ``age_hours``, which ``tickets._age_hours`` rounds to three decimals —
+        3.6 seconds — so three lessons filed in the same second tie, and the
+        stable sort then handed the order to the fold's newest-first output.
+        The board would have shown the NEWEST lesson at the top of the
+        "longest ignored" list, in production, on any busy resolve. Fixed by
+        sorting on ``filed_at`` (full resolution, no arithmetic) with the id as
+        a total-order tiebreak.
+        """
+        first = _lesson(client, subject="filed first, waiting longest")
+        second = _lesson(client, subject="filed second")
+        third = _lesson(client, subject="filed third")
+        rows = client.get("/api/v1/fund/tickets/lessons").json()["lessons"]
+        assert [r["ticket_id"] for r in rows] == [first, second, third]
+        # THE FILING INSTANTS ASCEND. Asserted alongside the ids because the
+        # ids alone could be right by luck on a two-row list; this says the
+        # ordering RULE holds.
+        stamps = [r["filed_at"] for r in rows]
+        assert stamps == sorted(stamps)
 
     def test_the_median_reports_the_denominator_it_was_taken_over(self, client):
         """A median over the consumed minority, read as the population, is a
@@ -489,3 +541,33 @@ class TestTheWholeHop:
         # with its reason, and it is not a ticket.
         assert table.get(ids[2])["status"] == "struck"
         assert table.get(ids[2])["resolution_reason"]
+
+    def test_a_dry_run_stores_NOTHING_even_when_a_table_is_available(
+            self, monkeypatch, table):
+        """MUTANT M43 SURVIVED WITHOUT THIS.
+
+        The existing dry-run test runs with ``_stagedstore`` returning None, so
+        ``stored`` is False whether the flag is honoured or not — the assertion
+        could not distinguish "the dry run worked" from "there was nowhere to
+        write". **A flag tested only where its effect is unobservable is not
+        tested.** This arm supplies a real table and counts the rows.
+        """
+        from fastapi import FastAPI
+
+        from app.api.v1 import fund as fundapi
+        monkeypatch.setattr(fundapi, "_store", _WriteStore())
+        monkeypatch.setattr(fundapi, "_deskstore", lambda: None)
+        monkeypatch.setattr(fundapi, "_stagedstore", lambda: table)
+        app = FastAPI()
+        app.include_router(fundapi.router, prefix="/api/v1")
+        c = TestClient(app)
+
+        before = table.counts()["staged"]
+        b = c.post("/api/v1/fund/tickets/binds",
+                   json={"text": BINDS, "dry_run": True}).json()
+        assert len(b["lessons"]) == 3, "the parse still happens"
+        assert b["stored"] is False
+        assert b["store_available"] is True, \
+            "and the caller is told a table WAS available — 'stored: false' " \
+            "means the flag, not an outage"
+        assert table.counts()["staged"] == before

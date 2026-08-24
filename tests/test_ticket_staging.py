@@ -155,6 +155,17 @@ class TestTheProposals:
         p = ticketstaging.parse_tickets_block("## TICKETS\n- bury: a4f2\n")
         assert p["proposals"][0]["to_state"] == "expired"
 
+    @pytest.mark.parametrize("arrow", ["->", "=>", "to"])
+    def test_all_three_arrows_the_grammar_advertises(self, arrow):
+        """MUTANT M20 SURVIVED WITHOUT THIS. The regex offers ``->``, ``=>``
+        and the word ``to``; every test wrote ``->``, so deleting the other two
+        alternatives changed no answer. A vocabulary a test never exercises is
+        a vocabulary the next edit can silently remove."""
+        p = ticketstaging.parse_tickets_block(
+            f"## TICKETS\n- transition: a4f2 {arrow} done | citation: c\n")
+        assert p["proposals"][0]["to_state"] == "done"
+        assert p["proposals"][0]["ticket_id"] == "a4f2"
+
     def test_an_open_proposal(self):
         p = ticketstaging.parse_tickets_block(
             "## TICKETS\n- open: ask | for: quant | subject: implement the "
