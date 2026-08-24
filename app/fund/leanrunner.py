@@ -2050,9 +2050,15 @@ def premia_inputs(result: dict[str, Any], rf_bars: Any = None,
     can have a perfect excess pair and an unreadable exposure chart, and that
     run's premia claim is not measurable even though its Sharpe is.
     ``cash_credit["measurable"]`` says whether the invested weight is known, and
-    ``excess_measurable`` now DEPENDS on it: an UNCREDITED excess pair is the
-    biased one, so forming it and judging it anyway would ship the defect with a
-    flag beside it. Collapsing any of them would make one outage delete another
+    ``excess_measurable`` is INDEPENDENT of it — deliberately, and this sentence
+    is the corrected one (the draft claimed a dependency the code never had;
+    adversary, run-adversary-d36-prodgate2). ``excess_measurable`` keeps its
+    v5r3 meaning and is computed from the UNCREDITED pair, because the uncredited
+    pair is what the shipped criterion judges: ``premia_credit_idle_cash`` is
+    OFF, and a candidate whose invested weight could not be read must still be
+    judgeable on the bar that is actually applied. Coupling the two would have
+    made a credit outage refuse candidates the shipped bar can measure
+    perfectly well. Collapsing any of them would make one outage delete another
     capture.
     """
     from app.fund import statistics as _stats
@@ -2291,8 +2297,11 @@ def premia_inputs(result: dict[str, Any], rf_bars: Any = None,
     # TWO STAGES, deliberately. The UNCREDITED pair needs only the cash series,
     # so it is captured whenever the cash series is readable — a credit outage
     # must not delete the capture that would let a reader see what the previous
-    # version of this bar would have said. Only the CREDITED strategy leg, and
-    # with it `excess_measurable`, depends on the weights.
+    # version of this bar would have said. Only the CREDITED strategy leg
+    # depends on the weights; `excess_measurable` does NOT, and is set below
+    # from the uncredited pair alone. (The draft's docstring and this comment
+    # both claimed the dependency; the code never had it. Second copy of one
+    # false sentence, four lines from the assignment that refutes it.)
     if rfmap and out["measurable"]:
         rf_leg = _stats.leg_moments([rfmap[d] for d in common], common)
         # THE BENCHMARK IS NOT CREDITED, and that is not an oversight: every

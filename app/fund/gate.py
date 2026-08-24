@@ -540,8 +540,29 @@ def fmt_bps(x: float) -> str:
 #: orders and benchmark derived from the draw itself). The shipped arm is
 #: EMULATED as a PSR at target 0.0755/obs — the engine is not run over a
 #: synthetic series, so its statistic has to be reconstructed from the target
-#: inverted out of the real candidates; the emulation is swept across the whole
-#: measured range 0.0700..0.0792 and the conclusion does not move.
+#: inverted out of the real candidates; the emulation is swept across the range
+#: 0.0700..0.0792 measured on FOUR of them.
+#:
+#: AND THAT SWEEP IS THE FLAW THE CALIBRATION DIED OF — measured here rather
+#: than argued, over the whole stored population instead of the control sample
+#: (scratchpad/d37probe/target_census.py, one SELECT over fund_lean_jobs;
+#: 765 stored results, 765 carry a psr_pct, 339 carry an undownsampled series,
+#: 336 of those invert — the other 3 publish a PSR of exactly 0.0%, which pins
+#: the target at infinity):
+#:
+#:     implied engine target, per observation, n = 336
+#:     min 0.0613 | p25 0.0773 | MEDIAN 0.0887 | mean 0.0861 | p75 0.0946 |
+#:     max 0.1184
+#:
+#: The four-candidate range the sweep used spans the 17.9th to the 28.6th
+#: percentile of that population, and 71.4% of it implies a target AT OR ABOVE
+#: the swept ceiling. A conclusion that "does not move across the measured
+#: range" was therefore tested on the bottom quartile of the thing it claims to
+#: describe. (The adversary reached the same median independently, 0.0887, from
+#: the same function over the same population. A figure of 0.0909 circulated as
+#: "the median" in this dispatch's brief; it is a clock-factor DERIVATION —
+#: 0.0755 x 1.2039 — not a measurement, and the measurement does not agree with
+#: it. Two constructions of one number, and only one of them was counted.)
 #:
 #:     window  arm                        luck only   FULL GATE   invariant
 #:     700d    engine-equivalent @65%         44.0%        1.0%   (today)
@@ -564,20 +585,59 @@ def fmt_bps(x: float) -> str:
 #: that removing it costs the SYSTEM nothing, because three other criteria
 #: refuse the same draws for reasons that are true.
 #:
-#: The level is then chosen by the ruling's rule — the LOWEST holding the
-#: invariant — which is 50.0, and at 50.0 this criterion asserts exactly one
-#: thing: the sample Sharpe is not negative.
+#: THE DRAFT APPLIED THE RULING'S RULE — the LOWEST level holding the invariant
+#: — and got 50.0, at which the criterion asserts exactly one thing: the sample
+#: Sharpe is not negative. THE ADVERSARY KILLED THAT CONSTANT AND NOTHING ELSE
+#: (run-adversary-d36-prodgate2), and the kill is right for a reason the table
+#: above states plainly: the invariant holds at EVERY level from 50 to 99.9,
+#: because on a long-only equity population the target-zero statistic is market
+#: beta and refuses nobody. A rule that says "pick the lowest that holds" cannot
+#: calibrate against a flat curve — it hands you the most permissive value in
+#: the sweep and calls the result a measurement.
 #:
-#: WHAT WOULD CHANGE THIS DECISION'S MIND: a zero-skill population on which the
-#: full-gauntlet rate MOVES with this level (any market-neutral or short-capable
-#: universe, where absolute Sharpe is no longer market beta in disguise), or a
-#: candidate refused by this criterion alone. Either makes the level load-bearing
-#: and it must then be re-calibrated rather than inherited.
+#: SO THE LEVEL AND THE BASIS REVERT (D37) and the pre-committed falsifier path
+#: in the ruling executes as written: "if no level holds, keep the hurdle and
+#: correct its words." `psr_basis` is `engine_reported` and `min_psr_pct` is
+#: 65.0 — the values every candidate this fund has ever judged was judged
+#: against. WHAT SHIPS IS THE SENTENCE, which was never conditional on the
+#: level, plus the target-zero reading captured beside the judged one on every
+#: verdict. Nothing about the alpha bar's PASS/FAIL behaviour moves: re-judged
+#: over all 765 stored belt results, zero verdicts flip against the pre-v4.4
+#: tree (scratchpad/advd36/judge.py, both trees, alpha claim).
+#:
+#: WHY NOT A DIFFERENT TARGET-ZERO LEVEL: because no defensible one exists yet.
+#: Choosing one needs the engine's target MEASURED rather than emulated from
+#: four candidates in the population's bottom quartile, and that measurement is
+#: a queued experiment — one LEAN container over a synthetic series whose true
+#: Sharpe is known, which reads the engine's target directly instead of
+#: inverting it out of runs. Until it lands, moving this pair is choosing a
+#: number over a population nobody has sampled.
+#:
+#: THE REGISTER AGREES WITH THE CODE AGAIN, checked rather than assumed:
+#: `app/fund/judgement.py` registers `min_psr_pct` at 65.0, and under the draft
+#: `judgement.review()` reported it DRIFTED ("min_psr_pct is now 50.0 but was
+#: registered as 65.0... either the reason or the number is stale"). Under this
+#: tree `review()["drifted"]` is EMPTY. What the register's `why` says about
+#: this number is still stale in a different way — it describes a null audit
+#: against a target-zero reading, and the number guards an engine skill hurdle
+#: — and a corrected text is drafted at
+#: docs/drafts/JUDGEMENT_MIN_PSR_WHY_2026-08-24.md. A register change is a
+#: human's act, so it is a draft and not a diff.
+#:
+#: WHAT WOULD CHANGE THIS DECISION'S MIND: the engine-target pin experiment
+#: producing a MEASURED target that supports a calibrated target-zero level; or
+#: a zero-skill population on which the full-gauntlet rate MOVES with the level
+#: (any market-neutral or short-capable universe, where absolute Sharpe is no
+#: longer market beta in disguise); or a candidate refused by this criterion
+#: alone.
 #:
 #: NOT FIXED HERE, and it is the honest limit of this pass: the 2000-day
 #: geometry two algorithms declare is UNREACHABLE on the pinned feed (1,378
 #: shared sessions), so it is absent from both tables — not passing, not
-#: failing, absent.
+#: failing, absent. And the version number does NOT advance for the revert: the
+#: v4.4 draft was never merged and never judged anything, so there is no stored
+#: verdict stamped with the level this note walks back and no preserved-version
+#: dict describing a bar that never ran. v4.4 is what this file says it is.
 GATE_VERSION = "v4.4"
 
 #: THE PREMIA BAR, versioned separately and on purpose.
@@ -1040,20 +1100,45 @@ PREMIA_CRITERIA: dict[str, Any] = {
     # which is why the not-loosen rule could not choose it and a rule from the
     # record had to.
     "premia_min_luck_pct": 65.0,
+    # WHICH LUCK STATISTIC FOR A PREMIA CLAIM, AND IT IS NOT THE ALPHA ONE
+    # EITHER. Split from `psr_basis` in D37 for the same reason the level was
+    # split from `min_psr_pct` one criterion up, and MEASURED before it was
+    # written: the alpha bar reverted to `engine_reported`, and because a single
+    # `psr_basis` served both claim types, that revert quietly re-pointed the
+    # premia leg at LEAN's published figure — the strategy's ABSOLUTE Sharpe,
+    # judged against a level calibrated on the ADVANTAGE. Eighteen tests in
+    # tests/test_luck_filter.py fail on the unsplit revert, which is the
+    # measurement: two claim types cannot share one statistic any more than they
+    # can share one level.
+    #
+    # `engine_reported` remains SELECTABLE here and is not a code branch, so a
+    # stored premia verdict still says which statistic judged it — but note what
+    # it would mean: the engine knows nothing about this fund's benchmark, so
+    # under that basis a premia claim is scored on absolute Sharpe and
+    # `claim_scope` says so rather than claiming an advantage was tested.
+    "premia_psr_basis": "target_zero_module",
     # WHETHER THE LUCK FILTER IS APPLIED AT ALL. Same shape as
     # `premia_require_drawdown_not_worse` and `require_walkforward` — a
     # criterion the bar can decline to apply, recorded in the stored verdict's
     # own `criteria` and echoed in `checks["luck"]["applied"]`, so a reader can
     # never mistake a criterion that was switched off for one that was passed.
     # This is the write-only-column lesson applied before the column exists.
+    # (That first sentence was FALSE when it was written and is true now: the
+    # top-level `criteria` carried only the alpha dict until D37 made a premia
+    # verdict record both. See `evaluate`'s return.)
     #
-    # IT IS NOT A LEVEL. Setting `premia_min_luck_pct` to 0 does NOT turn the
-    # filter off, because an UNMEASURABLE advantage refuses at any level — and
-    # the shape that produces one is exactly the impersonator: a pure cash/beta
-    # blend is an exact linear function of its bar, so the difference series is
-    # constant, the advantage has no sampling variation, and no probability
-    # attaches to it. That refusal is the correct answer and a strong one; it
-    # must not be reachable by writing a small number into a level.
+    # IT IS NOT A LEVEL, AND D37 IS WHAT MADE THAT TRUE. The draft claimed that
+    # setting `premia_min_luck_pct` to 0 does not turn the filter off, on the
+    # grounds that an UNMEASURABLE advantage refuses at any level — the
+    # impersonator case, where a pure cash/beta blend is an exact linear
+    # function of its bar, the difference series is constant, and no probability
+    # attaches. That refusal is real and it is a strong answer. But it says
+    # nothing about a MEASURABLE advantage, which at a level of 0 clears `>=`
+    # unconditionally: the claim was true of the one case the author had in mind
+    # and false of every case the criterion exists to judge (adversary,
+    # run-adversary-d36-prodgate2). `_luck_leg` now refuses any level outside
+    # (0, 100) outright, so the only way to decline this filter is the boolean
+    # below — which says so, in the verdict, where a reader will find it.
     "premia_require_luck_filter": True,
 }
 
@@ -1065,24 +1150,29 @@ CRITERIA: dict[str, Any] = {
     # rather than a code branch so a stored verdict says which statistic judged
     # it — the previous version could not, which is how a Sharpe hurdle passed
     # for a luck filter across every candidate this fund has ever run.
-    "psr_basis": "target_zero_module",
-    # THE LEVEL IS CALIBRATED, NOT INHERITED. The old 65.0 was set against the
-    # engine's statistic and means something completely different against this
-    # one; carrying the number across unchanged would have been the quietest
-    # possible way to change a bar. See the `GATE_VERSION` v4.4 note for the
-    # sweep, the invariant it had to hold, and the row that was chosen.
+    "psr_basis": "engine_reported",
+    # UNMOVED, AND THAT IS THE DECISION. The alpha luck leg keeps the engine's
+    # statistic at the level it has always been judged at. The v4.4 draft moved
+    # the pair to `target_zero_module` at 50.0 and the adversary killed the
+    # CONSTANT (run-adversary-d36-prodgate2): a level chosen by "the lowest that
+    # holds the invariant" is not a calibration when the invariant holds at every
+    # level in the sweep — it is a tie-break, and it hands you the most permissive
+    # value by default. The `GATE_VERSION` v4.4 note carries the full measurement
+    # and the population census that settled it.
     #
-    # 50.0 IS THE RULING'S RULE APPLIED LITERALLY — the LOWEST level holding
-    # full-gauntlet zero-skill false passes at or below today's measured rate —
-    # and the honest gloss is that on this population EVERY level from 50 to
-    # 99.9 holds it, because the luck filter is not what refuses zero-skill
-    # equity baskets. At 50.0 this criterion says exactly one thing: THE SAMPLE
-    # SHARPE MUST NOT BE NEGATIVE. That is a floor, not a discriminator, and the
-    # v4 comment above already said the walk-forward criteria are what separates
-    # signal here. The measurement now says the same of the benchmark and cost
-    # criteria — the refusal census lives ONCE, in the `GATE_VERSION` v4.4 note,
-    # and is deliberately not restated here.
-    "min_psr_pct": 50.0,
+    # WHAT SHIPS INSTEAD is the unconditional half of the chair's ruling: the
+    # SENTENCE. `_luck_leg` now inverts the engine's own figure per candidate and
+    # states the annualised Sharpe its target sits at and the annualised Sharpe
+    # this level demands against that target — and it never calls the result a
+    # luck test. The target-zero reading of the same series is captured beside it
+    # on every verdict (`checks["luck"]["luck_psr_pct"]`), which is the reading
+    # that made the mislabelling visible in the first place and is what a future
+    # re-calibration will be argued from.
+    #
+    # SO THIS IS A SKILL HURDLE, HONESTLY LABELLED — not a luck filter. The
+    # criterion that was supposed to ask "is this distinguishable from luck" is
+    # therefore still UNSHIPPED on the alpha bar, and the register entry says so.
+    "min_psr_pct": 65.0,
     # Sharpe on a handful of trades is a story about a handful of trades.
     "min_orders": 20,
     # Beating buy & hold is the minimum bar for existing at all: a strategy
@@ -1300,18 +1390,24 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
     filter's sentence, and our own module at target zero disagrees with it by
     40x to 983x on the identical series, depending on the candidate.
 
-    TWO REAL CONFIGURATIONS, and the shipped one is chosen by measurement:
+    TWO REAL CONFIGURATIONS, and the shipped one differs BY CLAIM TYPE:
 
       * ``target_zero_module`` — the documented job. Our own
         ``statistics.psr_from_series`` at target 0, scored on the run's own
-        return series. The level is calibrated so that FULL-GAUNTLET zero-skill
-        false passes do not rise (see the ``GATE_VERSION`` note).
+        return series (or, for premia, on the advantage series). SHIPPED ON THE
+        PREMIA BAR, where the statistic demonstrably separates the population.
       * ``engine_reported`` — the engine's number, kept selectable and kept
         HONEST. Whoever selects it gets a sentence that says it is a skill
-        hurdle and states the target inverted out of the run itself.
+        hurdle, states the target inverted out of the run itself, and states the
+        Sharpe the level demands AGAINST THAT TARGET. SHIPPED ON THE ALPHA BAR,
+        where a target-zero reading was measured not to discriminate at all
+        (100% of 200 zero-skill baskets clear it at every level 50..99.9) and no
+        defensible level therefore exists yet.
 
     Anything else FAILS CLOSED, the same way an unrecognised rf basis does: a
-    typo in a bar's own definition must not select a statistic by accident.
+    typo in a bar's own definition must not select a statistic by accident. So
+    does a LEVEL outside (0, 100), which is the shape a silent off-switch
+    arrives in: at 0 every measurable reading clears ``>=``.
 
     THE SENTENCE STATES WHAT WAS TESTED. This is the half of the ruling that
     ships unconditionally, and it is not decoration: a criterion that reports a
@@ -1328,11 +1424,11 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
     question the claim never made. A low-volatility overlay with a real
     advantage can carry a modest absolute Sharpe; a beta-heavy book with no
     advantage at all can carry a large one. So the premia path scores the
-    advantage series the belt measured (``premia_inputs["advantage"]``), whose
-    mean IS ``SR_s - SR_b``, with the same statistic and its OWN level —
-    ``premia_min_luck_pct``, split from the alpha one because the two
-    statistics behave completely differently on the same population. The
-    measurement that forced the split is recorded beside that criterion.
+    advantage series the belt measured (``premia_inputs["advantage"]``), with
+    its OWN statistic and its OWN level — ``premia_psr_basis`` and
+    ``premia_min_luck_pct``, both split from the alpha pair because the two
+    quantities behave completely differently on the same population. The
+    measurements that forced both splits are recorded beside those criteria.
 
     FAIL CLOSED, in both directions of absence. No series, no advantage block, a
     degenerate sample: the criterion is UNMEASURED, and an unmeasured criterion
@@ -1340,11 +1436,13 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
     """
     from app.fund import statistics as st
 
-    basis = str(c.get("psr_basis"))
-    # TWO LEVELS FOR TWO STATISTICS. See `premia_min_luck_pct` for the
-    # measurement that forced the split; reading the alpha level here would
-    # apply a number calibrated on absolute Sharpe to a statistic about an
-    # advantage, which is the same category error one layer down.
+    # TWO BASES AND TWO LEVELS FOR TWO STATISTICS. See `premia_min_luck_pct` and
+    # `premia_psr_basis` for the measurements that forced both splits; reading
+    # the alpha pair here would apply a statistic and a number calibrated on
+    # absolute Sharpe to a claim about an advantage, which is the same category
+    # error one layer down.
+    basis = str(pc.get("premia_psr_basis") if is_premia
+                else c.get("psr_basis"))
     raw_level = (pc.get("premia_min_luck_pct") if is_premia
                  else c.get("min_psr_pct"))
     rb = result.get("robustness") or {}
@@ -1352,7 +1450,13 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
     out: dict[str, Any] = {
         "basis": basis,
         "level_pct": raw_level,
-        "claim_scope": "premia advantage" if is_premia else "strategy sharpe",
+        # WHAT WAS ACTUALLY SCORED, not what the claim type would prefer. The
+        # engine's figure is the strategy's own Sharpe and knows nothing about
+        # this fund's benchmark, so a premia claim judged on that basis was NOT
+        # scored on its advantage and this field must not say it was.
+        "claim_scope": ("premia advantage"
+                        if is_premia and basis != "engine_reported"
+                        else "strategy sharpe"),
         # BOTH READINGS ON EVERY VERDICT, whichever one the criterion used.
         # Comparability is the whole reason the disagreement was found at all,
         # and a verdict that carries only the number it acted on cannot be
@@ -1386,6 +1490,31 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
             "level for it — an unapplied criterion is not a passed one"]
     level = float(raw_level)
     out["level_pct"] = level
+    # A LEVEL IS A PROBABILITY, AND ONE OUTSIDE (0, 100) IS AN OFF-SWITCH
+    # WEARING A NUMBER. `scripts/instruments/d36/calibrate.py` refuses exactly
+    # this range on its own sweep and the gate did not, which the adversary
+    # named: at a level of 0 every MEASURABLE reading clears `>=` and the
+    # criterion is silently not applied, while the comment on
+    # `premia_require_luck_filter` claims a zero cannot switch it off. That
+    # claim is true only of an UNMEASURABLE advantage — the impersonator case —
+    # and false of everything the criterion is actually meant to judge. With
+    # this check the claim is true of both, and the only way to decline the
+    # filter is the boolean that says so in the verdict.
+    #
+    # BOTH CLAIM TYPES, one check: the same hole is open on the alpha level, and
+    # a guard that covers one of two callers is a guard with a documented
+    # bypass. Refused rather than clamped — a bar that cannot state a readable
+    # level has not been applied, and an unapplied criterion is not a passed one.
+    if not 0.0 < level < 100.0:
+        out["reason"] = (f"the bar states a luck level of {level}%, which is "
+                         f"not a probability strictly inside (0, 100); a level "
+                         f"outside it is not a confidence, and at 0 the "
+                         f"criterion would pass everything it can measure")
+        return out, [
+            f"the luck filter could not be applied: {out['reason']} — an "
+            f"unapplied criterion is not a passed one, and a criterion turned "
+            f"off by a level rather than by its own switch is not recorded as "
+            f"off anywhere a reader would look"]
     if basis not in PSR_BASES:
         out["reason"] = (f"the bar names a luck-filter basis this gate does not "
                          f"implement ({basis!r}); it knows "
@@ -1476,9 +1605,42 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
         else:
             absent = reading.get("reason")
 
+    # --- WHAT TARGET THE STATISTIC WAS MEASURED AGAINST --------------------
+    #
+    # COMPUTED BEFORE THE BAR, NOT AFTER, and the order is the whole point. The
+    # Sharpe a level demands is a function of the TARGET it is demanded against,
+    # so solving the engine's bar against zero states a number the criterion
+    # does not test — the same mislabelling this leg exists to end, one field
+    # down. The draft did exactly that: `required_sharpe_annualised` was solved
+    # at target 0.0 for both bases and simply not quoted in the engine sentence,
+    # which left a wrong number on the verdict for anyone who read the field
+    # instead of the prose.
+    target: Optional[float] = 0.0
+    if basis == "engine_reported":
+        # THE IDENTIFICATION, per candidate. The engine publishes no target and
+        # no benchmark Sharpe, so the only honest way to say what this number
+        # tests is to invert it out of the run's own series.
+        ident = st.implied_target_sharpe(engine, series) if series else {}
+        if ident.get("measurable"):
+            target = float(ident["target_per_obs"])
+            if k:
+                out["engine_implied_target_annualised"] = round(
+                    target * math.sqrt(float(k)), 4)
+        else:
+            # ABSENT, NEVER ZERO. Without the target there is no bar to state,
+            # and a bar stated against zero here would be a disclosure about a
+            # criterion nobody is applying.
+            target = None
+            out["engine_implied_target_note"] = (
+                ident.get("reason")
+                or "no usable return series, so the engine's target cannot be "
+                   "recovered and the Sharpe this level demands cannot be stated")
+
     # --- WHAT THE LEVEL DEMANDS, in the claim's own units ------------------
-    bar = (st.sharpe_bar_for_psr(level, series, 0.0) if not is_premia
-           else _bar_from_moments(level, moments))
+    bar: dict[str, Any] = {"measurable": False}
+    if target is not None:
+        bar = (st.sharpe_bar_for_psr(level, series, target) if not is_premia
+               else _bar_from_moments(level, moments, target))
     if bar.get("measurable") and k:
         scale = (float(moments["stdev"])
                  if is_premia and moments is not None else 1.0)
@@ -1486,13 +1648,6 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
             float(bar["sharpe_per_obs"]) * scale * math.sqrt(float(k)), 4)
 
     if basis == "engine_reported":
-        # THE IDENTIFICATION, per candidate. The engine publishes no target and
-        # no benchmark Sharpe, so the only honest way to say what this number
-        # tests is to invert it out of the run's own series.
-        ident = st.implied_target_sharpe(engine, series) if series else {}
-        if ident.get("measurable") and k:
-            out["engine_implied_target_annualised"] = round(
-                float(ident["target_per_obs"]) * math.sqrt(float(k)), 4)
         out["evaluated_pct"] = engine
         out["statistic"] = (
             "LEAN's published Probabilistic Sharpe Ratio, whose target is not "
@@ -1529,18 +1684,33 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
     measured = ("" if out.get("sharpe_annualised") is None else
                 f"; this run measured {out['sharpe_annualised']:+.2f}")
     if basis == "engine_reported":
-        target = out.get("engine_implied_target_annualised")
-        identified = ("" if target is None else
+        # WHAT THE HURDLE IS AND WHAT IT DEMANDS, in one sentence, because the
+        # two halves are useless apart: a target nobody can compare to a
+        # threshold is trivia, and a demand nobody can attribute to a target is
+        # the number the old sentence implied was zero. Both are per candidate
+        # and both are ABSENT when the series will not support them.
+        tgt = out.get("engine_implied_target_annualised")
+        identified = ("" if tgt is None else
                       f" Inverting the engine's own statistic on this run's "
                       f"series puts its target at an annualised Sharpe of "
-                      f"{target:+.2f}, NOT at zero.")
+                      f"{tgt:+.2f}, NOT at zero.")
+        req = out.get("required_sharpe_annualised")
+        demanded = ("" if req is None or tgt is None else
+                    f" Clearing {level}% against that target demands an "
+                    f"annualised Sharpe of about {req:+.2f} on "
+                    f"{out.get('n_obs')} observations of this shape.")
+        unstated = ("" if tgt is not None else
+                    f" The engine's target could not be recovered here "
+                    f"({out.get('engine_implied_target_note')}), so what this "
+                    f"level demands is UNSTATED rather than zero.")
         luck_note = ("" if out.get("luck_psr_pct") is None else
-                     f" A target-zero reading of the same series is "
+                     f" A target-zero reading of the same series — the question "
+                     f"a luck filter actually asks — is "
                      f"{out['luck_psr_pct']}%.")
         return out, [
             f"the engine's probabilistic Sharpe {out['evaluated_pct']}% is "
             f"below {level}%. THIS IS A SKILL HURDLE, NOT A LUCK TEST."
-            f"{identified}{luck_note}{measured}"]
+            f"{identified}{demanded}{unstated}{luck_note}{measured}"]
     demanded = ("" if out.get("required_sharpe_annualised") is None else
                 f", which on {out.get('n_obs')} observations of this shape "
                 f"demands an annualised "
@@ -1554,21 +1724,27 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
         f"that is not distinguishable from luck"]
 
 
-def _bar_from_moments(level: float, moments: Optional[dict[str, Any]]
-                      ) -> dict[str, Any]:
+def _bar_from_moments(level: float, moments: Optional[dict[str, Any]],
+                      target: float = 0.0) -> dict[str, Any]:
     """The level's Sharpe bar for a leg whose SERIES the payload does not hold.
 
     The advantage is stored as moments (the series is deliberately not kept), so
     the bar is solved from those by the same solver the alpha path uses. Absent
     moments give an absent bar: a disclosure must never be able to break the
     verdict it explains.
+
+    ``target`` is the Sharpe the level is demanded AGAINST, and it is a
+    parameter rather than a zero because the caller now has two bases to serve:
+    zero for the target-zero statistic, and the engine's own inverted target for
+    ``engine_reported``. A bar solved against the wrong target is a precise
+    number about a criterion nobody applied.
     """
     if not moments or not moments.get("measurable"):
         return {"measurable": False}
     from app.fund import statistics as st
     return st.sharpe_bar_for_psr_from_moments(
         level, int(moments["n"]), float(moments["skew"]),
-        float(moments["kurtosis"]), 0.0)
+        float(moments["kurtosis"]), target)
 
 
 def _premia_leg(result: dict[str, Any], pc: dict[str, Any]
@@ -2342,7 +2518,25 @@ def evaluate(result: dict[str, Any],
         "passed": not failures,
         "failures": failures,
         "checks": checks,
-        "criteria": c,
+        # THE WHOLE BAR THAT JUDGED THIS, in the one place a reader looks for
+        # it. Until D37 a premia verdict's top-level `criteria` was the ALPHA
+        # dict alone, while `premia_require_luck_filter`'s own comment promised
+        # the off-switch was "recorded in the stored verdict's own `criteria`" —
+        # it was only in `checks["premia"]["criteria"]` and
+        # `checks["luck"]["applied"]`. The adversary named the gap
+        # (run-adversary-d36-prodgate2). An auditor should find a criterion's
+        # state where the comment says it is, so the promise is kept rather than
+        # withdrawn.
+        #
+        # ALPHA IS UNTOUCHED AND MUST STAY SO: an alpha verdict's `criteria` is
+        # `c` and is byte-identical to every version before this one
+        # (`test_an_alpha_verdict_is_unchanged_by_this_version` asserts equality
+        # with `CRITERIA`). The merge is safe because the two dicts are
+        # DISJOINT by construction — every premia key carries the `premia_`
+        # prefix — and `test_the_two_criteria_dicts_share_no_key` fails if that
+        # ever stops being true, which is the only way this merge could silently
+        # overwrite an alpha threshold.
+        "criteria": ({**c, **pc} if is_premia else c),
         "verdict": ("clears every criterion — worth a human look, which is a "
                     "different claim from 'deploy it'"
                     if not failures else

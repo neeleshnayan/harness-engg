@@ -30,9 +30,24 @@ def test_the_shipped_level_is_PINNED_and_not_read_from_the_live_criteria():
     """
     from app.fund import gate
     assert calib.SHIPPED_ENGINE_LEVEL == 65.0
-    # The live criterion has MOVED, and that is exactly why this must not be
-    # read: if these two are ever equal again it is a coincidence, not a link.
-    assert gate.CRITERIA["min_psr_pct"] == 50.0
+    # THE INEQUALITY PROOF IS DEAD AND ITS REPLACEMENT IS STRONGER. This test
+    # used to assert `gate.CRITERIA["min_psr_pct"] == 50.0` — the two values
+    # differed, so their difference proved the pin was not a read. D37 reverted
+    # the live criterion to 65.0 and the two agree again, at which point
+    # equality cannot distinguish a pin from a read at all: the exact defect
+    # this test was written about, arriving through the back door.
+    #
+    # So MOVE THE SOURCE instead (D16, applied in the negative). If the pin were
+    # secretly a read, moving the live criterion would move it.
+    assert gate.CRITERIA["min_psr_pct"] == 65.0        # they agree TODAY
+    original = gate.CRITERIA["min_psr_pct"]
+    try:
+        gate.CRITERIA["min_psr_pct"] = 12.5
+        fresh = importlib.util.module_from_spec(_spec)
+        _spec.loader.exec_module(fresh)                # re-executed, not cached
+        assert fresh.SHIPPED_ENGINE_LEVEL == 65.0
+    finally:
+        gate.CRITERIA["min_psr_pct"] = original
     src = open(_PATH, encoding="utf-8").read()
     assert 'gate.CRITERIA["min_psr_pct"]' not in src.replace(
         "gate.CRITERIA['min_psr_pct']", "")  # the print line uses quotes

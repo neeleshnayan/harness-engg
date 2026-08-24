@@ -75,8 +75,13 @@ def test_the_target_zero_basis_says_luck_and_states_what_it_demanded():
     reader could not tell which question had been asked.
     """
     r = _alpha(psr=20.0)
+    # THE BASIS IS PINNED HERE, not inherited from CRITERIA. D37 reverted the
+    # shipped alpha basis to `engine_reported`, and this test is ABOUT the
+    # target-zero one — a test whose subject is a configuration must name it,
+    # or it silently becomes a test of whatever ships next.
     out = evaluate(r, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK,
-                   criteria={"min_psr_pct": 65.0})
+                   criteria={"psr_basis": "target_zero_module",
+                             "min_psr_pct": 65.0})
     sentence = [f for f in out["failures"] if "luck" in f]
     assert len(sentence) == 1, out["failures"]
     s = sentence[0]
@@ -146,26 +151,64 @@ def test_both_readings_are_captured_whichever_one_judged():
         assert luck["evaluated_pct"] == expect
 
 
-def test_the_criterion_reads_the_SERIES_not_the_number_in_robustness():
+def test_the_target_zero_criterion_reads_the_SERIES_not_the_number_in_robustness():
     """MOVE IT, do not match it (D16). A payload whose stored `psr_pct` says one
-    thing and whose observations say another is judged on the observations."""
+    thing and whose observations say another is judged on the observations.
+
+    TRUE OF THE TARGET-ZERO BASIS ONLY, and D37 is what makes that worth saying:
+    the SHIPPED alpha basis reads exactly the number in `robustness` and nothing
+    else, which the sibling test below now pins. The two are opposite behaviours
+    and each has to be asserted against its own basis or one of them is being
+    guarded by accident.
+    """
     r = _alpha(psr=90.0)
     r["robustness"]["psr_pct"] = 2.0          # what the engine claimed
-    out = evaluate(r, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK)
+    out = evaluate(r, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK,
+                   criteria={"psr_basis": "target_zero_module"})
     assert out["passed"] is True, out["failures"]
 
     r2 = _alpha(psr=20.0)
     r2["robustness"]["psr_pct"] = 99.0        # the engine loved it
     out2 = evaluate(r2, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK,
-                    criteria={"min_psr_pct": 65.0})
+                    criteria={"psr_basis": "target_zero_module",
+                              "min_psr_pct": 65.0})
     assert out2["passed"] is False
     assert any("not distinguishable from luck" in f for f in out2["failures"])
+
+
+def test_the_SHIPPED_alpha_basis_reads_the_engine_number_and_says_so():
+    """The other half of the pair above, and it is the one that ships (D37).
+
+    Under `engine_reported` the criterion IS the engine's published figure: the
+    same payload whose observations say 90% is refused when the engine says 2%,
+    and passed when the engine says 99% while the observations say 20%. That is
+    not a defect — it is the criterion the fund has always applied — and the
+    sentence is what D37 fixes, not the arithmetic. Asserted from the DEFAULTS,
+    with no basis passed in, because the thing under test is what ships.
+    """
+    r = _alpha(psr=90.0)
+    r["robustness"]["psr_pct"] = 2.0
+    out = evaluate(r, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK)
+    assert out["checks"]["luck"]["basis"] == "engine_reported"
+    assert out["checks"]["luck"]["evaluated_pct"] == 2.0
+    assert out["passed"] is False
+    assert any("THIS IS A SKILL HURDLE" in f for f in out["failures"])
+
+    r2 = _alpha(psr=20.0)
+    r2["robustness"]["psr_pct"] = 99.0
+    out2 = evaluate(r2, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK)
+    assert out2["passed"] is True, out2["failures"]
+    # and the target-zero reading is STILL captured on the verdict that did not
+    # use it — the capture is the whole reason the mislabelling was findable.
+    assert out2["checks"]["luck"]["luck_psr_pct"] == pytest.approx(20.0,
+                                                                   abs=0.05)
 
 
 def test_an_absent_series_fails_closed_rather_than_passing():
     r = _alpha(psr=90.0)
     r.pop("daily_returns")
-    out = evaluate(r, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK)
+    out = evaluate(r, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK,
+                   criteria={"psr_basis": "target_zero_module"})
     assert out["passed"] is False
     assert any("nothing to attach a probability to" in f
                for f in out["failures"])
@@ -265,12 +308,27 @@ def test_the_level_is_SPLIT_from_the_alpha_one_and_moving_it_moves_the_verdict()
 
 def test_the_two_shipped_levels_are_pinned_from_both_sides():
     """Hardcoded, per D21: a test that reads the constant it guards pins
-    nothing. The values and their written basis are in the version notes."""
-    assert CRITERIA["min_psr_pct"] == 50.0
-    assert CRITERIA["psr_basis"] == "target_zero_module"
+    nothing. The values and their written basis are in the version notes.
+
+    THE ALPHA PAIR REVERTED IN D37 and this test is where that costs a red if
+    anyone moves it back without a version note: the adversary killed the 50.0 /
+    `target_zero_module` constant because the calibration that chose it swept a
+    target range occupying the 17.9th-28.6th percentile of the fund's own 336
+    invertible candidates, and because the invariant it was chosen under holds
+    at every level from 50 to 99.9 — a flat curve cannot calibrate anything.
+    The PREMIA pair is untouched and was certified in the same review.
+    """
+    assert CRITERIA["min_psr_pct"] == 65.0
+    assert CRITERIA["psr_basis"] == "engine_reported"
     assert PREMIA_CRITERIA["premia_min_luck_pct"] == 65.0
+    assert PREMIA_CRITERIA["premia_psr_basis"] == "target_zero_module"
     assert PREMIA_CRITERIA["premia_require_luck_filter"] is True
     assert PREMIA_CRITERIA["premia_credit_idle_cash"] is False
+    # THE TWO 65.0s ARE NOT ONE NUMBER. They are levels for two different
+    # statistics that happen to agree today, and a reader who assumes one
+    # source would "simplify" one of them away. Pinned as a pair with the fact
+    # that they are independent stated, not as a coincidence left to be found.
+    assert CRITERIA["psr_basis"] != PREMIA_CRITERIA["premia_psr_basis"]
 
 
 def test_a_declined_luck_filter_is_RECORDED_never_silently_skipped():
@@ -413,18 +471,28 @@ def test_a_reading_EXACTLY_ON_the_level_passes():
     rounded to three decimals, so equality is an ordinary outcome, not a
     measure-zero curiosity. Exactness is arranged by moving the LEVEL onto the
     measured reading rather than by trying to hit a level with a series.
+
+    THE EXTRACTION LEVEL IS NO LONGER 0.0. D37 made a level outside (0, 100) a
+    refusal — 0 was a silent off-switch — so the reading is now extracted at an
+    arbitrary IN-RANGE level. The level used for extraction is incidental: the
+    reading it reports does not depend on it, which the first assertion below
+    proves by extracting at two different levels and comparing.
     """
     r = _alpha(psr=71.0)
+    base = {"psr_basis": "target_zero_module"}
     exact = evaluate(r, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK,
-                     criteria={"min_psr_pct": 0.0})["checks"]["luck"]
+                     criteria={**base, "min_psr_pct": 1.0})["checks"]["luck"]
+    again = evaluate(r, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK,
+                     criteria={**base, "min_psr_pct": 99.0})["checks"]["luck"]
+    assert exact["luck_psr_pct"] == again["luck_psr_pct"]
     on_the_nose = exact["luck_psr_pct"]
     out = evaluate(r, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK,
-                   criteria={"min_psr_pct": on_the_nose})
+                   criteria={**base, "min_psr_pct": on_the_nose})
     assert out["passed"] is True, out["failures"]
     # and one tick above it must fail, so the test pins a boundary and not a
     # direction that happens to hold everywhere.
     over = evaluate(r, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK,
-                    criteria={"min_psr_pct": on_the_nose + 0.001})
+                    criteria={**base, "min_psr_pct": on_the_nose + 0.001})
     assert over["passed"] is False
 
 
@@ -557,10 +625,15 @@ def test_a_malformed_stored_advantage_is_a_VERDICT_not_a_crash(label, advantage)
 
 @pytest.mark.parametrize("series", [[], [0.0] * 100, [0.01], None])
 def test_a_degenerate_alpha_series_is_a_VERDICT_not_a_crash(series):
+    """Target-zero basis: no usable series is an UNMEASURED criterion, not a
+    passed one. Pinned to that basis in D37 — under the shipped engine basis the
+    same payload is measurable from the engine's own figure, which the sibling
+    test asserts rather than leaving to be discovered."""
     r = _alpha(psr=90.0)
     r["daily_returns"] = {"present": True, "strategy": series,
                           "dates": ["2021-01-04"] * (len(series or []))}
-    out = evaluate(r, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK)
+    out = evaluate(r, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK,
+                   criteria={"psr_basis": "target_zero_module"})
     assert out["passed"] is False
 
 

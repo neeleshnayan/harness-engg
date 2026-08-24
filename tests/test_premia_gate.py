@@ -272,17 +272,17 @@ def test_the_alpha_criteria_dict_is_pinned_whole():
     moves with the constant. So the whole bar is written out here, and any edit
     to a threshold — in either direction — kills this test by name.
 
-    TWO DELIBERATE CHANGES IN v4.4, and they are the point of the version:
-    `psr_basis` is new (which luck statistic judges, recorded so a stored
-    verdict can say), and `min_psr_pct` moves 65.0 -> 50.0. The level is NOT a
-    loosening of the same bar — it is a level for a DIFFERENT statistic, chosen
-    by the calibration in the GATE_VERSION note under the invariant that
-    full-gauntlet zero-skill false passes may not rise. They did not: 1.0% at
-    both, on 200 draws.
+    ONE DELIBERATE CHANGE IN v4.4 AS SHIPPED: `psr_basis` is new — which luck
+    statistic judged, recorded so a stored verdict can say. Every VALUE is the
+    one v4.3 shipped. The v4.4 draft also moved `min_psr_pct` 65.0 -> 50.0 onto
+    a target-zero statistic; the adversary killed that constant
+    (run-adversary-d36-prodgate2) and D37 reverted both halves of the pair, so
+    the alpha bar's arithmetic is unchanged and what v4.4 actually delivers is
+    the SENTENCE plus the second reading captured beside the judged one.
     """
     assert CRITERIA == {
-        "psr_basis": "target_zero_module",
-        "min_psr_pct": 50.0,
+        "psr_basis": "engine_reported",
+        "min_psr_pct": 65.0,
         "min_orders": 20,
         "must_beat_benchmark": True,
         "min_breakeven_bps": 10.0,
@@ -317,8 +317,23 @@ def test_no_premia_knob_leaked_into_the_alpha_bar():
         "premia_max_gross_exposure",
         "premia_credit_idle_cash",
         "premia_min_luck_pct",
+        "premia_psr_basis",
         "premia_require_luck_filter",
     }
+
+
+def test_the_two_criteria_dicts_share_no_key():
+    """The invariant that makes a premia verdict's merged `criteria` safe.
+
+    `evaluate` records `{**CRITERIA, **PREMIA_CRITERIA}` on a premia verdict so
+    an auditor finds the whole bar in one place (D37, the adversary's residual
+    (b)). That merge is only honest while the two dicts are DISJOINT — a shared
+    key would let a premia value silently overwrite an alpha threshold in the
+    record of what judged the candidate, with no diff and no red anywhere else.
+    The `premia_` prefix convention is what guarantees it; this is the test that
+    fails the moment the convention is broken, in either dict.
+    """
+    assert set(CRITERIA) & set(PREMIA_CRITERIA) == set()
 
 
 def test_the_two_version_stamps_are_pinned_and_move_together():

@@ -77,14 +77,25 @@ def test_too_few_trades_fails():
 def test_low_psr_fails_even_with_a_great_return():
     """The trap the whole system exists to catch: 100% win rate on 3 trades.
 
-    From v4.4 the reading comes from the run's own observations, so a low PSR is
-    now expressed as a SERIES that measures 22% rather than as a number written
-    into `robustness` — which is the point of the change: the previous shape
-    could not tell a low probability from a low number somebody typed.
+    THE REFUSAL IS UNCHANGED; THE SENTENCE IS NOT, and v4.4-as-shipped is
+    exactly that trade. The shipped basis is the engine's published figure, so
+    22% still fails a 65% bar — but the failure no longer says "not
+    distinguishable from luck", because the engine's target is not zero and that
+    sentence was false about it. It now names the hurdle and states the target
+    inverted out of this run.
+
+    ASSERTED ON THE WHOLE CLAUSE, never the shared word: "luck" appears in the
+    corrected sentence too (D27), so matching it would let either branch satisfy
+    this test.
     """
     r = _good_result(psr_pct=22.0, total_return_pct=500.0)
     out = evaluate(r, GOOD_HOLDOUT, GOOD_SWEEP)
-    assert any("distinguishable from luck" in f for f in out["failures"])
+    assert out["passed"] is False
+    hurdle = [f for f in out["failures"] if "probabilistic Sharpe" in f]
+    assert len(hurdle) == 1, out["failures"]
+    assert "THIS IS A SKILL HURDLE, NOT A LUCK TEST." in hurdle[0]
+    assert "is not distinguishable from luck on this much history" not in \
+        hurdle[0]
 
 
 def test_trailing_buy_and_hold_fails():
@@ -177,8 +188,9 @@ def test_the_bar_is_data_and_can_be_tightened():
     assert tighter["criteria"]["min_psr_pct"] == 95.0
     # and the default is untouched by that call
     # v2 raised this from 50%: measured nulls reached ~57% on this history, so
-    # the old floor sat inside the noise it was meant to exclude.
-    assert CRITERIA["min_psr_pct"] == 50.0
+    # the old floor sat inside the noise it was meant to exclude. The v4.4 draft
+    # moved it to 50.0 against a different statistic and D37 reverted both.
+    assert CRITERIA["min_psr_pct"] == 65.0
 
 
 def test_a_holdout_that_placed_no_trades_is_not_read_as_a_lost_edge():
