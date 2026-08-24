@@ -890,3 +890,20 @@ as such goes in its place; (4) dispatches that only REPORT remain held
 until the API recovers; work-producing dispatches should not be fired
 into a known outage. D38 filed this way; the final adversary re-check is
 HELD with a retry timer.
+
+
+---
+
+## 2026-08-24 — THE CASCADE GAP (CEO-found): accepted bundles whose members never moved
+
+The CEO clicked accept on COO bundles and correctly observed the wrapped
+items did not move. The cascade rule (constitution, 2026-08-21) has had NO
+machinery since birth - it ran only at live-chair memory. Measured cost:
+much of the 278-row non-terminal sprawl is un-run cascades from accepted
+batches. EXECUTED: 51-row citable chair sweep; Vishesh triage #8 dispatched
+as a CASCADE AUDIT (enumerate every accepted bundle's members, per-member
+disposition with citation; chair executes on return); the CASCADE
+MACHINERY ticket filed to D34 (members field + CASCADE PENDING chip - a
+reminder surface, never auto-execution). Standing rule until the machinery
+lands: at every resolve, ask "did the CEO accept any BUNDLE since last
+sweep?" and run its cascade in the same pass.

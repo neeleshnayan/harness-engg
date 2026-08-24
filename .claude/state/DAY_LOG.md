@@ -156,6 +156,14 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
   recorded absent, never zero).
 
 **MEASURED**
+- **THE CASCADE GAP, found by the CEO from his own chair**: accepting a
+  COO bundle moved nothing underneath it - the constitution's cascade rule
+  never had machinery, and un-run cascades are a large share of the
+  278-row non-terminal sprawl. Chair swept 51 rows with citations;
+  Vishesh's triage #8 (first flow-mandate run) is auditing every accepted
+  bundle's members; the CASCADE MACHINERY ticket (members field + pending
+  chip, reminder-only) rides D34. R39's acceptance is CONFIRMED landed
+  (seq 1281, actor ceo) - the stuck lamp was rendering, not record.
 - **THE ADVERSARY READ LEAN'S SOURCE AND KILLED OUR WHOLE "UNPUBLISHED
   PER-CANDIDATE HURDLE" STORY — arithmetically perfect, factually wrong.**
   The engine's PSR target is the hardcoded constant 1/sqrt(252): an
