@@ -1632,12 +1632,15 @@ def dispatched_task_ids(store: Any) -> set:
 
     IT EXISTS BECAUSE A LAMP HAD NO DOOR (ticket d03c09b6). ``_activity``
     closes a dispatch on ``DeskRequestResolved`` naming its ``task_id``
-    (desk.py:781-790), and 30 resolutions on the live record have landed that
-    way. The phantom guard on the resolve door consults only ``_requests``,
-    which folds ``DeskRequested`` and knows nothing about a chair-born
-    dispatch — so since that guard landed (2026-08-24) a CTO-born dispatch has
-    had NO legitimate close path at all. Measured the same day: 24 chair-born
-    dispatches, 8 of them still open with no way to close them.
+    (desk.py:781-790), and the live record carries **32 such resolution EVENTS
+    against 17 DISTINCT chair-born dispatches** — stated as both because they
+    are two different quantities and a single figure would be read as whichever
+    the reader needed. The phantom guard on the resolve door consults only
+    ``_requests``, which folds ``DeskRequested`` and knows nothing about a
+    chair-born dispatch — so since that guard landed (2026-08-24) a CTO-born
+    dispatch has had NO legitimate close path at all. Measured the same day: 24
+    chair-born dispatches, 8 of them still open with no way to close them.
+    Reproduce: ``scratchpad/hw1_recount.py``.
 
     Returns an EMPTY SET when the store cannot be read, for the same reason
     ``dispatched_request_ids`` does: an unreadable dispatch log cannot prove a

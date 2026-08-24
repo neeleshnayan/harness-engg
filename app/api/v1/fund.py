@@ -1981,8 +1981,8 @@ def desk_resolve(request_id: str, req: DeskResolve):
     IT ALSO CLOSES A DISPATCH (ticket d03c09b6, 2026-08-24). This is the door
     ``_activity`` already watches: it retires a seat's lamp on a
     ``DeskRequestResolved`` naming the dispatch's ``task_id``
-    (desk.py:781-790), and 30 resolutions on the live record have landed that
-    way. The guard above did not read that fold, so from the day it shipped a
+    (desk.py:781-790), and the live record carries 32 such resolution EVENTS
+    against 17 DISTINCT chair-born dispatches. The guard above did not read that fold, so from the day it shipped a
     CTO-born dispatch had no legitimate close path and 8 lamps were left
     burning. ``allow_dispatch=True`` is that repair, bounded to this one door;
     see ``_refuse_unknown_request`` for what it does and does not widen.

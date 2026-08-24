@@ -191,7 +191,8 @@ def _runs():
              # a fold that counted only `ceo` reconcile perfectly.
              _rec(11, "open", next_actor="legal"),
          ]},
-        # A run whose trace lands on NO ticket — 127 of 145 live. Its children
+        # A run whose trace lands on NO ticket — 117 of the 135 runs that carry
+        # recommendations, live 2026-08-24 (hw1_recount.py). Its children
         # are fenced as pre-highway, never guessed a parent.
         {"run_id": "run-unlinked", "seat": "quant", "task": "the orphan run",
          "trace_id": "a-trace-nothing-else-carries",

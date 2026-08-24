@@ -366,8 +366,9 @@ class TestADispatchBornLampCanBeClosed:
     ``DeskRequested`` and has never heard of a chair-born dispatch, while
     ``desk._activity`` closes exactly that lamp on a ``DeskRequestResolved``
     naming its ``task_id`` (desk.py:781-790). Measured on the live record the
-    day of the fix: 24 chair-born dispatches, 30 resolutions that had already
-    landed against them historically, and 8 lamps burning with no way out.
+    day of the fix: 24 chair-born dispatches, 32 resolution EVENTS against 17
+    DISTINCT ones that had already landed that way historically, and 8 lamps
+    burning with no way out.
 
     That is failure #4 in the ticket-highway design's own table, stated as its
     own falsifier: *any dispatch exists that no legitimate event can close*.

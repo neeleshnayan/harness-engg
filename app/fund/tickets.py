@@ -19,19 +19,23 @@ recommendation decision writes it onto the decision event
 (``fund.py:2424``). What was missing was never the thread; it was that nothing
 folded the thread into one thing with a state.
 
-THE THREE LEGACY SPECIES AND THEIR MEASURED SIZES (live record, 2026-08-24,
-``scratchpad/hw1_census*.py``, read-only):
+THE THREE LEGACY SPECIES AND THEIR MEASURED SIZES — **a dated snapshot of a
+population that grows, not a constant.** Live record, 2026-08-24, reproduced by
+``scratchpad/hw1_recount.py``:
 
-  * 120 ``DeskRequested`` -> 120 ``ask`` tickets.
+  * 121 ``DeskRequested`` -> 121 ``ask`` tickets.
   * 36 ``DeskDispatched``: 12 name a ``request_id``, 24 do not. The 24 are
-    chair-born work and become ``dispatch`` tickets born ``in_flight``.
+    chair-born work and become ``dispatch`` tickets born ``in_flight``; a 25th
+    dispatch ticket comes from the one dispatch naming a request that was
+    never filed.
   * 550 stored recommendations across 145 runs -> 550 ``recommendation``
     tickets, 252 of them still working.
 
-Every count in this docstring is reproduced by
-``scratchpad/hw1_census.py`` / ``hw1_census2.py`` / ``hw1_census3.py``; none of
-them is retyped from memory, and a population that grows is stated as a pair
-plus an invariant in the tests rather than pinned to today's figure.
+Total 696 the moment that was run, and 695 forty minutes earlier — **the
+numbers here move and the INVARIANT is what the tests pin**: one ticket per
+species row, and the counts reconciling with ``desk_load``. A test asserting
+"121 asks" would be red by tomorrow and would be measuring the desk's traffic
+rather than this fold.
 """
 
 from __future__ import annotations
@@ -287,7 +291,8 @@ def fold(store: Any, runs: Optional[Iterable[dict[str, Any]]] = None,
 
     ``now`` is the instant ages are measured against, injectable so a test can
     pin it. Absent, it is read from the clock once, here, rather than per
-    ticket — 695 tickets would otherwise carry 695 slightly different nows.
+    ticket — the ~700 tickets on the live record would otherwise carry ~700
+    slightly different nows.
     """
     from datetime import datetime, timezone
 
@@ -353,7 +358,7 @@ def fold(store: Any, runs: Optional[Iterable[dict[str, Any]]] = None,
             if not rid:
                 continue
             # The trace IS the id (memo §1.1). It defaults to the request_id at
-            # the door (fund.py:1818); 1 of 120 live rows predates the field
+            # the door (fund.py:1818); 1 live row of 121 predates the field
             # entirely, so the fallback is exercised, not decorative.
             tid = str(p.get("trace_id") or rid)
             tickets[tid] = _new_ticket(
@@ -507,9 +512,15 @@ def fold(store: Any, runs: Optional[Iterable[dict[str, Any]]] = None,
             due_date=r.get("due_date"), reversibility=r.get("reversibility"),
             legacy_state_recognised=legacy in LEGACY_REC_STATE)
         # PARENT = THE RUN'S TICKET (memo §1.5), joined on the run's trace.
-        # Measured coverage on the live record: 18 of 145 runs carry a trace
-        # that lands on a ticket. The other 127 are the FENCED pre-highway
-        # cohort of memo §2.5 — counted, labelled, and NEVER guessed at.
+        #
+        # MEASURED COVERAGE, and the denominator is the part worth stating: of
+        # the 135 runs that CARRY recommendations, 18 have a trace that lands
+        # on a ticket and 117 do not. (An earlier version of this comment said
+        # "18 of 145 ... the other 127" — 145 is the run table's whole size,
+        # and subtracting a figure counted over one population from the size of
+        # another is how two numbers acquire one label.) The 117 are the FENCED
+        # pre-highway cohort of memo §2.5 — counted, labelled, NEVER guessed
+        # at. Reproduce: `scratchpad/hw1_recount.py`.
         parent = _resolve(run.get("trace_id"))
         if parent is not None:
             t_row["parent_id"] = parent["ticket_id"]
