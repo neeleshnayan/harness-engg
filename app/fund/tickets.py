@@ -158,7 +158,14 @@ ALLOWED_FROM: dict[str, tuple[str, ...]] = {
 #: no reopen transition, so on this machine a decline is not the reversible act
 #: it is over there. Direction is a TIGHTENING and the legacy door is
 #: byte-identical, so nothing that worked yesterday works less well today.
-DECISION_TRANSITIONS = ("approved", "accepted", "declined") + TERMINAL_STATES
+#:
+#: MEMO §2.3 SPELLS ``declined`` OUT AND THIS TUPLE DOES NOT, because it is
+#: already a member of ``TERMINAL_STATES`` — naming it twice made the set
+#: identical either way, which a mutation pass proved by removing the explicit
+#: mention and killing no test (M19). The redundancy is deleted rather than
+#: retired: a constant that lists a value twice invites a future edit to
+#: remove one copy and believe it changed something.
+DECISION_TRANSITIONS = ("approved", "accepted") + TERMINAL_STATES
 
 #: TRANSITIONS THAT MOVE THE WORK FORWARD, which therefore take the
 #: supersession refusal — the generalisation of ``ADVANCING_REC_STATUSES``
