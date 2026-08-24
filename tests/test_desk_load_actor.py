@@ -129,14 +129,29 @@ class TestNextActor:
                             "(filed for the record)")
         assert "is the nobody" not in v["why"]
 
-    def test_the_other_four_actors_keep_the_article(self):
+    def test_the_other_THREE_actors_keep_the_article(self):
         """The fix is one branch, not a rewrite of the sentence: "is the ceo"
         is correct English and must not be collateral damage. Asserted for
         every value the branch does NOT cover, so a future simplification that
-        drops the article everywhere fails here."""
+        drops the article everywhere fails here.
+
+        THREE, not four — ``NEXT_ACTORS`` has five members and this loop is the
+        complement of ``nobody`` MINUS ``unknown``, which never reaches this
+        sentence at all: the ``e != "unknown"`` guard above routes it to
+        ``explicit_unrecognised`` with its own message. The name said "four"
+        for one commit; a test whose name overstates its domain is a coverage
+        claim nobody checked. The assertion below closes the arithmetic."""
+        covered = {"nobody"} | {"unknown"}
         for actor in ("ceo", "chair", "seat"):
             v = desk_mod.next_actor({"status": "open", "next_actor": actor})
             assert v["why"] == f"the row states its next actor is the {actor}"
+            covered.add(actor)
+        assert covered == set(desk_mod.NEXT_ACTORS), \
+            "every NEXT_ACTORS member is accounted for by some test here"
+        assert desk_mod.next_actor(
+            {"status": "open", "next_actor": "unknown"}
+        )["basis"] == "explicit_unrecognised", \
+            "and 'unknown' is excluded because it never reaches the sentence"
 
     def test_a_terminal_status_outranks_a_stale_explicit_label(self):
         """A label written while the row was live outlives its truth.

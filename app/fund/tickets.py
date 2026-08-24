@@ -591,9 +591,17 @@ def _counts(tickets: list[dict[str, Any]], recommendations_read: bool,
             unreadable_runs: int, runs: Any,
             runs_limit: Optional[int]) -> dict[str, Any]:
     """The census. Every ticket lands in exactly one bucket of each partition."""
+    from app.fund.desk import NEXT_ACTORS
+
     by_state = {s: 0 for s in TICKET_STATES}
     by_type = {t: 0 for t in TICKET_TYPES}
-    by_actor: dict[str, int] = {}
+    # SEEDED WITH EVERY ACTOR, like its two siblings above. An actor with no
+    # tickets must render as 0, not vanish from the dict — a key that
+    # disappears when its count reaches zero is absence-as-silence, and a
+    # client reading `by_next_actor["ceo"]` would raise on the good news.
+    # Seeded FROM `desk.NEXT_ACTORS` rather than a local list, so the two
+    # vocabularies cannot drift.
+    by_actor = {a: 0 for a in NEXT_ACTORS}
     for t in tickets:
         by_state[t["state"]] = by_state.get(t["state"], 0) + 1
         by_type[t["type"]] = by_type.get(t["type"], 0) + 1
@@ -604,9 +612,24 @@ def _counts(tickets: list[dict[str, Any]], recommendations_read: bool,
             n_runs = len(list(runs))
         except TypeError:
             n_runs = None
+    # THE SECOND WAY THE RECONCILIATION CAN SILENTLY BREAK, and unlike the
+    # first it is a matter of WHEN, not IF. `desk_load`'s recommendation
+    # population comes from `DeskStore.open_recommendations`, which scans the
+    # newest `OPEN_RECS_RUN_CAP` runs; this fold is handed runs under the
+    # caller's own, larger cap. Below the cap the two populations are the same
+    # rows and the invariant holds; above it, `desk_load` is reading a strict
+    # SUBSET and every leg would drift with nothing on either surface to point
+    # at. The cap is READ from deskstore rather than copied — a duplicate that
+    # happens to agree today is exactly what this field exists to prevent.
+    from app.fund.deskstore import OPEN_RECS_RUN_CAP
+    within = None if n_runs is None else n_runs <= OPEN_RECS_RUN_CAP
     return {
         "total": len(tickets),
         "working": sum(1 for t in tickets if not t["terminal"]),
+        "desk_load_runs_cap": OPEN_RECS_RUN_CAP,
+        # None when the run count is unknown — never True, because "we did not
+        # look" must not render as "the instruments agree".
+        "reconciles_with_desk_load": within,
         "terminal": sum(1 for t in tickets if t["terminal"]),
         "by_state": by_state,
         "by_type": by_type,
@@ -669,8 +692,18 @@ def _reconciliation(tickets: list[dict[str, Any]]) -> dict[str, Any]:
     are not a desk species. The field is named ``total_less_pending_orders``
     rather than ``total`` so nobody reads it as the whole figure.
 
-    **THE ONE CONDITION UNDER WHICH THESE LEGS CAN DIVERGE, named here rather
-    than left to be discovered when they do.** ``open_recommendations`` selects
+    **TWO CONDITIONS UNDER WHICH THESE LEGS CAN DIVERGE, named here rather
+    than left to be discovered when they do.**
+
+    THE SECOND IS A MATTER OF WHEN, NOT IF, and it is the sharper of the two:
+    ``open_recommendations`` scans the newest ``deskstore.OPEN_RECS_RUN_CAP``
+    runs while this fold is handed runs under the caller's own, larger cap.
+    Below the cap they are the same rows; above it ``desk_load`` reads a strict
+    subset and every leg drifts. ``counts.reconciles_with_desk_load`` publishes
+    which side of that line the payload is on — 145 runs against a cap of 200
+    on 2026-08-24, so the margin is 55 runs and shrinking.
+
+    THE FIRST: ``open_recommendations`` selects
     the three statuses it knows (deskstore.py:743); a row carrying a status
     outside the vocabulary is invisible to it and therefore to ``desk_load``,
     while this fold lands it in ``filed`` and counts it. The fold's figure is
@@ -688,7 +721,16 @@ def _reconciliation(tickets: list[dict[str, Any]]) -> dict[str, Any]:
     decided = sum(1 for t in rec_working
                   if t["next_actor"] not in ("ceo", "unknown")
                   and t.get("legacy_status") in ("accepted", "staged"))
-    elsewhere = len(rec_working) - ceo - decided
+    # COUNTED DIRECTLY, NOT BY SUBTRACTION — the same rule stated for
+    # `ask_dispatched_while_open` below, which the first version of this
+    # function failed to apply to its own third leg. `len(working) - ceo -
+    # decided` makes the exhaustiveness test a pure arithmetic tautology: it
+    # cannot fail however badly `ceo` and `decided` misclassify, because the
+    # remainder absorbs every error by construction. Three independent tallies
+    # that must sum is a check; two tallies and a remainder is a restatement.
+    elsewhere = sum(1 for t in rec_working
+                    if t["next_actor"] not in ("ceo", "unknown")
+                    and t.get("legacy_status") not in ("accepted", "staged"))
     ask_filed = sum(1 for t in asks if t["state"] == "filed")
     # Counted directly rather than by subtraction, so the identity below is a
     # real invariant two independent tallies must satisfy — a leg derived by

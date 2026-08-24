@@ -2515,9 +2515,14 @@ def tickets_view(ticket_type: Optional[str] = Query(None, alias="type"),
     folded = tk.fold(_store, runs=runs, runs_limit=runs_limit)
     rows = folded["tickets"]
     if rows is None:
+        # `types`/`states` ride the degraded branch too: they are the
+        # vocabulary, not a reading, so a client populating a filter control
+        # must not lose them precisely when the fold is unreadable. The counts
+        # are None; the schema is not.
         return {**folded, "shown": None, "total": None, "truncated": None,
                 "filters": {"type": ticket_type, "state": state},
-                "limit": limit}
+                "limit": limit,
+                "types": list(tk.TICKET_TYPES), "states": list(tk.TICKET_STATES)}
     if ticket_type:
         rows = [r for r in rows if r["type"] == ticket_type]
     if state:

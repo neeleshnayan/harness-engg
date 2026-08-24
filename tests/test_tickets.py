@@ -302,7 +302,27 @@ class TestEverythingAppearsExactlyOnce:
         c = folded["counts"]
         assert sum(c["by_type"].values()) == c["total"] == len(folded["tickets"])
         assert sum(c["by_state"].values()) == c["total"]
+        assert sum(c["by_next_actor"].values()) == c["total"]
         assert c["working"] + c["terminal"] == c["total"]
+
+    def test_every_actor_renders_even_at_zero(self, folded):
+        """A key that disappears when its count reaches zero is absence-as-
+        silence: a client reading ``by_next_actor["seat"]`` would raise on the
+        good news. Seeded from ``desk.NEXT_ACTORS`` so the two vocabularies
+        cannot drift.
+
+        THE SECOND FOLD IS THE TEST. The main fixture happens to populate all
+        five actors, so asserting over it would pass on a dict that seeds
+        nothing — the assertion needs a population where an actor is genuinely
+        absent, and a single open ask is one."""
+        assert set(folded["counts"]["by_next_actor"]) == set(desk.NEXT_ACTORS)
+        lone = tickets.fold(_MemStore([_requested(R_OPEN)]), runs=[],
+                            now="2026-08-24T00:00:00Z")
+        actors = lone["counts"]["by_next_actor"]
+        assert set(actors) == set(desk.NEXT_ACTORS)
+        assert actors["ceo"] == 1
+        assert actors["seat"] == 0 and actors["nobody"] == 0 \
+            and actors["chair"] == 0 and actors["unknown"] == 0
 
 
 # ============================================================================
@@ -358,11 +378,63 @@ class TestReconciliationWithDeskLoad:
         assert r["total_less_pending_orders"] == load["total"] - pending
 
     def test_the_recommendation_partition_is_exhaustive(self, folded):
+        """THREE INDEPENDENT TALLIES THAT MUST SUM. This was a tautology while
+        ``elsewhere`` was ``working - ceo - decided``: a remainder absorbs
+        every misclassification by construction, so the assertion could not
+        fail however badly the other two legs classified. All three are counted
+        directly now, and this line is a check rather than a restatement."""
         r = folded["reconciliation"]
         assert (r["recommendation_ceo"]
                 + r["recommendation_decided_awaiting_execution"]
                 + r["recommendation_open_elsewhere"]) \
             == r["recommendation_working"]
+        assert r["recommendation_open_elsewhere"] > 0, \
+            "and the fixture must actually populate the third leg, or the " \
+            "sum above holds trivially at zero"
+
+    def test_the_run_cap_divergence_is_published(self):
+        """THE GAUNTLET'S SHARPEST FIND, made a first-class field.
+        ``open_recommendations`` scans the newest ``OPEN_RECS_RUN_CAP`` runs;
+        this fold takes the caller's larger cap. Past the cap ``desk_load``
+        reads a strict SUBSET and every reconciliation leg drifts with nothing
+        on either surface to point at. A matter of WHEN, not if: 145 runs
+        against a cap of 200 on 2026-08-24."""
+        from app.fund.deskstore import OPEN_RECS_RUN_CAP
+        under = [{"run_id": f"r{i}", "seat": "s", "task": "t",
+                  "trace_id": None, "resolved_at": None,
+                  "recommendations": []}
+                 for i in range(OPEN_RECS_RUN_CAP)]
+        f = tickets.fold(_MemStore([]), runs=under, runs_limit=5000,
+                         now="2026-08-24T00:00:00Z")
+        assert f["counts"]["reconciles_with_desk_load"] is True
+        assert f["counts"]["desk_load_runs_cap"] == OPEN_RECS_RUN_CAP
+        over = under + [{"run_id": "r-over", "seat": "s", "task": "t",
+                         "trace_id": None, "resolved_at": None,
+                         "recommendations": []}]
+        g = tickets.fold(_MemStore([]), runs=over, runs_limit=5000,
+                         now="2026-08-24T00:00:00Z")
+        assert g["counts"]["reconciles_with_desk_load"] is False
+
+    def test_the_cap_is_READ_from_deskstore_not_copied(self, monkeypatch):
+        """MOVE IT TO PROVE IT. An assertion that the fold's cap equals
+        deskstore's cannot tell a read from a duplicate that happens to agree,
+        so this moves the source and requires the fold to move with it."""
+        import app.fund.deskstore as ds_mod
+        monkeypatch.setattr(ds_mod, "OPEN_RECS_RUN_CAP", 3)
+        rows = [{"run_id": f"r{i}", "seat": "s", "task": "t", "trace_id": None,
+                 "resolved_at": None, "recommendations": []}
+                for i in range(4)]
+        f = tickets.fold(_MemStore([]), runs=rows, runs_limit=5000,
+                         now="2026-08-24T00:00:00Z")
+        assert f["counts"]["desk_load_runs_cap"] == 3
+        assert f["counts"]["reconciles_with_desk_load"] is False
+
+    def test_an_unknown_run_count_is_not_reported_as_agreement(self):
+        """None, never True: "we did not look" must not render as "the two
+        instruments agree"."""
+        f = tickets.fold(_MemStore([]), runs=None,
+                         now="2026-08-24T00:00:00Z")
+        assert f["counts"]["reconciles_with_desk_load"] is None
 
     def test_the_ask_identity_names_the_dispatched_while_open_gap(self, folded):
         """THE MEASURED DIVERGENCE, made an invariant rather than an
