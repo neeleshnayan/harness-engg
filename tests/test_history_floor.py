@@ -298,8 +298,21 @@ def test_the_repo_ships_exactly_the_geometries_that_were_measured():
     root = Path(__file__).resolve().parents[1] / "lean_workspace" / "algorithms"
     end = "2026-08-23"          # the fixed date the table was measured at
     anchor = int(CRITERIA["min_walkforward_folds"])
+    # "The repo SHIPS" means tracked files: the quant's sandbox also holds
+    # UNTRACKED one-off instrument-calibration algorithms (the meta_ctrl_*
+    # positive controls, 2026-08-23) whose geometry deliberately has no
+    # false-pass row — they measure the instrument, they are not candidates.
+    # Sweeping untracked scratch made this test red on the live tree only,
+    # while every worktree (tracked files only) stayed green.
+    import subprocess
+    tracked = subprocess.run(
+        ["git", "ls-files", "lean_workspace/algorithms"],
+        capture_output=True, text=True, cwd=root.parents[1]).stdout
+    tracked_dirs = {line.split("/")[2] for line in tracked.splitlines()
+                    if line.count("/") >= 2}
     seen, missing = set(), []
-    for d in sorted(p for p in root.iterdir() if p.is_dir()):
+    for d in sorted(p for p in root.iterdir()
+                    if p.is_dir() and p.name in tracked_dirs):
         src = sorted(d.glob("*.py"))
         if not src:
             continue
