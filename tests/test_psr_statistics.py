@@ -11,6 +11,7 @@ explicitly on every float comparison; nothing here uses pytest.approx's
 default relative tolerance blind.
 """
 
+import math
 import random
 
 import pytest
@@ -22,6 +23,7 @@ from app.fund.statistics import (
     psr_from_series,
     sharpe_advantage_series,
     sharpe_bar_for_psr,
+    sharpe_bar_for_psr_from_moments,
 )
 
 
@@ -433,3 +435,92 @@ def test_sharpe_advantage_constant_multiple_legs_is_unmeasurable():
         "the two legs differ by a constant, so the advantage "
         "has no dispersion and no probability attaches to it"
     )
+
+
+# ---------------------------------------------------------------------------
+# G. THE BOUNDARIES THE FIRST SWEEP MISSED
+#
+# Found by the Gauntlet's boundary-table pass over the diff: each of these
+# inequalities was probed far from its edge and never AT it.
+# ---------------------------------------------------------------------------
+
+def test_a_shape_term_of_EXACTLY_zero_is_undefined_not_certain():
+    """`shape <= 0` was only ever probed strictly negative.
+
+    The boundary is reachable in closed form: `1 - g3*sr + (g4-1)/4*sr^2 == 0`
+    at sr = 1 for g3 = 1 + (g4-1)/4. With g4 = 3.0 that is g3 = 1.5, and the
+    variance term lands on zero exactly.
+    """
+    exact = psr_from_moments(100, 1.0, 1.5, 3.0, 0.0)
+    assert exact["usable"] is False
+    assert "non-positive variance term" in exact["reason"]
+    # a hair to the STABLE side is usable, so the refusal is a boundary and not
+    # a whole region quietly swallowed
+    assert psr_from_moments(100, 1.0, 1.49, 3.0, 0.0)["usable"] is True
+
+
+def test_the_dispersion_floor_is_probed_ON_BOTH_SIDES_of_its_boundary():
+    """`sd <= max(1e-12, |mu| * 1e-9)`, straddled as tightly as floats allow.
+
+    Constructed as a two-point series: for [mu - h, mu + h] the sample standard
+    deviation (ddof=1) is h * sqrt(2), so h is the dial.
+
+    EXACT EQUALITY IS NOT CONSTRUCTIBLE HERE and the test says so rather than
+    pretending: aiming h at the floor lands on 1.0000000514e-09 against a floor
+    of 1e-09, because the round trip through sqrt(2) and the variance sum is not
+    exact at this scale. So the boundary is bracketed at 0.9x and 1.1x, which is
+    what a float boundary can honestly be probed at.
+    """
+    mu = 1.0
+    floor = abs(mu) * 1e-9
+    def two_point(scale):
+        h = floor * scale / math.sqrt(2.0)
+        return [mu - h, mu + h]
+    under = two_point(0.9)
+    assert mean_std(under)[1] < floor
+    assert psr_from_series(under)["measurable"] is False
+    assert "no dispersion" in psr_from_series(under)["reason"]
+    over = two_point(1.1)
+    assert mean_std(over)[1] > floor
+    assert psr_from_series(over)["measurable"] is True
+
+
+def test_a_TWO_POINT_advantage_is_always_degenerate_and_three_is_the_floor():
+    """The advantage's real minimum sample size is THREE, not two.
+
+    Not an implementation choice — an arithmetic fact, and worth pinning because
+    it is surprising. Standardising a two-point series puts its values at
+    exactly -1/sqrt(2) and +1/sqrt(2) whatever the numbers were, so the
+    vol-scaled difference `x/sd_s - y/sd_b` is the SAME on both points for ANY
+    two pairs. The advantage therefore has no dispersion at n=2 and no
+    probability attaches to it, and the refusal comes from the degeneracy check
+    rather than from the length check.
+    """
+    two = sharpe_advantage_series([0.01, -0.02], [0.005, 0.004])
+    assert two["measurable"] is False
+    assert "differ by a constant" in two["reason"]     # NOT the length reason
+    three = sharpe_advantage_series([0.01, -0.02, 0.004],
+                                    [0.005, 0.004, -0.01])
+    assert three["measurable"] is True
+    assert three["n"] == 3
+    one = sharpe_advantage_series([0.01], [0.005])
+    assert one["measurable"] is False
+    assert "paired observation" in one["reason"]       # the LENGTH reason
+
+
+def test_the_quadratic_handles_a_vanishing_leading_coefficient():
+    """`abs(a) < 1e-18` is the degenerate branch where the quadratic collapses
+    to a linear equation. Reached by making `(n-1) == z^2 (g4-1)/4` exactly."""
+    from statistics import NormalDist
+    level = 90.0
+    z = NormalDist().inv_cdf(level / 100.0)
+    n = 50
+    g4 = 1.0 + 4.0 * (n - 1) / (z * z)
+    got = sharpe_bar_for_psr_from_moments(level, n, 0.3, g4, 0.0)
+    # Either it solves the linear case or it says it cannot — what it must NOT
+    # do is raise, and what it must not do is return a root that fails its own
+    # verification.
+    assert got["measurable"] in (True, False)
+    if got["measurable"]:
+        back = psr_from_moments(n, got["sharpe_per_obs"], 0.3, g4, 0.0)
+        assert back["psr_pct"] == pytest.approx(level, abs=1e-6)

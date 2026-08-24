@@ -518,3 +518,56 @@ def test_two_samples_on_one_day_keep_the_LARGER_invested_reading():
     assert got["measurable"] is True
     assert got["n"] == 1
     assert got["weights"][day] == pytest.approx(0.80, abs=1e-9)
+
+
+# =========================================================================
+# 7. A GATE MUST RETURN A VERDICT, NEVER RAISE
+#
+# Found by the Gauntlet on the finished diff, and it is a REPEAT of the defect
+# v5r1 shipped: `_premia_leg` crashed on a stored payload that claimed to be
+# measurable and carried no numbers. The new luck leg reads a stored block the
+# same way and had the same hole. Two crash paths in one file, one round apart.
+# =========================================================================
+
+@pytest.mark.parametrize("label,advantage", [
+    ("no numbers at all", {"measurable": True}),
+    ("n is a string", {"measurable": True, "n": "ten", "sharpe_per_obs": 0.1,
+                       "skew": 0.0, "kurtosis": 3.0, "stdev": 0.1}),
+    ("every value None", {"measurable": True, "n": None, "sharpe_per_obs": None,
+                          "skew": None, "kurtosis": None, "stdev": None}),
+    ("stdev missing", {"measurable": True, "n": 100, "sharpe_per_obs": 0.1,
+                       "skew": 0.0, "kurtosis": 3.0}),
+    ("n is a bool", {"measurable": True, "n": True, "sharpe_per_obs": 0.1,
+                     "skew": 0.0, "kurtosis": 3.0, "stdev": 0.1}),
+])
+def test_a_malformed_stored_advantage_is_a_VERDICT_not_a_crash(label, advantage):
+    """Each of these raised before the fix — KeyError, ValueError, TypeError.
+
+    A stored payload may have been written by an older belt, round-tripped
+    through JSON or truncated, and a crash inside `evaluate` takes out the WHOLE
+    judgement rather than failing one criterion.
+    """
+    out = evaluate({"premia_inputs": {"advantage": advantage}},
+                   CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK,
+                   claim_type="premia")
+    assert out["passed"] is False
+    assert out["checks"]["luck"]["measurable"] is False
+    assert "carries no usable" in out["checks"]["luck"]["reason"], label
+
+
+@pytest.mark.parametrize("series", [[], [0.0] * 100, [0.01], None])
+def test_a_degenerate_alpha_series_is_a_VERDICT_not_a_crash(series):
+    r = _alpha(psr=90.0)
+    r["daily_returns"] = {"present": True, "strategy": series,
+                          "dates": ["2021-01-04"] * (len(series or []))}
+    out = evaluate(r, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK)
+    assert out["passed"] is False
+
+
+def test_a_bar_with_no_readable_level_refuses_rather_than_raising():
+    """`evaluate` merges defaults so this cannot arrive by the ordinary path,
+    but a caller handing in a criteria dict directly must not crash the gate."""
+    out = evaluate(_alpha(psr=90.0), CLEAN_HOLDOUT, CLEAN_SWEEP,
+                   walkforward=CLEAN_WALK, criteria={"min_psr_pct": None})
+    assert out["passed"] is False
+    assert any("no readable level" in f for f in out["failures"])

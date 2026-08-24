@@ -263,11 +263,18 @@ def psr_from_moments(n_obs: int, sharpe: float, skew: float, kurt: float,
 
 #: A dispersion at or below this is NO dispersion, not a small one. The floor is
 #: relative to the mean because that is the scale the cancellation happens on,
-#: with an absolute backstop for a series centred on zero. Measured (D23): 100
-#: copies of 0.001 give `sum((x - mu)**2)` around 1e-19 and a Sharpe of order
-#: 1e16 — which a bare `sd > 0` accepts and a luck filter would then score at
-#: 100%. ONE definition, shared by `leg_moments` and `psr_from_series`, because
-#: two spellings of "is this leg flat" is the two-copies-of-one-belief defect.
+#: with an absolute backstop for a series centred on zero.
+#:
+#: MEASURED, and the numbers re-derived rather than carried: 100 copies of 0.001
+#: give a residual `sum((x - mu)**2)` of 4.2e-35 — a sample standard deviation of
+#: 6.5e-19 — and therefore a Sharpe of order 1.5e15, which a bare `sd > 0`
+#: accepts and a luck filter would then score at 100%. (An earlier draft of this
+#: comment attached the 1e-19 to the SUM; it belongs to the standard deviation,
+#: sixteen orders of magnitude apart.) Reproduce with:
+#:   xs=[0.001]*100; mu=sum(xs)/len(xs); sum((x-mu)**2 for x in xs)
+#:
+#: ONE definition, shared by `leg_moments` and `psr_from_series`, because two
+#: spellings of "is this leg flat" is the two-copies-of-one-belief defect.
 def _no_dispersion(mu: float, sd: float) -> bool:
     return sd <= max(1e-12, abs(mu) * 1e-9)
 

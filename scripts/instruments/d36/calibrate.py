@@ -85,6 +85,19 @@ CASH = "BIL"
 ENGINE_TARGET_MID = 0.0755
 ENGINE_TARGET_RANGE = (0.0700, 0.0792)
 
+#: THE LEVEL THE SHIPPED ARM IS MEASURED AT, PINNED — not read from
+#: `gate.CRITERIA`.
+#:
+#: This instrument's whole job is to compare a candidate configuration against
+#: the bar AS IT STOOD, and the change it justified moves that bar. Reading the
+#: live criterion would make the script compare the new bar with itself the
+#: moment the diff merges: the table in the `GATE_VERSION` note would stop being
+#: reproducible by the instrument that produced it, and a re-calibration months
+#: from now would silently measure nothing. 65.0 is the engine-statistic level
+#: that shipped from gate v2 to v4.3 inclusive; override with --shipped-level to
+#: re-baseline against a different past.
+SHIPPED_ENGINE_LEVEL = 65.0
+
 #: Belt-window geometries, in trading days, matching what the fleet declares
 #: (`_declared_lookback_days`: 11 algorithms at 700, three at 900, two at 2000).
 #: `"full"` is whatever the pinned feed actually shares across the universe and
@@ -316,7 +329,17 @@ def main() -> int:
     ap.add_argument("--levels",
                     default="50,55,60,65,70,75,80,85,90,95,97.5,99,99.9")
     ap.add_argument("--margins", default="0.0,0.05,0.10,0.15,0.20,0.25,0.30")
+    ap.add_argument("--shipped-level", type=float, default=SHIPPED_ENGINE_LEVEL)
     args = ap.parse_args()
+    if args.draws < 2:
+        # A population of one has no rate. Refused rather than divided by.
+        ap.error("--draws must be at least 2; a false-pass RATE needs a "
+                 "population and one draw is an anecdote")
+    if not all(0.0 < lv < 100.0 for lv in
+               [float(x) for x in args.levels.split(",")]):
+        ap.error("every level must be a probability strictly inside (0, 100); "
+                 "a level outside it is not a confidence, and the sweep would "
+                 "report the impossible one as the answer")
 
     px = {s: load(args.data, s) for s in RISKY + [CASH]}
     all_dates = sorted(set.intersection(*[set(v) for v in px.values()]))
@@ -327,7 +350,9 @@ def main() -> int:
           f"seed {args.seed}, universe {'+'.join(RISKY)}")
     print(f"shipped arm EMULATED at target {ENGINE_TARGET_MID}/obs "
           f"(range {ENGINE_TARGET_RANGE[0]}..{ENGINE_TARGET_RANGE[1]}); "
-          f"today's level {gate.CRITERIA['min_psr_pct']}%\n")
+          f"at the PINNED shipped level {args.shipped_level}% — "
+          f"gate.CRITERIA reads {gate.CRITERIA['min_psr_pct']}% today, on a "
+          f"DIFFERENT statistic, and is deliberately not used here\n")
 
     verdicts: dict[str, tuple] = {}
     for wname, wdays in WINDOWS.items():
@@ -380,7 +405,7 @@ def main() -> int:
     chosen: dict[str, float | None] = {}
     for wname, (dates, bcurve, brets, rebal, rows) in verdicts.items():
         n = len(rows)
-        lvl_now = float(gate.CRITERIA["min_psr_pct"])
+        lvl_now = float(args.shipped_level)
 
         census: dict[str, int] = {}
 
@@ -542,10 +567,13 @@ def main() -> int:
         print(f"  {wname}: lowest target-0 level holding the inclusion = {best}")
     worst = [v for v in chosen.values() if v is not None]
     if len(worst) != len(chosen) or not worst:
-        print("  NO LEVEL HOLDS ON EVERY WINDOW — the ruling's falsifier fires: "
+        print("  NO LEVEL HOLDS ON EVERY WINDOW — the ruling's falsifier FIRES: "
               "ship engine_reported with the corrected sentence.")
-    else:
-        print(f"  binding across windows (the strictest): {max(worst)}")
+        # THE FALSIFIER IS AN EXIT CODE, NOT A SENTENCE. A conclusion printed
+        # into a log nobody greps is the unwired-kill-switch shape, and this
+        # instrument exists to make exactly one decision.
+        return 1
+    print(f"  binding across windows (the strictest): {max(worst)}")
     return 0
 
 

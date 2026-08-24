@@ -124,8 +124,12 @@ def test_the_failure_sentence_is_byte_identical_on_the_current_window():
 def test_a_thirty_month_candidate_that_passed_still_passes():
     """End to end, with the whole bar, not just the fold leg."""
     plan = _plan(21, CURRENT_FLOOR)
+    # v4.4: the luck filter reads the run's own observations, so the fixture
+    # carries a series measuring the 80% its `psr_pct` claims.
+    from premia_feed import daily_returns_block, series_with_psr
     result = {"total_return_pct": 20.0, "benchmark_return_pct": 10.0,
               "capacity": {"capacity_usd": 5_000_000.0},
+              "daily_returns": daily_returns_block(series_with_psr(80.0)),
               "robustness": {"total_orders": 40, "psr_pct": 80.0,
                              "costs": {"slippage_modelled": True}}}
     out = evaluate(result,

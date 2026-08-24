@@ -522,7 +522,10 @@ def fmt_bps(x: float) -> str:
 #: annualised Sharpe of 1.34 / 1.49 / 1.43 / 1.51 on those four. It was a SKILL
 #: HURDLE wearing a luck filter's sentence, and our own module at target zero
 #: reads the identical series at 85.0 / 90.4 / 50.2 / 78.3 — a disagreement of
-#: roughly 40x that nobody could see because nothing captured both.
+#: 40x, 65x, 249x and 983x respectively — a disagreement nobody could see
+#: because nothing captured both readings. ("40x" is the buyhold control alone;
+#: the figure travelled from the control report into this comment before anyone
+#: divided the other three.)
 #:
 #: THE CHAIR'S RULING (cto.md, 2026-08-24) fixed the sentence unconditionally
 #: and set the level by measurement under a hard invariant: full-gauntlet
@@ -1269,7 +1272,7 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
     annualised Sharpe of 1.34 to 1.51 on the four controls, stable within a
     window and moving when the window moves. It is a SKILL HURDLE wearing a luck
     filter's sentence, and our own module at target zero disagrees with it by
-    about 40x on the identical series.
+    by 40x to 983x on the identical series, depending on the candidate.
 
     TWO REAL CONFIGURATIONS, and the shipped one is chosen by measurement:
 
@@ -1313,7 +1316,20 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
     # measurement that forced the split; reading the alpha level here would
     # apply a number calibrated on absolute Sharpe to a statistic about an
     # advantage, which is the same category error one layer down.
-    level = float(pc["premia_min_luck_pct"] if is_premia else c["min_psr_pct"])
+    #
+    # A BAR THAT CANNOT STATE ITS OWN LEVEL HAS NOT BEEN APPLIED. `evaluate`
+    # merges defaults so this cannot fire from the ordinary path, but a caller
+    # handing in a criteria dict directly is a caller this must not raise on.
+    raw_level = (pc.get("premia_min_luck_pct") if is_premia
+                 else c.get("min_psr_pct"))
+    if not isinstance(raw_level, (int, float)) or isinstance(raw_level, bool):
+        return {"basis": basis, "measurable": False, "applied": True,
+                "level_pct": raw_level,
+                "reason": (f"the bar states no readable level for the luck "
+                           f"filter ({raw_level!r})")}, [
+            "the luck filter could not be applied: the bar states no readable "
+            "level for it — an unapplied criterion is not a passed one"]
+    level = float(raw_level)
     rb = result.get("robustness") or {}
     engine = rb.get("psr_pct")
     out: dict[str, Any] = {
@@ -1360,10 +1376,25 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
                else "advantage")
         out["advantage_basis"] = key
         adv = (p.get(key) if isinstance(p, dict) else None) or {}
-        if adv.get("measurable"):
+        # A GATE MUST RETURN A VERDICT, NEVER RAISE — and this block reads a
+        # STORED payload, which may have been written by an older belt, round-
+        # tripped through JSON, or truncated. A block that claims to be
+        # measurable and carries no numbers is exactly the shape that took the
+        # whole judgement down in v5r1 (`_premia_leg`'s `needed` guard is the
+        # same fix, one layer up). The keys are checked for PRESENCE and for
+        # being REAL NUMBERS: `int("ten")` and `int(None)` are two more ways to
+        # raise, and a payload whose n is a string is not a payload with an n.
+        needed = ("n", "sharpe_per_obs", "skew", "kurtosis", "stdev")
+        bad = [f for f in needed
+               if not isinstance(adv.get(f), (int, float))
+               or isinstance(adv.get(f), bool)]
+        if adv.get("measurable") and not bad:
             moments = adv
             k = ((p.get("strategy_excess") or {}).get("obs_per_year")
                  if isinstance(p, dict) else None)
+        elif adv.get("measurable"):
+            absent = (f"the stored advantage claims to be measurable but "
+                      f"carries no usable {', '.join(bad)}")
         else:
             absent = (adv.get("reason")
                       or "this run carries no measured risk-adjusted advantage")

@@ -69,9 +69,16 @@ class FakeRunner:
         rb = {"total_orders": 40 if self.passing else 3,
               "psr_pct": 80.0 if self.passing else 10.0,
               "costs": {"slippage_modelled": True}}
+        # v4.4's luck filter scores the run's OWN observations, so a fake
+        # runner that emits no series now fails the criterion honestly. The
+        # series is built to measure the same reading the fake's `psr_pct`
+        # claims, so the fixture says one thing rather than two.
+        from premia_feed import daily_returns_block, series_with_psr
         return {"state": "done", "algorithm": "a", "parameters": {"fast": "10"},
                 "job_id": job_id, "wall_seconds": 11.4,
-                "result": {"total_return_pct": 20.0, "benchmark_return_pct": 10.0,
+                "result": {"daily_returns": daily_returns_block(
+                               series_with_psr(rb["psr_pct"])),
+                           "total_return_pct": 20.0, "benchmark_return_pct": 10.0,
                            "capacity": {"capacity_usd": 5_000_000.0},
                            "equity_curve": [100.0, 110.0, 120.0],
                            "equity_dates": ["2025-01-02", "2025-06-02", "2026-01-02"],
