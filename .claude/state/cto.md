@@ -931,3 +931,20 @@ trust, and trust is the desk's product. Companion: the seat card's NOW
 zone + D33's fan-out must make long dispatches LOOK alive (stages, not a
 frozen lamp) — a correct duration that renders as silence still reads as
 "something is very wrong."
+
+
+---
+
+## 2026-08-24 — THE VAULT SURFACE RULE (CEO: "I want one clean surface that encapsulates")
+
+The vault (harness-engg) carries EXACTLY THREE branches, and nothing else,
+ever: **firm** (the workspace/constitution/state — the DEFAULT branch, so
+the landing page reads as the firm), **clarkharness** (the spine's full
+merged mainline), **kryptonpay** (the Studio mainline). PUSH MAPPINGS from
+this machine: workspace `master -> vault firm`; ClarkHarness
+`claude/krypton-fund-agentic-j8r2mu -> vault clarkharness`; KryptonPay
+`HEAD -> vault kryptonpay`. Builder branches are WORKING MATERIAL — they
+live in local worktrees and bundles until merged, and their work reaches
+the vault ONLY as reviewed merges on the mainline. 38 scaffolding branches
+pruned 2026-08-24. Backups cannot ride GitHub (GH001 >100MB) — local disk
+until the CEO picks an offsite (LFS or drive; his account decision).
