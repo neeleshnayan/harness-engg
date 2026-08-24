@@ -444,7 +444,29 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
   a26debb9 undispatched at 12:00Z — now dispatched at ~04:0xZ, falsifier
   cannot fire); $10k ask 09-04 → 08-26 conditional on Monday's fill count.
 
-**OPEN FOR FABLE** *(chair IS Fable this session — standing here as the
+**OPEN FOR FABLE**
+- **THE DESK CANNOT TELL THE CEO WHAT MATTERS — measured, and it is the
+  sharpest argument yet for the ticket highway.** He said he could not
+  find an item I had filed and called it scary. It was filed correctly,
+  routed correctly, and rendered — **at position 19 of 50**, carrying
+  $915 at stake. `/fund/desk/ceo` ranks by due_date FIRST and money
+  second, so seventeen dated rows outranked it regardless of value, and
+  below those the order is arrival time: the payload's own note says
+  *"24 of 55 rows state neither a date nor a dollar figure, so their
+  order is arrival order and not a ranking."* **And the feed shows 50 of
+  55 — five rows are truncated away entirely, invisible rather than
+  ranked low.** This is what the highway's exceptions-only view exists
+  to end.
+- **The mark-sanity merge owes a single-process suite run** on the merged
+  tree (chunked evidence only; see the queue entry). Not forced while two
+  highway builders hold the host.
+- **Three sleeves promoted draft -> deployed with assets scoped** on the
+  CEO's explicit approval ("on above ask you are approved"), executed as
+  `neelesh-via-co-cto`. Lifecycle forbids draft->deployed directly, so
+  each went draft -> paused -> deployed. No control gates on this field
+  (verified); it buys correct labelling and kills a permanent amber
+  warning on a correct book.
+ *(chair IS Fable this session — standing here as the
 morning desk)*
 - Premia run a9db39fdfab5 still on final legs (4 containers); restart HELD
   until it lands; restart then brings /fund/execution/quality live.

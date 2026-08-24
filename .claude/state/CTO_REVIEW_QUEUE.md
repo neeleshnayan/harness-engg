@@ -2470,3 +2470,32 @@ tree suggests the damage is broader than three; the clean answer is `npm ci`
 at a moment when nobody needs the click surface.
 
 **[Fable @ resolve]**:
+
+
+---
+
+## 2026-08-24 ~17:0?Z — TIER-2 RESIDUAL ON AN ALREADY-MERGED CONTROL-LAYER DIFF — the mark-sanity merge owes a single-process suite run
+
+**What**: `builder-ms1` is MERGED to live (`35b5461c`) and the spine restarted
+on it; the CEO's three blocked orders then cleared and filled. The builder has
+since corrected its own report: **the single-process full-suite run was NOT
+run** (its waiter never got a ≥2.0 GB RAM window and was stopped having
+produced nothing). The evidence that exists is a CHUNKED run — `4543 passed,
+1 skipped`, reconciling exactly to `4532 baseline + 12 new` — plus my own 110
+targeted tests on the merged live tree, plus 14/14 mutants with named killers.
+
+**Why it is a real residual and not a formality**: chunking re-creates
+process-wide state per chunk, so it cannot see a cross-file contamination of
+the kind that produced 92 false reds in D39. **I merged before that gap was
+named to me.** Had I known, I would still have merged — the CEO was blocked,
+the status quo was leaving six positions uncorroborated, and the diff is three
+files — but the record should say the decision was taken with less evidence
+than I believed I had at the time.
+
+**Owed**: one single-process `pytest tests/ -q` on the merged live tree, in a
+builder-exclusive window. `scratchpad/ms_fullsuite.sh` is the wait-then-run
+script. Two builders are live on the ticket highway; I am NOT forcing it while
+they hold ~1 GB of node and the spine holds real positions — that is the same
+judgement the builder made, and it was right.
+
+**[Fable @ resolve]**:
