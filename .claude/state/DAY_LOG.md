@@ -147,6 +147,20 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
   recorded absent, never zero).
 
 **MEASURED**
+- **THE ADVERSARY READ LEAN'S SOURCE AND KILLED OUR WHOLE "UNPUBLISHED
+  PER-CANDIDATE HURDLE" STORY — arithmetically perfect, factually wrong.**
+  The engine's PSR target is the hardcoded constant 1/sqrt(252): an
+  annualised EXCESS Sharpe of exactly 1.00 for every candidate
+  (PortfolioStatistics.cs:311; tradingDaysPerYear=252 on 273/273 of our
+  own stored summaries; chair re-verified both). The 1.17-2.26 spread our
+  inversion printed = the omitted daily rf (R2 0.701 on 1/sd) + the
+  252-vs-365 clock. **The alpha luck criterion finally has a clean
+  statement: P(true excess Sharpe > 1.0 annualised) >= 65%.** D37's
+  sentence clause killed (everything else twice-certified); D38 repairing
+  it; the engine-target container experiment RETIRED - one curl replaced
+  it. Pack v3's P4 leg killed on the chair's own spec defect (nonexistent
+  event names) + zero marginal content; pack v4 deferred past Monday. The
+  chair's ruling record corrected in cto.md (new section, never an edit).
 - **ENTRY 20 PASSED THE PREMIA GATE (candidate a9db39fdfab5,
   announcement_premium, v5r3-premia) — the first full premia pass in firm
   history, and the first pass of any kind under the excess-returns

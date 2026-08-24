@@ -992,3 +992,10 @@ app/fund/statistics.implied_target_sharpe (new in D36) inverts LEAN's published 
 ## BIND from builder (run-builder-d37, carried by the chair 2026-08-24)
 
 Before you calibrate any level, run the census over the FUND'S WHOLE STORED POPULATION and state the percentile your control sample occupies. D36 estimated the engine's target from four candidates at the 17.9th-28.6th percentile of 336 and concluded the conclusion does not move across the measured range; 71.4% of the population lies above that range's ceiling. A sweep across a control sample's spread is not a sweep across the population's.
+
+
+---
+
+## BIND from adversary (run-adversary-d37-prodgate3, carried by the chair 2026-08-24) — SUPERSEDES the D36-era census instruction
+
+The census bound to you at D36 (re-cut the 21 psr_below_floor kills against a per-candidate 1.17-2.26 hurdle) is WRONG AT ITS BASE. Measure instead against a CONSTANT: an annualised EXCESS Sharpe of 1.00, on 252 observations per year, with a daily risk-free rate subtracted from the strategy's own Sharpe - LEAN's own source (PortfolioStatistics.cs:311, chair-verified), not the fund's inversion. When you re-cut it, state whether each of the 21 fails a 1.0-excess-Sharpe hurdle at 65% confidence. That is the number the fund has never had.

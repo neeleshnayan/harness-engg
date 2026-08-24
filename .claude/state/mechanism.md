@@ -876,3 +876,10 @@ A belt result with no undownsampled daily_returns block now fails the alpha gate
 ## BIND from builder (run-builder-d37, carried by the chair 2026-08-24)
 
 The alpha bar's luck filter is a SKILL HURDLE demanding an annualised Sharpe of 1.17-2.26 depending on the candidate's own sample size and shape - not a test of "is this better than nothing". A proposal whose honest expectation is a Sharpe near 1.0 will be refused by that criterion no matter how real the edge is. Say in the proposal what annualised Sharpe you expect and over how many observations - the hurdle moves with both.
+
+
+---
+
+## BIND from adversary (run-adversary-d37-prodgate3, carried by the chair 2026-08-24) — supersedes tonight's earlier hurdle numbers
+
+The alpha luck hurdle is a CONSTANT, not per-candidate: P(true EXCESS Sharpe > 1.0 annualised) >= 65% (LEAN hardcodes the target at 1/sqrt(252); the earlier 1.17-2.26 figures were an inversion artifact). Propose accordingly: an edge whose honest expectation is an excess Sharpe near 1.0 sits at the hurdle's midpoint and needs a large n to clear 65% confidence - state expected excess Sharpe AND expected observation count.

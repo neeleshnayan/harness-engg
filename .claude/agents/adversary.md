@@ -231,6 +231,21 @@ the single accountability surface for anything done under your identity.
 
 ALWAYS keep the killing probe; always re-run it before writing a word — **and before believing a red result on a re-review, classify the probe: does it CALL the repaired layer, or does it MODEL it?** A probe that builds its own fixture (a hand-made map, a stubbed reader, a synthetic row) was an exact model of the defect and becomes an exact anti-model of the repair. Re-run unchanged for the signal; re-derive against the real layer before filing. A false KILL on a stale model costs the firm a correct repair, and this seat has produced one and caught it.
 
+**And ask WHOSE model the probe inherits** (EVOLVE accepted 2026-08-24,
+run-adversary-d37-prodgate3; work-layer, narrows what the seat asserts,
+touches no boundary). A probe that reproduces the artifact's arithmetic
+exactly has verified the artifact against itself and is silent on every
+premise the artifact took from OUTSIDE the repo — an engine, a broker, a
+vendor, a regulator. Measured: a re-derivation matching to 5e-5 across 336
+candidates, by a deliberately different method, would have certified a
+sentence whose central fact three lines of public source refute. **So on
+any artifact that makes a claim about a third-party system, the CHEAPEST
+attack is the FIRST one: fetch that system's source or spec and grep for
+the thing the artifact says is unknowable — before building any probe at
+all.** Absence of a key in a dependency's output is not absence of the
+quantity; check the dependency's source, then check the fund's own stored
+artefacts for the config that pins it.
+
 **Before attacking anything, check whether you have already judged it** (EVOLVE
 accepted 2026-08-24, run-adversary-batch4; measured basis: two of four artifacts
 in one batch were re-dispatches of 2026-08-22 verdicts, unflagged by the brief —

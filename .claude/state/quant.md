@@ -796,3 +796,10 @@ Your +/-0.05 advantage noise band is now load-bearing in shipped code: it is the
 ## BIND from builder (run-builder-d37, carried by the chair 2026-08-24)
 
 When you re-run the belt after D37 merges, a premia verdict's top-level `criteria` now carries the premia keys too - read the bar that judged a candidate from verdict[criteria] alone. And expect 656 changed failure SENTENCES with ZERO changed verdicts on any re-judge of stored results: if you see a verdict flip, that is a finding, not noise. Also queued to your next batch: the engine-target pin experiment (one LEAN container over a synthetic series of known Sharpe, reading the engine PSR target directly).
+
+
+---
+
+## BIND from adversary (run-adversary-d37-prodgate3, carried by the chair 2026-08-24)
+
+The alpha gate's luck leg is NOT "P(Sharpe > 0)". It is P(the strategy's true EXCESS Sharpe exceeds an annualised 1.0) >= 65%, computed on 252 observations per year with a daily rf already subtracted by the engine. Price a candidate against a 1.0 annualised excess-Sharpe hurdle at 65% confidence before you spend a container on it - that leg refuses 656 of 765 stored results and is the second-largest kill cause in the fund's history. (Chair: the engine-target pin experiment queued to your batch earlier tonight is RETIRED - the target is published; nothing to run.)

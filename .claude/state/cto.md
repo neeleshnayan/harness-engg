@@ -829,3 +829,43 @@ Sequenced: adversary re-check (D37 delta + pack v3) in flight -> merge on
 clear -> apply the register-why draft (chair, register action) -> the
 engine-target pin experiment rides the quant's next batch. GATE_VERSION
 stays v4.4 (the draft never judged anything; no phantom version).
+
+
+---
+
+## 2026-08-24 — CORRECTION OF THE CHAIR'S OWN RULING RECORD + the curl-first lesson
+
+**The "honest sentence" numbers in my earlier ruling entries (implied
+hurdle ~1.34-1.51, then 1.17-2.26 per candidate) were an ARTIFACT of our
+own inversion** — it omitted the daily rf LEAN subtracts and annualised on
+the wrong clock. The TRUE fact, chair-verified against LEAN source
+(PortfolioStatistics.cs:311) and our stored summaries (tradingDaysPerYear
+252 on 273/273): **the engine's PSR target is the constant
+1/sqrt(tradingDaysPerYear) — an annualised EXCESS Sharpe of exactly 1.00
+for every candidate.** The alpha luck criterion's clean statement:
+P(true excess Sharpe > 1.0 annualised) >= 65%. Prior entries stand as
+written (never edited); this section corrects them.
+
+**Consequences executed**: D38 dispatched (the sentence/draft/note repair,
+certified surfaces frozen); the engine-target-pin experiment RETIRED
+(desk request resolved — the target is published; one curl replaced one
+container); the level question is now an ARITHMETIC question and reopens
+on a calibration against the known constant, not on a measurement of it.
+
+**THE CURL-FIRST LESSON, the CEO's own coursework point at verdict level**:
+"we are discovering things that could be easily sourced from the web."
+Tonight ~900k tokens of inversion machinery, censuses and calibration
+stood on a premise one curl of public source refutes. The adversary's new
+EVOLVE (whose-model) generalises it; the chair's half: when any brief or
+ruling rests on "X does not publish Y", the FIRST step is the dependency's
+source/spec, then our own stored output for the config that pins it. The
+coursework rule was written for seats; it binds the chair too.
+
+**Pack v4 DEFERRED past Monday, chair defects recorded**: my v3 spec named
+event types that do not exist (RiskHaltTriggered/ExitRuleFired vs the real
+TradingHalted/ExitRuleTriggered) — the very founding pattern of this fund
+(a control naming an event nothing emits). P4-tested needs a real design
+(a fire-drill event type with its own emitter and audit trail — not a
+subset of controls_fired); P2's bound needs a MEASURED basis before any
+number is proposed (brief-number rule). The pack buys nothing until 12
+more informative fills exist, so nothing on the critical path waits.
