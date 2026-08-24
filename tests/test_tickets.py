@@ -69,6 +69,13 @@ R_DISPATCHED = "22222222-2222-4222-8222-222222222222"
 R_APPROVED = "33333333-3333-4333-8333-333333333333"
 R_RESOLVED = "44444444-4444-4444-8444-444444444444"
 R_DECLINED = "55555555-5555-4555-8555-555555555555"
+#: An approved request whose DISPATCH carries a different ``trace_id`` from the
+#: request's own. This is the case that distinguishes "transition the request"
+#: from "mint a second ticket", and a fixture without it cannot see the
+#: difference — 11 of the 12 live dispatches-with-a-request share the trace, so
+#: the majority case hides the fork.
+R_TRACE_DIFFERS = "88888888-8888-4888-8888-888888888888"
+D_OTHER_TRACE = "a-trace-the-dispatch-minted-for-itself"
 #: A chair-born dispatch whose trace differs from its task_id. Ten of the 24
 #: live chair-born dispatches are shaped this way, which is why the fold keeps
 #: an alias index instead of keying on the trace alone.
@@ -90,6 +97,15 @@ def _events():
         _requested(R_APPROVED, "an ask the CEO blessed"),
         _requested(R_RESOLVED, "an ask that was served"),
         _requested(R_DECLINED, "an ask the CEO refused"),
+        _requested(R_TRACE_DIFFERS, "an ask dispatched on a fresh trace"),
+        _ev("DeskRequestApproved",
+            {"request_id": R_TRACE_DIFFERS, "actor": "ceo",
+             "at": "2026-08-21T00:30:00Z"}),
+        _ev("DeskDispatched",
+            {"task_id": R_TRACE_DIFFERS, "request_id": R_TRACE_DIFFERS,
+             "seat": "analyst", "task": "an ask dispatched on a fresh trace",
+             "trace_id": D_OTHER_TRACE, "at": "2026-08-21T00:45:00Z",
+             "actor": "cto"}),
         # THE DIVERGENCE CASE, measured live: dispatched while still `open`.
         _ev("DeskDispatched",
             {"task_id": R_DISPATCHED, "request_id": R_DISPATCHED,
@@ -224,7 +240,7 @@ class TestEverythingAppearsExactlyOnce:
     def test_every_request_becomes_exactly_one_ask_ticket(self, folded):
         rows = desk._requests(_MemStore(_events()))
         asks = [t for t in folded["tickets"] if t["type"] == "ask"]
-        assert len(asks) == len(rows) == 5
+        assert len(asks) == len(rows) == 6
         assert {t["request_id"] for t in asks} == {r["request_id"] for r in rows}
 
     def test_a_chair_born_dispatch_is_a_ticket_born_in_flight(self, folded):
@@ -238,8 +254,27 @@ class TestEverythingAppearsExactlyOnce:
             self, folded):
         """One piece of work keeps one id. A dispatch that named its request
         must NOT mint a second ticket — that is failure #1 (linkage rot) in
-        the design's own table."""
-        assert D_DISPATCH_FORKED not in _by_id(folded)
+        the design's own table.
+
+        THE FIXTURE HERE IS THE WHOLE TEST, and the first version of it was
+        VACUOUS: it asserted that a made-up id shape (``dispatch:<uuid>``) was
+        absent, which the code could never have produced either way, and the
+        mutant that removed the transition branch SURVIVED. The distinguishing
+        case is a dispatch whose ``trace_id`` differs from its request's — 11
+        of the 12 live ones share the trace, so on the common shape a forking
+        fold reaches the identical answer by a different road.
+        """
+        t = _by_id(folded)[R_TRACE_DIFFERS]
+        assert t["type"] == "ask" and t["state"] == "in_flight"
+        assert [x["to"] for x in t["transitions"]] \
+            == ["filed", "approved", "in_flight"]
+        assert D_OTHER_TRACE not in _by_id(folded), \
+            "the dispatch's own trace must not become a second ticket"
+        assert folded["counts"]["by_type"]["dispatch"] == 2, \
+            "only the two CHAIR-BORN dispatches are dispatch tickets"
+
+    def test_the_common_shape_transitions_too(self, folded):
+        """The same rule where the dispatch shares its request's trace."""
         t = _by_id(folded)[R_DISPATCHED]
         assert t["type"] == "ask" and t["state"] == "in_flight"
         assert [x["to"] for x in t["transitions"]] == ["filed", "in_flight"]
@@ -267,11 +302,6 @@ class TestEverythingAppearsExactlyOnce:
         assert sum(c["by_type"].values()) == c["total"] == len(folded["tickets"])
         assert sum(c["by_state"].values()) == c["total"]
         assert c["working"] + c["terminal"] == c["total"]
-
-
-#: A ticket id that must NEVER exist: the shape a fork would take if a
-#: dispatch naming a request minted its own row instead of transitioning one.
-D_DISPATCH_FORKED = "dispatch:" + R_DISPATCHED
 
 
 # ============================================================================
@@ -664,14 +694,14 @@ class TestTheEndpoint:
         b = r.json()
         assert b["readable"] is True
         assert b["counts"]["total"] == len(b["tickets"]) == b["total"]
-        assert b["counts"]["by_type"] == {"ask": 5, "dispatch": 2,
+        assert b["counts"]["by_type"] == {"ask": 6, "dispatch": 2,
                                           "recommendation": 12}
 
     def test_a_filter_narrows_the_list_and_not_the_census(self, client):
         b = client.get("/api/v1/fund/tickets?type=ask").json()
         assert {t["type"] for t in b["tickets"]} == {"ask"}
-        assert b["total"] == 5
-        assert b["counts"]["total"] == 19, \
+        assert b["total"] == 6
+        assert b["counts"]["total"] == 20, \
             "the census is the population, never the page"
 
     def test_the_state_filter_works_and_is_echoed(self, client):
@@ -682,22 +712,22 @@ class TestTheEndpoint:
     def test_a_page_cap_reports_itself_truncated(self, client):
         b = client.get("/api/v1/fund/tickets?limit=3").json()
         assert len(b["tickets"]) == 3 and b["shown"] == 3
-        assert b["total"] == 19 and b["truncated"] is True
+        assert b["total"] == 20 and b["truncated"] is True
 
     def test_an_uncapped_page_is_not_truncated(self, client):
         b = client.get("/api/v1/fund/tickets?limit=5000").json()
         assert b["truncated"] is False
 
-    @pytest.mark.parametrize("limit,truncated", [(18, True), (19, False),
-                                                 (20, False)])
+    @pytest.mark.parametrize("limit,truncated", [(19, True), (20, False),
+                                                 (21, False)])
     def test_the_truncation_boundary(self, client, limit, truncated):
-        """BOUNDARY TABLE on the one inequality this endpoint owns. 19 tickets
-        in the fixture: at limit 19 the page holds all of them and
+        """BOUNDARY TABLE on the one inequality this endpoint owns. 20 tickets
+        in the fixture: at limit 20 the page holds all of them and
         ``truncated`` must be FALSE — ``>=`` there would tell a reader rows
         were hidden when none were, which is the honest-unknown firing on a
         knowable case."""
         b = client.get(f"/api/v1/fund/tickets?limit={limit}").json()
-        assert b["total"] == 19
+        assert b["total"] == 20
         assert b["truncated"] is truncated
 
     def test_it_degrades_rather_than_refuses_without_a_deskstore(
@@ -709,7 +739,7 @@ class TestTheEndpoint:
         monkeypatch.setattr(fundapi, "_deskstore", lambda: None)
         b = client.get("/api/v1/fund/tickets").json()
         assert b["counts"]["recommendations_read"] is False
-        assert b["counts"]["by_type"]["ask"] == 5
+        assert b["counts"]["by_type"]["ask"] == 6
 
     def test_an_unreadable_recorder_does_not_become_zero_recommendations(
             self, client, monkeypatch):
