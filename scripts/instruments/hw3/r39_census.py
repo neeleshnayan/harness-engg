@@ -32,7 +32,13 @@ import sys
 import urllib.request
 from collections import Counter
 
-DEFAULT_URL = "http://127.0.0.1:8090/api/v1/fund/events?limit=1000"
+#: The feed's HARD CAP, not a page size we chose: `GET /fund/events`
+#: declares `limit: int = Query(300, ge=1, le=1000)` and slices
+#: `raw[-limit:]`, so 1000 is the most any caller can ever see and what
+#: it sees is the NEWEST 1000. Named here so the census can say which
+#: side of it a reading sits on instead of calling a window a domain.
+FEED_CAP = 1000
+DEFAULT_URL = "http://127.0.0.1:8090/api/v1/fund/events?limit={}".format(FEED_CAP)
 
 
 def pull(url: str) -> list[dict]:
@@ -50,10 +56,31 @@ def census(events: list[dict], subject: str) -> dict:
         p = e.get("payload") or {}
         ident[(p.get("run_id"), p.get("rec_id"))] += 1
     worst = ident.most_common(1)[0] if ident else (None, 0)
+    seqs = [e.get("seq") for e in events if e.get("seq") is not None]
     return {
         # THE DOMAIN, always, beside every count. A zero here without the
         # population size it was found in is not a result (builder D41).
+        #
+        # AND THE DOMAIN IS A **WINDOW**, NOT THE POPULATION — this distinction
+        # was missing until the Gauntlet's null-test pass found it, and it is
+        # the same defect as HW1's unnamed run cap one layer up. `GET
+        # /fund/events` caps `limit` at 1000 and serves the NEWEST N
+        # (`raw[-limit:]`), so `events_scanned: 1000` means "the newest 1000",
+        # never "all of them". Measured while writing this: the returned window
+        # spanned seq 543-1542, so at least 542 older events were invisible to
+        # every run of this script and nothing said so.
+        #
+        # So the window's own edges ride the payload, and `covers_whole_log` is
+        # a THREE-VALUED field: True when the window is shorter than the cap
+        # (we saw everything the feed had), False when it is exactly the cap
+        # (we are pinned against it and older events certainly exist if
+        # min_seq > 1), and None when there are no seqs to reason from.
         "events_scanned": len(events),
+        "feed_cap": FEED_CAP,
+        "window_min_seq": min(seqs) if seqs else None,
+        "window_max_seq": max(seqs) if seqs else None,
+        "covers_whole_log": (None if not seqs else
+                             len(events) < FEED_CAP or min(seqs) <= 1),
         "events_mentioning_subject": len(hits),
         "decision_events": len(decided),
         "distinct_identities": len(ident),
@@ -95,8 +122,14 @@ def main() -> int:
         return 1
     print(json.dumps(out, indent=2))
     if a.null:
-        print(f"NULL TEST PASSED: 0 hits over a domain of "
-              f"{out['events_scanned']} events.")
+        print(f"NULL TEST PASSED: 0 hits over a WINDOW of "
+              f"{out['events_scanned']} events "
+              f"(seq {out['window_min_seq']}-{out['window_max_seq']}; "
+              f"covers_whole_log={out['covers_whole_log']}).")
+    if out["covers_whole_log"] is False:
+        print("NOTE: this reading is PINNED AGAINST THE FEED CAP of "
+              f"{FEED_CAP}. Events older than seq {out['window_min_seq']} were "
+              "not compared. Every count above is a lower bound.")
     if a.dump:
         with io.open(a.dump, "w", encoding="utf-8") as f:
             json.dump(out, f, indent=2)

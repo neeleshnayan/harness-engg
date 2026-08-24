@@ -101,10 +101,63 @@ class TestTheBindsGrammar:
         assert p["lessons"] == []
         assert "unrecognised seat name" in p["unparsed"][0]["why"]
 
+    def test_ONE_SEAT_NAMED_TWICE_IS_ONE_OBLIGATION(self):
+        """THE GAUNTLET'S BOUNDARY CATCH, pinned.
+
+        ``"quant, quant — do the thing"`` filed TWO identical lesson tickets
+        for one seat. The function reasons at length about "one per seat, not
+        one per entry" and had simply never considered the seat repeating
+        INSIDE an entry, which is an ordinary copy-paste. Nothing in 32 tests
+        touched it, because every fixture named distinct seats.
+        """
+        p = ticketstaging.parse_binds_block(
+            "## BINDS\n- quant, quant — do the thing\n")
+        assert len(p["lessons"]) == 1
+        # COUNTED, never silently collapsed — a dedup that leaves no trace is
+        # the same shape as a parser that drops what it cannot read.
+        assert p["duplicates_collapsed"] == 1
+        assert "collapsed to one obligation" in p["note"]
+
+    def test_the_dedup_key_is_SEAT_AND_LESSON_not_seat_alone(self):
+        """One seat legitimately receives several DIFFERENT lessons from one
+        report; collapsing on the seat would silently drop all but the first —
+        a worse defect than the one the dedup fixes."""
+        p = ticketstaging.parse_binds_block(
+            "## BINDS\n- quant — lesson one\n- quant — lesson two\n")
+        assert len(p["lessons"]) == 2
+        assert p["duplicates_collapsed"] == 0
+
+    def test_the_same_lesson_to_two_seats_is_two_obligations(self):
+        """The dedup must not reach across seats: the analyst consuming a
+        lesson says nothing about whether the mechanism ever did."""
+        p = ticketstaging.parse_binds_block(
+            "## BINDS\n- quant, analyst — the same words exactly\n")
+        assert sorted(x["seat"] for x in p["lessons"]) == ["analyst", "quant"]
+        assert p["duplicates_collapsed"] == 0
+
+    def test_a_seat_named_with_NO_lesson_after_the_separator_is_reported(self):
+        """``"quant —"`` is an addressed seat and no instruction. Reported
+        unparsed with a message that describes what is actually missing."""
+        p = ticketstaging.parse_binds_block("## BINDS\n- quant —\n")
+        assert p["lessons"] == []
+        assert "no lesson text after the seat name" in p["unparsed"][0]["why"]
+
+    def test_every_return_shape_carries_duplicates_collapsed(self):
+        """A field present on one branch and absent on another makes every
+        consumer write ``.get(...) or 0`` — which is absence-as-zero with a
+        default operator on it."""
+        for text in (None, "## STATE\nprose\n", "## BINDS\n- quant — x\n"):
+            assert "duplicates_collapsed" in ticketstaging.parse_binds_block(text)
+
     def test_an_entry_with_no_separator_is_reported_not_dropped(self):
         p = ticketstaging.parse_binds_block("## BINDS\n- quant does things\n")
         assert p["lessons"] == []
-        assert "no separator" in p["unparsed"][0]["why"]
+        # The message says what is MISSING (the lesson text), not what the
+        # implementation happened to look for (a separator) — the Gauntlet's
+        # 5d found the old wording mislabelling the "quant —" case, where a
+        # separator was in fact present. One message, both shapes, and it
+        # describes the reader's problem in each.
+        assert "no lesson text after the seat name" in p["unparsed"][0]["why"]
 
     def test_a_mixed_entry_files_the_known_seat_and_reports_the_other(self):
         p = ticketstaging.parse_binds_block("## BINDS\n- quant, buidler — x\n")
@@ -282,6 +335,30 @@ class TestAnUnconsumedLessonAges:
         b = client.get("/api/v1/fund/tickets/lessons").json()
         assert b["median_lag_hours"] is not None
         assert "1 row(s) are NOT in this figure" in b["median_lag_basis"]
+
+    @pytest.mark.parametrize("limit,ok", [
+        (0, False),      # below `ge=1` — REFUSED by FastAPI's own validation
+        (1, True),       # the floor itself — ACCEPTED
+        (5000, True),    # the ceiling itself — ACCEPTED
+        (5001, False),   # one above `le=5000` — REFUSED
+    ])
+    def test_the_limit_boundary(self, client, limit, ok):
+        """THE GAUNTLET'S 5e: `Query(500, ge=1, le=5000)` was entirely
+        unexercised on this endpoint. Probed AT both edges, because a bound
+        tested well inside and well outside cannot tell `ge` from `gt`."""
+        _lesson(client)
+        r = client.get(f"/api/v1/fund/tickets/lessons?limit={limit}")
+        assert r.status_code == (200 if ok else 422)
+
+    def test_the_page_cap_reports_itself_truncated(self, client):
+        """`total` is the population; `shown` is the page. A census computed
+        over a truncated page is a smaller number wearing a total's name."""
+        for _ in range(3):
+            _lesson(client)
+        b = client.get("/api/v1/fund/tickets/lessons?limit=1").json()
+        assert b["shown"] == 1 and b["total"] == 3 and b["truncated"] is True
+        # AND THE COUNTS ARE OVER THE POPULATION, never the page.
+        assert b["counts"]["lessons"] == 3
 
     def test_the_seat_filter_narrows_the_list(self, client):
         _lesson(client, seat="quant")

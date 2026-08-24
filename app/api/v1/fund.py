@@ -2620,7 +2620,7 @@ def _refuse_decided_representation(row: dict, to: str, decision_ref, superseder_
 # own. `POST /fund/tickets/staged` PARSES a seat's output into a Postgres table
 # and appends NOTHING — `app/fund/ticketstaging.py` does not import
 # `app.fund.events`, and a test asserts that by AST. The only path from a
-# staged row to the event log runs through `transition_ticket` / `open_ticket`
+# staged row to the event log runs through `ticket_transition` / `ticket_open`
 # above, with every guard those doors carry, driven by the chair's own session
 # at `POST /fund/tickets/staged/resolve`. Seats gain no pen; what they gain is
 # a queue the chair can clear in one POST instead of by recollection.
@@ -2734,7 +2734,7 @@ def resolve_staged(req: StagedResolve):
     """One POST, one batch, one appended event per ACCEPTED row.
 
     **THIS IS NOT A BACK DOOR AROUND THE GUARDS AND THAT IS THE POINT.** Each
-    acceptance is executed by calling `transition_ticket` / `open_ticket`
+    acceptance is executed by calling `ticket_transition` / `ticket_open`
     directly, so an accepted row takes byte-identically the path a hand-typed
     transition takes: approval channel, phantom guard, terminal requirements,
     the §1.5 decision_ref rule, terminal precedence. A batch console that
@@ -2800,6 +2800,20 @@ def resolve_staged(req: StagedResolve):
                           "NOTHING was appended; it cannot be re-resolved and "
                           "must be re-filed"})
             continue
+        except Exception as e:  # noqa: BLE001
+            # THE ORPHAN CASE, FOUND IN THE READ-THROUGH AND NOT BY A TEST.
+            # Without this arm a malformed staged row (a `transition` with a
+            # null ticket_id, a field the door's model rejects) propagates a
+            # 500 with the row ALREADY CLAIMED and `attach_event` never
+            # reached — leaving it `accepted`, `event_ref` NULL and
+            # `resolution_reason` NULL, which is indistinguishable on the
+            # console from a row that succeeded. The claim-first order is
+            # right; it just obliges every exit from here to write down what
+            # happened. Re-raised after recording, because a 500 IS what this
+            # is and swallowing it would be worse than the orphan.
+            st.attach_event(d.staged_id, event_ref=None,
+                            note=f"door raised {type(e).__name__}: {e}")
+            raise
         st.attach_event(d.staged_id,
                         event_ref=applied.get("ticket_id"))
         out["applied"].append({"staged_id": d.staged_id, "result": applied})
@@ -2839,7 +2853,7 @@ def _apply_staged(row: dict, decision, actor: str) -> dict:
 #
 # DIRECTION: three NEW endpoints. `POST /fund/tickets/binds` PARSES and STAGES
 # only — it appends nothing, and a lesson becomes a ticket by the chair
-# resolving the staged row through `open_ticket`, with no second write path.
+# resolving the staged row through `ticket_open`, with no second write path.
 # `POST /fund/tickets/{id}/consumed` appends a receipt and CANNOT change a
 # ticket's state (see its docstring for why that separation is the point).
 # `GET /fund/tickets/lessons` is read-only.

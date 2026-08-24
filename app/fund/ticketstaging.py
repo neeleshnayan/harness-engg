@@ -18,9 +18,13 @@ current state, the log holds who decided what and when, and they must agree"*
 decision, and a decision goes on the log.
 
 WHY A PARSER AND NOT A JSON FIELD, because the alternative was tried. Failure
-#6 in the design's own table: **structured filing is 0 of 116** — the desk's
-structured-request schema has existed for days and has never been used once
-(builder D42, measured on the live record). Producers first: the format below
+#6 in the design's own table: **structured filing is 0 of 116**. THAT NUMBER IS
+THE DESIGN MEMO'S AND BUILDER D42'S, NOT THIS DISPATCH'S — it is repeated here
+because it is the reason for the shape, and it is attributed rather than
+asserted because nothing in this repo reproduces it (the Gauntlet went looking
+and found no instrument, unlike the R39 figures, which ship with one). The
+claim it stands on is that the desk's structured-request schema has existed for
+days and has never been used once. Producers first: the format below
 is what a seat can type at the end of a report without leaving prose, and every
 line it cannot read is REPORTED as unparsed rather than dropped, so adoption is
 a number instead of a hope.
@@ -256,6 +260,7 @@ def parse_binds_block(text: Optional[str],
     """
     if text is None:
         return {"block_present": False, "lessons": [], "unparsed": [],
+                "duplicates_collapsed": 0,
                 "version": BINDS_BLOCK_VERSION,
                 "note": "no text was supplied — the block is UNKNOWN, which is "
                         "not the same as a seat that bound nobody"}
@@ -271,6 +276,7 @@ def parse_binds_block(text: Optional[str],
             break
     if start is None:
         return {"block_present": False, "lessons": [], "unparsed": [],
+                "duplicates_collapsed": 0,
                 "version": BINDS_BLOCK_VERSION,
                 "note": "this output carries no '## BINDS' block — the seat "
                         "bound nobody, or has not adopted the section"}
@@ -282,14 +288,32 @@ def parse_binds_block(text: Optional[str],
         body.append(line)
 
     lessons, unparsed = [], []
+    #: (seat, lesson) pairs already filed in THIS block. ONE OBLIGATION PER
+    #: SEAT PER LESSON, and the degenerate cases are the ones that bite: the
+    #: Gauntlet's boundary pass found ``"quant, quant — do the thing"`` filing
+    #: TWO identical lesson tickets for one seat, which is the exact duplicate
+    #: this function's own "one per seat, not one per entry" reasoning exists
+    #: to prevent — it had simply never considered the seat repeating inside a
+    #: single entry, which is an ordinary copy-paste.
+    #:
+    #: The dedup key is (seat, lesson), NOT seat alone, and that distinction is
+    #: load-bearing: one seat legitimately receives several DIFFERENT lessons
+    #: from one report, and collapsing on the seat would silently drop all but
+    #: the first. Only a byte-identical repeat is a duplicate.
+    seen: set[tuple[str, str]] = set()
+    duplicates = 0
     for raw in _logical_lines(body):
         entry = raw.replace("**", "").replace("__", "").strip()
         head, rest = _split_entry(entry)
         if not rest:
             unparsed.append({"raw": raw,
-                             "why": "no separator between the seat name(s) and "
-                                    "the lesson — expected 'seat — lesson', "
-                                    "'seat: lesson' or 'seat - lesson'"})
+                             "why": ("no lesson text after the seat name(s) — "
+                                     "expected 'seat — lesson', 'seat: lesson' "
+                                     "or 'seat - lesson'. (A separator with "
+                                     "nothing after it lands here too, which "
+                                     "is the same defect from the reader's "
+                                     "side: an addressed seat and no "
+                                     "instruction.)")})
             continue
         named = [s.strip().lower() for s in re.split(r"[,/&]| and ", head)
                  if s.strip()]
@@ -301,13 +325,27 @@ def parse_binds_block(text: Optional[str],
                              f"filed for a seat that does not exist is a "
                              f"lesson nobody receives. Bench: {sorted(seats)}"})
         for s in known:
+            key = (s, rest.strip())
+            if key in seen:
+                duplicates += 1
+                continue
+            seen.add(key)
             lessons.append({"seat": s, "lesson": rest.strip(), "raw": raw})
     return {"block_present": True, "lessons": lessons, "unparsed": unparsed,
+            # COUNTED AND REPORTED, never silently collapsed. A dedup that
+            # leaves no trace is the same shape as a parser that drops a line
+            # it cannot read: the producer never learns it wrote the seat
+            # twice, and the number of obligations filed stops matching the
+            # number written.
+            "duplicates_collapsed": duplicates,
             "version": BINDS_BLOCK_VERSION,
             "note": (f"{len(lessons)} lesson(s) across "
                      f"{len({x['seat'] for x in lessons})} seat(s); "
                      f"{len(unparsed)} entry/entries this grammar could not "
-                     "read and did NOT drop")}
+                     f"read and did NOT drop"
+                     + (f"; {duplicates} exact (seat, lesson) repeat(s) "
+                        "collapsed to one obligation each" if duplicates
+                        else ""))}
 
 
 def _split_entry(entry: str) -> tuple[str, str]:
@@ -330,7 +368,7 @@ def lessons_as_proposals(lessons: list[dict[str, Any]], *,
 
     NO SECOND WRITE PATH. A lesson becomes a ticket exactly the way every other
     proposal does: staged here, resolved by the chair, appended by
-    ``open_ticket``. The alternative — a BINDS endpoint that minted lesson
+    ``ticket_open``. The alternative — a BINDS endpoint that minted lesson
     tickets directly — would be a door with its own copy of the type check, the
     subject check and the routing vocabulary.
     """

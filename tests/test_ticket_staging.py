@@ -457,6 +457,27 @@ class TestTheConsole:
         assert r.json()["detail"]["allowed"] == list(
             ticketstaging.STAGED_STATUSES)
 
+    @pytest.mark.parametrize("limit,ok", [
+        (0, False),      # below `ge=1` — REFUSED by FastAPI's own validation
+        (1, True),       # the floor itself — ACCEPTED
+        (5000, True),    # the ceiling itself — ACCEPTED
+        (5001, False),   # one above `le=5000` — REFUSED
+    ])
+    def test_the_limit_boundary(self, console, limit, ok):
+        """THE GAUNTLET'S 5e: `Query(500, ge=1, le=5000)` was entirely
+        unexercised on this endpoint. Probed AT both edges."""
+        r = console.get(f"/api/v1/fund/tickets/staged?limit={limit}")
+        assert r.status_code == (200 if ok else 422)
+
+    def test_a_page_cap_does_not_shrink_the_counts(self, console):
+        """The counts are a census over the whole table; the list is a page."""
+        for _ in range(3):
+            console.post("/api/v1/fund/tickets/staged",
+                         json={"text": "## TICKETS\n- open: ask | subject: s\n"})
+        b = console.get("/api/v1/fund/tickets/staged?limit=1").json()
+        assert b["shown"] == 1
+        assert b["counts"]["staged"] == 3
+
     def test_the_staged_view_serves_the_queue_with_its_counts(self, console):
         console.post("/api/v1/fund/tickets/staged",
                      json={"text": "## TICKETS\n- open: ask | subject: s\n"})

@@ -4,11 +4,16 @@ THE INCIDENT THESE TESTS ARE NAMED FOR. On the live record, 2026-08-24, the R39
 approval decision was decided **eight times on one identity** — eight
 ``DeskRecommendationDecided`` events at seq 1122, 1123, 1195, 1201, 1202, 1203,
 1253, 1281, every one naming ``run-triage7-decisions#1`` with status
-``accepted`` — while the same subject was separately re-presented across twelve
-distinct identities carrying 23 decision events between them. Measured with
-``scripts/instruments/hw3/r39_census.py --subject R39``; the instrument REFUSES
-on an empty population, and its ``--null`` arm reports zero over a stated
-domain of 1,000 events.
+``accepted`` — while the same subject was separately re-presented across a
+dozen-odd distinct identities. Measured with ``scripts/instruments/hw3/
+r39_census.py --subject R39``; the instrument REFUSES on an empty population,
+and its ``--null`` arm reports zero over a stated window of 1,000 events with
+``covers_whole_log: false`` beside it.
+
+THE EIGHT SEQS ARE FIXED HISTORY AND ARE SAFE TO QUOTE. The re-presentation
+totals are NOT: two readings an hour apart the same day gave 23-over-12 and
+then 24-over-13. Nothing in this file asserts either, and nothing should — a
+test that pinned a growing population would be measuring the desk's traffic.
 
 ``TestTheR39Replay`` is the slice's stated acceptance criterion executed: the
 same eight presentations through the ticket door produce ONE canonical row and
@@ -364,41 +369,27 @@ class TestTheLineage:
 # THE TERMINALS
 # ============================================================================
 
-class TestTheTerminalRequirements:
-    @pytest.mark.parametrize("to,field", [
-        ("done", "citation"), ("declined", "reason"),
-        ("superseded", "superseder_ref"), ("merged", "decision_ref")])
-    def test_each_terminal_refuses_without_its_own_field(self, to, field):
-        assert ticketguard.terminal_requirement(to, {}) is not None
-        assert ticketguard.terminal_requirement(to, {field: "x"}) is None
+class TestTheTerminalRequirementsMovedOut:
+    """SIX TESTS DELETED HERE, and the deletion is the point.
 
-    def test_whitespace_is_not_a_citation(self):
-        assert ticketguard.terminal_requirement("done", {"citation": "   "})
+    They exercised ``ticketguard.terminal_requirement`` — a pure
+    re-implementation of §1.2's terminal table that NOTHING CALLED. Slice 2's
+    ``ticket_transition`` had landed its own inline version reading the same
+    two constants, and my own door (which would have called mine) was deleted
+    when the two slices merged. A green test class over an uncalled control is
+    worse than no class at all: it reads, from the outside, exactly like a door
+    that is guarded.
 
-    def test_a_working_state_needs_nothing(self):
-        for s in tickets.WORKING_STATES:
-            assert ticketguard.terminal_requirement(s, {}) is None
+    ``tests/test_tickets_doors.py::TestTerminalRequirements`` is where that
+    rule is tested, against the door that enforces it. This class exists only
+    so the removal is a written act rather than a silent shrink in the count.
+    """
 
-    def test_expired_is_refused_while_no_aging_policy_exists(self):
-        assert tickets.AGING_POLICY_VERSION is None
-        why = ticketguard.terminal_requirement("expired", {})
-        assert why is not None and "AGING_POLICY_VERSION" in why
+    def test_the_rule_is_tested_where_it_is_ENFORCED(self):
+        from app.fund import ticketguard
+        assert not hasattr(ticketguard, "terminal_requirement"),             ("if this function comes back, wire it to a door in the same "
+             "commit — an uncalled control is the thing this class records")
 
-    def test_expired_is_admitted_the_moment_a_policy_is_ratified(self,
-                                                                monkeypatch):
-        """MOVE THE VALUE. The refusal must be READ from the constant.
-
-        A test that only asserts ``expired`` is refused today cannot tell a
-        policy check from an unconditional ``return "no"``.
-        """
-        monkeypatch.setattr(tickets, "AGING_POLICY_VERSION", "aging-v1")
-        assert ticketguard.terminal_requirement("expired", {}) is None
-
-    def test_the_requirements_table_is_read_from_tickets(self, monkeypatch):
-        monkeypatch.setitem(tickets.TERMINAL_REQUIREMENTS, "done",
-                            ("reason", "something else entirely"))
-        assert ticketguard.terminal_requirement("done", {"citation": "x"})
-        assert ticketguard.terminal_requirement("done", {"reason": "x"}) is None
 
 
 class TestTheMergeTarget:

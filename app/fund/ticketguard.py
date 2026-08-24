@@ -13,18 +13,28 @@ empty population), the R39 approval decision appears as:
     1202, 1203, 1253, 1281 — all naming the SAME identity**
     (``run_id="run-triage7-decisions"``, ``rec_id=1``, status ``accepted``
     every time). One row, decided eight times. That is the RE-DECISION shape.
-  * **Separately, the same subject re-presented across TWELVE DISTINCT
-    identities** carrying 23 decision events between them — ``run-pm-r39#1``,
-    ``run-coo-triage7#1``, ``run-cfo-6#2``, ``run-pm-0908#1``, ``run-coo-3#2``,
-    ``run-riskofficer-6#1``, ``run-pm-programme#2``, ``run-secretary-0823#1``,
-    ``run-builder-d35#2``, ``run-adversary-d11#1`` and the two
+  * **Separately, the same subject re-presented across a DOZEN-ODD DISTINCT
+    identities** — ``run-pm-r39#1``, ``run-coo-triage7#1``, ``run-cfo-6#2``,
+    ``run-pm-0908#1``, ``run-coo-3#2``, ``run-riskofficer-6#1``,
+    ``run-pm-programme#2``, ``run-secretary-0823#1``, ``run-builder-d35#2``,
+    ``run-adversary-d11#1``, ``run-pm-goldsizing#3`` and the two
     ``run-triage7-decisions`` rows above. That is the RE-PRESENTATION shape,
     and it is the one the memo's ``decision_ref`` sentence is written against.
 
-  **The pair, and the invariant rather than the totals** — 23 decision events
-  over 12 identities, and both numbers GROW: this is a live desk. What does not
-  move is ``decision_events > distinct_identities``, which is exactly the
-  statement "something here was decided more than once".
+  **DO NOT QUOTE THE SECONDARY TOTALS; QUOTE THE INVARIANT.** Two readings
+  taken about an hour apart on 2026-08-24 gave *23 decision events over 12
+  identities* and then *24 over 13* — a new row (``run-pm-goldsizing#3``)
+  appeared and ``run-pm-0908#1`` gained a second decision between them. That is
+  a live desk on an append-only log, so these numbers can only GROW, and the
+  first version of this docstring went stale inside the same dispatch that
+  wrote it (found by the Gauntlet's number re-count). What does not move is
+  ``decision_events > distinct_identities`` — the statement "something here was
+  decided more than once" — and the eight seqs above, which are fixed history.
+
+  BOTH READINGS ARE ALSO LOWER BOUNDS. ``GET /fund/events`` caps at 1000 and
+  serves the NEWEST 1000; the window these came from spanned seq 543-1542, so
+  everything before 543 was never compared. The instrument now prints
+  ``covers_whole_log: false`` and says so.
 
 Both are the same defect wearing two costumes: **a decision that was already
 made being asked for again**, once against its own row and once against a fresh
@@ -54,7 +64,7 @@ from typing import Any, Optional
 #: Bumped when the rule changes, published on every refusal. A caller told
 #: "refused" deserves to know which version of the rule refused it — the same
 #: reason ``approval-channel guard v1`` names itself inside its own reason
-#: string (fund.py:3991).
+#: string (``_guard_approval`` in app/api/v1/fund.py).
 DECISION_REF_GUARD_VERSION = "decision_ref_v1 (2026-08-24, highway slice 3)"
 
 #: THE TRANSITIONS THAT ASSERT A DECISION ON THE SUBSTANCE, and therefore the
@@ -65,7 +75,8 @@ DECISION_REF_GUARD_VERSION = "decision_ref_v1 (2026-08-24, highway slice 3)"
 #:
 #: ``approved`` and ``accepted`` only. The line is between DECIDING and
 #: CLOSING, and it is drawn exactly where ``ADVANCING_REC_STATUSES`` draws its
-#: own (fund.py:2552-2555, and the reason written there):
+#: own (``ADVANCING_REC_STATUSES`` in app/api/v1/fund.py, and the reason
+#: written above it):
 #:
 #:   * ``declined`` is EXCLUDED even though ``tickets.DECISION_TRANSITIONS``
 #:     contains it. A decline after an acceptance is a REVERSAL — the memo's
@@ -96,7 +107,8 @@ def _applied_decisions(ticket: dict[str, Any]) -> list[dict[str, Any]]:
 
     ``DECISION_TRANSITIONS`` is READ from ``tickets``, never restated here.
     Two copies of "which transitions are decisions" is the shape that let one
-    client read 11 where the spine read 6 (desk.py:1621-1625).
+    client read 11 where the spine read 6 (app/fund/desk.py, the comment
+    above ``next_actor``'s re-derivation warning).
     """
     from app.fund.tickets import DECISION_TRANSITIONS
     out = []
@@ -157,18 +169,23 @@ def check_representation(ticket: dict[str, Any], *, to: str,
                          ) -> Optional[dict[str, Any]]:
     """The §1.5 rule. ``None`` to allow; a refusal dict to 409.
 
-    A DECIDED TICKET PRESENTED BARE IS REFUSED, and the two escapes are the
-    memo's own: cite the canonical decision (``merged`` + ``decision_ref``) or
-    say what this replaces (``superseded`` + ``superseder_ref``). Presenting
-    the same acceptance a second time with neither is the R39 shape, and it is
-    the whole of what this function stops.
+    A TICKET ASKED FOR A DECISION IT HAS ALREADY RECORDED IS REFUSED, and the
+    two escapes are the memo's own: cite the canonical decision (``merged`` +
+    ``decision_ref``) or say what this replaces (``superseded`` +
+    ``superseder_ref``). Presenting the same acceptance a second time with
+    neither is the R39 shape, and it is the whole of what this function stops.
+    Note the precision — ALREADY RECORDED **THIS** DECISION, not "has ever been
+    decided"; the paragraph inside the function says what the looser reading
+    broke.
 
     THE REFUSAL CARRIES THE LINEAGE, not just a no. The caller's next move is
     almost always "merge into the row that already holds this decision", and it
     cannot make that move without the id — so the id is on the refusal. That is
-    the ``_refuse_if_superseded`` shape (fund.py:2764-2813) and the
-    ``did_you_mean`` shape (fund.py:2752-2756) applied to a third guard: a
-    refusal that does not tell you what to do instead is a puzzle.
+    the ``_refuse_if_superseded`` shape and the ``did_you_mean`` shape applied
+    to a third guard: a refusal that does not tell you what to do instead is a
+    puzzle. (Both are in ``app/api/v1/fund.py``; cited by NAME rather than by
+    line because that file is being edited by two builders today and a line
+    number written now is wrong by the time it is read.)
     """
     if to not in REDECISION_GUARDED:
         return None
@@ -248,34 +265,24 @@ def _refusal(ticket: dict[str, Any], lin: dict[str, Any], to: str, *,
     }
 
 
-def terminal_requirement(to: str, fields: dict[str, Any]) -> Optional[str]:
-    """Why this terminal may not be appended without more, or ``None``.
-
-    ``TERMINAL_REQUIREMENTS`` is READ from ``tickets`` rather than restated —
-    "no citation, no close" lives in one place or it lives in none. The
-    ``expired`` case is not in that table because its requirement is not a
-    field but a POLICY, and the policy does not exist yet: ``tickets.
-    AGING_POLICY_VERSION`` is None, so this refuses every ``expired`` until a
-    human writes one. A sweep that closes aged work under no stated rule is
-    how a queue gets quietly emptied instead of quietly worked.
-    """
-    from app.fund.tickets import AGING_POLICY_VERSION, TERMINAL_REQUIREMENTS
-    if to == "expired":
-        if not AGING_POLICY_VERSION:
-            return ("'expired' needs a CEO-ratified aging policy and there is "
-                    "none: tickets.AGING_POLICY_VERSION is None. Refused "
-                    "rather than swept — closing aged work under no stated "
-                    "rule empties a queue instead of working it (design §1.2)")
-        return None
-    want = TERMINAL_REQUIREMENTS.get(to)
-    if not want:
-        return None
-    field, meaning = want
-    if not str(fields.get(field) or "").strip():
-        return (f"'{to}' needs {field}: {meaning}. Refused rather than "
-                f"recorded — a close with no {field} reads identically to work "
-                f"nobody looked at (design §1.2)")
-    return None
+# THE ORPHAN THAT WAS HERE — deleted, and the deletion is the finding.
+#
+# `terminal_requirement(to, fields)` lived here for most of this dispatch: a
+# pure re-implementation of §1.2's terminal table ("no citation, no close") with
+# six tests over it. The Gauntlet's shared-word pass found that NOTHING CALLED
+# IT. Slice 2's `ticket_transition` had landed its own inline version of the
+# same rule, reading the same two constants, while I had deleted the door that
+# would have called mine.
+#
+# So it was a control with no caller sitting beside a control with one — the
+# unwired-kill-switch pattern in its politest costume, made worse by having a
+# green test class that LOOKED like the door was guarded from here. Two copies
+# of "no citation, no close" is exactly what the docstring of the deleted
+# function warned against, one paragraph above its own duplication.
+#
+# Deleted rather than wired, because slice 2's version is strictly better: it
+# also requires an `expired` sweep to NAME its policy version. `merge_target_
+# error` below stays, and stays because `ticket_transition` calls it.
 
 
 def merge_target_error(ticket_id: str, decision_ref: Optional[str],
@@ -292,7 +299,10 @@ def merge_target_error(ticket_id: str, decision_ref: Optional[str],
     """
     ref = (decision_ref or "").strip()
     if not ref:
-        return None          # the caller's own terminal_requirement says this
+        return None          # the door's own terminal-requirement check
+                             # already refuses the empty field, with its own
+                             # message; two sentences for one missing field is
+                             # worse than one
     if ref == ticket_id:
         return ("a ticket cannot be merged into itself — decision_ref must "
                 "name the canonical row that already holds the decision")
