@@ -262,6 +262,63 @@ def test_probabilistic_sharpe_is_surfaced():
     assert rb["total_orders"] == 41
 
 
+# --- the PSR hurdle's own clock, captured from the run -----------------------
+#
+# LEAN's published Probabilistic Sharpe Ratio is measured against a hardcoded
+# `1/sqrt(tradingDaysPerYear)` (PortfolioStatistics.cs:311), so the clock IS the
+# hurdle. Until D38 the belt threw the engine's `algorithmConfiguration` away
+# and the only way to know a future image had moved it was to grep summary
+# files on the belt host's disk. These three pin the capture at each layer,
+# because a capture that exists and is never fed is the unwired-control shape.
+
+def test_psr_inputs_captures_the_runs_own_trading_days_and_the_hurdle():
+    """Would catch: `psr_inputs` accepting a configuration and ignoring it —
+    the target would then always report the engine's default as if it had been
+    read, and a LEAN image that moved the clock would move the hurdle silently.
+    Moved to a clock LEAN does not default to, so a hardcoded 252 fails."""
+    from app.fund.leanrunner import psr_inputs
+    got = psr_inputs({"Sharpe Ratio": "1.4"}, None,
+                     {"tradingDaysPerYear": 260})
+    assert got["trading_days_per_year"] == 260
+    assert got["target"]["trading_days_per_year"] == 260.0
+    assert got["target"]["assumed"] is False
+    assert got["target"]["per_obs"] == pytest.approx(1.0 / 260 ** 0.5)
+    assert got["target"]["annualised"] == pytest.approx(1.0)
+
+
+@pytest.mark.parametrize("stored", [None, 0, -1, "252", True, [], {}])
+def test_an_unusable_trading_days_is_ABSENT_not_the_default(stored):
+    """Would catch: a malformed stored clock being written into the capture as
+    if the engine had published it — `True` is the sharp case, since `True == 1`
+    would silently record a one-trading-day year. Absent is reported absent;
+    `target.assumed` then says the hurdle rests on the engine's default."""
+    from app.fund.leanrunner import psr_inputs
+    got = psr_inputs({}, None, {"tradingDaysPerYear": stored})
+    assert got["trading_days_per_year"] is None
+    assert got["target"]["assumed"] is True
+    assert got["target"]["trading_days_per_year"] == 252.0
+
+
+def test_the_BELTS_OWN_PARSER_hands_the_configuration_to_the_capture(tmp_path):
+    """Through the real call site, not the helper (D17: a helper can be
+    flawless and uncalled). Would catch `_parse_results` reading the engine's
+    `algorithmConfiguration` and not passing it down — every test above would
+    still pass and every stored run would report the default."""
+    doc = _doc_with(_equity_charts([[1748750400, 100.0], [1748836800, 101.0]]))
+    doc["algorithmConfiguration"] = {"tradingDaysPerYear": 260}
+    res = LeanRunner._parse_results(_write(tmp_path, doc))
+    assert res is not None
+    pin = res["robustness"]["psr_inputs"]
+    assert pin["trading_days_per_year"] == 260
+    assert pin["target"]["assumed"] is False
+    # and a run with no configuration at all says so, rather than inventing one
+    plain = LeanRunner._parse_results(_write(
+        tmp_path / "b", _doc_with(_equity_charts([[1748750400, 100.0],
+                                                  [1748836800, 101.0]]))))
+    assert plain["robustness"]["psr_inputs"]["trading_days_per_year"] is None
+    assert plain["robustness"]["psr_inputs"]["target"]["assumed"] is True
+
+
 def test_an_unpriced_run_that_traded_is_flagged():
     """No slippage model and it traded: the result overstates, and loudly."""
     from app.fund.leanrunner import cost_disclosure

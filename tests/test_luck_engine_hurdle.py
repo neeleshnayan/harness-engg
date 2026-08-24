@@ -186,6 +186,11 @@ def test_the_engine_sentence_states_the_demand_AGAINST_THE_CONSTANT_TARGET():
     assert "is not distinguishable from luck on this much history" not in s
     assert "puts its target at an annualised Sharpe of" not in s
     assert "could not be recovered" not in s
+    # MUTATION M22. The sibling clause that fires when the series cannot support
+    # a demand must NOT fire here — a sentence stating a demand and then saying
+    # the demand is unstated is worse than either alone, and nothing but this
+    # assertion notices.
+    assert "no usable return series" not in s
     # PUNCTUATION, because the read-through caught what the assertions could
     # not: a clause once borrowed the other branch's leading semicolon,
     # splicing a `.;` into the middle of the line.

@@ -226,7 +226,14 @@ _REFUSAL_CASES = [
     pytest.param(50.0, [0.5], 0.0, None, id="returns_single_obs"),
     pytest.param(50.0, [0.001] * 100, 0.0, None, id="returns_flat"),
     pytest.param("x", _SOME_SERIES, 0.0, "not a number", id="psr_not_a_number"),
-    pytest.param(50.0, _SOME_SERIES, float("nan"), None, id="rf_is_nan"),
+    # MUTATION M08. Both of these refuse either way — a non-finite rf turns
+    # every return non-finite and `_clean` drops them, so the series goes empty
+    # and the function refuses for the WRONG REASON. A reader chasing a bad rate
+    # would be sent to look for a missing series. The two absences are different
+    # facts, so the reason is asserted and not just the refusal.
+    pytest.param(50.0, _SOME_SERIES, float("nan"), "risk-free rate", id="rf_is_nan"),
+    pytest.param(50.0, _SOME_SERIES, float("inf"), "risk-free rate", id="rf_is_inf"),
+    pytest.param(50.0, _SOME_SERIES, "x", "risk-free rate", id="rf_not_a_number"),
 ]
 
 
