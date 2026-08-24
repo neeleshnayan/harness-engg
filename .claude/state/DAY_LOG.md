@@ -39,6 +39,17 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
 (13:30Z open). Opened by resolving Grace's growth-mandate audition.
 
 **DECIDED**
+- **THE WINDOW REDESIGN, CEO-ratified in-session**: the request card (four
+  questions: what/where-stands/what-owed/whose-move, lifecycle rail with
+  age-at-stage, wanted-checklist, collapsed narrative) and the seat card
+  (now/trigger-lineage/ROI-ledger/learnings/book-of-work-with-assigner) —
+  specs at KryptonPay/docs/design/{REQUEST,SEAT}_CARD_2026-08-24.md.
+  Structural halves: the filing door gains structured request fields and
+  run-record lesson fields; prose stays a permanent fallback. D39 carries
+  the desk half (brief amended in flight); D40 filed for the team room,
+  strictly after D39 (shared surfaces). Chair-adjudicated dispositions
+  become a first-class visible category (CEO: "I cant form a view of
+  whats closed and adjudicated by you").
 - **Vishesh gains THE FLOW MANDATE (CEO, verbatim in the constitution):
   every triage adds THE JOINS (unconsumed outputs — approved-undispatched,
   aged BINDS/leads, unanswered arguments, unswitched instruments), THE
