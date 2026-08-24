@@ -827,8 +827,13 @@ class TestTheEndpoint:
         b = r.json()
         assert b["readable"] is True
         assert b["counts"]["total"] == len(b["tickets"]) == b["total"]
+        # `challenge` is 0 and PRESENT, which is the point of seeding the
+        # census from the vocabulary: a type with no rows renders zero rather
+        # than vanishing from the dict. It gained a key in slice 2 (a
+        # door-born-only species, §1.2's escape hatch from a terminal row) and
+        # this fixture has no legacy carrier that could produce one.
         assert b["counts"]["by_type"] == {"ask": 6, "dispatch": 2,
-                                          "recommendation": 12}
+                                          "recommendation": 12, "challenge": 0}
 
     def test_a_filter_narrows_the_list_and_not_the_census(self, client):
         b = client.get("/api/v1/fund/tickets?type=ask").json()

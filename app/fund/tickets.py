@@ -1,10 +1,17 @@
-"""THE TICKET FOLD, slice 1 of the ticket highway — one entity, read-only.
+"""THE TICKET FOLD — one entity, read-only.
 
 Design: ``docs/design/TICKET_HIGHWAY_V1_2026-08-24.md`` (CEO-ratified
 2026-08-24). This module implements §1.4's fold adapters and §2.2's fold, and
-NOTHING ELSE: there is no door here, no event type, no staging table. Slice 1
-ships value by itself — it makes the desk's three existing species legible as
-one lifecycle without migrating a byte of history.
+NOTHING ELSE: **there is no door here and no staging table.** Slice 1 shipped
+value by itself — it made the desk's three existing species legible as one
+lifecycle without migrating a byte of history.
+
+SLICE 2 (2026-08-24) added the four adapters for the highway's OWN event types
+— ``TicketOpened``, ``TicketTransitioned``, ``TicketLinked``,
+``TicketConsumed`` (§2.1). It did NOT add a write path: the doors that append
+those events live in ``app/api/v1/fund.py`` and read this fold to decide what
+they may append. The direction of that dependency is the boundary — the fold
+is the thing a door consults, never a thing a door is.
 
 **THIS MODULE APPENDS NOTHING AND MUST NOT.** It reads ``store.stream`` and a
 list of run rows; every function here is a pure reading. A test asserts the
@@ -49,13 +56,47 @@ logger = logging.getLogger(__name__)
 #: Bumped when a state, a transition rule, or an adapter changes. Published in
 #: the payload for the same reason ``NEXT_ACTOR_RULES_VERSION`` is: a reader
 #: holding a count deserves to know which rules produced it.
-TICKET_FOLD_VERSION = "ticket fold v1 (2026-08-24)"
+TICKET_FOLD_VERSION = ("ticket fold v2 (2026-08-24) — v1's legacy adapters "
+                       "plus the four TICKET_* event types of §2.1")
 
-#: The type facets slice 1 can read. ``lesson`` and ``challenge`` are in the
-#: design's table and are DELIBERATELY ABSENT here: they have no historical
-#: carrier at all (memo §1.4), so retro-ticketing them would be inventing
-#: rows. Absence reported as absence — they enter the highway from slice 5 on.
-TICKET_TYPES = ("ask", "dispatch", "recommendation")
+#: The type facets this fold can contain.
+#:
+#: ``ask`` / ``dispatch`` / ``recommendation`` have LEGACY ADAPTERS — every one
+#: of them is read out of events that already exist. ``challenge`` has none and
+#: never will: it is born only at the door (slice 2), and it is here because
+#: §1.2's "terminal is terminal" rule points at it as the ONLY way to dispute a
+#: closed ticket. Enforcing terminal-is-terminal at the transition door while
+#: the escape hatch it names does not exist would be a dead end wearing a rule's
+#: clothes.
+#:
+#: ``lesson`` is still DELIBERATELY ABSENT. It has no historical carrier (memo
+#: §1.4) and its point is the consumption receipt — a lesson ticket without
+#: ``TICKET_CONSUMED`` being appended by the chair's resolve pipeline is a row
+#: that can be filed and never read, which is the failure it exists to end.
+#: It enters the highway with that pipeline, in slice 5.
+TICKET_TYPES = ("ask", "dispatch", "recommendation", "challenge")
+
+#: The types a door may MINT. Identical to ``TICKET_TYPES`` today, and a
+#: separate name rather than an alias because the two answer different
+#: questions: one is "what can this fold hold", the other is "what may a caller
+#: create". Slice 5 widens the first by one and the second by one, and they
+#: could legitimately diverge (a species with a legacy adapter and no door).
+OPENABLE_TYPES = TICKET_TYPES
+
+#: The reversibility vocabulary, from the builder's D9 finding carried into the
+#: run-record contract: ``kind`` is free text with 84 distinct values, so
+#: routing on it moves 18.7% of rows. These three are a CLOSED set for exactly
+#: that reason — a fourth value is a decision someone makes here, in writing,
+#: rather than a string that appears one day and routes nothing.
+REVERSIBILITY = ("irreversible", "hard", "reversible")
+
+#: What a ``TICKET_LINKED`` event may assert (memo §2.1).
+#:
+#:   * ``parent`` — the tree: ask -> its run -> its recommendation children.
+#:   * ``decision_ref`` — one decision, one row (§1.5). Slice 2 RECORDS it;
+#:     slice 3 is where a decided ticket re-presented bare becomes a 409.
+#:   * ``serves`` — this ticket is the artifact that serves that one.
+LINK_KINDS = ("parent", "decision_ref", "serves")
 
 #: The working states — a ticket in one of these is somebody's move.
 WORKING_STATES = ("filed", "approved", "in_flight", "returned", "accepted")
@@ -98,6 +139,67 @@ ALLOWED_FROM: dict[str, tuple[str, ...]] = {
     "merged": ("filed", "approved", "in_flight", "returned", "accepted"),
     "expired": ("filed", "approved"),
 }
+
+#: TRANSITIONS A HUMAN DECIDES, which therefore take the approval-channel
+#: guard at the door (allowlist + confirm echo + the verbatim-instruction rule
+#: for ``neelesh-via-*``). Memo §2.3 names them: ``approved``, ``accepted``,
+#: ``declined``, and every terminal.
+#:
+#: ``in_flight`` and ``returned`` are the two that are NOT here, and the line
+#: between them and the rest is "is this a judgement or a record of a fact":
+#: firing a dispatch and recording that a seat came back are things the chair
+#: DOES and then writes down, not permissions it grants itself.
+#:
+#: ``declined`` IS guarded here and is NOT guarded at the legacy
+#: ``desk_decline`` door — a deliberate divergence, named rather than left to
+#: be discovered. The legacy reasoning is sound for a legacy request ("closing
+#: a door must never be harder than opening one", fund.py:1920-1925) and the
+#: highway's terminals are stronger claims: a declined ticket is TERMINAL with
+#: no reopen transition, so on this machine a decline is not the reversible act
+#: it is over there. Direction is a TIGHTENING and the legacy door is
+#: byte-identical, so nothing that worked yesterday works less well today.
+DECISION_TRANSITIONS = ("approved", "accepted", "declined") + TERMINAL_STATES
+
+#: TRANSITIONS THAT MOVE THE WORK FORWARD, which therefore take the
+#: supersession refusal — the generalisation of ``ADVANCING_REC_STATUSES``
+#: (fund.py:2552-2555, ``accepted``/``staged``/``done``).
+#:
+#: The three exclusions each have a reason and none of them is an oversight:
+#:
+#:   * ``declined`` / ``superseded`` / ``merged`` / ``expired`` — CLOSING a
+#:     superseded row must stay easy. This is exactly why the legacy constant
+#:     lists only the three advancing statuses; refusing to close a row because
+#:     it has been superseded would strand it open forever.
+#:   * ``returned`` — recording that a seat came back is a statement about
+#:     something that ALREADY HAPPENED. Refusing it would leave a superseded
+#:     in-flight ticket with no way to record what the seat actually produced,
+#:     and the work would vanish from the record rather than from the queue.
+#:     The step after it (``returned`` -> ``done``) IS advancing and IS
+#:     refused, so nothing advances past a live edge.
+ADVANCING_TICKET_STATES = ("approved", "in_flight", "accepted", "done")
+
+#: WHAT EACH TERMINAL MUST CARRY (memo §1.2's table, made a door check).
+#: "No citation, no close" is the Donna-sweep rule made mechanical; a decline
+#: without its written reason reads identically to an unseen ask.
+TERMINAL_REQUIREMENTS = {
+    "done": ("citation", "the artifact or event that proves the work happened"),
+    "declined": ("reason", "the written reason a human said no"),
+    "superseded": ("superseder_ref", "the row that replaces this one"),
+    "merged": ("decision_ref", "the canonical ticket this row duplicates"),
+}
+
+#: THE AGING POLICY, AND IT IS DELIBERATELY ABSENT.
+#:
+#: ``expired`` is the one terminal whose CAUSE is a sweep rather than a person,
+#: and memo §1.2 says the policy behind that sweep is CEO-RATIFIED. No such
+#: policy exists. So the door refuses ``expired`` while this is None, and
+#: turning expiry on is a one-line versioned human change with a name in it
+#: rather than a threshold nobody notices.
+#:
+#: Shipping the door WITHOUT this check would have given the chair a button
+#: that closes aged work under no stated rule — which is how a queue gets
+#: quietly emptied instead of quietly worked.
+AGING_POLICY_VERSION: Optional[str] = None
 
 #: LEGACY RECOMMENDATION STATUS -> TICKET STATE (memo §1.4).
 #:
@@ -250,6 +352,31 @@ def _ticket_next_actor(ticket: dict[str, Any],
     module exists to stop multiplying.
     """
     from app.fund.desk import next_actor, open_request_actor
+
+    # A DOOR-BORN TICKET IS ROUTED BY ITS OWN DECLARATION FIRST, and this
+    # branch is scoped to `source == "TicketOpened"` on purpose rather than
+    # hoisted to the top: a terminal-first or declared-first rule applied to
+    # the legacy species would silently move counts that slice 1's
+    # reconciliation pins, and this fold's whole claim is that it agrees with
+    # `desk_load`. Nothing below this block changed.
+    if ticket.get("source") == "TicketOpened":
+        if ticket["state"] in TERMINAL_STATES:
+            return {"actor": "nobody", "basis": "lifecycle",
+                    "why": f"state {ticket['state']!r} is terminal — nothing "
+                           "follows it"}
+        declared = ticket.get("next_actor_declared")
+        if declared:
+            return {"actor": declared, "basis": "explicit",
+                    "why": "the ticket was filed naming whose move it is; "
+                           "read, not inferred"}
+        from app.fund.desk import UNDECIDED_ROUTES_TO
+        # READ from desk, never copied. A ticket that names no actor is
+        # undecided, and this fund already decided where undecided goes — to
+        # the chair, whose job is working out whose move it is. Two copies of
+        # that answer is how 54 rows landed on the CEO's desk by default.
+        return {"actor": UNDECIDED_ROUTES_TO, "basis": "undecided_default",
+                "why": "the ticket named no next actor; undecided routes to "
+                       f"the {UNDECIDED_ROUTES_TO} (desk.UNDECIDED_ROUTES_TO)"}
 
     if ticket["type"] == "recommendation":
         return next_actor(row if isinstance(row, dict) else None)
@@ -456,6 +583,118 @@ def fold(store: Any, runs: Optional[Iterable[dict[str, Any]]] = None,
                 # inventing the instant the seat came back (memo §1.4).
                 hit["returned_at"] = None
                 hit["returned_basis"] = "unknown"
+
+        # ------------------------------------------- the highway's own events
+
+        elif t == EventType.TICKET_OPENED.value:
+            tid = str(p.get("ticket_id") or "")
+            if not tid:
+                continue
+            if tid in tickets:
+                # AN OPEN AGAINST AN ID THAT ALREADY EXISTS DOES NOT OVERWRITE.
+                # The door mints a fresh uuid4 so this cannot arrive from it;
+                # it is recorded rather than dropped because a second birth on
+                # one id is a fact about the record, and first-write-wins is
+                # the same order-honesty `_advance` applies to every other
+                # transition. A silent overwrite would let a later event
+                # rewrite an earlier ticket's subject and filer.
+                tickets[tid]["refused_transitions"].append(
+                    {"from": tickets[tid]["state"], "to": "filed",
+                     "at": p.get("at"), "actor": p.get("actor"),
+                     "basis": "duplicate-open",
+                     "why": "a TicketOpened named an id this fold already "
+                            "holds; first write wins"})
+                continue
+            tickets[tid] = _new_ticket(
+                tid, type=p.get("type"), state="filed",
+                subject=p.get("subject"), filed_for=p.get("filed_for"),
+                actor=p.get("actor"), at=p.get("at"),
+                trace_id=p.get("trace_id") or tid, source="TicketOpened",
+                legacy_status=None,
+                # THE THREE ROUTING FIELDS, WRITTEN AT BIRTH. This is the whole
+                # reason the door exists: the builder's D9 measurement found
+                # `due_date` separating ZERO rows on the CEO's desk because
+                # nothing has ever written it, and `kind` moving 18.7% because
+                # it is free text with 84 values. Declared here, they are read
+                # rather than inferred.
+                next_actor_declared=p.get("next_actor"),
+                due_date=p.get("due_date"),
+                reversibility=p.get("reversibility"),
+                money_at_stake=p.get("money_at_stake"),
+                kind=p.get("kind"))
+            if p.get("parent_id"):
+                tickets[tid]["parent_id"] = str(p["parent_id"])
+                tickets[tid]["parent_basis"] = "declared_at_birth"
+            by_alias[tid] = tid
+
+        elif t == EventType.TICKET_TRANSITIONED.value:
+            hit = _resolve(p.get("ticket_id"))
+            if hit is None:
+                phantom.append({"event": t, "id": p.get("ticket_id"),
+                                "at": p.get("at")})
+                continue
+            to = p.get("to")
+            # THE FOLD RE-CHECKS WHAT THE DOOR ALREADY CHECKED, and that is not
+            # redundant: the door reads the fold at request time and the record
+            # is replayed forever afterwards. Two events racing the same ticket
+            # both pass the door and only one may land, so legality has to be
+            # decided HERE as well, against the state the replay actually
+            # reached. `_advance` records the loser as refused rather than
+            # dropping it.
+            extra = {k: p.get(k) for k in
+                     ("citation", "reason", "decision_ref", "superseder_ref",
+                      "staged_ref", "policy_version")
+                     if p.get(k) is not None}
+            if _advance(hit, str(to), at=p.get("at"), actor=p.get("actor"),
+                        basis=p.get("basis") or "transition", **extra):
+                # The three fields the design asks a ``returned`` transition to
+                # make real — the constitution's missing middle state, given a
+                # timestamp that came from the event rather than from a clock.
+                if to == "returned":
+                    hit["returned_at"] = p.get("at")
+                    hit["returned_basis"] = "ticket_transition"
+
+        elif t == EventType.TICKET_LINKED.value:
+            hit = _resolve(p.get("ticket_id"))
+            if hit is None:
+                phantom.append({"event": t, "id": p.get("ticket_id"),
+                                "at": p.get("at")})
+                continue
+            kind, target = p.get("link_kind"), p.get("target_id")
+            if kind not in LINK_KINDS or not target:
+                continue
+            if kind == "parent":
+                hit["parent_id"] = str(target)
+                hit["parent_basis"] = "ticket_linked"
+            elif kind == "decision_ref":
+                # ONE DECISION, ONE ROW (§1.5). Slice 2 RECORDS the reference;
+                # the 409 that refuses a decided ticket presented bare is
+                # slice 3's. Written down here so the next builder does not
+                # have to infer which half exists.
+                hit["decision_ref"] = str(target)
+            else:
+                hit.setdefault("serves", []).append(str(target))
+            hit.setdefault("links", []).append(
+                {"link_kind": kind, "target_id": str(target),
+                 "basis": p.get("basis"), "at": p.get("at"),
+                 "actor": p.get("actor")})
+
+        elif t == EventType.TICKET_CONSUMED.value:
+            hit = _resolve(p.get("ticket_id"))
+            if hit is None:
+                phantom.append({"event": t, "id": p.get("ticket_id"),
+                                "at": p.get("at")})
+                continue
+            # A RECEIPT, NOT A TRANSITION. Consumption records that a lesson
+            # reached a seat's brief; whether the lesson is DONE is the chair's
+            # judgement at resolve and takes a transition of its own (§1.5).
+            # Folding it as a state change would close the loop automatically,
+            # and "the system's contribution is staging, never appending" is
+            # the one rule this highway does not bend.
+            hit.setdefault("consumptions", []).append(
+                {"consumed_by_dispatch": p.get("consumed_by_dispatch"),
+                 "seat": p.get("seat"), "at": p.get("at"),
+                 "actor": p.get("actor")})
 
     # ------------------------------------------- recommendations as children
 
