@@ -295,12 +295,12 @@ def evaluate(facts: dict[str, Any],
         # is the right direction and it is cheap, because a fund whose
         # PositionsProjection raises cannot strike NAV either, so its marks are
         # going stale in the same minute.
+        why = facts.get("holdings_error")
         result["reason"] = (
             f"the fund's own book could not be folded"
-            f"{' (' + str(facts.get('holdings_error')) + ')' if facts.get('holdings_error') else ''}"
-            f", so whether the fund holds {sym} is unknown — and an order "
-            f"cannot be corroborated against a book nobody can read. Fix the "
-            f"read and try again.")
+            f"{f' ({why})' if why else ''}, so whether the fund holds {sym} is "
+            f"unknown — and an order cannot be corroborated against a book "
+            f"nobody can read. Fix the read and try again.")
         result["basis"] = "holdings_unreadable"
         return result
 
