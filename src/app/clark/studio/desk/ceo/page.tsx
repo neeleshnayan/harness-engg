@@ -1563,10 +1563,19 @@ function DailyMemoCard({ memo, read }: {
   memo: ArchiveMemo | null;
   /** The state of the `GET /fund/desk/archives/memo` read. It was a single
    *  `unreachable` boolean OR'd with `memo === null`, and that disjunction is
-   *  ticket fccb9cf3 in miniature: on the first render `memo` is null and
-   *  nothing has failed, so this card printed "could not be read — UNKNOWN,
-   *  not absent" about a fetch that was still in the air. Found by the
-   *  Gauntlet on the same page whose three other reads this ticket repaired. */
+   *  ticket fccb9cf3 in miniature: `memo` is null before the first answer AND
+   *  after a failure, so the card could only ever print "could not be read —
+   *  UNKNOWN, not absent" for both.
+   *
+   *  HOW REACHABLE THAT WAS, measured rather than assumed, because the honest
+   *  answer is "not, today": `load()` awaits ONE `Promise.allSettled`, so every
+   *  read on this page flips out of `loading` in the same render — and the door
+   *  this card lives behind is gated on `desk !== null`. Verified on the
+   *  in-flight browser arm: the card does not mount there at all. So this is a
+   *  contract the component was stating falsely, not a sentence the CEO saw.
+   *  Fixed anyway — the component is exported, the gate above it is one edit
+   *  from changing, and a component that cannot tell "not yet" from "not ever"
+   *  is one wiring change away from saying so out loud. */
   read: DeskRead;
 }) {
   if (read === "loading") {
