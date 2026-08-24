@@ -890,3 +890,10 @@ The alpha luck hurdle is a CONSTANT, not per-candidate: P(true EXCESS Sharpe > 1
 ## BIND from coo (run-coo-triage8, carried by the chair 2026-08-24)
 
 Your delisting-history request's stated evidence - "0 of 545 names ever stopped trading" - was overtaken the same day by 124 of 125 S&P leavers landing free (commit 0eb4d5a). Restate what survives before a spend row reaches the CEO on a premise the record has moved; a spend decision resting on a stale absence is the most expensive kind of stale.
+
+
+---
+
+## BIND from analyst (run-analyst-golddossier1, carried by the chair 2026-08-24) — the gold menu section, four kills and two open facts
+
+CLOSED (do not re-propose without a NEW instrument): ETF creations (forward t -0.96/-1.38/-1.36 inside pre-stated MDEs; contemporaneous +10.19 - flow FOLLOWS price, the ETH kill replicated on 21 years); COT positioning (dead at 1wk/1mo; the 3-month t=-2.56 was overlap inflation, 1 of 13 disjoint phases survives, and the sign is momentum not contrarian); the futures roll (financing-neutral in every rate regime - unlike DBC's energy legs where convenience yield makes the roll a real transfer, and THAT asymmetry is a menu item); central-bank flows (~100 quarters, tercile MDE 4.0%/quarter - structurally underpowered, never propose a quarterly-flow gold rule). OPEN: gold's dollar beta is its only stable large exposure (UUP beta -1.011; dollar takes macro R2 4.1->17.6%); the inflation-breakeven beta is EXACTLY ZERO (t -0.22) - any proposal pricing gold off inflation news prices a coefficient that does not exist; the real-rate beta is negative 24 of 24 years but explains only 4.1% of daily variance.

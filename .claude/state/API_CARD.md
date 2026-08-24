@@ -122,3 +122,20 @@ Base URL: `http://127.0.0.1:8090/api/v1`
 - **ADDENDUM (Doc, 8-K panel run): the INTERNAL `fetch_daily_bars` `end` is also EXCLUSIVE** (verified: end=2010-12-31 returns last bar 2010-12-30). Chunked pulls must overlap windows; verify year session counts against known NYSE closures (2001=248, 2012=250, 2008=253).
 - **POST /fund/desk/requests/{FULL_id}/resolve** takes {resolution: str, actor: str} - closes an open request with a recorded disposition (used for superseded/answered asks; distinct from the guarded approve path).
 
+
+
+## FRED (corrected 2026-08-24, measured at run-analyst-golddossier1)
+
+- The keyless fredgraph.csv warning is PER-SERIES, not blanket: market-price
+  series (DFII10, VIXCLS) are NEVER revised (0/10,381 obs changed vs
+  2022/2024 vintages); revised aggregates (DTWEXBGS 36-44% changed, CPI,
+  payrolls) need the keyed API with realtime_start/realtime_end. Check any
+  new series once with one vintage call before trusting the keyless feed.
+- Release-lag trap on never-revised series: day D's DFII10 is not visible
+  on day D (H.15 lands after the close) - same-day rules take look-ahead.
+- SPDR GLD archive (standing free asset): api.spdrgoldshares.com/api/v1/
+  historical-archive?product=gld&exchange=NYSE&lang=en - XLSX, browser UA,
+  5,472 rows 2004+; oz/share, tonnes, NAV@10:30, premium@16:15. Traps: the
+  advertised .csv 301s to a PDF; 204 rows read "US Holiday"; openpyxl not
+  in venv. Recovers the LBMA fix as NAV/oz (no free FRED gold price exists
+  - GOLDAMGBD228NLBM is a 404).

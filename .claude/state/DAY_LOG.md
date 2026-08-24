@@ -176,6 +176,21 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
   recorded absent, never zero).
 
 **MEASURED**
+- **THE GOLD DOSSIER (Doc, third muscle pick): TRUE-AND-TRADEABLE AS AN
+  INSTRUMENT, NO EDGE FOUND — four named counterparties, four honest
+  kills on 21 years of free primary data.** What survives is risk
+  parameters: 57.6% of gold's variance is overnight (stops reach 42% of
+  the risk); gold is NOT an equity-crash hedge (-0.26% on SPY's worst 20);
+  funding dominates sizing (10% from DBC LOWERS book vol to 4.19%). The
+  +90.5pp unexplained 2022-26 move sits at t=+1.71 — an unconfirmed
+  regime break, unconfirmable for ~5.5y. Bonus finds: the SPDR archive
+  (best free daily series the fund owns — fee verified to 4bps from the
+  trust's own physical accounting), the FRED per-series PIT split
+  MEASURED with the new key, and method lesson 13 (a 128x premium error
+  self-caught: never compare prices struck on different clocks). Chair
+  spot-checks reproduced two headline stats to four decimals. P1-P10
+  registered. No candidate proposed — gold is a BETA allocation question
+  for Stan's parameters and the CEO's click.
 - **TRIAGE #8 (the cascade audit, CEO-instructed): 24 accepted bundles
   carry 31 members — 14 done / 11 still pending / 6 superseded; the
   cascade ran ONCE in firm history; triage7#1 was clicked EIGHT times (a

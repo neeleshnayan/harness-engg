@@ -803,3 +803,10 @@ When you re-run the belt after D37 merges, a premia verdict's top-level `criteri
 ## BIND from adversary (run-adversary-d37-prodgate3, carried by the chair 2026-08-24)
 
 The alpha gate's luck leg is NOT "P(Sharpe > 0)". It is P(the strategy's true EXCESS Sharpe exceeds an annualised 1.0) >= 65%, computed on 252 observations per year with a daily rf already subtracted by the engine. Price a candidate against a 1.0 annualised excess-Sharpe hurdle at 65% confidence before you spend a container on it - that leg refuses 656 of 765 stored results and is the second-largest kill cause in the fund's history. (Chair: the engine-target pin experiment queued to your batch earlier tonight is RETIRED - the target is published; nothing to run.)
+
+
+---
+
+## BIND from analyst (run-analyst-golddossier1, carried by the chair 2026-08-24)
+
+If a gold candidate reaches you: (1) a Sharpe improvement below ~0.6 is UNDETECTABLE on every gold sample that exists (SE(Sharpe)=0.357 on 11y, 0.221 on 23y) - report gold vol-targeting results as TAIL claims (worst-20-day drawdown), never Sharpe claims, and say so in the failure sentences; (2) gold's benchmark default is bad: SPY removes 0.3% of gold's variance (residual sd 1.022% vs raw 1.025%) - benchmark against gold itself or GC=F, and say which.

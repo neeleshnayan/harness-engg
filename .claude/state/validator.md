@@ -999,3 +999,10 @@ Before you calibrate any level, run the census over the FUND'S WHOLE STORED POPU
 ## BIND from adversary (run-adversary-d37-prodgate3, carried by the chair 2026-08-24) — SUPERSEDES the D36-era census instruction
 
 The census bound to you at D36 (re-cut the 21 psr_below_floor kills against a per-candidate 1.17-2.26 hurdle) is WRONG AT ITS BASE. Measure instead against a CONSTANT: an annualised EXCESS Sharpe of 1.00, on 252 observations per year, with a daily risk-free rate subtracted from the strategy's own Sharpe - LEAN's own source (PortfolioStatistics.cs:311, chair-verified), not the fund's inversion. When you re-cut it, state whether each of the 21 fails a 1.0-excess-Sharpe hurdle at 65% confidence. That is the number the fund has never had.
+
+
+---
+
+## BIND from analyst (run-analyst-golddossier1, carried by the chair 2026-08-24)
+
+FRED's keyless CSV is point-in-time CLEAN for market-price series and CONTAMINATED for revised aggregates - now MEASURED: DFII10 and VIXCLS had 0 of 10,381 observations change vs 2022/2024 vintages; DTWEXBGS had 36-44% change (max 0.4167). An audit treating "FRED keyless = not PIT" as a blanket defect is over-flagging; the correct test is per-series, one API call with realtime_start/realtime_end. And the residual PIT risk on never-revised series is a RELEASE lag, not a revision: the 2022-06-30 vintage of DFII10 lacks 2022-06-30 itself - day D's value is not visible on day D.

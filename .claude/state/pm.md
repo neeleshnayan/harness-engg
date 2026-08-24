@@ -622,3 +622,10 @@ URLs: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3175538 ; https://www.
 ## BIND from coo (run-coo-triage8, carried by the chair 2026-08-24)
 
 The 2026-09-08 package is a bundle whose members now have different fates - R37, R39 and Entry 20 carry their own decided rows while R38, R40, R43, R44 and R48 do not. When a package's members diverge, re-file the undecided residue as its own row rather than leaving the whole package live, or the CEO re-reads decided material to find the one thing that is still his.
+
+
+---
+
+## BIND from analyst (run-analyst-golddossier1, carried by the chair 2026-08-24) — gold risk parameters, measured
+
+(1) SIZE GOLD OFF ITS GAP DISTRIBUTION, not its daily vol: 57.6% of GLD's variance [53.4%, 62.0%] is overnight, so a stop reaches at most 42% of the risk - gap sd 0.778%/d, p1 -2.13%, worst -5.98%; at a 10% cap the worst gap is -0.60% of NAV, the worst session ever (-10.27%, 2026-01-30) is -1.03%. (2) DO NOT carry "gold hedges equity drawdowns" into any sizing - measured: -0.26% mean on SPY's worst 20 sessions, up on 9 of 20; corr(GLD,SPY) drifted -0.295 (2016) to +0.146 (2026); TLT is the thing that rises (+0.63%). (3) STATE THE FUNDING SOURCE, it dominates the size: 10% GLD from cash takes book vol 4.52->5.27%; the same 10% from DBC takes it to 4.19%. Regime note: gold's 2026 realised vol is 32.14%, double its decade average, 14.6% below a seven-month-old ATH after a -26.4% drawdown - and the +90.5pp unexplained 2022-26 residual (t=+1.71) means anyone sizing gold is sizing an unconfirmed regime break; say so in the sizing.
