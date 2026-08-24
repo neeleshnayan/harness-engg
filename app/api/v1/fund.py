@@ -34,7 +34,7 @@ from app.fund.custody import CustodyIngest
 from app.fund.signals import SignalRunner
 from app.fund.marketdata import BarsError, fetch_daily_bars
 from app.fund import barcache
-from app.fund.events import EventStore
+from app.fund.events import EventStore, store_backend
 from app.fund.ledger import LedgerError, LedgerService
 from app.fund.money import D, f
 from app.fund.pipeline import CommandError, CommandPipeline
