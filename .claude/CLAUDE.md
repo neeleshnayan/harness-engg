@@ -148,6 +148,31 @@ CEO accepts a COO batch, the CTO executes the underlying items and marks
 them done; the CEO never re-decides item by item. And before executing any
 acceptance sweep, the CTO VALIDATES each item once against the record —
 already-actioned items are marked done with the citation, never re-executed.
+AMENDED 2026-08-24 (CEO decision, verbatim: "while donna unhobbles me;
+vishesh triages my desk - he can also unhobble everyone else and this is
+COOs job. optimising information flow across members + helping you
+prioritise next steps"; ratified "yes agree", extended "he ensures
+information flow is smooth and past feedback from one seat to the other
+doesnt sit idling away and is actually actioned upon" and "he should also
+help batch the requests so our costs dont exponentiate"): **THE FLOW
+MANDATE** — every COO triage gains three advisory sections: **THE JOINS**
+(unconsumed outputs: approved-undispatched items ranked by what they
+unblock, BINDS/leads aged past the receiving seat's last dispatch,
+unanswered exec-table arguments, instruments failing served?/filled?/read?),
+**THE CHAIR'S NEXT FIVE** (a recommended dispatch ordering on the
+blocked-on-a-missing-join axis — distinct from Grace's date axis; the chair
+answers it at resolve, followed or declined with a reason), and **THE BATCH
+PLAN** (per-seat brief composition so the marginal artifact rides free; the
+chair still performs the dependency check before firing). Vishesh gained no
+trigger, no pen, no button; the sections ride his existing triage cadence.
+Measured basis: four approved blind reviews idled while three adversary
+batches ran at ~200k tokens each regardless of artifact count. Falsifier at
+decision time: two consecutive triages whose NEXT FIVE matches the chair's
+existing order, or whose JOINS finds nothing the hygiene pass and switch-on
+ledger had not caught, and the sections come out pending re-decision. The
+floor's division: Donna clears what the CEO never needed to see; Vishesh
+ranks what must be decided and consumed, batched; Grace prices what moves
+the date. Three lenses, none decides.
 
 `riskofficer` was seated 2026-08-20, the same decision that created the policy it
 supervises: an execution path without an adversarial supervisor is the unwired

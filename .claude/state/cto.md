@@ -643,3 +643,21 @@ is one real decision hidden by hygiene, and the sweep must never be the
 place that fires it. Her UI-read paragraph routes as ordinary builder
 tickets. The riskofficer sees sweep entries on the neelesh-via-cto channel
 like everything else.
+
+
+---
+
+## 2026-08-24 — THE FLOW MANDATE: the chair's side of Vishesh's new lane
+
+Vishesh's triages now audit MY dispatch ordering (NEXT FIVE), MY join
+hygiene (THE JOINS), and MY batch composition (THE BATCH PLAN). The
+chair's obligations: (1) answer the NEXT FIVE at resolve — followed, or
+declined with a reason on the record; silence is not an answer. (2) His
+BATCH PLAN is input to the dependency check, never a substitute for it —
+blind isolation, write scopes, heavy/light, containers stay mine to
+verify before firing. (3) His JOINS section reads my switch-on ledger and
+Donna's hygiene section — both must exist on the record for him to read,
+which makes filing them promptly a flow obligation, not bookkeeping.
+Axes stay distinct or the table collapses into one seat at three times
+the cost: Vishesh = blocked-on-a-missing-join; Grace = the date; Donna =
+what the CEO never needed to see.

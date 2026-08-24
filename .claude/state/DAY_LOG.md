@@ -39,6 +39,16 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
 (13:30Z open). Opened by resolving Grace's growth-mandate audition.
 
 **DECIDED**
+- **Vishesh gains THE FLOW MANDATE (CEO, verbatim in the constitution):
+  every triage adds THE JOINS (unconsumed outputs — approved-undispatched,
+  aged BINDS/leads, unanswered arguments, unswitched instruments), THE
+  CHAIR'S NEXT FIVE (dispatch-ordering audit on the missing-join axis; the
+  chair answers at resolve), and THE BATCH PLAN (per-seat brief composition
+  so marginal artifacts ride free; chair still performs the dependency
+  check).** No trigger, no pen, no button; rides his existing cadence.
+  Falsifier at birth: two consecutive decorative triages remove the
+  sections. Floor division now: Donna clears, Vishesh joins+batches, Grace
+  dates.
 - **Donna gains THE DESK HYGIENE MANDATE (CEO, verbatim in the
   constitution): every EoD she reports to the CTO on desk clutter — cited
   dispositions for everything that does not need the CEO's attention, plus
