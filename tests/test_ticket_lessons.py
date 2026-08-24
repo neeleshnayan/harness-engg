@@ -371,6 +371,39 @@ class TestAnUnconsumedLessonAges:
         stamps = [r["filed_at"] for r in rows]
         assert stamps == sorted(stamps)
 
+    def test_two_lessons_filed_at_the_SAME_INSTANT_still_have_a_total_order(
+            self, client):
+        """MUTANT M49 SURVIVED WITHOUT THIS — the ``ticket_id`` tiebreak.
+
+        Two lessons cannot be made to share a ``filed_at`` through the door
+        (``datetime.now()`` has microsecond resolution), so no test built from
+        the door could reach the tie. They CAN share one on the log, which is
+        the only place the fold reads from — a replayed batch, a backfill, or
+        two appends inside one microsecond all produce it.
+
+        Without the tiebreak the order falls through to the fold's own
+        newest-first pass, which for equal stamps is insertion order. The ids
+        below are chosen so insertion order and id order DISAGREE, which is
+        what makes the assertion able to fail.
+        """
+        from app.fund.events import Event, EventType
+        at = "2026-08-24T12:00:00+00:00"
+        # Appended in the order zzz-first, then aaa: insertion order is
+        # [zzz, aaa] and id order is [aaa, zzz].
+        for tid in ("zzzzzzzz-0000-4000-8000-000000000002",
+                    "aaaaaaaa-0000-4000-8000-000000000001"):
+            client.store.append(Event(
+                aggregate_id=tid, aggregate_type="ticket",
+                type=EventType.TICKET_OPENED,
+                payload={"ticket_id": tid, "type": "lesson",
+                         "subject": "same instant", "filed_for": "quant",
+                         "at": at}, actor="cto"))
+        rows = client.get("/api/v1/fund/tickets/lessons").json()["lessons"]
+        assert [r["filed_at"] for r in rows] == [at, at], "the tie is real"
+        assert [r["ticket_id"] for r in rows] == [
+            "aaaaaaaa-0000-4000-8000-000000000001",
+            "zzzzzzzz-0000-4000-8000-000000000002"]
+
     def test_the_median_reports_the_denominator_it_was_taken_over(self, client):
         """A median over the consumed minority, read as the population, is a
         number meaning something other than its label."""
