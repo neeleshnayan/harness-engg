@@ -72,6 +72,31 @@ export function readError(reason: unknown): string {
 }
 
 /**
+ * A metric's caption when the record behind it has not answered.
+ *
+ * `null` means "the read is done, write your own caption" — the caller then
+ * says what it MEASURED, which is the only case where a measurement is a true
+ * thing to say. The three seat-page metric strips each wrote this ternary
+ * inline, in JSX, where node's type stripper cannot execute it; the Gauntlet
+ * found all three untested and a branch swap silently green. One function,
+ * four call sites, one test.
+ *
+ * @param subject the record, named as the reader would name it — "the event
+ *   log", "the flight recorder". It is interpolated into both sentences, so
+ *   the two states differ in their VERBS and never only in their nouns.
+ * @param whenUnknown what is unknown if the read failed, e.g. "dispatches
+ *   unknown, not zero". Absence is never zero, and the caption says so in the
+ *   caller's own terms rather than in a generic one.
+ */
+export function recordCaption(
+  read: DeskRead, subject: string, whenUnknown: string,
+): string | null {
+  if (read === "loading") return `reading ${subject}…`;
+  if (read === "unreadable") return `${subject} is unreadable — ${whenUnknown}`;
+  return null;
+}
+
+/**
  * The one loading sentence, so three pages cannot phrase it three ways.
  *
  * IT IS SAID ONCE PER SURFACE, NOT ONCE PER SENTENCE. The first cut prefixed

@@ -38,7 +38,9 @@ import {
   executionYours, looksUnreadable, rowLamp, supersededBy,
 } from "../cardState";
 import { deskLanes } from "../deskLanes";
-import { READING_DESK, readError, readState } from "../deskRead";
+import {
+  READING_DESK, readError, readState, type DeskRead,
+} from "../deskRead";
 import {
   ASK_HEADLINE_MAX, CARD_HEADLINE_MAX, REC_STAGE_LABEL, bodyWithTail,
   clampLine, recLifecycle,
@@ -199,6 +201,7 @@ export default function CeoDeskPage() {
   const deskRead = readState(desk !== null, err !== null);
   const engineRead = readState(engine !== null, engineErr);
   const eventsRead = readState(events !== null, eventsErr);
+  const memoRead = readState(memo !== null, memoErr);
 
   /* SUPERSEDED ROWS NEVER REACH A CARD.
      This page builds its cards from `/fund/desk`, which knows nothing about
@@ -758,7 +761,7 @@ export default function CeoDeskPage() {
               seat="secretary"
               alwaysOpenable
             >
-              <DailyMemoCard memo={memo} unreachable={memoErr} />
+              <DailyMemoCard memo={memo} read={memoRead} />
               {officers.donna.notes.length > 0 && (
                 <div className="mt-2 space-y-1.5">
                   {officers.donna.notes.map((item) => (
@@ -1556,15 +1559,38 @@ function MemoCard({ m }: { m: CooMemo }) {
  * did not exist, so it rendered a permanent absence it was manufacturing
  * itself.
  */
-function DailyMemoCard({ memo, unreachable }: {
+function DailyMemoCard({ memo, read }: {
   memo: ArchiveMemo | null;
-  unreachable: boolean;
+  /** The state of the `GET /fund/desk/archives/memo` read. It was a single
+   *  `unreachable` boolean OR'd with `memo === null`, and that disjunction is
+   *  ticket fccb9cf3 in miniature: on the first render `memo` is null and
+   *  nothing has failed, so this card printed "could not be read — UNKNOWN,
+   *  not absent" about a fetch that was still in the air. Found by the
+   *  Gauntlet on the same page whose three other reads this ticket repaired. */
+  read: DeskRead;
 }) {
-  if (unreachable || memo === null) {
+  if (read === "loading") {
+    return (
+      <p className={`mb-2 text-sm ${KT.muted}`}>Reading her daily…</p>
+    );
+  }
+  if (read === "unreadable") {
     return (
       <p className={`mb-2 text-sm ${KT.sev.warn}`}>
         Her memo could not be read — UNKNOWN, not absent. Anything she filed is
         still filed; this surface could not reach it.
+      </p>
+    );
+  }
+  if (memo === null) {
+    /* Readable AND null. Not reachable through `load()`, which only stores a
+       fulfilled payload — but the component is exported to a page that could
+       pass one, and "the read succeeded and produced nothing" is a third fact
+       that must not borrow either sentence above. */
+    return (
+      <p className={`mb-2 text-sm ${KT.sev.warn}`}>
+        The memo endpoint answered with no payload at all — that is a defect in
+        the response, not a day without a daily.
       </p>
     );
   }

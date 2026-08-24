@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { KT } from "../theme";
 import { fmtAt } from "./seatLib";
-import { laneGlyph } from "./deskLanes";
+import { laneEmptyNote, laneGlyph } from "./deskLanes";
 import type { Lane, LaneRow } from "./deskLanes";
 import type { LineageAnchor, LineageSources } from "./lineage";
 import { lineageFor } from "./lineage";
@@ -97,18 +97,10 @@ export function LaneBlock({ lane, sources, children }: {
               ))}
             </div>
           )}
+          {/* THREE REASONS A LANE IS EMPTY, and only one of them is an empty
+              queue — `laneEmptyNote`, in a file a test can run. */}
           {!children && lane.rows.length === 0 && (
-            <p className={`text-[12px] ${KT.muted}`}>
-              {/* THREE REASONS A LANE IS EMPTY, and only one of them is an
-                  empty queue. "Read and empty" is a measurement; "no rows for
-                  this lane" points at the note; a read still in flight has
-                  measured nothing at all and must not borrow either sentence. */}
-              {c.source === "loading"
-                ? "Not read yet."
-                : c.value === 0
-                  ? "This lane was read and is empty."
-                  : "This page holds no rows for this lane — see the note above."}
-            </p>
+            <p className={`text-[12px] ${KT.muted}`}>{laneEmptyNote(c)}</p>
           )}
         </div>
       )}

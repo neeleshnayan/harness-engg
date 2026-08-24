@@ -5,9 +5,11 @@ import { readFileSync } from "node:fs";
 import {
   awaitingHeadline, deskShelves, heroFigure, shelfAbsenceNote,
 } from "./deskAwaiting.ts";
-import { deskLanes, laneCount, decidedCount, laneGlyph } from "./deskLanes.ts";
+import {
+  deskLanes, laneCount, decidedCount, laneGlyph, laneEmptyNote,
+} from "./deskLanes.ts";
 import { steeringSentence } from "./deskSteer.ts";
-import { readState } from "./deskRead.ts";
+import { readState, recordCaption } from "./deskRead.ts";
 import type { CeoDeskView, DeskView } from "@/lib/fund_api";
 
 /**
@@ -108,6 +110,51 @@ test("fccb9cf3: laneGlyph makes the same distinction in the lane headers, "
   assert.equal(laneGlyph(c({ value: 0, source: "page" })), "0");
   assert.equal(laneGlyph(c({ source: "unknown" })), "unknown");
   assert.equal(laneGlyph(c({ source: "loading" })), "…");
+});
+
+test("fccb9cf3: laneEmptyNote keeps THREE reasons apart, and only one of them "
+  + "is an empty queue — the sibling ternary the first cut left in the .tsx "
+  + "when it extracted laneGlyph out of the same file", () => {
+  const c = (over: Record<string, unknown>) =>
+    ({ value: null, shown: 0, source: "unknown", note: null, ...over }) as
+      Parameters<typeof laneEmptyNote>[0];
+  assert.equal(laneEmptyNote(c({ value: 0, source: "page" })),
+    "This lane was read and is empty.");
+  assert.match(laneEmptyNote(c({ source: "loading" })), /^Not read yet\.$/);
+  assert.match(laneEmptyNote(c({ source: "unknown" })), /see the note above/);
+  // The three must be pairwise DIFFERENT, or one of them is unreachable in a
+  // way no single-branch assertion above would notice.
+  const all = new Set([
+    laneEmptyNote(c({ value: 0, source: "page" })),
+    laneEmptyNote(c({ source: "loading" })),
+    laneEmptyNote(c({ source: "unknown" })),
+  ]);
+  assert.equal(all.size, 3);
+});
+
+test("fccb9cf3: recordCaption returns NULL when the record has answered — the "
+  + "caller then says what it measured, which is the only state where a "
+  + "measurement is a true thing to say", () => {
+  assert.equal(recordCaption("readable", "the flight recorder", "x"), null);
+  assert.equal(recordCaption("loading", "the flight recorder", "x"),
+    "reading the flight recorder…");
+  assert.equal(recordCaption("unreadable", "the flight recorder",
+    "token totals unknown, not zero"),
+    "the flight recorder is unreadable — token totals unknown, not zero");
+});
+
+test("fccb9cf3: recordCaption's two states differ in their VERB, not only in "
+  + "their subject — a caption that changed only the noun would read the same "
+  + "to anyone scanning the strip", () => {
+  const a = recordCaption("loading", "the event log", "dispatches unknown")!;
+  const b = recordCaption("unreadable", "the event log", "dispatches unknown")!;
+  assert.notEqual(a, b);
+  assert.ok(!/unreadable/.test(a), "the pending caption claims no failure");
+  assert.ok(!/^reading /.test(b), "the failed caption claims no progress");
+  // And the failure caption must carry the caller's own absence clause: a
+  // generic "unreadable" with no "unknown, not zero" is the sentence this
+  // desk's whole discipline exists to prevent.
+  assert.match(b, /dispatches unknown/);
 });
 
 /* ------------------------------------------------- 1. the hero and its fold */

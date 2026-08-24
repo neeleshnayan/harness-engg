@@ -245,6 +245,22 @@ export function laneGlyph(c: LaneCount): string {
   return c.source === "loading" ? "…" : "unknown";
 }
 
+/**
+ * Why an OPEN lane has no rows in it — three reasons, only one of them empty.
+ *
+ * Extracted from `DeskLaneViews.tsx` on the Gauntlet's finding: the diff that
+ * pulled `laneGlyph` out of that file for exactly this reason left its sibling
+ * ternary forty lines below, untested, deciding between a measurement ("read
+ * and is empty"), a pointer at the note, and — new — a read that has measured
+ * nothing at all. A rule applied to one half of a file and not the other is
+ * the shape of the defect this whole ticket is about.
+ */
+export function laneEmptyNote(c: LaneCount): string {
+  if (c.source === "loading") return "Not read yet.";
+  if (c.value === 0) return "This lane was read and is empty.";
+  return "This page holds no rows for this lane — see the note above.";
+}
+
 /** Rows of an actor, said plainly. `null` is a finding, not a blank. */
 function actorOf(rec: {
   next_actor_resolved?: string | null; next_actor?: string | null;

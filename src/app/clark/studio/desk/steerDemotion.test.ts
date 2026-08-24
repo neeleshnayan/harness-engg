@@ -5,14 +5,24 @@ import { readFileSync } from "node:fs";
 /**
  * THE STEERING SENTENCE IS A FOOTNOTE, NOT A HEADLINE (2026-08-24).
  *
- * MEASURED ON THE LIVE DESK BEFORE THE CHANGE (CDP, 1440×2400, the geometry
- * probe kept at `scratchpad/kpp_probe_header.js`): the steering sentence
- * rendered **73px tall at 15px in the warn amber, 282 characters, three
- * lines** — the TALLEST block in a 244px header, taller than the hero line
- * (41px), sitting directly under a page whose own docstring says *"the number
- * is the only hero-scale thing"* and whose design brief says *hierarchy from
- * type and space, never colour*. Three amber lines arguing with the spec above
- * them, on the surface the CEO opens first.
+ * MEASURED ON THE LIVE DESK BEFORE THE CHANGE, at 1440×2400: the steering
+ * sentence rendered **73px tall at 15px in the warn amber, 282 characters,
+ * three lines** — the TALLEST block in a 244px header, taller than the hero
+ * line (41px), sitting directly under a page whose own docstring says *"the
+ * number is the only hero-scale thing"* and whose design brief says *hierarchy
+ * from type and space, never colour*. Three amber lines arguing with the spec
+ * above them, on the surface the CEO opens first.
+ *
+ * REPRODUCE, and this citation is in the repo on purpose — six other pixel
+ * figures in this directory cite probes that lived in a session scratchpad and
+ * are now uncheckable:
+ *
+ *     node scripts/ui/measure.js http://127.0.0.1:3000/clark/studio/desk/ceo \
+ *       scripts/ui/probes/header_geometry.js
+ *
+ * The numbers move with the live desk's content — a longer top row wraps to
+ * more lines — so what reproduces is the RELATIONSHIP (which block is tallest,
+ * at what type scale, in what tone), not the exact pixel.
  *
  * AFTER: **59px at 12px, muted**, below the shelves and below the caveat about
  * the number, in the same metadata register the spend-demotion rule put token

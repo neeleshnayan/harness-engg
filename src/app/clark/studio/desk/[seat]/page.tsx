@@ -13,7 +13,7 @@ import {
 import { MemoThread } from "../MemoThread";
 import { SeatFace } from "../SeatFace";
 import { splitRecordRows } from "../recordRow";
-import { readError, readState } from "../deskRead";
+import { readError, readState, recordCaption } from "../deskRead";
 import { LaneTrackRecord } from "../laneViews";
 import {
   ASSUMED_INPUT_SHARE,
@@ -239,22 +239,18 @@ function Seat({ seat }: { seat: SeatId }) {
             <Metric
               label="dispatches"
               value={events == null ? "—" : dispatches.dispatches ?? "never"}
-              sub={eventsRead === "loading"
-                ? "reading the event log…"
-                : eventsRead === "unreadable"
-                  ? "event log unreadable — dispatches unknown, not zero"
-                  : dispatches.lastAt
-                    ? `last ${fmtAt(dispatches.lastAt)}${dispatches.actors.length ? ` by ${dispatches.actors.join(", ")}` : ""}`
-                    : "no dispatch event on record"}
+              sub={recordCaption(eventsRead, "the event log",
+                "dispatches unknown, not zero")
+                ?? (dispatches.lastAt
+                  ? `last ${fmtAt(dispatches.lastAt)}${dispatches.actors.length ? ` by ${dispatches.actors.join(", ")}` : ""}`
+                  : "no dispatch event on record")}
             />
             <Metric
               label="runs recorded"
               value={runs == null ? "—" : seatRuns.length}
-              sub={runsRead === "loading"
-                ? "reading the flight recorder…"
-                : runsRead === "unreadable"
-                  ? "flight recorder unreadable"
-                  : "rows in the flight recorder"}
+              sub={recordCaption(runsRead, "the flight recorder",
+                "how many runs is unknown, not zero")
+                ?? "rows in the flight recorder"}
             />
             {/* THE STATS ARE FOLDED FROM `runs ?? []`, so before the flight
                 recorder answers they are the fold of an EMPTY LIST — and every
@@ -265,13 +261,11 @@ function Seat({ seat }: { seat: SeatId }) {
             <Metric
               label="tokens / dispatch"
               value={stats.avg == null ? "—" : fmtTokens(Math.round(stats.avg))}
-              sub={runsRead !== "readable"
-                ? runsRead === "loading"
-                  ? "reading the flight recorder…"
-                  : "flight recorder unreadable — token totals unknown, not zero"
-                : stats.reported === 0
+              sub={recordCaption(runsRead, "the flight recorder",
+                "token totals unknown, not zero")
+                ?? (stats.reported === 0
                   ? "no run recorded a token total"
-                  : `${fmtTokens(stats.min)}–${fmtTokens(stats.max)} · ${stats.reported} of ${stats.runs} runs reported`}
+                  : `${fmtTokens(stats.min)}–${fmtTokens(stats.max)} · ${stats.reported} of ${stats.runs} runs reported`)}
             />
             <Metric
               label="tokens total"
@@ -280,13 +274,11 @@ function Seat({ seat }: { seat: SeatId }) {
             <Metric
               label="cost (estimate)"
               value={stats.costUsd == null ? "—" : fmtUsd(stats.costUsd)}
-              sub={runsRead !== "readable"
-                ? runsRead === "loading"
-                  ? "reading the flight recorder…"
-                  : "flight recorder unreadable — nothing could be priced yet"
-                : stats.costUsd == null
+              sub={recordCaption(runsRead, "the flight recorder",
+                "what any of it cost is unknown, not zero")
+                ?? (stats.costUsd == null
                   ? "no run could be priced"
-                  : `${stats.priced} of ${stats.runs} runs priced`}
+                  : `${stats.priced} of ${stats.runs} runs priced`)}
             />
           </div>
           <PriceTable />
