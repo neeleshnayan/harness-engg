@@ -982,3 +982,14 @@ until the CEO picks an offsite (LFS or drive; his account decision).
    excerpts. (What Stan actually did was the staged form - view first,
    one targeted pass - and it produced the throttle-vs-cost disagreement
    and the E-G4 catch; the discipline now makes that the ONLY form.)
+
+
+---
+
+## 2026-08-24 — UI build order re-set by the CEO's reading demand
+
+D39 (in flight) -> **D26 THE READING ROOM promoted next** (research dossiers
++ house PDF library on the CEO desk; approved efe64b67, kept losing its
+slot; the CEO's "hope they are all now accessible via the UI" is the
+demand signal) -> D40 (team room) -> D33 (live floor). Interim bridge: the
+reading pack sent as files; the library ritual continues per dossier.
