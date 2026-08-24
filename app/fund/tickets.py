@@ -56,8 +56,9 @@ logger = logging.getLogger(__name__)
 #: Bumped when a state, a transition rule, or an adapter changes. Published in
 #: the payload for the same reason ``NEXT_ACTOR_RULES_VERSION`` is: a reader
 #: holding a count deserves to know which rules produced it.
-TICKET_FOLD_VERSION = ("ticket fold v2 (2026-08-24) — v1's legacy adapters "
-                       "plus the four TICKET_* event types of §2.1")
+TICKET_FOLD_VERSION = ("ticket fold v3 (2026-08-24) — v1's legacy adapters, "
+                       "v2's four TICKET_* event types of §2.1, and v3's "
+                       "decision lineage of §1.5 (one decision, one row)")
 
 #: The type facets this fold can contain.
 #:
@@ -778,12 +779,32 @@ def fold(store: Any, runs: Optional[Iterable[dict[str, Any]]] = None,
 
     # ------------------------------------------------------------- finishing
 
+    from app.fund import ticketguard
+
     out: list[dict[str, Any]] = []
     for tid, tk in tickets.items():
         verdict = _ticket_next_actor(tk, rows_for_actor.get(tid))
         age = _age_hours(tk.get("filed_at"), at_now)
         last_at = (tk["transitions"][-1] or {}).get("at")
         in_state = _age_hours(last_at, at_now)
+        # ONE DECISION, ONE ROW, MADE VISIBLE (slice 3, memo §1.5). A ticket
+        # that has ever received a decision carries it forever; `state` moves
+        # on (`accepted` -> `done`) and `decided` does not. Derived here rather
+        # than stored so it cannot drift from the transition list it is read
+        # from, and published on the row because the door, the console and the
+        # CEO's exceptions view all need the same answer — two derivations of
+        # "has this been decided" is the defect this highway exists to stop
+        # multiplying.
+        lin = ticketguard.lineage(tk)
+        tk.update({
+            "decided": lin["decided"],
+            "decision_count": lin["decision_count"],
+            "decided_state": lin["decided_state"],
+            "decided_at": lin["decided_at"],
+            "decided_by": lin["decided_by"],
+            "canonical_ticket_id": lin["canonical_ticket_id"],
+            "decision_basis": lin["basis"],
+        })
         tk.update({
             "next_actor": verdict["actor"],
             "next_actor_basis": verdict["basis"],

@@ -14,6 +14,7 @@ is built and structurally locked. Neither dimension has a default.
 import logging
 import os
 import re
+import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -2537,6 +2538,385 @@ def tickets_view(ticket_type: Optional[str] = Query(None, alias="type"),
             "filters": {"type": ticket_type, "state": state},
             "limit": limit,
             "types": list(tk.TICKET_TYPES), "states": list(tk.TICKET_STATES)}
+
+
+# ---------------------------------------------------------------------------
+# THE TICKET DOORS — slices 2 and 3.
+#
+# DIRECTION, STATED FIRST BECAUSE THESE ARE DOORS: every endpoint below is
+# NEW. No existing caller gains a capability, no existing endpoint's behaviour
+# changes by one byte, and nothing here can widen what the legacy desk doors
+# admit. Within the new surface the guards only ever REFUSE: an unknown id is
+# 404, a decision transition takes the approval-channel guard unchanged, an
+# already-decided ticket presented bare is 409, a terminal without its
+# mandatory field is 422, and `expired` is refused outright because no aging
+# policy exists to authorise it.
+#
+# WHAT THIS DOES NOT DO: it does not touch `decide_recommendation`,
+# `desk_approve`, `desk_decline` or `desk_resolve`. The eight R39 re-decisions
+# landed on the FIRST of those, and wiring this guard into it would change a
+# live approval-adjacent path the CEO's desk posts to today. That is a human
+# decision with the numbers in front of it, not a slice's side effect — and the
+# numbers are in `scripts/instruments/hw3/r39_census.py`.
+# ---------------------------------------------------------------------------
+
+
+def _ticket_fold():
+    """The fold the doors consult, with the recommendation leg if it is there.
+
+    ONE READER FOR EVERY DOOR. `tickets_view` builds the same thing and the two
+    could have drifted; they now cannot. The runs read is capped at
+    `TICKET_RUNS_LIMIT` exactly as the view's is, so a door and the page a
+    caller was looking at when it clicked see the same population.
+    """
+    from app.fund import tickets as tk
+    runs, runs_limit = None, None
+    ds = _deskstore()
+    if ds is not None:
+        try:
+            runs, runs_limit = ds.runs(limit=TICKET_RUNS_LIMIT), TICKET_RUNS_LIMIT
+        except Exception as e:  # noqa: BLE001
+            logger.info("ticket door: runs unavailable: %s", e)
+    return tk.fold(_store, runs=runs, runs_limit=runs_limit)
+
+
+def _refuse_unknown_ticket(folded: dict, ticket_id: str) -> dict:
+    """404 a ticket id the fold has never seen; return the row otherwise.
+
+    THE PHANTOM GUARD, GENERALISED (design §2.3, failure #5). `desk_resolve`
+    and `desk_approve` appended without looking the row up until 2026-08-24,
+    so a POST against the 8-character shorthand the desk prints returned 200
+    and wrote an event against an aggregate no fold reads. Every door on this
+    highway looks the id up first, and the only door that does not is OPEN —
+    which mints its own id and therefore has nothing to look up.
+
+    **FAILS OPEN ON AN UNREADABLE FOLD, deliberately, and the reason is
+    `_refuse_unknown_request`'s reason unchanged**: if the event store cannot
+    be read this cannot distinguish "no such ticket" from "cannot tell", and a
+    rendering guard that becomes an outage on a write path has traded a typo
+    for a stoppage. The caller is told which happened —
+    `fold_readable: false` rides the response — so a write taken during an
+    outage is visible in the record rather than silent.
+
+    ONE DIFFERENCE FROM ITS ANCESTOR, AND IT IS A TIGHTENING: `did_you_mean`
+    draws only from ids in THIS fold, so a prefix that expands to a desk
+    request but not to a ticket returns an empty hint rather than a wrong one.
+    """
+    rows = folded.get("tickets")
+    if rows is None:
+        logger.warning("ticket existence check unavailable, proceeding "
+                       "WITHOUT it for %s", ticket_id)
+        return {}
+    by_id = {r["ticket_id"]: r for r in rows}
+    hit = by_id.get(ticket_id)
+    if hit is not None:
+        return hit
+    from app.fund.deskengine import MIN_ID_PREFIX
+    hits = sorted(k for k in by_id
+                  if len(ticket_id) >= MIN_ID_PREFIX and k.startswith(ticket_id))
+    raise HTTPException(
+        status_code=404,
+        detail={"error": "no such ticket", "ticket_id": ticket_id,
+                "folds_consulted": ["tickets"],
+                "did_you_mean": hits,
+                "note": ("this id matches no ticket in the fold. Refused "
+                         "rather than recorded: appending here would write an "
+                         "event against an aggregate that does not exist, "
+                         "return 200, and leave the real ticket untouched")})
+
+
+def _ticket_legacy_ref(row: dict):
+    """The desk-row reference a supersession edge would be keyed on, or None.
+
+    THE SUPERSESSION STORE'S VOCABULARY IS `rec:<run>#<id>` AND `req:<id>`
+    (deskengine.parse_ref) — it has never held a bare ticket id, and it will
+    not learn one in this slice. A ticket folded from a legacy species HAS such
+    a ref and gets the real check; a ticket born at the ticket door does NOT,
+    and the honest answer for it is "not applicable", never "no edge found".
+    Those two render identically to a caller who is not told which one it got,
+    which is why the response carries `supersession_basis` and not a bare bool.
+    """
+    from app.fund.deskengine import rec_ref, req_ref
+    if row.get("run_id") is not None and row.get("rec_id") is not None:
+        return rec_ref(row["run_id"], row["rec_id"])
+    if row.get("request_id"):
+        return req_ref(row["request_id"])
+    return None
+
+
+def _refuse_decided_representation(row: dict, to: str, decision_ref, superseder_ref,
+                                   actor: str) -> None:
+    """409-and-RECORD a decided ticket presented bare (design §1.5).
+
+    THE REFUSAL APPENDS AN `ApprovalRefused` EVENT, and that is the point of it
+    being here rather than in `ticketguard`: the riskofficer audits refusals
+    from `/fund/events`, not from anybody's terminal. This is the third
+    producer of that type (channel guard, mark sanity, supersession being the
+    others) and the same knock-on `_refuse_if_superseded` discloses applies —
+    `mode._controls_have_fired` is satisfied by the type appearing at all, and
+    a store whose only refusal was this one would read as "the approval control
+    has fired". It genuinely is an approval refused, so nothing false is told;
+    whoever owns that precondition should know a third producer exists.
+    """
+    from app.fund import ticketguard
+    from app.fund.events import Event, EventType
+    refusal = ticketguard.check_representation(
+        row, to=to, decision_ref=decision_ref, superseder_ref=superseder_ref)
+    if refusal is None:
+        return
+    _store.append(Event(
+        aggregate_id=row.get("ticket_id") or "unknown", aggregate_type="ticket",
+        type=EventType.APPROVAL_REFUSED,
+        payload={"kind": "ticket", "target_id": row.get("ticket_id"),
+                 "approver": actor or "", "guard": refusal["guard"],
+                 "reason": refusal["detail"],
+                 # THE LINEAGE ON THE RECORD TOO, not only in the response.
+                 # "who was stopped from re-deciding what, and where the
+                 # canonical decision lives" is the question this event exists
+                 # to answer six months from now.
+                 "attempted": to,
+                 "canonical_ticket_id": refusal["canonical_ticket_id"],
+                 "decided_state": refusal["decided_state"],
+                 "decided_at": refusal["decided_at"],
+                 "decision_count": refusal["decision_count"],
+                 "at": datetime.now(timezone.utc).isoformat()},
+        actor=actor or "unknown"))
+    raise HTTPException(status_code=409, detail=refusal)
+
+
+class TicketOpen(BaseModel):
+    """A new ticket. The three routing fields ride from birth (design §2.1)."""
+    type: str
+    subject: str
+    filed_for: Optional[str] = None
+    actor: str = "cto"
+    parent_id: Optional[str] = None
+    trace_id: Optional[str] = None
+    kind: Optional[str] = None
+    next_actor: Optional[str] = None
+    due_date: Optional[str] = None
+    reversibility: Optional[str] = None
+    money_at_stake: Optional[float] = None
+
+
+@router.post("/fund/tickets")
+def open_ticket(req: TicketOpen):
+    """File a ticket. The ONE door with nothing to look up — it mints the id.
+
+    IDS ARE FULL uuid4, MINTED HERE, NEVER ACCEPTED FROM THE CALLER (§1.1).
+    The 8-character-prefix habit is what rotted 54 of 56 linkages; a door that
+    took an id from its caller would let the habit back in through the front.
+    """
+    from app.fund import tickets as tk
+    from app.fund.events import Event, EventType
+    if req.type not in tk.OPENABLE_TYPES:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "unknown ticket type", "type": req.type,
+                    "allowed": list(tk.OPENABLE_TYPES),
+                    "note": "refused rather than filed under a type no view "
+                            "queries — a row nobody can find is a row nobody "
+                            "works"})
+    if not (req.subject or "").strip():
+        raise HTTPException(
+            status_code=422,
+            detail="a ticket needs a subject — a blank row costs a dispatch "
+                   "to discover and tells the receiving seat nothing")
+    if req.reversibility is not None and req.reversibility not in tk.REVERSIBILITY:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "unknown reversibility", "allowed": list(tk.REVERSIBILITY),
+                    "note": "a CLOSED set on purpose: `kind` is free text with "
+                            "84 values and routes 18.7% of rows"})
+    if req.next_actor is not None:
+        from app.fund.desk import NEXT_ACTORS
+        if req.next_actor not in NEXT_ACTORS:
+            raise HTTPException(
+                status_code=422,
+                detail={"error": "unknown next_actor", "allowed": list(NEXT_ACTORS),
+                        "note": "read from desk.NEXT_ACTORS, never a second "
+                                "copy — two vocabularies for whose move it is "
+                                "is how one client read 11 where the spine "
+                                "read 6"})
+    ticket_id = str(uuid.uuid4())
+    payload = {"ticket_id": ticket_id, "type": req.type,
+               "subject": req.subject.strip(), "filed_for": req.filed_for,
+               "parent_id": req.parent_id,
+               "trace_id": req.trace_id or ticket_id,
+               "kind": req.kind, "next_actor": req.next_actor,
+               "due_date": req.due_date, "reversibility": req.reversibility,
+               "money_at_stake": req.money_at_stake,
+               "at": datetime.now(timezone.utc).isoformat(),
+               "actor": req.actor}
+    _store.append(Event(aggregate_id=ticket_id, aggregate_type="ticket",
+                        type=EventType.TICKET_OPENED,
+                        payload=payload, actor=req.actor))
+    return payload
+
+
+class TicketTransition(BaseModel):
+    to: str
+    actor: str = "cto"
+    basis: Optional[str] = None
+    citation: Optional[str] = None
+    reason: Optional[str] = None
+    decision_ref: Optional[str] = None
+    superseder_ref: Optional[str] = None
+    staged_ref: Optional[str] = None
+    confirm: Optional[str] = None      # approval-channel guard v1
+    instruction: Optional[str] = None  # via-cto: the CEO's quoted instruction
+
+
+@router.post("/fund/tickets/{ticket_id}/transition")
+def transition_ticket(ticket_id: str, req: TicketTransition):
+    """Move one ticket. Five guards, in a fixed order, every one refuse-only.
+
+    THE ORDER IS THE D22 ORDER AND IT IS NOT ARBITRARY: identity before
+    lineage. `desk_approve` ran its supersession check FIRST until 2026-08-24
+    and handed the lineage — which edge, which superseder, which future event —
+    to any caller, including one the allowlist was about to refuse. So:
+
+      1. **Vocabulary.** An unknown `to` is 422 with the list, never a silent
+         no-op.
+      2. **Approval channel** (decision transitions only): allowlist, confirm
+         echo, and the verbatim-instruction rule for `neelesh-via-*`. REUSED
+         from `_guard_approval`, not rewritten.
+      3. **Identity.** `_refuse_unknown_ticket` — 404 + `did_you_mean`.
+      4. **Terminal requirements.** No citation, no close; no reason, no
+         decline; `expired` refused outright while no aging policy exists.
+      5. **Lineage.** The supersession refusal on advancing transitions, then
+         the §1.5 decision_ref rule.
+
+    Legality of the transition ITSELF (`filed` does not go straight to
+    `returned`) is decided in the FOLD, by `tickets._advance`, and is checked
+    here too. Both, deliberately: the door reads a fold at request time and two
+    events racing one ticket both pass it, so the replay has to be able to
+    refuse the loser — and a caller deserves a 409 rather than a 200 followed
+    by a transition that silently never applied.
+    """
+    from app.fund import tickets as tk
+    from app.fund import ticketguard
+    from app.fund.events import Event, EventType
+
+    to = (req.to or "").strip()
+    if to not in tk.TICKET_STATES:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "unknown target state", "to": req.to,
+                    "allowed": list(tk.TICKET_STATES),
+                    "note": "refused rather than answered — a POST that "
+                            "returns 200 and changes nothing is worse than a "
+                            "422, because the caller believes it acted"})
+    actor = req.actor
+    if to in tk.DECISION_TRANSITIONS:
+        actor = _guard_approval("ticket", ticket_id, req.actor, req.confirm,
+                                req.instruction, DESK_APPROVAL_ALLOWLIST)
+    folded = _ticket_fold()
+    row = _refuse_unknown_ticket(folded, ticket_id)
+    fold_readable = folded.get("tickets") is not None
+
+    problem = ticketguard.terminal_requirement(
+        to, {"citation": req.citation, "reason": req.reason,
+             "decision_ref": req.decision_ref,
+             "superseder_ref": req.superseder_ref})
+    if problem:
+        raise HTTPException(status_code=422, detail=problem)
+    if to == "merged" and fold_readable:
+        known = {r["ticket_id"] for r in folded["tickets"]}
+        bad = ticketguard.merge_target_error(ticket_id, req.decision_ref, known)
+        if bad:
+            raise HTTPException(status_code=422, detail=bad)
+
+    supersession_basis = "no legacy ref — a door-born ticket has no desk row"
+    readable = None
+    ref = _ticket_legacy_ref(row) if row else None
+    if ref is not None and to in tk.ADVANCING_TICKET_STATES:
+        readable = _refuse_if_superseded(ref, kind="ticket",
+                                         target_id=ticket_id, actor=actor)
+        supersession_basis = ("checked against the edge store"
+                              if readable else
+                              "edge store unreadable — this transition was "
+                              "taken WITHOUT the supersession check")
+    elif ref is not None:
+        supersession_basis = (f"not advancing ({to!r}); closing a superseded "
+                              "row must stay easy")
+
+    if row:
+        _refuse_decided_representation(row, to, req.decision_ref,
+                                       req.superseder_ref, actor)
+        frm = row.get("state")
+        if frm is not None and frm not in tk.ALLOWED_FROM.get(to, ()):
+            raise HTTPException(
+                status_code=409,
+                detail={"error": "illegal transition", "ticket_id": ticket_id,
+                        "from": frm, "to": to,
+                        "allowed_from": list(tk.ALLOWED_FROM.get(to, ())),
+                        "note": "terminal precedence per desk.py:655-677 — the "
+                                "fold is order-honest, not last-write-wins, so "
+                                "this event would be recorded refused rather "
+                                "than applied. Refused at the door instead, so "
+                                "the caller learns now"})
+
+    payload = {"ticket_id": ticket_id, "from": row.get("state") if row else None,
+               "to": to, "actor": actor,
+               "basis": req.basis or ("decision" if to in tk.DECISION_TRANSITIONS
+                                      else "transition"),
+               "citation": req.citation, "reason": req.reason,
+               "decision_ref": req.decision_ref,
+               "superseder_ref": req.superseder_ref,
+               "staged_ref": req.staged_ref,
+               # WHETHER EACH CHECK RAN, on the record beside the transition it
+               # did or did not stop. `false` means the check was SKIPPED, never
+               # "there was nothing to find" — the disclosure `supersession_
+               # readable` was invented for, applied to both fail-open legs.
+               "fold_readable": fold_readable,
+               "supersession_readable": readable,
+               "supersession_basis": supersession_basis,
+               "at": datetime.now(timezone.utc).isoformat()}
+    _store.append(Event(aggregate_id=ticket_id, aggregate_type="ticket",
+                        type=EventType.TICKET_TRANSITIONED,
+                        payload=payload, actor=req.actor))
+    return payload
+
+
+class TicketLink(BaseModel):
+    link_kind: str
+    target_id: str
+    actor: str = "cto"
+    basis: Optional[str] = None
+
+
+@router.post("/fund/tickets/{ticket_id}/link")
+def link_ticket(ticket_id: str, req: TicketLink):
+    """Assert one edge between two tickets. GUARDED ON BOTH ENDS (design §2.3).
+
+    Both ends, because a link is a claim about two rows and half a claim is
+    what produced 54 rotted linkages: an edge whose target does not exist reads
+    as a linked row on every surface that counts coverage.
+    """
+    from app.fund import tickets as tk
+    from app.fund.events import Event, EventType
+    if req.link_kind not in tk.LINK_KINDS:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "unknown link_kind", "link_kind": req.link_kind,
+                    "allowed": list(tk.LINK_KINDS)})
+    folded = _ticket_fold()
+    _refuse_unknown_ticket(folded, ticket_id)
+    _refuse_unknown_ticket(folded, req.target_id)
+    if req.target_id == ticket_id:
+        raise HTTPException(
+            status_code=422,
+            detail="a ticket cannot link to itself — the edge would assert "
+                   "nothing and would count as coverage on every view")
+    payload = {"ticket_id": ticket_id, "link_kind": req.link_kind,
+               "target_id": req.target_id, "basis": req.basis,
+               "at": datetime.now(timezone.utc).isoformat(),
+               "actor": req.actor}
+    _store.append(Event(aggregate_id=ticket_id, aggregate_type="ticket",
+                        type=EventType.TICKET_LINKED,
+                        payload=payload, actor=req.actor))
+    return payload
 
 
 # ===========================================================================
