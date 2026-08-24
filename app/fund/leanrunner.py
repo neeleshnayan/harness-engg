@@ -1609,11 +1609,20 @@ def psr_inputs(stats: dict, daily: Optional[dict[str, Any]] = None,
                ) -> dict[str, Any]:
     """Everything that could identify the formula behind the reported PSR.
 
-    Capture only: NO criterion reads any of this, and adding one would be a
-    threshold change. What it buys is that the next reader can answer "against
-    what target?" from a stored verdict instead of from a new belt run.
+    Capture, and NO CRITERION'S PASS/FAIL READS ANY OF IT — wiring one to a
+    verdict would be a threshold change. What it buys is that the next reader
+    can answer "against what target?" from a stored verdict instead of from a
+    new belt run.
 
-    Three things travel together and they answer different halves of the
+    ONE FIELD IS READ ON THE GATE SIDE, and D38 states the boundary rather than
+    leaving the sentence above quietly false: `_luck_leg` reads
+    ``trading_days_per_year`` to state the engine's hurdle in the failure
+    sentence. The engine hurdle's verdict is ``psr_pct >= min_psr_pct`` and
+    touches neither the target nor the clock, so what this field moves is a
+    DISCLOSURE. A future change that let it move a verdict is the threshold
+    change this paragraph exists to make visible.
+
+    Four things travel together and they answer different halves of the
     question:
 
       * ``statistics`` — the engine's own numbers, verbatim, unparsed.
@@ -2581,9 +2590,11 @@ def _robustness(stats: dict, equity: list[float], dates: list[str],
         # re-derives.
         "engine_annual_vol_pct": _annual_vol_pct(stats),
         "periods": _periods(equity, dates),
-        # CAPTURE ONLY — no criterion reads this. The gate's most binding
-        # criterion judges a statistic nobody has identified; this is the
-        # evidence that identifies it, carried on every future verdict.
+        # THE STATISTIC IS IDENTIFIED NOW (D38) — this block is the evidence,
+        # carried on every future verdict. Its one reader on the gate side is
+        # `trading_days_per_year`, and that read moves a DISCLOSURE and never a
+        # verdict: the engine hurdle's pass/fail is `psr_pct >= level` and
+        # touches neither the target nor the clock. See `psr_inputs`.
         "psr_inputs": psr_inputs(stats, daily, config),
     }
     return out

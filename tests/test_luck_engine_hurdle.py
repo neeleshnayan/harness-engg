@@ -315,7 +315,46 @@ def test_the_engine_target_clock_is_READ_from_the_run_not_hardcoded_twice():
     assert plain["engine_trading_days_per_year"] == 252.0
 
 
-@pytest.mark.parametrize("stored", [0, -1, 0.0, "252", True, None, {}])
+@pytest.mark.parametrize("clock", [200, 252, 260, 365, None, 0, "x"])
+def test_the_STORED_CLOCK_MOVES_A_DISCLOSURE_AND_NEVER_A_VERDICT(clock):
+    """THE BOUNDARY, asserted rather than promised.
+
+    `robustness.psr_inputs` is a CAPTURE block, and its docstring says no
+    criterion's pass/fail reads any of it. D38 gave the gate one reader —
+    `trading_days_per_year`, for the sentence — and a sentence about a boundary
+    is worth nothing beside a test of it.
+
+    The engine hurdle's verdict is `psr_pct >= min_psr_pct`. Neither side of
+    that inequality involves the target or the clock, so moving the clock across
+    its whole plausible range, and past every malformed value, must leave
+    `passed`, `evaluated_pct`, `measurable` and the failure SET size untouched
+    while the demand and the sentence follow it. If this ever fails, a capture
+    field has become a threshold.
+    """
+    def judged(stored):
+        r = _alpha(psr=90.0)
+        r["robustness"]["psr_pct"] = 20.0
+        if stored is not None:
+            r["robustness"]["psr_inputs"] = {"trading_days_per_year": stored}
+        return evaluate(r, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK,
+                        criteria={"psr_basis": "engine_reported",
+                                  "min_psr_pct": 65.0})
+
+    base, moved = judged(None), judged(clock)
+    assert base["passed"] == moved["passed"] is False
+    assert len(base["failures"]) == len(moved["failures"])
+    for key in ("measurable", "evaluated_pct", "engine_psr_pct",
+                "luck_psr_pct", "level_pct", "applied", "n_obs"):
+        assert base["checks"]["luck"][key] == moved["checks"]["luck"][key], key
+    # and the DISCLOSURE does move, for the clocks that are readable — without
+    # this the invariance above would also hold for a leg that ignored the field
+    if isinstance(clock, int) and clock > 0 and clock != 252:
+        assert (moved["checks"]["luck"]["required_sharpe_annualised"]
+                != base["checks"]["luck"]["required_sharpe_annualised"])
+
+
+@pytest.mark.parametrize("stored", [0, -1, 0.0, "252", True, None, {},
+                                    float("nan"), float("inf")])
 def test_an_UNUSABLE_stored_clock_falls_back_and_SAYS_it_fell_back(stored):
     """A stored configuration is a stored value, so it arrives malformed.
 
@@ -334,6 +373,62 @@ def test_an_UNUSABLE_stored_clock_falls_back_and_SAYS_it_fell_back(stored):
     assert luck["engine_trading_days_per_year"] == 252.0
     assert luck["engine_trading_days_assumed"] is True
     assert luck["measurable"] is True
+
+
+def test_a_premia_claim_ON_THE_ENGINE_BASIS_solves_its_bar_from_the_STRATEGY():
+    """THE BAR FOLLOWS THE STATISTIC, NOT THE CLAIM TYPE.
+
+    `claim_scope` has said since v4.4 that a premia claim judged on
+    `engine_reported` was scored on the strategy's ABSOLUTE Sharpe — the engine
+    knows nothing about this fund's benchmark. The bar did not follow: it took
+    the ADVANTAGE's moments and solved them against a target of ZERO, then
+    printed the answer in a sentence whose stated target is 1.00. The rendered
+    result was "demands an annualised excess Sharpe of about +0.04" beside "an
+    annualised Sharpe of exactly 1.00" — a demand BELOW its own target, which
+    cannot happen, and which reads as a trivial hurdle.
+
+    THE INVARIANT THAT CATCHES IT WITHOUT REDERIVING ANYTHING: a bar solved at
+    a level above 50% against a target T must exceed T. That is true of every
+    shape and every sample size, so it needs no fixture arithmetic to defend —
+    and it is exactly what the defect violated.
+
+    Not shipped: `premia_psr_basis` defaults to `target_zero_module`. Real,
+    selectable and declared in `PSR_BASES`, which is why it has a test.
+    """
+    r = _premia(-0.03)
+    r["robustness"]["psr_pct"] = 20.0
+    out = judge(r, premia_psr_basis="engine_reported",
+                premia_min_luck_pct=65.0)
+    luck = out["checks"]["luck"]
+    assert luck["claim_scope"] == "strategy sharpe"
+    tgt = luck["engine_target_annualised"]
+    req = luck["required_sharpe_annualised"]
+    assert req is not None
+    assert req > tgt, (req, tgt)
+
+    # AND IT IS THE STRATEGY'S SERIES, re-derived independently — the invariant
+    # above would also hold for some other correct-looking number.
+    series = r["daily_returns"]["strategy"]
+    want = st.sharpe_bar_for_psr(65.0, series, st.lean_psr_target()["per_obs"])
+    assert want["measurable"], want
+    assert req == round(float(want["sharpe_per_obs"]) * math.sqrt(252.0), 4)
+
+    # THE DEFECT'S OWN VALUE, so the assertion above is known to discriminate:
+    # the advantage's moments against zero give a completely different figure.
+    adv = r["premia_inputs"]["advantage"]
+    wrong = st.sharpe_bar_for_psr_from_moments(
+        65.0, int(adv["n"]), float(adv["skew"]), float(adv["kurtosis"]), 0.0)
+    wrong_v = round(float(wrong["sharpe_per_obs"]) * float(adv["stdev"])
+                    * math.sqrt(252.0), 4)
+    assert req != wrong_v
+    assert wrong_v < tgt, "the fixture no longer reproduces the defect's shape"
+
+    # AND THE PREMIA DEFAULT IS UNTOUCHED: on its own basis the bar IS the
+    # advantage's, which is the frozen behaviour this must not have disturbed.
+    on_advantage = judge(r)
+    assert on_advantage["checks"]["luck"]["claim_scope"] == "premia advantage"
+    assert on_advantage["checks"]["luck"]["required_sharpe_annualised"] \
+        != luck["required_sharpe_annualised"]
 
 
 def test_a_microscopic_level_is_an_OFF_SWITCH_but_a_VISIBLE_one():

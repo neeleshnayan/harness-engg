@@ -690,7 +690,13 @@ def fmt_bps(x: float) -> str:
 #: both ways: on this population the choice between engine@65 and target-zero@50
 #: is non-binding IN BOTH DIRECTIONS. The revert costs nothing and the constant
 #: it reverts bought nothing. What moves is 656 failure SENTENCES, which is the
-#: half of the ruling that was never conditional on any of this.
+#: half of the ruling that was never conditional on any of this. (D38's table
+#: above also reads 656 and it is a DIFFERENT measurement: this one counts
+#: pre-v4.4 against D37, that one D37 against D38. They land on the same number
+#: because both rewrite the sentence on exactly the rows whose engine PSR is
+#: below the level. VERIFIED for the second pair rather than assumed: the 656
+#: sentence-bearing rows are the identical SET of job_ids on both trees, and
+#: that set is exactly the set whose alpha failure-set changed.)
 #:
 #: The premia bar is BYTE-IDENTICAL to the draft over the same 765: zero flips
 #: and zero changed sentences. That is the certified surface staying frozen,
@@ -1541,10 +1547,10 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
         HONEST. Whoever selects it gets a sentence that says it is a skill
         hurdle, states the engine's own constant target and where the clock
         behind it came from, and states the excess Sharpe the level demands
-        AGAINST THAT TARGET. SHIPPED ON THE ALPHA BAR,
-        where a target-zero reading was measured not to discriminate at all
-        (100% of 200 zero-skill baskets clear it at every level 50..99.9) and no
-        defensible level therefore exists yet.
+        AGAINST THAT TARGET. SHIPPED ON THE ALPHA BAR, where a target-zero
+        reading was measured not to discriminate at all (100% of 200 zero-skill
+        baskets clear it at every level 50..99.9) and no defensible level
+        therefore exists yet.
 
     Anything else FAILS CLOSED, the same way an unrecognised rf basis does: a
     typo in a bar's own definition must not select a statistic by accident. So
@@ -1658,8 +1664,10 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
     # somebody set absurdly low — a governance question with an audit trail —
     # rather than as a criterion nobody ran. These levels are control-layer
     # values a human moves in a versioned change; the job here is to make the
-    # move legible, and `test_a_microscopic_level_is_an_OFF_SWITCH_but_a_VISIBLE
-    # _one` pins both halves.
+    # move legible. Both halves are pinned by
+    # `test_a_microscopic_level_is_an_OFF_SWITCH_but_a_VISIBLE_one`
+    # in tests/test_luck_engine_hurdle.py — written on one line so a grep for
+    # the name finds it.
     #
     # BOTH CLAIM TYPES, one check: the same hole is open on the alpha level, and
     # a guard that covers one of two callers is a guard with a documented
@@ -1693,10 +1701,24 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
             f"and an unapplied criterion is not a passed one"]
 
     # --- the series or moments this claim type is scored on ----------------
+    #
+    # THE BAR FOLLOWS THE STATISTIC, NOT THE CLAIM TYPE, and `claim_scope`
+    # fifty lines up has said so since v4.4 while the bar below did not. A
+    # PREMIA claim configured onto `engine_reported` is scored on the strategy's
+    # ABSOLUTE Sharpe — the engine knows nothing about this fund's benchmark —
+    # so its disclosure must be solved from the strategy's own series against
+    # the engine's target, never from the advantage's moments against zero.
+    # Before this, that configuration printed "Clearing 65.0% against that
+    # target demands an annualised excess Sharpe of about +0.04" beside a
+    # stated target of +1.00: a demand BELOW its own target, which is
+    # arithmetically impossible and reads as a trivial hurdle. Not shipped
+    # (`premia_psr_basis` defaults to `target_zero_module`) but real, selectable
+    # and tested — found by reading the finished diff, not by the suite.
     series: list[float] = []
     moments: Optional[dict[str, Any]] = None
     k: Optional[float] = None
     absent: Optional[str] = None
+    scores_advantage = is_premia and basis != "engine_reported"
     if is_premia:
         p = result.get("premia_inputs")
         # THE ARM THE CRITERION IS JUDGING. A probability attached to an
@@ -1728,6 +1750,16 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
         else:
             absent = (adv.get("reason")
                       or "this run carries no measured risk-adjusted advantage")
+        if not scores_advantage:
+            # THE STRATEGY'S OWN SERIES, for the DISCLOSURE only. On the engine
+            # basis a premia claim is scored on absolute Sharpe, so the bar has
+            # to be solved from the series the engine scored. It cannot reach
+            # the luck reading above: that branch takes `moments` whenever the
+            # advantage is measurable, and is skipped entirely when it is not.
+            pdaily = result.get("daily_returns")
+            if isinstance(pdaily, dict) and pdaily.get("present"):
+                series = [x for x in (pdaily.get("strategy") or [])
+                          if isinstance(x, (int, float))]
     else:
         daily = result.get("daily_returns")
         if isinstance(daily, dict) and daily.get("present"):
@@ -1828,11 +1860,11 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
     # clock, which is the right one for a statistic computed on that series.
     bar: dict[str, Any] = {"measurable": False}
     if target is not None:
-        bar = (st.sharpe_bar_for_psr(level, series, target) if not is_premia
-               else _bar_from_moments(level, moments))
+        bar = (_bar_from_moments(level, moments) if scores_advantage
+               else st.sharpe_bar_for_psr(level, series, target))
     if bar.get("measurable") and bar_clock:
         scale = (float(moments["stdev"])
-                 if is_premia and moments is not None else 1.0)
+                 if scores_advantage and moments is not None else 1.0)
         out["required_sharpe_annualised"] = round(
             float(bar["sharpe_per_obs"]) * scale * math.sqrt(float(bar_clock)), 4)
         out["required_sharpe_clock"] = round(float(bar_clock), 2)

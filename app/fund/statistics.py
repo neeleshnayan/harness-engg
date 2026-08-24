@@ -47,8 +47,10 @@ MIN_OBS_FOR_INFERENCE = 30
 #: config; callers here may pass it in and this constant is the fallback.
 LEAN_TRADING_DAYS_PER_YEAR = 252
 
-#: The citation, in one place, because three call sites were about to carry
-#: three paraphrases of it.
+#: The citation, in one place and travelling ON THE VERDICT: `_luck_leg` copies
+#: it into `checks["luck"]["engine_target_source"]`, so a reader who doubts the
+#: hurdle gets the file and the line out of the stored verdict rather than out
+#: of a comment they would have to go looking for.
 LEAN_PSR_TARGET_SOURCE = (
     "QuantConnect/Lean, Common/Statistics/PortfolioStatistics.cs:311-312 — "
     "`var benchmarkSharpeRatio = 1.0d / Math.Sqrt(tradingDaysPerYear);` under "
@@ -595,19 +597,28 @@ def implied_target_sharpe(psr_pct: float,
     Returns ``measurable: False`` rather than a number at PSR of exactly 0% or
     100%, where the normal inverse is infinite and the target is unrecoverable.
     """
-    out: dict[str, Any] = {"measurable": False, "target_per_obs": None,
-                           "target_annualised": None, "reason": None}
+    # ONE PAYLOAD SHAPE ON EVERY PATH. The rate and the clock are declared here
+    # rather than after the guards below, because a caller reading
+    # `out["trading_days_per_year"]` on the refusal path was getting a KeyError
+    # — a refusal that cannot be inspected the same way a success can is a
+    # different object wearing the same name.
+    clock = lean_psr_target(trading_days_per_year)
+    out: dict[str, Any] = {
+        "measurable": False, "target_per_obs": None, "target_annualised": None,
+        "reason": None, "rf_per_obs": None,
+        "trading_days_per_year": clock["trading_days_per_year"],
+        "trading_days_assumed": clock["assumed"],
+    }
     try:
         rf = float(rf_per_obs)
     except (TypeError, ValueError):
         rf = float("nan")
     if not math.isfinite(rf):
+        # ABSENT, NOT NaN. A rate the caller could not state is reported as
+        # unstated; writing the NaN back would let it travel.
         out["reason"] = "the risk-free rate handed in is not a number"
         return out
     out["rf_per_obs"] = rf
-    clock = lean_psr_target(trading_days_per_year)
-    out["trading_days_per_year"] = clock["trading_days_per_year"]
-    out["trading_days_assumed"] = clock["assumed"]
     # EXCESS FIRST, then moments. Skew and kurtosis are shift-invariant so the
     # subtraction cannot touch them, but the Sharpe it feeds is the whole point
     # and doing it in the other order is the defect this correction closes.
