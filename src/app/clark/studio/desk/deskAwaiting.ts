@@ -51,7 +51,7 @@
  */
 
 import { countCheck } from "./decisionList.ts";
-import { READING_DESK, type DeskRead } from "./deskRead.ts";
+import type { DeskRead } from "./deskRead.ts";
 
 /** Where the figure on screen came from. Never inferred by the reader.
  *

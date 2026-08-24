@@ -45,7 +45,7 @@
  */
 
 import type { DeskLoad, DeskSupersessionEdge, DeskView } from "@/lib/fund_api";
-import { READING_DESK, type DeskRead } from "./deskRead.ts";
+import type { DeskRead } from "./deskRead.ts";
 
 /* ---------------------------------------------------------------- types --- */
 

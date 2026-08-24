@@ -76,10 +76,10 @@ export function readError(reason: unknown): string {
  *
  * `null` means "the read is done, write your own caption" — the caller then
  * says what it MEASURED, which is the only case where a measurement is a true
- * thing to say. The three seat-page metric strips each wrote this ternary
- * inline, in JSX, where node's type stripper cannot execute it; the Gauntlet
- * found all three untested and a branch swap silently green. One function,
- * four call sites, one test.
+ * thing to say. FOUR seat-page metric captions wrote this ternary inline, in
+ * JSX, where node's type stripper cannot execute it; the Gauntlet found all
+ * four untested and a branch swap silently green (`grep -c 'recordCaption('
+ * '[seat]/page.tsx'` is the count). One function, four call sites, one test.
  *
  * @param subject the record, named as the reader would name it — "the event
  *   log", "the flight recorder". It is interpolated into both sentences, so
@@ -103,7 +103,9 @@ export function recordCaption(
  * it to every derived note — the hero's gloss, the shelf line, all five lane
  * notes — and the rendered page carried it ELEVEN TIMES in one screen, which
  * is the "generic AI slop" the CEO named as this desk's failure mode and is no
- * calmer for being quiet. Found by looking at the screenshot, not by any test.
+ * calmer for being quiet. Found by looking at the screenshot, not by any test;
+ * the count is `pendingWords` from `scripts/ui/probes/read_states.js` on an
+ * in-flight arm, and it includes "Reading the desk engine…".
  * The derived notes now state their own fact ("… has not been counted yet")
  * and let the greeting and the muted `…` in the hero carry the activity.
  */

@@ -1573,9 +1573,10 @@ function DailyMemoCard({ memo, read }: {
    *  this card lives behind is gated on `desk !== null`. Verified on the
    *  in-flight browser arm: the card does not mount there at all. So this is a
    *  contract the component was stating falsely, not a sentence the CEO saw.
-   *  Fixed anyway — the component is exported, the gate above it is one edit
-   *  from changing, and a component that cannot tell "not yet" from "not ever"
-   *  is one wiring change away from saying so out loud. */
+   *  Fixed anyway: the gate above it is one edit from changing, and a
+   *  component that cannot tell "not yet" from "not ever" is one wiring change
+   *  away from saying so out loud. (It is NOT exported — a first draft of this
+   *  note said it was, which the read-through caught.) */
   read: DeskRead;
 }) {
   if (read === "loading") {
@@ -1592,10 +1593,10 @@ function DailyMemoCard({ memo, read }: {
     );
   }
   if (memo === null) {
-    /* Readable AND null. Not reachable through `load()`, which only stores a
-       fulfilled payload — but the component is exported to a page that could
-       pass one, and "the read succeeded and produced nothing" is a third fact
-       that must not borrow either sentence above. */
+    /* Readable AND null. Not reachable through this page's `load()`, which
+       only stores a fulfilled payload — kept because "the read succeeded and
+       produced nothing" is a third fact, and a component whose type admits it
+       should not answer it with one of the two sentences above. */
     return (
       <p className={`mb-2 text-sm ${KT.sev.warn}`}>
         The memo endpoint answered with no payload at all — that is a defect in
