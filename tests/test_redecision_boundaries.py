@@ -25,18 +25,27 @@ asserted anywhere here — the log is append-only and those move.
 
 from __future__ import annotations
 
+import contextlib
+import http.server
 import importlib.util
 import json
+import os
 import pathlib
+import subprocess
+import sys
+import threading
 
 import pytest
 
 from app.fund import ticketguard
 
 
+SWEEP_PATH = (pathlib.Path(__file__).resolve().parents[1]
+              / "scripts" / "desk_sweep.py")
+
+
 def _sweep():
-    p = pathlib.Path(__file__).resolve().parents[1] / "scripts" / "desk_sweep.py"
-    spec = importlib.util.spec_from_file_location("hw4_desk_sweep", p)
+    spec = importlib.util.spec_from_file_location("hw4_desk_sweep", SWEEP_PATH)
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
     return m
@@ -514,3 +523,93 @@ class TestClassify:
         """``json.loads(None)`` raises ``TypeError``, not ``ValueError`` —
         the classifier must catch both, not just the JSON-decode error."""
         assert self.m.classify(409, None) == "fail"
+
+
+# ============================================================================
+# THE SWEEP'S EXIT CODE — the part a caller reads, run as a real process
+# ============================================================================
+
+class TestTheSweepExitCode:
+    """THE SIGNAL A CALLER ACTUALLY SEES, and until 2026-08-24 there was none.
+
+    ``desk_sweep.py`` exited 0 whatever happened, so a sweep of 40 rows that
+    failed all 40 was indistinguishable from one that closed all 40. Found by
+    mutation (M37): deleting the ``sys.exit`` left every test green, because
+    every test called the functions in-process and none ran the script.
+
+    These run the REAL script as a subprocess against a stub HTTP server, so
+    the ``__main__`` block — the only place the exit code is decided — is
+    executed rather than source-inspected.
+    """
+
+    @staticmethod
+    @contextlib.contextmanager
+    def _server(code, body=b"{}"):
+        class H(http.server.BaseHTTPRequestHandler):
+            def do_POST(self):
+                length = int(self.headers.get("Content-Length") or 0)
+                self.rfile.read(length)
+                self.send_response(code)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *a):
+                pass
+
+        srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        try:
+            yield f"http://127.0.0.1:{srv.server_address[1]}/api/v1"
+        finally:
+            srv.shutdown()
+
+    def _run(self, base, rows, tmp_path):
+        p = tmp_path / "sweep.json"
+        p.write_text(json.dumps(rows), encoding="utf-8")
+        return subprocess.run(
+            [sys.executable, str(SWEEP_PATH), "decide", str(p)],
+            capture_output=True, text=True,
+            env={**os.environ, "DESK_SWEEP_BASE": base})
+
+    _ROWS = [{"run_id": "run-x", "rec_id": 1, "status": "done", "note": "why"}]
+
+    def test_a_clean_sweep_exits_zero(self, tmp_path):
+        with self._server(200) as base:
+            r = self._run(base, self._ROWS, tmp_path)
+        assert r.returncode == 0, r.stdout + r.stderr
+        assert "decided 1, already 0, failed 0" in r.stdout
+
+    def test_a_REAL_failure_exits_one(self, tmp_path):
+        with self._server(422, b'{"detail": "no such run"}') as base:
+            r = self._run(base, self._ROWS, tmp_path)
+        assert r.returncode == 1, r.stdout + r.stderr
+        assert "failed 1" in r.stdout
+
+    def test_ALREADY_exits_ZERO_because_nothing_went_wrong(self, tmp_path):
+        """THE POINT OF THE THIRD OUTCOME. 237 rows in the record have already
+        recorded ``done``; if re-sweeping them exited non-zero, the guard
+        would look like a breakage every time the chair re-ran a sweep, and
+        the chair would stop reading the word."""
+        body = json.dumps({"detail": {
+            "refused": True, "hint": "already_at_this_status",
+            "recorded_status": "done",
+            "recorded_at": "2026-08-23T14:06:30Z"}}).encode()
+        with self._server(409, body) as base:
+            r = self._run(base, self._ROWS, tmp_path)
+        assert r.returncode == 0, r.stdout + r.stderr
+        assert "already 1" in r.stdout
+        assert "failed 0" in r.stdout
+        assert "ALREADY run-x#1" in r.stdout
+
+    def test_a_supersession_409_still_exits_ONE(self, tmp_path):
+        """A different guard's 409 is a refusal to act, not a no-op, and the
+        sweep must not launder it into silence."""
+        body = json.dumps({"detail": {
+            "refused": True, "mode": "superseded",
+            "superseder_ref": "rec:run-y#3"}}).encode()
+        with self._server(409, body) as base:
+            r = self._run(base, self._ROWS, tmp_path)
+        assert r.returncode == 1, r.stdout + r.stderr
+        assert "failed 1" in r.stdout

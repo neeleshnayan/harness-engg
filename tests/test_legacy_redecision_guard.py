@@ -281,14 +281,33 @@ class TestAProgressionIsNotARepeat:
 
     def test_the_SECOND_done_is_refused_once_the_row_holds_it(self, monkeypatch):
         """Closing twice is still a repeat. The progression bought one ``done``,
-        not a standing licence."""
+        not a standing licence.
+
+        THE TWO COUNTS MUST BE ASSERTED TOGETHER AND THEY MUST DIFFER HERE.
+        This row has TWO decisions (``accepted``, ``done``) but a same-status
+        run of ONE, and that gap is the entire difference between the defect
+        and an ordinary lifecycle: ``prior_same_status`` is what says "you
+        have recorded this before", ``decision_count`` is only "this row has
+        been decided". A refusal reporting 2-of-2 here would tell the reader
+        the row had been closed twice when it had been closed once. Found by
+        mutation (M18): swapping the two left every test green because no
+        case had yet been built where they disagree.
+        """
         c = _client(monkeypatch, _AggStore(), _Deskstore())
         assert _decide(c, "accepted").status_code == 200
         assert _decide(c, "done").status_code == 200
         r = _decide(c, "done")
         assert r.status_code == 409
-        assert r.json()["detail"]["attempted"] == "done"
-        assert r.json()["detail"]["decision_count"] == 2
+        d = r.json()["detail"]
+        assert d["attempted"] == "done"
+        assert d["decision_count"] == 2
+        assert d["prior_same_status"] == 1
+        assert d["recorded_by"] == "ceo"
+
+        # And on the EVENT too, not only in the response — the audit reads the
+        # log, and the log is where the two numbers must not have been swapped.
+        p = c.store.of_type("ApprovalRefused")[-1].payload
+        assert (p["prior_same_status"], p["decision_count"]) == (1, 2)
 
     @pytest.mark.parametrize("chain", [
         ("open", "accepted", "staged", "done"),
@@ -462,3 +481,98 @@ class TestTheStoreDoubleCensus:
         m = self._census()
         assert m.main(["--tests", str(tmp_path)]) == 2
         assert "REFUSED" in capsys.readouterr().err
+
+    def test_a_class_with_only_ONE_half_of_the_shape_is_not_a_store(
+            self, tmp_path):
+        """A recorder is not a store and a feed is not a store.
+
+        Found by mutation (M40): relaxing ``all`` to ``any`` survived, because
+        every class in the earlier fixture had both methods. With ``any``, a
+        bare recorder counts as an event store and the "can it answer
+        by_aggregate" denominator quietly inflates.
+        """
+        m = self._census()
+        (tmp_path / "test_halves.py").write_text(
+            "class OnlyAppend:\n    def append(self, e): pass\n\n"
+            "class OnlyStream:\n    def stream(self, **k): return []\n\n"
+            "class Both:\n    def append(self, e): pass\n"
+            "    def stream(self, **k): return []\n",
+            encoding="utf-8")
+        out = m.census(str(tmp_path))
+        assert out["doubles"] == 1
+
+
+# ============================================================================
+# THE RE-DECISION CENSUS — the instrument the refusal counts are quoted from
+# ============================================================================
+
+class TestTheRedecisionCensus:
+    """The numbers in ``_refuse_if_redecided``'s direction table come from
+    here, so its two legs must be told apart and its refusal must fire."""
+
+    def _census(self):
+        import importlib.util
+        import pathlib
+        p = (pathlib.Path(__file__).resolve().parents[1]
+             / "scripts" / "instruments" / "hw4" / "redecision_census.py")
+        spec = importlib.util.spec_from_file_location("hw4_redec_census", p)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    #: The one A->B->A row in the live record, by shape:
+    #: ``run-pm-sleeve-v2#15`` went accepted -> done -> open -> accepted ->
+    #: staged. It is the ONLY population on which the census's two legs
+    #: disagree, which is exactly why it is the fixture.
+    _REOPEN = ["accepted", "done", "open", "accepted", "staged"]
+
+    def _events(self, statuses, run="run-pm-sleeve-v2", rec=15):
+        return [{"seq": i + 1, "run_id": run, "rec_id": rec, "status": s,
+                 "actor": "ceo", "at": f"2026-08-2{i}T00:00:00Z"}
+                for i, s in enumerate(statuses)]
+
+    def test_the_reopen_separates_the_CONSECUTIVE_leg_from_the_EVER_leg(self):
+        """THE WHOLE DESIGN ARGUMENT, AS A NUMBER.
+
+        On this row the ever-repeat leg counts ONE (the second ``accepted``)
+        and the consecutive leg counts ZERO — because that second acceptance
+        followed a reopen and is a genuine decision, not a repeat. If the two
+        legs agreed here, the guard's choice between them would be arbitrary.
+        Found by mutation (M38): the two legs were computed by different
+        expressions and nothing compared them.
+        """
+        out = self._census().census(self._events(self._REOPEN))
+        assert out["ever_repeat_events_total"] == 1
+        assert out["consecutive_repeat_events_total"] == 0
+        assert len(out["aba_rows"]) == 1
+        assert out["progression_rows"] == 1
+
+    def test_a_true_repeat_is_counted_by_BOTH_legs(self):
+        """The positive control for the test above: where there is no reopen
+        the two legs must agree, or the separation proves nothing."""
+        out = self._census().census(
+            self._events(["accepted"] * 3, run="run-triage7-decisions", rec=1))
+        assert out["ever_repeat_events_total"] == 2
+        assert out["consecutive_repeat_events_total"] == 2
+        assert out["aba_rows"] == []
+
+    def test_it_REFUSES_an_empty_population_rather_than_printing_a_table(
+            self, monkeypatch, capsys):
+        """An unreachable database and a database with no matching events
+        produce the same clean table otherwise. Found by mutation (M39): the
+        refusal branch had no test at all, because reaching it needs a store.
+        """
+        m = self._census()
+        monkeypatch.setattr(m, "pull", lambda dsn=None: (
+            [], {"log_events": 0, "seq_min": None, "seq_max": None,
+                 "covers_whole_log": True}))
+        assert m.main([]) == 2
+        assert "REFUSED" in capsys.readouterr().err
+
+    def test_the_null_arm_states_its_domain_size(self, capsys):
+        """A --null that silently compared nothing prints the same zero as one
+        that compared a clean corpus."""
+        m = self._census()
+        assert m.main(["--null"]) == 0
+        out = capsys.readouterr().out
+        assert "7 events over 7 distinct rows compared" in out
