@@ -19,6 +19,7 @@ import {
   Metric, ProductionShelf, RecRow, RunRow, SeatTelemetryChips, WindowNote,
 } from "./components";
 import { Fold } from "./EngineViews";
+import { splitRecordRows } from "./recordRow";
 import { SeatTelemetry, seatTelemetry } from "./deskTelemetry";
 import { MemoThread } from "./MemoThread";
 import { SeatFace } from "./SeatFace";
@@ -401,13 +402,18 @@ export default function DeskPage() {
               </Fold>
             )}
 
-            {/* Recommendations, SPLIT (CDO D4). `/fund/desk` returns open,
-                accepted and staged under one key, so this heading counted
-                decisions the CEO had already made as decisions they still owed.
-                The headline counts only the undecided ones. */}
+            {/* Recommendations, SPLIT THREE WAYS.
+                (CDO D4) `/fund/desk` returns open, accepted and staged under
+                one key, so this heading counted decisions the CEO had already
+                made as decisions they still owed.
+                (D42) And `open` is still not the same question as "awaiting a
+                decision": a row the spine routes to `nobody` is filed FOR THE
+                RECORD and will be open forever. It was counted here and
+                rendered with Accept and Reject — the CEO's *"like WTF"*. It
+                now has its own fold, is not counted, and carries no control. */}
             {d.open_recommendations?.length > 0 && (() => {
-              const undecided = d.open_recommendations.filter((r) => r.status === "open");
-              const decided = d.open_recommendations.filter((r) => r.status !== "open");
+              const { awaiting: undecided, record, decided } =
+                splitRecordRows(d.open_recommendations);
               return (
                 <>
                   <Fold title="Recommendations awaiting a decision"
@@ -419,6 +425,17 @@ export default function DeskPage() {
                       ))}
                     </div>
                   </Fold>
+                  {record.length > 0 && (
+                    <Fold title="Filed for the record — no decision owed"
+                          n={record.length}
+                          lede="The fund routed these to nobody: findings and notes filed so they cannot go quiet. Open forever, and not work. Shown, never counted.">
+                      <div className="space-y-1.5">
+                        {record.map((r) => (
+                          <RecRow key={`${r.run_id}-${r.rec_id}`} r={r} onDecide={load} />
+                        ))}
+                      </div>
+                    </Fold>
+                  )}
                   {decided.length > 0 && (
                     <Fold title="Decided, awaiting execution"
                           n={decided.length}

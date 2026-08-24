@@ -261,3 +261,48 @@ test("a row with no cascade renders nothing", () => {
 test("a malformed cascade is absent, not a zeroed block", () => {
   assert.equal(cascadeOf(rec({ cascade: { note: "x" } as never })), null);
 });
+
+/* ------------------------------------------------------- the record row --- */
+
+/* D42. THE INCIDENT (CEO, 2026-08-24): *"like WTF"* — an already-executed
+   chair action rendered with Accept and Reject. The row is `open` and its
+   `next_actor_resolved` is `nobody`. These four fail if it is ever offered a
+   decision on this desk again. */
+
+test("D42: a record row shows NO buttons and says why", () => {
+  const lamp = rowLamp(
+    item({ nextActor: "nobody" },
+         { status: "open", next_actor_resolved: "nobody",
+           next_actor_why: "the row states its next actor is the nobody" }),
+    { state: "idle" });
+  assert.equal(lamp.showButtons, false);
+  assert.equal(lamp.tone, "record");
+  assert.match(lamp.label ?? "", /Filed for the record/);
+});
+
+test("D42: an ordinary open row KEEPS its buttons — the guard must not close "
+  + "the desk it was written to correct", () => {
+  const lamp = rowLamp(item({ nextActor: "ceo" }, { status: "open" }),
+                       { state: "idle" });
+  assert.equal(lamp.showButtons, true);
+  assert.equal(lamp.tone, "actionable");
+  assert.equal(lamp.label, null);
+});
+
+test("D42: an open row that states NO actor keeps its buttons — absence is "
+  + "not the spine saying nobody", () => {
+  const lamp = rowLamp(item({ nextActor: null }, { status: "open" }),
+                       { state: "idle" });
+  assert.equal(lamp.showButtons, true);
+});
+
+test("D42: a DECIDED row routed to nobody still says who decided it — the "
+  + "record branch must not swallow the acceptance sentence", () => {
+  const lamp = rowLamp(
+    item({ nextActor: "nobody" },
+         { status: "accepted", next_actor_resolved: "nobody" }),
+    { state: "idle" });
+  assert.equal(lamp.tone, "decided");
+  assert.match(lamp.label ?? "", /You accepted this/);
+  assert.equal(lamp.showButtons, false);
+});

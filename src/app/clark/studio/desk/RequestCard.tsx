@@ -27,8 +27,6 @@
  * filer never wrote.
  */
 
-import React from "react";
-
 import type { AskCard, AskLifecycle } from "./execDesk";
 import { KT } from "../theme";
 /* `ageLabel` and the stage labels live in `cardState.ts`, not here, and the
@@ -36,43 +34,23 @@ import { KT } from "../theme";
    node's own type stripper, which REFUSES a `.tsx` file. A pure function in a
    component file is a pure function no test can reach — which is how an
    untested branch gets written by accident. */
-import { STAGE_LABEL, ageLabel } from "./cardState";
+import { STAGE_LABEL } from "./cardState";
+import { StageRail } from "./CardRail";
 
+/* The rail's PIXELS moved to `CardRail.tsx` in D42 so the recommendation card
+   wears the same ones; what stays here is the ask-specific MAPPING, which is
+   the only part that is about requests. The age and the declined suffix are
+   passed straight through — nothing about the rendering changed. */
 function Rail({ lifecycle }: { lifecycle: AskLifecycle }) {
-  const age = ageLabel(lifecycle.ageHours);
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-      {lifecycle.stages.map((s, i) => {
-        const label = STAGE_LABEL[s.stage] ?? s.stage;
-        return (
-          <React.Fragment key={s.stage}>
-            {i > 0 && (
-              <span className={`font-mono text-[10px] ${KT.muted}`} aria-hidden>
-                ›
-              </span>
-            )}
-            <span
-              className={`font-mono text-[10px] ${
-                s.current
-                  ? "text-[var(--kt-warn)]"
-                  : s.reached
-                    ? KT.body
-                    : KT.muted
-              }`}
-            >
-              {label}
-              {/* THE AGE RIDES THE HOT STAGE, and only it. An age on every
-                  stage would be five numbers where the reader needs one: how
-                  long has this been stuck HERE. */}
-              {s.current && age ? ` · ${age}` : ""}
-            </span>
-          </React.Fragment>
-        );
-      })}
-      {lifecycle.declined && (
-        <span className={`font-mono text-[10px] ${KT.muted}`}>· declined</span>
-      )}
-    </div>
+    <StageRail
+      items={lifecycle.stages.map((s) => ({
+        label: STAGE_LABEL[s.stage] ?? s.stage,
+        state: s.current ? "current" : s.reached ? "reached" : "future",
+      }))}
+      ageHours={lifecycle.ageHours}
+      suffix={lifecycle.declined ? "declined" : null}
+    />
   );
 }
 
@@ -102,19 +80,31 @@ function Wanted({ items }: { items: AskCard["wanted"] }) {
   );
 }
 
-export function RequestCardBody({ card, subject, open, onToggle }: {
+export function RequestCardBody({ card, subject, open, onToggle,
+                                  headlineShown }: {
   card: AskCard;
   /** The raw subject, for the prose fallback and the details section. */
   subject: string;
   open: boolean;
   onToggle: () => void;
+  /** What the CARD FACE actually printed, when the caller clamped it.
+   *
+   *  D42, and it is not a cosmetic parameter. The face used to print
+   *  `card.headline` whole; for all 109 prose requests on the live desk that
+   *  string IS the entire subject, so `hasMore` compared a value with itself,
+   *  came out false, and the card offered no "+ the incident" toggle while
+   *  rendering seven lines of narrative as its own name. Passing the clamped
+   *  line makes the comparison mean what it says: is there anything the face
+   *  is NOT showing? */
+  headlineShown?: string | null;
 }) {
   const detail = card.incident ?? (card.structured ? null : subject);
   /* The details toggle is offered only when the collapsed body says something
      the card face does not. For a prose ask whose whole subject IS the
      headline, a toggle onto a repeat of the headline is a control that lies
      about having content. */
-  const hasMore = !!detail && detail.trim() !== (card.headline ?? "").trim();
+  const face = (headlineShown ?? card.headline ?? "").replace(/…$/, "").trim();
+  const hasMore = !!detail && detail.trim() !== face;
 
   return (
     <>

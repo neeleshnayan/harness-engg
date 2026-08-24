@@ -32,6 +32,7 @@
  */
 
 import type { DeskItem } from "./execDesk.ts";
+import { isRecordRow, recordRowNote } from "./recordRow.ts";
 
 type Rec = NonNullable<DeskItem["rec"]>;
 
@@ -230,7 +231,7 @@ export type ClickFeedback =
  * `pending` here means the button is live. Everything else is a statement.
  */
 export function rowLamp(i: DeskItem, feedback: ClickFeedback): {
-  tone: "actionable" | "sending" | "decided" | "failed";
+  tone: "actionable" | "sending" | "decided" | "failed" | "record";
   label: string | null;
   showButtons: boolean;
 } {
@@ -262,6 +263,15 @@ export function rowLamp(i: DeskItem, feedback: ClickFeedback): {
       // happened.
       showButtons: false,
     };
+  }
+  /* A RECORD ROW — open, and finished. The CEO saw an already-executed chair
+     action carrying Accept and Reject and said *"like WTF"*; the row's status
+     is `open` and always will be, because there is no decision in it to make.
+     It sits BELOW the decided branch on purpose: a row that was genuinely
+     decided should say who decided it, and only a row nobody ever will decide
+     falls through to here. See `recordRow.ts`. */
+  if (i.kind === "recommendation" && isRecordRow(r)) {
+    return { tone: "record", label: recordRowNote(r), showButtons: false };
   }
   return { tone: "actionable", label: null, showButtons: true };
 }

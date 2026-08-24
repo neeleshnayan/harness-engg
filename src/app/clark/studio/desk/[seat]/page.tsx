@@ -12,6 +12,7 @@ import {
 } from "../components";
 import { MemoThread } from "../MemoThread";
 import { SeatFace } from "../SeatFace";
+import { splitRecordRows } from "../recordRow";
 import { LaneTrackRecord } from "../laneViews";
 import {
   ASSUMED_INPUT_SHARE,
@@ -115,9 +116,12 @@ function Seat({ seat }: { seat: SeatId }) {
      was listing things the CEO had already decided — and a seat whose every ask
      had been accepted looked exactly as demanding as one whose asks were all
      untouched. */
+  /* THREE queues since D42, and the third is the CEO's *"like WTF"*: a row
+     the spine routes to `nobody` is filed for the record, is `open` forever,
+     and was being counted here as something this seat was asking of him. */
   const seatRecs = (desk?.open_recommendations ?? []).filter((r) => r.seat === seat);
-  const openRecs = seatRecs.filter((r) => r.status === "open");
-  const decidedRecs = seatRecs.filter((r) => r.status !== "open");
+  const { awaiting: openRecs, record: recordRecs, decided: decidedRecs } =
+    splitRecordRows(seatRecs);
   const observedModels = Array.from(
     new Set(seatRuns.map((r) => r.model).filter((m): m is string => !!m)),
   );
@@ -279,6 +283,23 @@ function Seat({ seat }: { seat: SeatId }) {
               {openRecs.map((r) => (
                 <RecRow key={`${r.run_id}-${r.rec_id}`} r={r} onDecide={load} />
               ))}
+            </div>
+          )}
+          {recordRecs.length > 0 && (
+            <div className="mt-4">
+              <p className={`${KT.label} mb-2`}>
+                Filed for the record ({recordRecs.length})
+              </p>
+              <p className={`mb-2 text-xs ${KT.muted}`}>
+                The fund routed these to nobody — findings and notes filed so
+                they cannot go quiet. Nothing here is waiting on you, and NOT
+                counted above.
+              </p>
+              <div className="space-y-1.5">
+                {recordRecs.map((r) => (
+                  <RecRow key={`${r.run_id}-${r.rec_id}`} r={r} onDecide={load} />
+                ))}
+              </div>
             </div>
           )}
           {decidedRecs.length > 0 && (

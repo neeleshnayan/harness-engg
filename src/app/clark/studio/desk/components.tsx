@@ -20,6 +20,7 @@ import {
   SeatTelemetry, costLabel, telemetryNote, tokensLabel,
 } from "./deskTelemetry";
 import { ChipTotal, chipShowsTotal } from "./deskAwaiting";
+import { isRecordRow, recordRowNote } from "./recordRow";
 
 /**
  * The desk's shared rendering vocabulary.
@@ -81,6 +82,16 @@ export function Metric({
 
 /* ---------------------------------------------------------------- rows ---- */
 
+/**
+ * One recommendation, decidable in place.
+ *
+ * THE CONTROL EXISTS ON A DIFFERENT TEST FROM THE COUNT (D42, and the CEO's
+ * *"like WTF"*). `status === "open"` used to decide both, and it is the wrong
+ * question for the second: a row filed FOR THE RECORD is open forever, because
+ * there is nothing in it to decide. This row is where he saw an
+ * already-executed chair action carrying Accept and Reject — it is the only
+ * component in the repo that offered a decision on `status` alone.
+ */
 export function RecRow({ r, onDecide }: {
   r: DeskView["open_recommendations"][number];
   onDecide: () => Promise<void> | void;
@@ -104,7 +115,14 @@ export function RecRow({ r, onDecide }: {
     <div className={`${KT.card} flex flex-wrap items-center gap-3 p-3`}>
       <ProvenanceChip kind="agent" seat={r.seat} recId={r.rec_id} />
       <span className="min-w-0 flex-1 text-sm leading-snug">{r.text}</span>
-      {r.status === "open" ? (
+      {isRecordRow(r) ? (
+        /* No control, and a sentence where the buttons were. A record row
+           whose controls simply vanished would read as a rendering failure. */
+        <span className={`shrink-0 text-[11px] ${KT.muted}`}
+              title={recordRowNote(r)}>
+          filed for the record
+        </span>
+      ) : r.status === "open" ? (
         <span className="flex shrink-0 gap-2">
           <button type="button" disabled={busy} onClick={() => decide("accepted")}
             className={`${KT.btn} px-2 py-1 text-xs disabled:opacity-40`}>

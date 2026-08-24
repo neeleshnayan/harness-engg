@@ -36,6 +36,11 @@ import {
   executionYours, looksUnreadable, rowLamp, supersededBy,
 } from "../cardState";
 import { deskLanes } from "../deskLanes";
+import {
+  REC_STAGE_LABEL, bodyWithTail, clampLine, recLifecycle,
+} from "../cardAnatomy";
+import { isRecordRow } from "../recordRow";
+import { StageRail } from "../CardRail";
 import type { LineageSources } from "../lineage";
 import { LaneBlock, LineageInline } from "../DeskLaneViews";
 import { RequestCardBody } from "../RequestCard";
@@ -289,6 +294,15 @@ export default function CeoDeskPage() {
     () => steeringSentence({ view: engine, needsYou: headline.value }),
     [engine, headline]);
 
+  /* THE FUND'S CLOCK, NOT THE BROWSER'S, in one place.
+     "Resolved today" must mean the fund's UTC day, and a card's "how long has
+     this sat here" must be measured on the same clock the lanes use — two
+     clocks on one page is the same class of defect as two counters, which this
+     desk has already shipped twice. Falls back to the browser only when the
+     spine sent no timestamp at all, and every reader is then a best effort
+     rather than wrong. */
+  const deskNow = engine?.at ?? new Date().toISOString();
+
   /* THE FIVE LANES. Lane (a) is the decision list this page already builds;
      the other four are folded here from the same payload, each carrying the
      FUND's count beside the number of rows this page can render. */
@@ -298,12 +312,9 @@ export default function CeoDeskPage() {
       awaitingShown: list.total,
       awaitingServed: headline.value,
       blocked,
-      // The FUND's clock, not the browser's: "resolved today" must mean the
-      // fund's UTC day. Falls back to the browser only when the spine sent no
-      // timestamp at all, and the lane is then a best effort rather than wrong.
-      now: engine?.at ?? new Date().toISOString(),
+      now: deskNow,
     }),
-    [desk, list.total, headline.value, blocked, engine]);
+    [desk, list.total, headline.value, blocked, deskNow]);
 
   /* Everything the lineage fold reads. Each field is independently nullable
      and null means UNREADABLE — a chain drawn over an outage would make the
@@ -556,7 +567,7 @@ export default function CeoDeskPage() {
               <div className="space-y-7">
                 {list.groups.map((g) => (
                   <DecisionGroupBlock key={g.key} group={g} onChanged={load}
-                                      sources={lineageSources} />
+                                      sources={lineageSources} now={deskNow} />
                 ))}
                 <RankingNote gap={gap} coverage={coverage} batches={list.batches}
                              hazard={orderingHazard(list.all)} />
@@ -793,17 +804,24 @@ export default function CeoDeskPage() {
  * three decisions at 13px — which is how an already-read summary came to
  * outrank the thing it was summarising.
  */
-function DecisionGroupBlock({ group, onChanged, sources }: {
+function DecisionGroupBlock({ group, onChanged, sources, now }: {
   group: DecisionGroup;
   onChanged: () => Promise<void> | void;
   sources: LineageSources;
+  now: string;
 }) {
   /* Only rows the spine will actually accept: open recommendations. An order
      is approved on Monitor and an ask has its own control, so neither can be
      part of a group accept — offering one would be a button that silently
-     skipped half of what it sat under. */
+     skipped half of what it sat under.
+     AND NOT A RECORD ROW (D42). `stageOfItem` already keeps a `nobody` row off
+     this list, so this guard is the SECOND lock rather than the fix; it is
+     here because a bulk control is the one place where a single routing change
+     upstream would fire N decisions on rows nobody may decide, and a test
+     pins both halves. */
   const bulk = group.decisions.flatMap(
-    (d) => (d.kind === "rec" && d.item.rec?.status === "open" ? [d.item] : []));
+    (d) => (d.kind === "rec" && d.item.rec?.status === "open"
+      && !isRecordRow(d.item.rec) ? [d.item] : []));
 
   return (
     <div>
@@ -833,7 +851,7 @@ function DecisionGroupBlock({ group, onChanged, sources }: {
       <div className="space-y-2">
         {group.decisions.map((d) => (
           <DecisionCard key={d.key} d={d} onChanged={onChanged}
-                        sources={sources} />
+                        sources={sources} now={now} />
         ))}
       </div>
 
@@ -845,16 +863,18 @@ function DecisionGroupBlock({ group, onChanged, sources }: {
 }
 
 /** One decision: the first sentence, why it is where it is, and the buttons. */
-function DecisionCard({ d, onChanged, sources }: {
+function DecisionCard({ d, onChanged, sources, now }: {
   d: Decision;
   onChanged: () => Promise<void> | void;
   sources: LineageSources;
+  now: string;
 }) {
   if (d.kind === "ask") {
     return <AskRow ask={d.ask} onDecided={onChanged} sources={sources} />;
   }
   if (d.kind === "order") return <OrderCard item={d.item} />;
-  return <RecCard item={d.item} onDecide={onChanged} sources={sources} />;
+  return <RecCard item={d.item} onDecide={onChanged} sources={sources}
+                  now={now} />;
 }
 
 /**
@@ -874,10 +894,36 @@ function DueChip({ date }: { date: string }) {
   );
 }
 
-function RecCard({ item, onDecide, sources }: {
+/**
+ * One recommendation, wearing the ratified card anatomy.
+ *
+ * D42 — the CEO, on D39's data repair: *"SO WHAT DID WE DO?"* The rows became
+ * TRUTHFUL and still looked like the thing he rejected. Two of the spec's four
+ * questions were missing here, and the answers were on the payload already:
+ *
+ *   1. WHAT IS THIS — `memoParts` gives the first SENTENCE, and on his live
+ *      desk those ran 190, 152, 148 and 121 characters, i.e. two and three
+ *      rendered lines apiece. Clamped to a name; the tail joins the body
+ *      behind "+ the rest" and `clampLine`'s test proves nothing is lost.
+ *   2. WHERE DOES IT STAND — the same rail the request card wears, from the
+ *      same component, built from `resolved_at` and `decided_at`.
+ *
+ * QUESTION 4 IS DELIBERATELY NOT ADDED HERE, and that is a judgement worth
+ * writing down. `rowLamp` already names the mover on every shape this card
+ * can be in — "execution yours", "the chair owes the execution", "filed for
+ * the record" — and the Accept button names it on the rest. A "next move"
+ * line beside those would be two sentences saying the same thing, which is
+ * the exact defect `cascadeChip`'s docstring records being caught by looking
+ * at the page. The whose-move line went to `RecRow` instead, where the
+ * question genuinely had no answer.
+ */
+function RecCard({ item, onDecide, sources, now }: {
   item: DeskItem;
   onDecide: () => Promise<void> | void;
   sources: LineageSources;
+  /** The FUND's clock, threaded rather than read from the browser — the same
+   *  rule `deskLanes` follows, and the reason the rail's age is testable. */
+  now: string;
 }) {
   const r = item.rec!;
   /* THE DISPLAY LINE, NOT THE STORED ONE. Two rows on his live desk were
@@ -897,10 +943,14 @@ function RecCard({ item, onDecide, sources }: {
   const cascade = cascadeOf(r);
   const chip = cascadeChip(cascade);
   const lamp = rowLamp(item, feedback);
+  const face = clampLine(parts.headline);
+  const rail = recLifecycle(r, now);
   /* The detail behind the toggle: whatever the spine extracted from a dict
      payload, else the rest of the prose. Never both — a card that showed the
-     paragraph twice is how the old one earned "an infinite scroll". */
-  const rest = display.detail ?? parts.rest;
+     paragraph twice is how the old one earned "an infinite scroll".
+     The CLAMPED TAIL leads it (D42): it is the rest of the sentence the
+     headline started, so it must not sit after a later paragraph. */
+  const rest = bodyWithTail(face.tail, display.detail ?? parts.rest);
 
   const decide = async (status: "accepted" | "rejected") => {
     setFeedback({ state: "sending" });
@@ -931,7 +981,7 @@ function RecCard({ item, onDecide, sources }: {
     <div className={scale.container}>
       <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
         {item.dueDate && <DueChip date={item.dueDate} />}
-        <p className={`min-w-0 flex-1 ${scale.text}`}>{parts.headline}</p>
+        <p className={`min-w-0 flex-1 ${scale.text}`}>{face.line}</p>
         <span className="flex shrink-0 items-center gap-2">
           {lamp.showButtons ? (
             <>
@@ -958,6 +1008,18 @@ function RecCard({ item, onDecide, sources }: {
           )}
         </span>
       </div>
+
+      {/* QUESTION 2: WHERE DOES IT STAND. The same rail the request card
+          wears, from the same component — a second rendering of one idea is
+          how two surfaces start disagreeing about it. The age rides the hot
+          stage, so "filed · 20.7h" IS the sentence "nobody has looked at this
+          since yesterday morning", which no line on this card said before. */}
+      <StageRail
+        items={rail.stages.map((s) => ({
+          label: REC_STAGE_LABEL[s.stage] ?? s.stage, state: s.state,
+        }))}
+        ageHours={rail.ageHours}
+      />
 
       {/* WHAT HE ALREADY DECIDED, AND WHEN. `decided_at` was in the store and
           not in the projection, so no surface could say it. This line is the
@@ -1541,16 +1603,24 @@ function AskRow({ ask, onDecided, sources }: {
      button off his own page — a removed control, found by looking. */
   const mine = ask.approvable;
   const emphasised = ask.stage === "awaiting_ceo";
+  /* QUESTION 1: WHAT IS THIS — a NAME, not the first line of a dump.
+     THE CLAMP IS THE D42 REPAIR AND IT IS THE RENDERER'S JOB BY THE SPINE'S
+     OWN CONTRACT: `AskCard.headline`'s docstring says "for a prose ask this is
+     the subject's first LINE, untouched — the renderer knows its own width and
+     does the truncating", and the renderer was not truncating. All 109
+     requests on the live desk are prose, so this printed the whole subject as
+     the card's name — seven rendered lines on the first ask of the day, which
+     is the wall of prose the CEO rejected the card for. Nothing is lost: the
+     tail goes behind "+ the incident", and `clampLine`'s test proves the
+     rejoin is exact. */
+  const face = clampLine(ask.card.headline || ask.subject);
 
   return (
     <div className={`${KT.panel} ${emphasised ? "p-4" : "p-3"} ${
       ask.stage === "declined" ? "opacity-60" : ""}`}>
       <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
-        <p className={`min-w-0 flex-1 ${emphasised ? "text-[14px] leading-relaxed" : "text-[13px] leading-snug"}`}>
-          {/* QUESTION 1: WHAT IS THIS. The headline, never the first line of a
-              dump — for a prose ask the spine gives the subject's first LINE
-              untouched, and the whole subject stays behind the toggle. */}
-          {ask.card.headline || ask.subject || (
+        <p className={`min-w-0 flex-1 ${emphasised ? "text-[15px] font-medium leading-snug" : "text-[13px] leading-snug"}`}>
+          {face.line || (
             <span className={KT.sev.warn}>
               this ask recorded no subject — unreadable, not empty
             </span>
@@ -1591,6 +1661,7 @@ function AskRow({ ask, onDecided, sources }: {
           the old card buried: request 0c295ec7 was approved 22 minutes after
           filing and then sat idle 2.5 days. */}
       <RequestCardBody card={ask.card} subject={ask.subject}
+                       headlineShown={face.line}
                        open={incident} onToggle={() => setIncident((v) => !v)} />
       {sources && (
         <button type="button" onClick={() => setChain((v) => !v)}
