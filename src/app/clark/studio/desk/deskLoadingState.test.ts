@@ -343,6 +343,8 @@ test("fccb9cf3: a view that HAS arrived is steered on, whatever the read "
 
 /* ------------------------------------ 5. the pages read the state, not null */
 
+const LANEVIEWS = readFileSync(
+  new URL("./DeskLaneViews.tsx", import.meta.url), "utf8");
 const CEO = readFileSync(new URL("./ceo/page.tsx", import.meta.url), "utf8");
 const SEAT = readFileSync(new URL("./[seat]/page.tsx", import.meta.url), "utf8");
 const OFFICE = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
@@ -390,6 +392,31 @@ test("fccb9cf3: EVERY page passes its OWN failure flag — a literal there is a 
   for (const [src] of wiring) {
     assert.ok(!/readState\([^)]*,\s*(false|true)\s*\)/.test(src),
       "a literal second argument means the failed state is unreachable");
+  }
+});
+
+test("fccb9cf3: EVERY DECISION EXTRACTED OUT OF A .tsx IS ACTUALLY CALLED BY "
+  + "IT. Moving a ternary into a testable file buys nothing if the component "
+  + "then renders a literal — and three separate mutants proved nothing was "
+  + "checking that", () => {
+  /* The extraction pattern this ticket used five times (heroFigure,
+   * shelfAbsenceNote, laneGlyph, laneEmptyNote, recordCaption) has a hole in
+   * the middle: the pure function gets full behavioural tests, and the CALL
+   * SITE — the one thing that makes them matter — sits in a file no test can
+   * execute. Each entry below died under mutation before this test existed. */
+  const wired: [string, string, string][] = [
+    ["DeskLaneViews.tsx", strip(LANEVIEWS), "{laneGlyph(c)}"],
+    ["DeskLaneViews.tsx", strip(LANEVIEWS), "{laneEmptyNote(c)}"],
+    ["ceo/page.tsx", strip(CEO), "{heroFigure(headline)}"],
+    ["ceo/page.tsx", strip(CEO), "{shelfAbsenceNote(deskRead)}"],
+    ["[seat]/page.tsx", strip(SEAT), "recordCaption(runsRead,"],
+    ["[seat]/page.tsx", strip(SEAT), "recordCaption(eventsRead,"],
+  ];
+  for (const [file, src, call] of wired) {
+    assert.ok(src.length > 200, `${file} did not read — this test is stale`);
+    assert.ok(src.includes(call),
+      `${file} must call ${call}; a literal there is the pre-extraction defect `
+      + "with a passing unit test standing beside it");
   }
 });
 
