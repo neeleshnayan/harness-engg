@@ -2108,19 +2108,51 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
                   f" Clearing {level}% against that target demands an "
                   f"annualised excess Sharpe of about {req:+.2f} on the same "
                   f"clock, on {out.get('n_obs')} observations of this shape.")
-        # TWO ABSENCES, TWO SENTENCES. A missing SERIES and unreadable DATES
-        # both leave the demand unstated, and they are different facts about
-        # the run — the first says there is nothing to solve a bar from, the
-        # second says the series is fine and its spacing is not. The single
-        # sentence this replaces sent a reader chasing a missing series when
-        # what was missing was a clock (D29's rule, applied to a disclosure).
-        no_demand = ("" if req is not None else
-                     " This run carries no usable return series, so what the "
-                     "level demands OF IT is unstated — the target above is "
-                     "not." if len(series) < 2 else
-                     " This run's dates do not yield a usable observation "
-                     "rate, so what the level demands OF IT is unstated — the "
-                     "per-observation target above is not.")
+        # THREE ABSENCES, THREE SENTENCES — and the third was found by the
+        # Gauntlet on the finished diff, after the first two had already been
+        # split apart for the same reason.
+        #
+        # A missing SERIES, unreadable DATES and an UNSOLVABLE BAR all leave the
+        # demand unstated, and they are three different facts about the run: the
+        # first says there is nothing to solve a bar from, the second says the
+        # series is fine and its spacing is not, the third says both are fine
+        # and no Sharpe reproduces this level for a series of this shape (the
+        # quadratic in `statistics.sharpe_bar_for_psr` has no verifiable root —
+        # reachable at high levels on a short, heavily skewed series).
+        #
+        # THE THIRD CASE WAS BEING REPORTED AS THE SECOND, and the sentence
+        # CONTRADICTED ITSELF IN THE SAME BREATH: the clause immediately before
+        # it quotes this run's measured observation rate and its annualised
+        # target, and then this clause told the reader the dates yield no usable
+        # observation rate. A verdict that argues with itself is worse than one
+        # that says nothing, and it is the exact defect class this leg exists to
+        # end — a sentence stating something false about the run it explains.
+        #
+        # `bar` always carries a `reason` when it refuses (every return path in
+        # the solver sets one), and on this basis `bar` is always the SERIES
+        # solver: `scores_advantage` is `is_premia and basis != "engine_reported"`
+        # and so is False for every run reaching here. The fallback exists
+        # anyway, because a disclosure must never raise on a key.
+        if req is not None:
+            no_demand = ""
+        elif len(series) < 2:
+            no_demand = (" This run carries no usable return series, so what "
+                         "the level demands OF IT is unstated — the target "
+                         "above is not.")
+        elif k is None:
+            no_demand = (" This run's dates do not yield a usable observation "
+                         "rate, so what the level demands OF IT is unstated — "
+                         "the per-observation target above is not.")
+        else:
+            # ENDS ON THE REASON rather than appending a clause to it: every
+            # refusal the solver returns is already a full sentence with its own
+            # "so ...", and bolting the shared ending onto one produced "so the
+            # bar cannot be stated, so what the level demands is unstated".
+            why = (bar.get("reason")
+                   or "the bar for this level could not be solved")
+            no_demand = (f" What the level demands OF IT is unstated for a "
+                         f"different reason than the target: this run's series "
+                         f"and clock are both readable, but {why}.")
         # NAME THE SERIES, because on this branch it is not always the same
         # one. For an alpha claim the target-zero reading is of the strategy's
         # own returns; for a PREMIA claim judged on the engine basis it is of

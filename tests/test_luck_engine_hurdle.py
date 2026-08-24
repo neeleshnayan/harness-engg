@@ -35,6 +35,7 @@ import pytest
 from app.fund import statistics as st
 from app.fund.gate import (CRITERIA, PREMIA_CRITERIA, PSR_BASES, _luck_leg,
                            evaluate)
+from premia_feed import daily_returns_block
 from test_luck_filter import _alpha, _premia, judge
 from test_premia_gate import CLEAN_HOLDOUT, CLEAN_SWEEP, CLEAN_WALK
 
@@ -826,6 +827,15 @@ def test_the_DEMAND_is_the_verdict_boundary_a_reader_can_check():
     assert agree_own == 6, "the demand is not the boundary the gate applies"
     # NOT A KNIFE EDGE (D34): every row sits clear of the boundary, so the six
     # agreements are a property and not six coin flips that landed well.
+    #
+    # THE HEADROOM, MEASURED, because "clear of the boundary" is a claim and
+    # not a feeling: the six margins are 0.373 / 0.273 / 0.173 / 0.083 / 0.063
+    # / 0.027, so the TIGHTEST row sits 0.0267 above a guard of 0.02 — about a
+    # third of headroom, and the thinnest number in this file. The row is the
+    # `true_ann=1.30` one. Anyone who changes `_calendar_series`'s seed, its
+    # year count, RF_ANNUAL or VOL_ANNUAL must re-read this figure: it is the
+    # margin that decides whether this test is measuring the boundary or
+    # sitting on it. (Recomputed by the Gauntlet on the finished diff.)
     assert min(margins) > 0.02, min(margins)
     # THE DISCRIMINATOR: the answer this dispatch replaced gets it wrong.
     assert agree_engine == 3, agree_engine
@@ -971,3 +981,100 @@ def test_the_derived_annualised_form_is_kept_though_no_test_can_kill_it():
     # ...and the verdict field that carries it rounds to 4 places, which is
     # twelve orders of magnitude coarser. That is why the mutant is equivalent.
     assert round(1.0 + worst, 4) == 1.0
+
+
+# =========================================================================
+# 5. THE GAUNTLET'S FINDING — a THIRD reason the demand can be absent
+# =========================================================================
+
+def _unsolvable_bar_result():
+    """A run whose series and dates are both fine and whose BAR still refuses.
+
+    Sixty ordinary days and one -30% crash: skew -7.21, kurtosis 54.65. At a
+    level of 99.9% the quadratic in `statistics.sharpe_bar_for_psr` has no
+    verifiable root, so `required_sharpe_annualised` is absent while
+    `obs_per_year` and `engine_target_annualised` are both present.
+
+    A CALL, not a model: the moments come from a real return series pushed
+    through the production solver, not from hand-set skew and kurtosis.
+    """
+    rng = random.Random(0)
+    series = [rng.gauss(0.0005, 0.004) for _ in range(60)]
+    series[7] = -0.30
+    r = _alpha(psr=20.0)
+    r["daily_returns"] = daily_returns_block(series)
+    return r
+
+
+def test_an_UNSOLVABLE_BAR_is_not_reported_as_unreadable_dates():
+    """THE VERDICT THAT CONTRADICTED ITSELF, found by the Gauntlet on the
+    finished diff — after the same clause had already been split in two for
+    exactly this kind of misattribution.
+
+    `required_sharpe_annualised` goes absent for THREE reasons, and the code
+    discriminated on only two of them: no series, no clock, and — the one
+    nobody had enumerated — a bar the solver cannot state for a series of this
+    shape. The third fell through to the second's sentence, so a run whose
+    dates are perfectly readable was told its dates were not... in the same
+    string that had just quoted its measured observation rate and annualised
+    its target on that very clock.
+
+    The assertions below therefore pin BOTH halves: the clock is quoted, AND
+    the sentence does not deny the clock it just quoted.
+    """
+    out = evaluate(_unsolvable_bar_result(), CLEAN_HOLDOUT, CLEAN_SWEEP,
+                   walkforward=CLEAN_WALK, criteria={"min_psr_pct": 99.9})
+    luck = out["checks"]["luck"]
+
+    # The precondition that makes this the THIRD case and not one of the two.
+    assert luck["obs_per_year"] is not None
+    assert luck["engine_target_annualised"] is not None
+    assert len(_unsolvable_bar_result()["daily_returns"]["strategy"]) == 60
+    assert "required_sharpe_annualised" not in luck
+
+    sentence = next(f for f in out["failures"] if "probabilistic Sharpe" in f)
+    # The real cause, named.
+    assert "no Sharpe reproduces this level for a series of this shape" in \
+        sentence, sentence
+    assert "series and clock are both readable" in sentence
+    # AND NOT the other two causes, either of which would be a false statement
+    # about this run.
+    assert "dates do not yield a usable observation rate" not in sentence
+    assert "carries no usable return series" not in sentence
+    # THE SELF-CONTRADICTION, asserted directly: the clock IS quoted here, so a
+    # clause denying it cannot also be.
+    assert f"measured at {luck['obs_per_year']} observations a year" in sentence
+
+
+def test_the_three_absent_demand_sentences_are_mutually_exclusive():
+    """Would catch: a fourth branch being added that overlaps an existing one,
+    or two of the three becoming reachable together.
+
+    Each cause is constructed independently and each verdict must carry exactly
+    ONE of the three discriminating clauses — never zero, never two. The shared
+    tail ("what the level demands OF IT is unstated") is deliberately NOT what
+    is counted: it appears in all three and can tell them apart in none.
+    """
+    CLAUSES = ("carries no usable return series",
+               "dates do not yield a usable observation rate",
+               "series and clock are both readable")
+
+    no_series = _alpha(psr=20.0)
+    no_series["daily_returns"] = {"present": True, "strategy": [0.01],
+                                  "dates": ["2021-01-04"]}
+    no_clock = _alpha(psr=20.0)
+    no_clock["daily_returns"]["dates"] = (
+        ["2021-01-04"] * len(no_clock["daily_returns"]["strategy"]))
+
+    cases = {
+        "no series": (no_series, {}),
+        "no clock": (no_clock, {}),
+        "unsolvable bar": (_unsolvable_bar_result(), {"min_psr_pct": 99.9}),
+    }
+    for label, (res, extra) in cases.items():
+        out = evaluate(res, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK,
+                       criteria=extra or None)
+        sentence = next(f for f in out["failures"]
+                        if "probabilistic Sharpe" in f)
+        hits = [c for c in CLAUSES if c in sentence]
+        assert len(hits) == 1, (label, hits, sentence)

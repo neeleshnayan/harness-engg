@@ -64,10 +64,37 @@ def test_no_cached_bytecode_in_app_disagrees_with_its_source():
         + "\n".join(f"  {f.source}\n      {f.detail}" for f in poisonous)
         + "\n\nDelete the caches and re-run: "
           "python scripts/instruments/stale_pyc_scan.py . --clear")
-    # A guard that scanned nothing has proven nothing. `no_cache` is the normal
-    # state of a fresh checkout, so this asserts the SCAN RAN, not that caches
-    # exist: the file count is what makes the zero above meaningful.
-    assert counts["agree"] + counts["no_cache"] > 50, counts
+
+    # A GUARD THAT COMPARED NOTHING HAS PROVEN NOTHING, and the first version of
+    # this test could not tell the difference. It asserted
+    # `agree + no_cache > 50`, which `no_cache` alone satisfies — so under
+    # PYTHONDONTWRITEBYTECODE=1 (an ordinary CI and container setting) it
+    # reported a clean bill of health over 128 files it had not compared, with
+    # no signal that it had checked nothing. Absence rendered as a pass, in the
+    # test written to stop absence being rendered as zero. Found by the
+    # Gauntlet on the finished diff.
+    #
+    # The honest split: with bytecode writing OFF there is no cache to poison
+    # and the pathology cannot occur, so the test SKIPS and says so out loud. It
+    # never silently passes.
+    if counts["agree"] == 0:
+        assert sys.dont_write_bytecode, (
+            "no source in app/ has a bytecode cache, yet this interpreter "
+            "writes them — something has cleared or blocked the cache and this "
+            "guard cannot see the thing it exists to see", counts)
+        pytest.skip(
+            "PYTHONDONTWRITEBYTECODE is set, so app/ has no bytecode caches at "
+            f"all ({counts['no_cache']} sources, none cached). Nothing can be "
+            "served stale and this guard has verified NOTHING — stated rather "
+            "than passed.")
+    # ONE, NOT A ROUND NUMBER — and the first draft got this wrong too. It
+    # asserted `> 50`, which is a fact about HOW MANY app modules the current
+    # run happens to have imported, not about the guard: running this file
+    # alone caches 31 modules and the full suite caches far more, so the
+    # threshold failed on the targeted run and passed on the whole one. A
+    # number invented to look rigorous is a flaky test with good intentions.
+    # What is actually assertable is that the comparison had a domain at all.
+    assert counts["agree"] >= 1, counts
 
 
 # ---------------------------------------------------------------------------
