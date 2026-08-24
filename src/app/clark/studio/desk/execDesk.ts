@@ -473,6 +473,21 @@ const REVERSIBILITY_REASON: Record<Reversibility, string> = {
  * date. Both defaults are FALSE, so every existing caller is unchanged; only
  * a caller that demonstrably renders the fact itself may drop it.
  */
+/**
+ * What this sentence says when it cannot date the WAIT.
+ *
+ * IT USED TO SAY "undated", AND ON A DATED CARD THAT IS A LIE — caught by
+ * looking at the rendered desk: the first card carried a `due 2026-08-24` chip
+ * and a line ending "· undated" two inches below it. "undated" is this
+ * codebase's word for a missing DATE (a memo's, a run's, an ask's — twenty
+ * other uses, all of them about a timestamp), and here it meant something
+ * else entirely: the producing run is outside the payload's window, so how
+ * long the row has been waiting cannot be computed. `OrderCard` already had
+ * the right idiom for exactly that fact, so this borrows it rather than
+ * inventing a third phrasing.
+ */
+const UNDATED_WAIT = "age unknown";
+
 export interface RankReasonOmit {
   /** The caller renders the date itself (the due chip). */
   due?: boolean;
@@ -497,9 +512,10 @@ export function rankReason(i: DeskItem, omit: RankReasonOmit = {}): string {
      all when there is no timestamp, which is exactly when this sentence must
      speak. Absence keeps a voice. */
   if (!omit.waiting) {
-    parts.push(i.waitingSince ? `waiting since ${i.waitingSince.slice(0, 10)}` : "undated");
+    parts.push(i.waitingSince
+      ? `waiting since ${i.waitingSince.slice(0, 10)}` : UNDATED_WAIT);
   } else if (!i.waitingSince) {
-    parts.push("undated");
+    parts.push(UNDATED_WAIT);
   }
   return parts.join(" · ");
 }

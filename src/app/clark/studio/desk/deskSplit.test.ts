@@ -267,13 +267,24 @@ test("D42: the two omissions are INDEPENDENT — a caller with a chip and no "
   assert.doesNotMatch(rankReason(dated, { waiting: true }), /waiting since/);
 });
 
-test("D42: AN UNDATED ROW STILL SAYS 'undated' EVEN WHEN THE WAIT IS OMITTED. "
-  + "The caller's rail can only speak from a timestamp, so it says nothing at "
-  + "all in exactly the case where this sentence must — absence keeps a "
-  + "voice", () => {
+test("D42: AN UNDATABLE WAIT STILL SPEAKS EVEN WHEN THE WAIT IS OMITTED. The "
+  + "caller's rail can only speak from a timestamp, so it says nothing at all "
+  + "in exactly the case where this sentence must — absence keeps a voice", () => {
   const r = rankReason({ ...dated, waitingSince: null },
                        { due: true, waiting: true });
-  assert.match(r, /undated/);
+  assert.match(r, /age unknown/);
+});
+
+test("D42: AND IT DOES NOT SAY 'undated' — that is this codebase's word for a "
+  + "missing DATE, and the card carrying this line also carries a due chip. "
+  + "The rendered desk showed 'due 2026-08-24' two inches above a line ending "
+  + "'· undated'", () => {
+  for (const omit of [{}, { due: true, waiting: true }]) {
+    assert.doesNotMatch(rankReason({ ...dated, waitingSince: null }, omit),
+      /undated/, `omit=${JSON.stringify(omit)}`);
+  }
+  // The DATED case is untouched and still names the day it started waiting.
+  assert.match(rankReason(dated), /waiting since 2026-08-24/);
 });
 
 test("a seat's STATED reversibility beats the kind table", () => {
