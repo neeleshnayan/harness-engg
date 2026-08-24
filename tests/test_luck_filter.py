@@ -33,7 +33,7 @@ from app.fund import statistics as st
 from app.fund.gate import (CRITERIA, PREMIA_CRITERIA, PSR_BASES, evaluate)
 from app.fund.leanrunner import (gross_exposure, invested_weights,
                                  premia_inputs)
-from test_premia_gate import (CLEAN_HOLDOUT, CLEAN_SWEEP, CLEAN_WALK,
+from test_premia_gate import (CLEAN_HOLDOUT, CLEAN_SWEEP, CLEAN_WALK, feed,
                               exposure_chart, make_result, rdates,
                               series_with_moments, R600)
 
@@ -395,3 +395,126 @@ def _alpha(psr: float, **over):
     }
     r.update(over)
     return r
+
+
+# =========================================================================
+# 6. THE MUTATION SURVIVORS, closed
+#
+# Five mutants survived the first pass. Each was re-derived by hand before
+# being written down (a survivor is a gap or a retirement, never a note), and
+# all five were REAL gaps rather than equivalent mutants.
+# =========================================================================
+
+def test_a_reading_EXACTLY_ON_the_level_passes():
+    """`>= level` versus `> level`, probed AT the boundary.
+
+    Mutant M05 changed one to the other and every test stayed green, because no
+    fixture landed exactly on a level. The boundary is reachable — `psr_pct` is
+    rounded to three decimals, so equality is an ordinary outcome, not a
+    measure-zero curiosity. Exactness is arranged by moving the LEVEL onto the
+    measured reading rather than by trying to hit a level with a series.
+    """
+    r = _alpha(psr=71.0)
+    exact = evaluate(r, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK,
+                     criteria={"min_psr_pct": 0.0})["checks"]["luck"]
+    on_the_nose = exact["luck_psr_pct"]
+    out = evaluate(r, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK,
+                   criteria={"min_psr_pct": on_the_nose})
+    assert out["passed"] is True, out["failures"]
+    # and one tick above it must fail, so the test pins a boundary and not a
+    # direction that happens to hold everywhere.
+    over = evaluate(r, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK,
+                    criteria={"min_psr_pct": on_the_nose + 0.001})
+    assert over["passed"] is False
+
+
+def test_the_demanded_advantage_is_on_the_SAME_SCALE_as_the_measured_one():
+    """Mutant M10: the premia sentence quoted the difference series' Sharpe and
+    called it an advantage — inflating the demand by a factor of 1/sd(d), about
+    4x on these fixtures. Nothing caught it, because no test compared the two
+    numbers the sentence puts side by side.
+
+    The invariant is behavioural and needs no formula: a premia candidate clears
+    the luck filter IF AND ONLY IF its measured advantage is at least the
+    advantage the level demands. On the wrong scale those two disagree.
+    """
+    for target in (-0.05, -0.03, 0.0, 0.05, 0.20):
+        res = _premia(target)
+        out = judge(res)
+        luck = out["checks"]["luck"]
+        measured = out["checks"]["premia"]["sharpe_advantage"]
+        demanded = luck["required_sharpe_annualised"]
+        assert demanded is not None
+        cleared = not [f for f in out["failures"] if "risk-adjusted ADVANTAGE" in f]
+        assert cleared is (measured >= demanded - 1e-6), (
+            target, measured, demanded, cleared)
+
+
+def test_a_weight_series_that_MISSES_days_refuses_rather_than_filling_them():
+    """Mutant M15: dropping the coverage check left the gap silently filled.
+
+    A day with no invested weight would have to be assumed either fully invested
+    (credit nothing, keep the bias) or fully in cash (credit the maximum). Both
+    are inventions, so the credit is unmeasurable and the criterion refuses.
+    """
+    bench = series_with_moments(R600, 12.0, 20.0, seed=21)
+    res = make_result(overlay(bench, 0.20), bench, rf_pct=RF_PCT, gross=0.5)
+    weights = dict(res["invested_weight"]["weights"])
+    for day in sorted(weights)[10:15]:
+        weights.pop(day)
+    res["invested_weight"] = {**res["invested_weight"], "weights": weights}
+    res["premia_inputs"] = premia_inputs(
+        res, rf_bars=feed(RF_PCT, dates=rdates(len(R600))), rf_symbol="BIL")
+    p = res["premia_inputs"]
+    assert p["cash_credit"]["measurable"] is False
+    assert "carries no invested weight for" in p["cash_credit"]["reason"]
+    assert p["credited_measurable"] is False
+    # the UNCREDITED pair survives the outage — the shipped bar still works
+    assert p["excess_measurable"] is True
+    assert judge(res)["checks"]["premia"]["measurable"] is True
+    # and asking for the credit now refuses
+    out = judge(res, premia_credit_idle_cash=True)
+    assert out["passed"] is False
+    assert out["checks"]["premia"]["measurable"] is False
+
+
+def test_the_credit_guard_is_REACHABLE_and_not_masked_by_the_gross_ceiling():
+    """Mutant M17 survived because the only test of a missing weight also had a
+    missing EXPOSURE, so the gross ceiling refused first and the credit's own
+    guard was never reached. A guard behind an earlier refusal is untested.
+
+    This fixture has a perfectly readable gross AND no weight series.
+    """
+    bench = series_with_moments(R600, 12.0, 20.0, seed=21)
+    res = make_result(overlay(bench, 0.20), bench, rf_pct=RF_PCT, gross=0.9)
+    assert res["premia_inputs"]["gross_measurable"] is True
+    res.pop("invested_weight")
+    res["premia_inputs"] = premia_inputs(
+        res, rf_bars=feed(RF_PCT, dates=rdates(len(R600))), rf_symbol="BIL")
+    assert res["premia_inputs"]["gross_measurable"] is True   # 1b will PASS
+    out = judge(res, premia_credit_idle_cash=True)
+    assert out["passed"] is False
+    leg = out["checks"]["premia"]
+    assert leg["measurable"] is False
+    # the reason must name the CASH WEIGHT, not the leverage — a diagnosis that
+    # names the wrong cause sends the next reader to the wrong place.
+    assert "invested-weight series" in (leg["reason"] or ""), leg["reason"]
+    assert any("cash weight is unknown" in f for f in out["failures"])
+
+
+def test_two_samples_on_one_day_keep_the_LARGER_invested_reading():
+    """Mutant M18: `max` to `min` survived, because no chart in the fixtures
+    samples a date twice. It is unreachable on today's engine output and it is
+    NOT equivalent — so it is pinned rather than retired, and pinned in the
+    conservative direction: the larger invested weight is the SMALLER cash
+    credit, which is the one that cannot manufacture an advantage.
+    """
+    day = "2021-01-04"
+    ts = 1609718400.0
+    chart = {"Exposure": {"series": {
+        "Base - Long Ratio": {"values": [[ts, 0.20], [ts + 3600, 0.80]]},
+        "Base - Short Ratio": {"values": [[ts, 0.0], [ts + 3600, 0.0]]}}}}
+    got = invested_weights(chart)
+    assert got["measurable"] is True
+    assert got["n"] == 1
+    assert got["weights"][day] == pytest.approx(0.80, abs=1e-9)
