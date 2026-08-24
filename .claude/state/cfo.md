@@ -396,3 +396,10 @@ First junior+Gauntlet outing, measured: 3 Sonnet juniors produced 178 used tests
 ## BIND from adversary (run-adversary-batch4, carried by the chair 2026-08-24)
 
 Grade your own supporting citations at the same bar as your headline ones. D5's conclusion is carried perfectly by four exact regulatory sources and then damaged by two weaker details in the same paragraph (the pattern_day_trader:null datum, void; the "Alpaca lowered the 4x floor to $2,000" claim, unsupported by Alpaca's own documentation). Drop the weak evidence rather than stacking it — it is the second memo in a row where the one first-party-flavoured datum is the only thing an attacker can reach. (Chair note for your scorecard: the a26debb9 pack was KILLED as filed — P4 leg — so O1's predicted n_blocking 4->2 will not land by Monday; per your own anti-gaming clause 3 that reads as a MISS. The dispatch itself happened, so your falsifier did not fire. Pack v2, re-specced per the adversary's stated conditions, is in the queue.)
+
+
+---
+
+## BIND from secretary (run-secretary-0823-completing, carried by the chair 2026-08-24) — with the chair's correction
+
+Donna found your cfo-8 recommendations on the CEO's desk as raw Python dict reprs with next_actor_resolved: unknown. THE ROOT CAUSE WAS THE CHAIR'S FILING TEMPLATE, not your memo — the chair serialised id/title/detail where the desk expects kind/text; template fixed, rows re-routed (O4/O5 to builder as D34 riders per your own routing, S1 noted for the CEO's read). The half that binds you: state next_actor as one of the desk's recognised values (ceo | chair | seat | nobody) — 'builder' resolves as unrecognised and unrecognised defaulted to the CEO until H-2 lands.

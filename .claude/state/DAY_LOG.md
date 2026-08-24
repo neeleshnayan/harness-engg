@@ -67,6 +67,17 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
   do not enter a blind envelope.
 
 **BUILT**
+- **Donna's first DESK SWEEP ran and the chair executed it: the CEO's desk
+  42 → 31 items, on-fire 10 → 7 — and the fire list is now genuinely
+  Monday (R39, sign-the-set, data decision).** 11 dispositions validated
+  and executed with citations; 3 gate-criteria rows swept backward under
+  the v2 clarification; E20-1 + AB4-2 re-filed READABLE (the dict-repr
+  rows were the chair's own filing template — fixed); the
+  survivor-benchmark finding filed as its own row BEFORE triage7#4 closed
+  (Donna's guard honoured). Her completing section for 08-23 filed
+  (docs/archives/2026-08-23-completing.md + PDF). P-1/P-2/P-3 + H-2 →
+  D34. 739b5ac9 (survivorship fix, my sequencing failure recorded) rides
+  the next builder dispatch under the both-arms rule.
 - **Adversary batch 4 returned and resolved (~06:2xZ): KILL / SURVIVES /
   KILL(remedy) / KILL(as filed).** Precondition pack v1 killed on the P4
   leg (a static check for a runtime fact passes on code that never runs —

@@ -678,3 +678,39 @@ number. CEO, on the record: "superb work fable on seeing this through!
 first one's are always special." The credit is distributed: his premia
 ruling and falsifier, the adversary's three kill rounds, the quant's
 belt, the chair's loops. That distribution is the org working.
+
+
+---
+
+## 2026-08-24 — LESSONS FROM THE FIRST HYGIENE SWEEP (Donna run 1, chair-validated, 17/17 decides landed)
+
+1. **THE FILING TEMPLATE WAS WRONG AND IT WAS MINE.** The desk expects
+   recommendations as {kind, text, next_actor, due_date, reversibility,
+   money_at_stake} — next_actor one of ceo|chair|seat|nobody. My scripts
+   filed {id, title, detail, next_actor:'builder'} → str(dict) rendered on
+   the CEO's desk and unrecognised actors defaulted to him. Five rows
+   affected incl. E20-1. Fixed forward; every future filing uses kind/text
+   and a recognised actor, and POPULATES THE TOP-LEVEL verdict STRING
+   (Donna's N-2: two window runs closed verdict-empty; a flight recorder
+   that answers NONE).
+2. **THE HARD-DEPENDENCY RULE**: when a request is marked hard-sequenced
+   before a belt run, the submission is NOT fireable while the dependency
+   is undispatched — or the sequencing note is decoration. Measured: I
+   fired a9db39fdfab5 with 739b5ac9 approved-undispatched in front of it;
+   the re-judge ran on the survivor-only benchmark it was sequenced to
+   avoid. Finding filed (run-cto-desk-sweep-1#1); 739b5ac9 rides the next
+   builder dispatch after D36 under the both-arms rule.
+3. **THE BACKWARD CLASS SWEEP** (Donna BIND): when the CEO reclassifies a
+   CLASS of decisions ("not my decision per v2"), sweep the desk BACKWARD
+   for rows filed under the old class in the same pass that records the
+   clarification. Executed tonight: metacontrols#1, builder-d23#3,
+   adversary-d23-d24#2 (→ chair, queued behind D36's calibration table).
+4. **H-2 ROUTING DECISION (chair, v2 lane, riskofficer-flagged)**: the
+   default next actor for an OPEN desk request is the CTO SESSION, never
+   the CEO — matching the desk's own execution_note. Code change rides
+   D34 (request filed with P-1/P-2/P-3). Direction: reduces what reaches
+   the CEO by default → flagged for the riskofficer's next audit.
+5. Donna's completing-section shape and straddle rule are in her STATE;
+   her sweep method note — cto.md is the highest-yield citation source —
+   means THIS FILE must keep recording rulings promptly: her sweep reads
+   it.

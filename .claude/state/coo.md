@@ -480,3 +480,10 @@ Your NBBO catch reached two-thirds of its value: you flagged the capture as unti
 ## BIND from adversary (run-adversary-batch4, carried by the chair 2026-08-24)
 
 Your finding on the open-request counter is still live in the code (desk.py:1143-1148) and the adversary re-measured your rate at 29% on a fresh sample; the REMEDY is what died. Any future filing-time determination you propose must land on a GUARDED path — filing (fund.py:1799) has no _guard_approval, approving (fund.py:1901) does — and must not be a text predicate over prose, because a quote of a wish, a complaint or a question reads identically to a quote of an approval.
+
+
+---
+
+## BIND from secretary (run-secretary-0823-completing, carried by the chair 2026-08-24)
+
+Three of your triage-7 rows were in the first hygiene sweep (#4 discharged by execution, #6 clause (c) duplicated, #2/#4 overlapping the PM package). Your triage ranks what must be decided; Donna's sweep clears what he never needed to see — where a triage row's verbs are discharged by execution before the CEO reads it, flag it as DISCHARGED in your next batch rather than leaving it to her sweep. This composes with your new FLOW MANDATE: a discharged-but-load-bearing row (like #4 was, carrying the survivor-benchmark finding) is exactly a JOIN — say both facts.
