@@ -74,6 +74,10 @@ function Seat({ seat }: { seat: SeatId }) {
   const [events, setEvents] = useState<SpineEvent[] | null>(null);
   const [deskErr, setDeskErr] = useState<string | null>(null);
   const [runsErr, setRunsErr] = useState<string | null>(null);
+  /* The event log's own failure flag. It had none — the read was set to `null`
+     on failure and `null` was also its value before the first answer — and the
+     metric strip below made an "unreadable" claim from that one value. */
+  const [eventsErr, setEventsErr] = useState(false);
 
   const load = useCallback(async () => {
     // Three independent reads, three independent failures. A page that hides
@@ -88,8 +92,8 @@ function Seat({ seat }: { seat: SeatId }) {
     else setDeskErr(readError(d.reason));
     if (r.status === "fulfilled") { setRuns(r.value.runs || []); setRunsErr(null); }
     else setRunsErr(readError(r.reason));
-    if (e.status === "fulfilled") setEvents(e.value.events || []);
-    else setEvents(null);
+    if (e.status === "fulfilled") { setEvents(e.value.events || []); setEventsErr(false); }
+    else { setEvents(null); setEventsErr(true); }
   }, [seat]);
 
   useEffect(() => {
@@ -103,6 +107,8 @@ function Seat({ seat }: { seat: SeatId }) {
      `readState` — so `readable` here means "there is a payload on screen",
      with the failed refresh reported separately by the banner below. */
   const deskRead = readState(desk !== null, deskErr !== null);
+  const runsRead = readState(runs !== null, runsErr !== null);
+  const eventsRead = readState(events !== null, eventsErr);
 
   const roster = desk?.roster?.find((r) => r.agent === seat) ?? null;
   // Memoised: `?? []` is a fresh array each render, and the folds below key off it.
@@ -222,27 +228,50 @@ function Seat({ seat }: { seat: SeatId }) {
                 when the record was actually read. With the event log
                 unreadable this used to read "never" over a caption saying the
                 log could not be read — the headline asserting the opposite of
-                its own footnote. Verified 2026-08-20 against a dead spine. */}
+                its own footnote. Verified 2026-08-20 against a dead spine.
+
+                AND "unreadable" IS A CLAIM TOO (ticket fccb9cf3, found in this
+                dispatch's own route pass, one section below the fix). These
+                two captions said "event log unreadable" and "flight recorder
+                unreadable" while both reads were merely in flight — the same
+                two-state collapse the desk read had, in the same file, three
+                hundred lines from where it was being repaired. */}
             <Metric
               label="dispatches"
               value={events == null ? "—" : dispatches.dispatches ?? "never"}
-              sub={events == null
-                ? "event log unreadable — dispatches unknown, not zero"
-                : dispatches.lastAt
-                  ? `last ${fmtAt(dispatches.lastAt)}${dispatches.actors.length ? ` by ${dispatches.actors.join(", ")}` : ""}`
-                  : "no dispatch event on record"}
+              sub={eventsRead === "loading"
+                ? "reading the event log…"
+                : eventsRead === "unreadable"
+                  ? "event log unreadable — dispatches unknown, not zero"
+                  : dispatches.lastAt
+                    ? `last ${fmtAt(dispatches.lastAt)}${dispatches.actors.length ? ` by ${dispatches.actors.join(", ")}` : ""}`
+                    : "no dispatch event on record"}
             />
             <Metric
               label="runs recorded"
               value={runs == null ? "—" : seatRuns.length}
-              sub={runs == null ? "flight recorder unreadable" : "rows in the flight recorder"}
+              sub={runsRead === "loading"
+                ? "reading the flight recorder…"
+                : runsRead === "unreadable"
+                  ? "flight recorder unreadable"
+                  : "rows in the flight recorder"}
             />
+            {/* THE STATS ARE FOLDED FROM `runs ?? []`, so before the flight
+                recorder answers they are the fold of an EMPTY LIST — and every
+                caption below then states an absence measured over nothing:
+                "no run recorded a token total" about runs nobody has read.
+                Found by looking at the in-flight arm, the same pass that
+                caught the two captions above (ticket fccb9cf3). */}
             <Metric
               label="tokens / dispatch"
               value={stats.avg == null ? "—" : fmtTokens(Math.round(stats.avg))}
-              sub={stats.reported === 0
-                ? "no run recorded a token total"
-                : `${fmtTokens(stats.min)}–${fmtTokens(stats.max)} · ${stats.reported} of ${stats.runs} runs reported`}
+              sub={runsRead !== "readable"
+                ? runsRead === "loading"
+                  ? "reading the flight recorder…"
+                  : "flight recorder unreadable — token totals unknown, not zero"
+                : stats.reported === 0
+                  ? "no run recorded a token total"
+                  : `${fmtTokens(stats.min)}–${fmtTokens(stats.max)} · ${stats.reported} of ${stats.runs} runs reported`}
             />
             <Metric
               label="tokens total"
@@ -251,17 +280,29 @@ function Seat({ seat }: { seat: SeatId }) {
             <Metric
               label="cost (estimate)"
               value={stats.costUsd == null ? "—" : fmtUsd(stats.costUsd)}
-              sub={stats.costUsd == null
-                ? "no run could be priced"
-                : `${stats.priced} of ${stats.runs} runs priced`}
+              sub={runsRead !== "readable"
+                ? runsRead === "loading"
+                  ? "reading the flight recorder…"
+                  : "flight recorder unreadable — nothing could be priced yet"
+                : stats.costUsd == null
+                  ? "no run could be priced"
+                  : `${stats.priced} of ${stats.runs} runs priced`}
             />
           </div>
           <PriceTable />
           <p className={`mt-2 text-xs ${KT.muted}`}>
             Placement, declared: <span className="font-mono">{SEAT_PLACEMENT[seat]}</span>
             {" · "}observed on runs:{" "}
+            {/* "none recorded" is a claim about the flight recorder and may
+                only be made once it has answered — the whole point of this
+                line is that a DISAGREEMENT between the declaration and the
+                observation is the finding, and an unread observation is not a
+                disagreement. */}
             <span className="font-mono">
-              {observedModels.length ? observedModels.join(", ") : "none recorded"}
+              {observedModels.length ? observedModels.join(", ")
+                : runsRead === "loading" ? "not read yet"
+                  : runsRead === "unreadable" ? "unreadable"
+                    : "none recorded"}
             </span>
             . The declaration comes from the constitution; the observation comes
             from <span className="font-mono">run.model</span>. When they disagree,
