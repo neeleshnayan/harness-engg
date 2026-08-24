@@ -423,6 +423,26 @@ def test_a_premia_claim_ON_THE_ENGINE_BASIS_solves_its_bar_from_the_STRATEGY():
     assert req != wrong_v
     assert wrong_v < tgt, "the fixture no longer reproduces the defect's shape"
 
+    # AND THE TRAILING CLAUSE NAMES THE RIGHT SERIES. The target-zero reading
+    # quoted here comes from the ADVANTAGE, not from the strategy's returns, so
+    # calling it "the same series" would be a third mislabelling inside the
+    # sentence built to end mislabelling.
+    s = [f for f in out["failures"] if "probabilistic Sharpe" in f][0]
+    assert "A target-zero reading of this run's ADVANTAGE series" in s
+    assert "the same series" not in s
+    # the alpha branch keeps the other wording, so the two cannot collapse.
+    # `robustness.psr_pct` is moved BELOW the level on purpose: the sentence is
+    # only emitted on a refusal, and `_alpha(psr=90.0)` alone would pass.
+    ar = _alpha(psr=90.0)
+    ar["robustness"]["psr_pct"] = 20.0
+    alpha = evaluate(ar, CLEAN_HOLDOUT, CLEAN_SWEEP,
+                     walkforward=CLEAN_WALK,
+                     criteria={"psr_basis": "engine_reported",
+                               "min_psr_pct": 65.0})
+    a = [f for f in alpha["failures"] if "probabilistic Sharpe" in f][0]
+    assert "A target-zero reading of the same series" in a
+    assert "ADVANTAGE series" not in a
+
     # AND THE PREMIA DEFAULT IS UNTOUCHED: on its own basis the bar IS the
     # advantage's, which is the frozen behaviour this must not have disturbed.
     on_advantage = judge(r)

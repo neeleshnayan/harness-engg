@@ -1973,9 +1973,17 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
                      " This run carries no usable return series, so what the "
                      "level demands OF IT is unstated — the target above is "
                      "not.")
+        # NAME THE SERIES, because on this branch it is not always the same
+        # one. For an alpha claim the target-zero reading is of the strategy's
+        # own returns; for a PREMIA claim judged on the engine basis it is of
+        # the ADVANTAGE series, and "the same series" would be a third
+        # mislabelling in the sentence built to end mislabelling.
+        which = ("this run's ADVANTAGE series" if is_premia
+                 else "the same series")
+        asks = ("the question the premia bar actually asks" if is_premia
+                else "the question a luck filter actually asks")
         luck_note = ("" if out.get("luck_psr_pct") is None else
-                     f" A target-zero reading of the same series — the question "
-                     f"a luck filter actually asks — is "
+                     f" A target-zero reading of {which} — {asks} — is "
                      f"{out['luck_psr_pct']}%.")
         # NO "this run measured" CLAUSE HERE, and its absence is deliberate. The
         # only annualised Sharpe this leg holds is `sharpe_annualised`: RAW
