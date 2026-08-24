@@ -167,6 +167,13 @@ def _runs():
                   decided_at="2026-08-23T02:00:00Z"),
              _rec(10, "noted", decided_by="cto",
                   decided_at="2026-08-23T03:00:00Z"),
+             # AN UNREADABLE ROUTING CLAIM -> actor `unknown`. Three live on
+             # 2026-08-24, and it is the row that makes the CEO leg's
+             # `ceo OR unknown` branch reachable: `desk_load` counts an
+             # undeterminable actor toward the CEO because it is work he may
+             # still owe (desk.py:1304-1307), and a fixture without one lets
+             # a fold that counted only `ceo` reconcile perfectly.
+             _rec(11, "open", next_actor="legal"),
          ]},
         # A run whose trace lands on NO ticket — 127 of 145 live. Its children
         # are fenced as pre-highway, never guessed a parent.
@@ -242,7 +249,7 @@ class TestEverythingAppearsExactlyOnce:
         recs = [r for run in _runs() for r in run["recommendations"]]
         children = [t for t in folded["tickets"]
                     if t["type"] == "recommendation"]
-        assert len(children) == len(recs) == 11
+        assert len(children) == len(recs) == 12
 
     def test_a_child_of_a_linked_run_carries_its_parent(self, folded):
         t = _by_id(folded)["rec:run-linked#1"]
@@ -303,11 +310,11 @@ class TestReconciliationWithDeskLoad:
         assert r["recommendation_open_elsewhere"] == load["open_elsewhere"]
 
     def test_the_working_recommendation_population_agrees(self, folded):
-        # 8 = run-linked's five `open` (1,2,5,6,7) + `accepted` 3 +
+        # 9 = run-linked's six `open` (1, 2, 5, 6, 7, 11) + `accepted` 3 +
         # `staged` 4, plus run-unlinked's single `open`. Re-derived from the
         # fixture rather than copied from a previous run of this test.
         assert folded["reconciliation"]["recommendation_working"] \
-            == len(_FakeDeskStore(_runs()).open_recommendations()) == 8
+            == len(_FakeDeskStore(_runs()).open_recommendations()) == 9
 
     def test_desk_load_total_is_derivable_from_the_fold(self, folded, load):
         """THE HEADLINE IDENTITY. Reproduced on the live record 2026-08-24:
@@ -658,13 +665,13 @@ class TestTheEndpoint:
         assert b["readable"] is True
         assert b["counts"]["total"] == len(b["tickets"]) == b["total"]
         assert b["counts"]["by_type"] == {"ask": 5, "dispatch": 2,
-                                          "recommendation": 11}
+                                          "recommendation": 12}
 
     def test_a_filter_narrows_the_list_and_not_the_census(self, client):
         b = client.get("/api/v1/fund/tickets?type=ask").json()
         assert {t["type"] for t in b["tickets"]} == {"ask"}
         assert b["total"] == 5
-        assert b["counts"]["total"] == 18, \
+        assert b["counts"]["total"] == 19, \
             "the census is the population, never the page"
 
     def test_the_state_filter_works_and_is_echoed(self, client):
@@ -675,11 +682,23 @@ class TestTheEndpoint:
     def test_a_page_cap_reports_itself_truncated(self, client):
         b = client.get("/api/v1/fund/tickets?limit=3").json()
         assert len(b["tickets"]) == 3 and b["shown"] == 3
-        assert b["total"] == 18 and b["truncated"] is True
+        assert b["total"] == 19 and b["truncated"] is True
 
     def test_an_uncapped_page_is_not_truncated(self, client):
         b = client.get("/api/v1/fund/tickets?limit=5000").json()
         assert b["truncated"] is False
+
+    @pytest.mark.parametrize("limit,truncated", [(18, True), (19, False),
+                                                 (20, False)])
+    def test_the_truncation_boundary(self, client, limit, truncated):
+        """BOUNDARY TABLE on the one inequality this endpoint owns. 19 tickets
+        in the fixture: at limit 19 the page holds all of them and
+        ``truncated`` must be FALSE — ``>=`` there would tell a reader rows
+        were hidden when none were, which is the honest-unknown firing on a
+        knowable case."""
+        b = client.get(f"/api/v1/fund/tickets?limit={limit}").json()
+        assert b["total"] == 19
+        assert b["truncated"] is truncated
 
     def test_it_degrades_rather_than_refuses_without_a_deskstore(
             self, client, monkeypatch):
