@@ -22,6 +22,15 @@ This module is that check, and nothing else. Three properties it keeps:
      this file, written out because it is the one a reader will want to argue
      with.
 
+AMENDED 2026-08-24 (ticket d79f65b1), and a reader should know this before the
+three properties above are trusted: the check's ANSWER to "does the fund hold
+this symbol" was wrong in both directions for a day. It summed fills itself
+instead of reading the fund's one true holdings fold, so after a venue sync it
+refused repurchases of positions the fund no longer held — naming a remedy that
+cannot exist — and waved through positions the sync had adopted without any fill
+history. The bound did not move and no branch was added to the price comparison;
+one INPUT was repaired. See ``gather`` for the measured state that proved it.
+
 Scope, stated so nobody assumes more: this guards the HTTP approval endpoint,
 which is the manual path and the path the incident took. ``pipeline.approve_order``
 itself is unchanged, so the auto-policy keeps reaching it through its own
@@ -105,8 +114,12 @@ def gather(store: Any, order_id: str) -> dict[str, Any]:
     describes a book that no longer exists.
 
     Measured on the live log the morning this was fixed, at the sync (seq 1414,
-    2026-08-24T12:36:46Z), the two folds disagreed about NINE of eleven symbols,
-    in BOTH directions:
+    2026-08-24T12:36:46Z): of the eleven symbols either fold mentions, NINE were
+    CLASSIFIED DIFFERENTLY by the two — held by one and not by the other, which
+    is the disagreement that changes a branch. (Of the remaining two, F was flat
+    in both; SPY was held in both but at different QUANTITIES — 0.346119 against
+    0.217757 — which changes no branch but is quoted verbatim in the refusal the
+    CEO reads.) The nine, in both directions:
 
       * DBA / DBC / TLT — fill-sum 5.314306 / 8.122157 / 3.019871, true book
         ZERO. The guard refused three approved repurchases as
