@@ -1562,7 +1562,27 @@ def seat_telemetry(day_runs: Optional[list[dict[str, Any]]],
     }
 
 
-def _annotated(rec: Any) -> Any:
+def status_index(open_recommendations: Any = (), requests: Any = ()) -> dict[str, Any]:
+    """Every row on this desk keyed by canonical ref, for the cascade fold.
+
+    Built ONCE over both populations rather than queried per member: a cascade
+    block that issued a lookup per member would make the CEO's page cost
+    O(members) round trips to render a reminder.
+    """
+    from app.fund.deskengine import rec_ref, req_ref
+
+    out: dict[str, Any] = {}
+    for rec in open_recommendations or []:
+        if isinstance(rec, dict) and rec.get("run_id") is not None:
+            out[rec_ref(rec["run_id"], rec.get("rec_id") or 0)] = \
+                rec.get("status") or "open"
+    for req in requests or []:
+        if isinstance(req, dict) and req.get("request_id"):
+            out[req_ref(req["request_id"])] = req.get("status") or "open"
+    return out
+
+
+def _annotated(rec: Any, status_by_ref: Optional[dict[str, Any]] = None) -> Any:
     """One recommendation with its resolved next actor and its card fields.
 
     Three routing fields rather than one, because a reader who disagrees with
@@ -1599,7 +1619,23 @@ def _annotated(rec: Any) -> Any:
                                                        rec.get("status")),
            "desk_stage": deskcard.desk_stage(v["actor"], rec.get("status")),
            "adjudication": deskcard.adjudication(rec),
-           "superseded_by": deskcard.superseded_by(rec.get("note"))}
+           "superseded_by": deskcard.superseded_by(rec.get("note")),
+           # THE CASCADE MUST BE ON *THIS* PATH, and it was not on the first
+           # cut — caught by looking at the rendered page rather than by any
+           # test. The CEO's cards are built from `/fund/desk`'s
+           # `open_recommendations`, which flow through here; `desk_items`
+           # (the `/fund/desk/ceo` engine) had the fold and this did not, so
+           # the cascade chip could never have appeared on the surface it was
+           # written for. A control with no caller is this firm's named worst
+           # failure, and it had reached a diff again.
+           #
+           # `status_by_ref` absent = the caller did not build the index, so
+           # membership CANNOT be resolved and the block is omitted entirely.
+           # Rendering it against an empty index would report every member as
+           # `not_open`, which reads as "nothing is outstanding" — an absence
+           # dressed as an answer.
+           "cascade": (deskcard.cascade(rec, status_by_ref)
+                       if status_by_ref is not None else None)}
     # Only when there is one: an absent detail must be absent, not "".
     detail = rec.get("detail") or parts["detail"]
     if detail:
@@ -1651,8 +1687,15 @@ def view(store: Any, deskstore: Any = None,
     # two numbers claiming the same thing eight pixels apart. A client that
     # re-implemented this predicate in TypeScript would be a second definition
     # free to drift from the first — the defect class this module is fixing.
-    open_recs = [_annotated(r) for r in (open_recs or [])]
+    open_recs = open_recs or []
     open_reqs = [r for r in reqs if r["status"] == "open"]
+    # ONCE, not once per row. The index is built from the RAW rows before
+    # annotation and covers BOTH populations — a bundle may name a
+    # recommendation or a desk request. (Hoisted after the first version put
+    # the call inside the comprehension: 227 recommendations against 336 rows
+    # is ~76k dict writes to render one reminder chip.)
+    index = status_index(open_recs, reqs)
+    open_recs = [_annotated(r, index) for r in open_recs]
     killed = [a for a in artifacts if a["status"] == "killed"]
     return {
         "roster": [{**r, "activity": activity.get(r["agent"],
@@ -2131,18 +2174,10 @@ def desk_items(open_recommendations: Iterable[dict[str, Any]],
 
     # WHAT EVERY ROW ON THIS DESK CURRENTLY IS, keyed by canonical ref, so a
     # decided bundle can report its members' real states instead of the word
-    # "pending". Built once over both populations rather than queried per
-    # member: a cascade block that issued a lookup per member would make the
-    # CEO's page cost O(members) round trips to render a reminder.
-    status_by_ref: dict[str, Any] = {}
-    for rec in open_recommendations or []:
-        if isinstance(rec, dict) and rec.get("run_id") is not None:
-            status_by_ref[rec_ref(rec["run_id"], rec.get("rec_id") or 0)] = \
-                rec.get("status") or "open"
-    for req in requests or []:
-        if isinstance(req, dict) and req.get("request_id"):
-            status_by_ref[req_ref(req["request_id"])] = \
-                req.get("status") or "open"
+    # "pending". `status_index` is the ONE definition — `view()` builds the
+    # same index for the `/fund/desk` path, and two copies of this loop would
+    # be two answers to "is that member still open" within one payload.
+    status_by_ref = status_index(open_recommendations, requests)
 
     for rec in open_recommendations or []:
         if not isinstance(rec, dict):

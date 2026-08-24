@@ -238,6 +238,79 @@ def canonical_ref(ref: Any) -> Optional[str]:
     return rec_ref(parsed["run_id"], parsed["rec_id"])
 
 
+# ------------------------------------------- request ids, as seats write them --
+
+#: THE SHORTEST STRING THAT MAY BE READ AS A SHORTHAND FOR A REQUEST ID.
+#:
+#: Eight, and it is measured rather than chosen: every abbreviated id in the
+#: live corpus is exactly eight characters — the uuid head the desk itself
+#: prints. Anything shorter is a typo, not a shorthand, and matching it by
+#: prefix would let a three-character slip silently address a real request.
+MIN_ID_PREFIX = 8
+
+
+def resolve_request_ids(declared: Any, known: Any) -> dict[str, Any]:
+    """Declared request ids resolved against the ids that exist.
+
+    ``{ids, normalised, ambiguous, unresolved}`` — the resolved list plus a
+    full account of every declaration that could not be resolved. Nothing is
+    ever DROPPED: an unresolvable declaration stays in ``ids`` exactly as the
+    seat wrote it, because the record of what a run CLAIMED to serve is a fact
+    about the filing even when the claim points nowhere.
+
+    THE DEFECT THIS CLOSES (COO triage #8 J1, chair-verified, and measured
+    again here on 2026-08-24 over 136 runs and 109 requests):
+
+      * 13 ids have ever been declared in ``meta.serves_requests``. **Five are
+        full uuids, SIX are unambiguous 8-character prefixes, two are prose**
+        ("THE DESK, REDESIGNED"). Zero are ambiguous.
+      * ``deskhygiene`` — the only instrument that can close a request without
+        chair attention — joins on the FULL id, so those six matched nothing.
+        It proposed **1 close over 73 candidates**. Normalising the prefixes
+        takes its evidence base from 5 declarations to 11.
+
+    AN AMBIGUOUS PREFIX IS NEVER GUESSED. Two candidates means the shorthand
+    does not identify a request, and picking the first would close somebody
+    else's ticket — a wrong close on the CEO's desk is strictly worse than an
+    unclosed one, because the unclosed one is visible. It is reported in
+    ``ambiguous`` and left as written.
+
+    ADVISORY, NEVER A REFUSAL. The door records the run and returns what it
+    could not resolve. Refusing the filing would lose the whole run — the
+    report, the recommendations, the tokens — over a bookkeeping field, which
+    is the trade routing v1's enforcement flag already learned not to make.
+    """
+    if not isinstance(declared, (list, tuple)):
+        return {"ids": [], "normalised": [], "ambiguous": [], "unresolved": []}
+    pool = [str(k).strip() for k in (known or []) if str(k or "").strip()]
+    exact = set(pool)
+
+    ids: list[str] = []
+    normalised: list[dict[str, str]] = []
+    ambiguous: list[dict[str, Any]] = []
+    unresolved: list[str] = []
+    for raw in declared:
+        d = str(raw or "").strip()
+        if not d:
+            continue
+        if d in exact:
+            ids.append(d)
+            continue
+        matches = ([k for k in pool if k.startswith(d)]
+                   if len(d) >= MIN_ID_PREFIX else [])
+        if len(matches) == 1:
+            ids.append(matches[0])
+            normalised.append({"declared": d, "resolved": matches[0]})
+        elif len(matches) > 1:
+            ids.append(d)
+            ambiguous.append({"declared": d, "matches": sorted(matches)})
+        else:
+            ids.append(d)
+            unresolved.append(d)
+    return {"ids": ids, "normalised": normalised, "ambiguous": ambiguous,
+            "unresolved": unresolved}
+
+
 # --------------------------------------------------------- in-tray states ---
 
 #: What an in-tray item can be. Three, and none of them is "done": the tray

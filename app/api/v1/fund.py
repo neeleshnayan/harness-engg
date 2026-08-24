@@ -1900,6 +1900,7 @@ def desk_approve(request_id: str, req: DeskApprove):
     from app.fund.deskengine import req_ref
     actor = _guard_approval("desk_request", request_id, req.actor, req.confirm,
                             req.instruction, DESK_APPROVAL_ALLOWLIST)
+    _refuse_unknown_request(request_id)
     readable = _refuse_if_superseded(req_ref(request_id), kind="desk_request",
                                      target_id=request_id, actor=actor)
     payload = {"request_id": request_id, "actor": actor,
@@ -1961,11 +1962,27 @@ class DeskResolve(BaseModel):
 
 @router.post("/fund/desk/requests/{request_id}/resolve")
 def desk_resolve(request_id: str, req: DeskResolve):
-    """Mark a request served, with the artifact that served it named."""
+    """Mark a request served, with the artifact that served it named.
+
+    AN UNKNOWN ID IS REFUSED (2026-08-24, COO triage #8 J1). This endpoint used
+    to append unconditionally, so a POST against an 8-character shorthand
+    returned **200** and wrote a ``DeskRequestResolved`` event whose
+    aggregate_id was the shorthand — a PHANTOM aggregate that no fold reads —
+    while the real request stayed `approved`. The chair's own resolve script
+    walked into it; Postgres shows bare `1c53589f` and friends sitting there as
+    aggregate ids.
+
+    A 200 against a phantom is the worst available shape: the caller believes
+    it acted, the record says something happened, and the thing that was
+    supposed to happen did not. A 404 is a tightening in front of an untouched
+    write path — it can only refuse, and a real request takes exactly the path
+    it took yesterday.
+    """
     from app.fund.events import Event, EventType
     if not (req.resolution or "").strip():
         raise HTTPException(status_code=422,
                             detail="name the artifact that served this request")
+    _refuse_unknown_request(request_id)
     payload = {"request_id": request_id, "resolution": req.resolution.strip(),
                "trace_id": (req.trace_id or "").strip() or request_id,
                "at": datetime.now(timezone.utc).isoformat(), "actor": req.actor}
@@ -2105,6 +2122,7 @@ def record_agent_run(req: AgentRunRecord):
     if ds is None:
         raise HTTPException(status_code=503, detail="needs FUND_STORE=postgres")
     from app.fund import desk as desk_mod
+    from app.fund import deskengine
     payload = req.model_dump()
     serves = payload.pop("serves_requests", None)
     declared = payload.pop("routing_version", None)
@@ -2133,8 +2151,40 @@ def record_agent_run(req: AgentRunRecord):
                     "enforced": True,
                     "errors": findings})
     payload["recommendations"] = [desk_mod.route_at_birth(r) for r in recs]
+    serves_advisory = None
     if serves:
-        ids = [str(x).strip() for x in serves if str(x or "").strip()]
+        # THE 8-CHARACTER SHORTHAND, NORMALISED AT THE DOOR (COO triage #8 J1).
+        # Seats write the uuid head the desk prints; `deskhygiene` joins on the
+        # full id, so six of the thirteen ids ever declared matched nothing and
+        # the auto-closer proposed 1 close over 73 candidates. Resolved here,
+        # once, against the ids that exist — never in the reader, where a
+        # second copy of the rule would drift.
+        #
+        # ADVISORY, NEVER 422: a bookkeeping field must not cost a whole run.
+        known = []
+        try:
+            known = [r.get("request_id") for r in desk_mod._requests(_store)]
+        except Exception as e:  # noqa: BLE001
+            # UNREADABLE IS NOT EMPTY. With no pool, every declaration would
+            # look unresolvable and every prefix would be stored unnormalised
+            # — so the ids are stored exactly as written and the advisory says
+            # the check could not run, rather than reporting 6 bad ids.
+            logger.info("serves_requests: request pool unreadable: %s", e)
+            known = None
+        if known is None:
+            ids = [str(x).strip() for x in serves if str(x or "").strip()]
+            serves_advisory = {"checked": False,
+                               "note": ("the request fold could not be read, "
+                                        "so declared ids were stored verbatim "
+                                        "and NOT checked — this is not a "
+                                        "statement that they are valid")}
+        else:
+            res = deskengine.resolve_request_ids(serves, known)
+            ids = res["ids"]
+            if res["normalised"] or res["ambiguous"] or res["unresolved"]:
+                serves_advisory = {"checked": True, **{
+                    k: res[k] for k in
+                    ("normalised", "ambiguous", "unresolved")}}
         if ids:
             payload["meta"] = {**(payload.get("meta") or {}),
                                "serves_requests": ids}
@@ -2151,11 +2201,19 @@ def record_agent_run(req: AgentRunRecord):
         # caller is the chair or a script, and it should see which value was
         # refused rather than discover later that an outcome went unrecorded.
         raise HTTPException(status_code=422, detail=str(e))
+    out = dict(stored)
+    if serves_advisory:
+        # WHAT THE DOOR DID TO THE IDS, returned to the caller. A silent
+        # normalisation is a normalisation nobody can audit, and the two
+        # unresolvable declarations in the live corpus are exactly the rows a
+        # chair should see rather than discover through an auto-closer that
+        # quietly proposes nothing.
+        out["serves_advisory"] = serves_advisory
     if findings:
         # STORED, AND TOLD. The advisory is the measurement the flip rests on;
         # returning it beside the accepted row is what stops "enforcement is
         # off" from meaning "nobody knows what it would have cost".
-        return {**stored, "routing_advisory": {
+        out["routing_advisory"] = {
             "routing_rules_version": desk_mod.ROUTING_RULES_VERSION,
             "required": list(desk_mod.ROUTING_REQUIRED_FIELDS),
             "enforced": False,
@@ -2163,8 +2221,8 @@ def record_agent_run(req: AgentRunRecord):
                      "door yet. Declare routing_version >= "
                      f"{desk_mod.ROUTING_ENFORCED_FROM_VERSION} to be refused "
                      "on these instead"),
-            "errors": findings}}
-    return stored
+            "errors": findings}
+    return out
 
 
 @router.get("/fund/desk/runs")
@@ -2486,6 +2544,60 @@ def _supersession_check(ref: str) -> dict:
         # the 409 is raised by the caller, outside this try.
         logger.info("supersession check unavailable: %s", e)
         return {"refusal": None, "supersession_readable": False}
+
+
+def _refuse_unknown_request(request_id: str) -> None:
+    """404 a request id no fold has ever seen. Never raises for any other cause.
+
+    THE PHANTOM AGGREGATE (COO triage #8 J1, 2026-08-24). ``desk_resolve`` and
+    ``desk_approve`` appended without ever looking the request up, so a POST
+    against the 8-character shorthand the desk itself prints returned **200**
+    and wrote an event whose ``aggregate_id`` was the shorthand. ``_requests``
+    folds on ``DESK_REQUESTED`` first and ignores every later event for an id
+    it has not seen, so the write landed nowhere and the real request stayed
+    where it was. The chair's own resolve script hit it; bare ids like
+    ``1c53589f`` are sitting in Postgres as aggregate ids today.
+
+    A 200 against a phantom is the worst available shape — the caller believes
+    it acted. ``desk_decline`` has looked the row up since it was written; this
+    brings the other two doors up to that standard.
+
+    **FAILS OPEN ON AN UNREADABLE FOLD, DELIBERATELY, AND SAYS SO IN THE LOG.**
+    If the event store cannot be read, this cannot distinguish "no such
+    request" from "cannot tell" — and refusing every approval because a READ
+    failed would turn a rendering guard into an outage on the approval path.
+    The guard's job is to catch a typo, not to gate the channel; the channel's
+    own controls (the allowlist, the echo, the supersession check) are
+    untouched either way.
+    """
+    from app.fund.desk import _requests
+    try:
+        known = {r.get("request_id") for r in _requests(_store)}
+    except Exception as e:  # noqa: BLE001
+        logger.warning("request existence check unavailable, proceeding "
+                       "WITHOUT it for %s: %s", request_id, e)
+        return
+    if request_id in known:
+        return
+    from app.fund.deskengine import MIN_ID_PREFIX
+    hits = sorted(k for k in known
+                  if k and len(request_id) >= MIN_ID_PREFIX
+                  and k.startswith(request_id))
+    raise HTTPException(
+        status_code=404,
+        detail={
+            "error": "no such desk request",
+            "request_id": request_id,
+            # THE HELP THE 200 USED TO WITHHOLD. The shorthand is what the
+            # desk prints, so the caller is almost always one expansion away;
+            # naming the full id costs nothing and is what turns the refusal
+            # into a fix rather than a puzzle.
+            "did_you_mean": hits,
+            "note": ("this id matches no request in the fold. Refused rather "
+                     "than recorded: appending here would write an event "
+                     "against an aggregate that does not exist, return 200, "
+                     "and leave the real request untouched"),
+        })
 
 
 def _refuse_if_superseded(ref: str, *, kind: str, target_id: str,

@@ -53,6 +53,7 @@ sys.path.insert(0, str(REPO))
 
 from app.fund import desk as desk_mod  # noqa: E402
 from app.fund import deskcard  # noqa: E402
+from app.fund import deskengine  # noqa: E402
 
 CONTRACT_PATH = REPO / "contract" / "desk_stage_contract.v1.json"
 CARD_CONTRACT_PATH = REPO / "contract" / "desk_card_contract.v1.json"
@@ -570,6 +571,15 @@ CARD_REQUEST_CASES: list[dict[str, Any]] = [
 ]
 
 
+#: The id pool the shorthand cases resolve against. Two entries share the head
+#: ``abcd1234`` on purpose: the ambiguous case must be exercised by a pool that
+#: is genuinely ambiguous, not asserted from a comment.
+_ID_POOL = ["3eeb42d4-1111-4111-8111-111111111111",
+            "a26debb9-827a-47e9-9cac-c5ca1ba2213f",
+            "abcd1234-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            "abcd1234-bbbb-4bbb-8bbb-bbbbbbbbbbbb"]
+
+
 def build_cards() -> dict[str, Any]:
     """The card contract, computed by ``desk_items`` over the cases above."""
     recs = []
@@ -642,6 +652,41 @@ def build_cards() -> dict[str, Any]:
                                   deskcard.CHANNEL_CHAIR, "unknown"],
         "cases": cases,
         "request_cases": req_cases,
+        # THE ID RULE, SHARED (COO triage #8 J1). It crosses the boundary
+        # because both sides handle request ids: the spine normalises an
+        # 8-character shorthand at the runs door and REFUSES one at the
+        # approve/resolve doors, and a client that posted a shorthand would now
+        # get a 404 where it used to get a phantom 200. Pinning the rule here
+        # means neither side can move it alone.
+        "id_rules": {
+            "min_prefix": deskengine.MIN_ID_PREFIX,
+            "doors_refusing_unknown_ids": [
+                "POST /fund/desk/requests/{id}/approve",
+                "POST /fund/desk/requests/{id}/decline",
+                "POST /fund/desk/requests/{id}/resolve"],
+            "note": ("a shorthand is normalised where it is RECORDED "
+                     "(meta.serves_requests, advisory) and refused where it "
+                     "would ACT (the three doors). A 200 against an id no "
+                     "fold has seen is the worst shape: the caller believes "
+                     "it acted and the real row is untouched."),
+            "cases": [
+                {"declared": d, "why": why,
+                 **deskengine.resolve_request_ids([d], _ID_POOL)}
+                for d, why in (
+                    ("3eeb42d4",
+                     "the live shorthand: 6 of 13 declarations, 0 closes"),
+                    ("a26debb9-827a-47e9-9cac-c5ca1ba2213f",
+                     "a full id, untouched and unreported"),
+                    ("abcd1234",
+                     "AMBIGUOUS — never guessed; picking one closes somebody "
+                     "else's ticket"),
+                    ("THE DESK, REDESIGNED",
+                     "prose: 2 live declarations. Kept verbatim, reported "
+                     "unresolved, never dropped"),
+                    ("3eeb42d",
+                     "seven characters — a typo, not a shorthand"),
+                )],
+        },
         "expect_totals": {
             # THE INVARIANT THIS FILE EXISTS FOR: the count does not move.
             # `execution_yours` is a PICTURE over an unchanged number, and if

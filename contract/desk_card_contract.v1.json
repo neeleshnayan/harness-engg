@@ -667,6 +667,84 @@
       }
     }
   ],
+  "id_rules": {
+    "min_prefix": 8,
+    "doors_refusing_unknown_ids": [
+      "POST /fund/desk/requests/{id}/approve",
+      "POST /fund/desk/requests/{id}/decline",
+      "POST /fund/desk/requests/{id}/resolve"
+    ],
+    "note": "a shorthand is normalised where it is RECORDED (meta.serves_requests, advisory) and refused where it would ACT (the three doors). A 200 against an id no fold has seen is the worst shape: the caller believes it acted and the real row is untouched.",
+    "cases": [
+      {
+        "declared": "3eeb42d4",
+        "why": "the live shorthand: 6 of 13 declarations, 0 closes",
+        "ids": [
+          "3eeb42d4-1111-4111-8111-111111111111"
+        ],
+        "normalised": [
+          {
+            "declared": "3eeb42d4",
+            "resolved": "3eeb42d4-1111-4111-8111-111111111111"
+          }
+        ],
+        "ambiguous": [],
+        "unresolved": []
+      },
+      {
+        "declared": "a26debb9-827a-47e9-9cac-c5ca1ba2213f",
+        "why": "a full id, untouched and unreported",
+        "ids": [
+          "a26debb9-827a-47e9-9cac-c5ca1ba2213f"
+        ],
+        "normalised": [],
+        "ambiguous": [],
+        "unresolved": []
+      },
+      {
+        "declared": "abcd1234",
+        "why": "AMBIGUOUS — never guessed; picking one closes somebody else's ticket",
+        "ids": [
+          "abcd1234"
+        ],
+        "normalised": [],
+        "ambiguous": [
+          {
+            "declared": "abcd1234",
+            "matches": [
+              "abcd1234-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+              "abcd1234-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+            ]
+          }
+        ],
+        "unresolved": []
+      },
+      {
+        "declared": "THE DESK, REDESIGNED",
+        "why": "prose: 2 live declarations. Kept verbatim, reported unresolved, never dropped",
+        "ids": [
+          "THE DESK, REDESIGNED"
+        ],
+        "normalised": [],
+        "ambiguous": [],
+        "unresolved": [
+          "THE DESK, REDESIGNED"
+        ]
+      },
+      {
+        "declared": "3eeb42d",
+        "why": "seven characters — a typo, not a shorthand",
+        "ids": [
+          "3eeb42d"
+        ],
+        "normalised": [],
+        "ambiguous": [],
+        "unresolved": [
+          "3eeb42d"
+        ]
+      }
+    ]
+  },
   "expect_totals": {
     "execution_yours": 1,
     "counted_for_ceo": 3,
@@ -674,5 +752,5 @@
     "repaired_reprs": 1,
     "requests_on_the_ceos_figure": 0
   },
-  "digest": "d60b539ad0b62e35ce9e54d5b94ca2e0ad0fbddb9ffbe5754507d3375a4357c0"
+  "digest": "5407f30702436ac2d83ccde4baa01d5e893719a84d4171d7025876a44509a8c2"
 }
