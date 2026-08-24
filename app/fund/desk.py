@@ -1088,6 +1088,19 @@ def next_actor(rec: Any) -> dict[str, Any]:
     if explicit is not None:
         e = explicit.strip().lower() if isinstance(explicit, str) else ""
         if e in NEXT_ACTORS and e != "unknown":
+            # `nobody` IS one of the five actors and it needs its own sentence:
+            # "the row states its next actor is the nobody" reads as a defect
+            # to whoever is holding it, and this string is rendered verbatim on
+            # the CEO's desk as `next_actor_why`. It is also the one value
+            # whose meaning a reader is likely to doubt — `nobody` is the
+            # spine's own word for a row filed FOR THE RECORD, which is a
+            # different fact from a row nobody has decided yet, and the
+            # parenthetical says so where it is read rather than in a docstring
+            # nobody opens.
+            if e == "nobody":
+                return {"actor": e, "basis": "explicit",
+                        "why": "the row states its next actor is nobody "
+                               "(filed for the record)"}
             return {"actor": e, "basis": "explicit",
                     "why": f"the row states its next actor is the {e}"}
         return {"actor": "unknown", "basis": "explicit_unrecognised",
