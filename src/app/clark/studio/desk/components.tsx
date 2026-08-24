@@ -115,9 +115,14 @@ export function RecRow({ r, onDecide }: {
     <div className={`${KT.card} flex flex-wrap items-center gap-3 p-3`}>
       <ProvenanceChip kind="agent" seat={r.seat} recId={r.rec_id} />
       <span className="min-w-0 flex-1 text-sm leading-snug">{r.text}</span>
-      {isRecordRow(r) ? (
+      {r.status === "open" && isRecordRow(r) ? (
         /* No control, and a sentence where the buttons were. A record row
-           whose controls simply vanished would read as a rendering failure. */
+           whose controls simply vanished would read as a rendering failure.
+           STATUS IS CHECKED FIRST, and it is not redundant: a row that was
+           ACCEPTED and then routed to nobody is decided, not filed-for-record,
+           and must keep saying "accepted". Found by writing the mutant, not by
+           the suite — `splitRecordRows` and `rowLamp` both put the lifecycle
+           ahead of the routing and this line did not. */
         <span className={`shrink-0 text-[11px] ${KT.muted}`}
               title={recordRowNote(r)}>
           filed for the record

@@ -112,3 +112,18 @@ test("RUNS STAY A CHIP. The demotion applies to spend, not to the work — a "
   assert.ok(before.lastIndexOf("<span ") > before.lastIndexOf("<p "),
     "runs today is still rendered as a chip");
 });
+
+/* ------------------------------ the record row's precedence (D42) --------- */
+
+test("RecRow ASKS ABOUT THE LIFECYCLE BEFORE THE ROUTING. A row that was "
+  + "ACCEPTED and then routed to nobody is decided, not filed-for-record, and "
+  + "must keep saying 'accepted' — `splitRecordRows` and `rowLamp` both put "
+  + "status first and this component did not, until the mutant was written", () => {
+  const body = componentBody(COMPONENTS, "RecRow");
+  const lines = body.split(/\r?\n/);
+  const guard = lines.filter((l) => l.includes("isRecordRow(r)"));
+  assert.equal(guard.length, 1,
+    `expected one record-row guard in RecRow, found ${guard.length}`);
+  assert.match(guard[0], /r\.status === "open" && isRecordRow\(r\)/,
+    `the guard reads: ${guard[0].trim()}`);
+});
