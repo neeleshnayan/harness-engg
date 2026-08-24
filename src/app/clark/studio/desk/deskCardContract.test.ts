@@ -44,7 +44,7 @@ import { readFileSync } from "node:fs";
  * a human reading what actually changed.
  */
 const CARD_CONTRACT_DIGEST =
-  "5407f30702436ac2d83ccde4baa01d5e893719a84d4171d7025876a44509a8c2";
+  "168c0b96bafc93a8416ddc1716ef1ca8cf318c83485c4af34b28b666bc8ee810";
 
 const CONTRACT_URL = new URL(
   "../../../../../contract/desk_card_contract.v1.json", import.meta.url);
@@ -379,14 +379,36 @@ test('next_move with an actor and no act — REFUSED', () => {
 
 /* --------------------------------------------- E: requests never own the CEO's figure */
 
-test("no request case ever resolves to the CEO, and none counts on his figure", () => {
+/**
+ * THE ROUTING THAT SHIPS, pinned on BOTH sides so a move is a deliberate act.
+ *
+ * `open` -> the CEO, `approved` -> the chair: the base commit's values, lifted
+ * out of `desk_items` into `desk.open_request_actor` unchanged. Donna's P-2 and
+ * the riskofficer's H-2 asked for `open` -> chair and the measurements support
+ * it (28 of the 49 requests resolved in the live log window carry no approval
+ * event at all; the old justification was circular, since the approval
+ * allowlist admits nobody but the CEO).
+ *
+ * It was built and then NOT applied. The rendered page showed a second
+ * consequence: THIS page hangs Approve/Decline on the ask being his, so routing
+ * the rows away also takes his ask-approval control off the screen. A loosening
+ * that removes a control goes to the adversary blind and then to the CEO.
+ *
+ * When that decision is taken, this test and its Python twin both have to be
+ * edited by hand. That is the point of pinning it.
+ */
+test("the request routing is the one the spine ships, on both sides", () => {
   const { body } = loadContract();
-  for (const c of body.request_cases) {
-    assert.notEqual(c.expect.next_actor_resolved, "ceo",
-      `${c.name}: a request must never resolve straight to "ceo" — the `
-      + "stage contract's desk_load count owns his figure, not the request rail");
-  }
-  assert.equal(body.expect_totals.requests_on_the_ceos_figure, 0);
+  const by = new Map(body.request_cases.map(
+    (c) => [c.name, c.expect.next_actor_resolved] as const));
+  assert.equal(by.get("PROSE-ONLY REQUEST — the permanent fallback"), "ceo");
+  assert.equal(by.get("STRUCTURED REQUEST — the four questions"), "chair",
+    "status `approved` — the CEO decided it; the chair must dispatch it");
+  assert.equal(by.get("SERVED REQUEST — the rail reaches delivered"), "nobody");
+  // The published total is DERIVED from the cases, never retyped.
+  const onHisFigure = body.request_cases.filter(
+    (c) => c.expect.next_actor_resolved === "ceo").length;
+  assert.equal(body.expect_totals.requests_on_the_ceos_figure, onHisFigure);
 });
 
 /* ---------------------------------------- F: request lifecycle rail shape --- */

@@ -38,6 +38,7 @@ import {
 import { deskLanes } from "../deskLanes";
 import type { LineageSources } from "../lineage";
 import { LaneBlock, LineageInline } from "../DeskLaneViews";
+import { RequestCardBody } from "../RequestCard";
 
 /**
  * The CEO's desk — A DECISION LIST, and everything else behind a named door.
@@ -1468,6 +1469,7 @@ function AskRow({ ask, onDecided, sources }: {
   const [busy, setBusy] = useState<"approve" | "decline" | null>(null);
   const [declining, setDeclining] = useState(false);
   const [chain, setChain] = useState(false);
+  const [incident, setIncident] = useState(false);
   const [reason, setReason] = useState("");
   const [err, setErr] = useState<string | null>(null);
 
@@ -1500,14 +1502,23 @@ function AskRow({ ask, onDecided, sources }: {
     ask.stage === "declined" ? "declined"
       : ask.stage === "cleared_to_trigger" ? "cleared — CTO will trigger"
         : "awaiting you";
-  const mine = ask.stage === "awaiting_ceo";
+  /* THE BUTTONS FOLLOW THE LIFECYCLE, NOT THE ROUTING. `stage` decides where
+     the ask is placed and whether it is counted as his; `approvable` decides
+     whether the control exists at all. They were one flag until 2026-08-24,
+     when routing an open request to the chair silently took the CEO's approve
+     button off his own page — a removed control, found by looking. */
+  const mine = ask.approvable;
+  const emphasised = ask.stage === "awaiting_ceo";
 
   return (
-    <div className={`${KT.panel} ${mine ? "p-4" : "p-3"} ${
+    <div className={`${KT.panel} ${emphasised ? "p-4" : "p-3"} ${
       ask.stage === "declined" ? "opacity-60" : ""}`}>
       <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
-        <p className={`min-w-0 flex-1 ${mine ? "text-[14px] leading-relaxed" : "text-[13px] leading-snug"}`}>
-          {ask.subject || (
+        <p className={`min-w-0 flex-1 ${emphasised ? "text-[14px] leading-relaxed" : "text-[13px] leading-snug"}`}>
+          {/* QUESTION 1: WHAT IS THIS. The headline, never the first line of a
+              dump — for a prose ask the spine gives the subject's first LINE
+              untouched, and the whole subject stays behind the toggle. */}
+          {ask.card.headline || ask.subject || (
             <span className={KT.sev.warn}>
               this ask recorded no subject — unreadable, not empty
             </span>
@@ -1543,6 +1554,12 @@ function AskRow({ ask, onDecided, sources }: {
             ? ` · declined by ${ask.declinedBy}${ask.declinedAt ? ` · ${fmtAt(ask.declinedAt)}` : ""}`
             : " · declined — the decline event recorded no actor")}
       </p>
+      {/* QUESTIONS 2, 3 AND 4 — where it stands, what is owed, whose move.
+          The rail carries the age of the CURRENT stage, which is the sentence
+          the old card buried: request 0c295ec7 was approved 22 minutes after
+          filing and then sat idle 2.5 days. */}
+      <RequestCardBody card={ask.card} subject={ask.subject}
+                       open={incident} onToggle={() => setIncident((v) => !v)} />
       {sources && (
         <button type="button" onClick={() => setChain((v) => !v)}
                 aria-expanded={chain}

@@ -265,3 +265,31 @@ export function rowLamp(i: DeskItem, feedback: ClickFeedback): {
   }
   return { tone: "actionable", label: null, showButtons: true };
 }
+
+/* --------------------------------------------------- the lifecycle rail --- */
+
+/** Human labels for the rail. Sentence case, per the design language. */
+export const STAGE_LABEL: Record<string, string> = {
+  filed: "filed",
+  approved: "approved",
+  awaiting_dispatch: "awaiting dispatch",
+  dispatched: "dispatched",
+  delivered: "delivered",
+};
+
+/**
+ * `2.5d` past a day, `4.0h` under one, and NOTHING when the stage carries no
+ * timestamp.
+ *
+ * A desk that printed "awaiting dispatch · 0.0h" over a row idle for two and a
+ * half days would be this fund's oldest mistake on its newest surface, so an
+ * absent age renders as absent. The mirror of that rule matters too and is
+ * pinned separately: a stage entered a moment ago HAS an age and it is
+ * `0.0h` — rendering nothing there would hide a fact, which is the same error
+ * pointed the other way.
+ */
+export function ageLabel(hours: number | null): string | null {
+  if (typeof hours !== "number" || !Number.isFinite(hours)) return null;
+  if (hours >= 24) return `${(hours / 24).toFixed(1)}d`;
+  return `${hours.toFixed(1)}h`;
+}

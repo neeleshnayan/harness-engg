@@ -33,11 +33,17 @@ const run = (o: Record<string, unknown> = {}) =>
   ({ run_id: "r1", seat: "pm", task: "the run's task", verdict: null,
      resolved_at: "2026-08-21T10:00:00+00:00", ...o }) as never;
 
+/** A PROSE ask by default — which is what all 109 requests filed before the
+ *  2026-08-24 card schema are, and what the fallback must keep rendering. */
 const ask = (o: Partial<QueuedAsk> = {}): QueuedAsk => ({
   requestId: "q1", actor: "mechanism", seatFiled: true, serves: "validator",
   subject: "attack the thing", note: null, at: "2026-08-21T09:00:00+00:00",
   stage: "awaiting_ceo", approvedBy: null, approvedAt: null,
-  declinedBy: null, declinedAt: null, declineReason: null, ...o,
+  declinedBy: null, declinedAt: null, declineReason: null,
+  approvable: true,
+  card: { structured: false, headline: "attack the thing", summary: null,
+          incident: null, wanted: [], nextMove: null, lifecycle: null },
+  ...o,
 });
 
 /** Build the whole pipeline the page builds, from raw rows. */

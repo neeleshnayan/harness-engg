@@ -238,7 +238,7 @@ export function recItems(
  * Three deliberate acts, on purpose.
  */
 export const CONTRACT_DIGEST =
-  "c49516837a6a0033a65eae5be03a698d7c54a925827b3bab20f1a5f121d17fc2";
+  "293d783ec8398f119c2befdd12b9ec0489d59288c1ec9750a0e0e7cb1e9cb1be";
 
 /** What the live spine's contract digest says about this page's fixture.
  *  `null` = they agree and nothing is rendered. */
@@ -599,6 +599,93 @@ export interface QueuedAsk {
   declinedAt: string | null;
   /** The rejection's MANDATORY written reason — the spine refuses one without. */
   declineReason: string | null;
+  /**
+   * CAN THE CEO STILL ACT ON THIS? Deliberately NOT the same question as
+   * `stage`, and separating the two is a repair rather than a refinement.
+   *
+   * The card used to render its Approve/Decline buttons on
+   * `stage === "awaiting_ceo"`. When request routing v2 moved an open request
+   * to the chair (2026-08-24), every ask left that stage — and the buttons
+   * went with them, silently removing the CEO's ability to approve a desk
+   * request from his own page. Caught by looking at the rendered page; no test
+   * and no type could have seen it, because both halves were individually
+   * correct.
+   *
+   * WHOSE MOVE IT IS decides counting and placement. WHETHER A CONTROL EXISTS
+   * is a different question and answers to the row's own lifecycle: an ask
+   * that is neither approved nor declined can still be approved or declined,
+   * whatever the counter says about whose queue it sits on. Routing must never
+   * take a control away.
+   */
+  approvable: boolean;
+  /** THE REQUEST CARD (spec: docs/design/REQUEST_CARD_2026-08-24.md,
+   *  CEO-ratified). Every field OPTIONAL and read from the spine; a request
+   *  filed as prose — which all 109 rows filed before the schema were — has
+   *  `structured: false` and renders through the old one-blob fallback.
+   *  Forever: this is not a deprecation path. */
+  card: AskCard;
+}
+
+export interface AskCard {
+  structured: boolean;
+  /** The card's NAME. For a prose ask this is the subject's first LINE,
+   *  untouched — the renderer knows its own width and does the truncating. */
+  headline: string | null;
+  summary: string | null;
+  /** The full narrative, behind the details toggle. Nothing is deleted; it is
+   *  just not charged to a reader who did not ask for it. */
+  incident: string | null;
+  wanted: { text: string; state: "open" | "in_progress" | "done";
+    note?: string | null }[];
+  /** Whose move and WHAT ACT — both or neither. The old "CEO-APPROVED —
+   *  TRIGGER IT" chip named an owner and left the obligation to be guessed,
+   *  and it named the wrong owner. */
+  nextMove: { actor: string; act: string } | null;
+  lifecycle: AskLifecycle | null;
+}
+
+export interface AskLifecycle {
+  stages: { stage: string; at: string | null; reached: boolean;
+    current: boolean }[];
+  current: string;
+  /** Hours in the CURRENT stage. NULL when the stage carries no timestamp —
+   *  never 0. Request 0c295ec7 was approved 22 minutes after filing and then
+   *  sat 2.5 days; "awaiting dispatch · 0.0h" over that would be this fund's
+   *  oldest mistake on its newest surface. */
+  ageHours: number | null;
+  declined: boolean;
+}
+
+/** The card fields as the spine sends them, or an empty prose card. */
+function askCard(r: DeskView["requests"][number]): AskCard {
+  const row = r as Record<string, unknown>;
+  const str = (k: string) => {
+    const v = row[k];
+    return typeof v === "string" && v.trim() ? v.trim() : null;
+  };
+  const wanted = Array.isArray(row.wanted) ? row.wanted as AskCard["wanted"] : [];
+  const nm = row.next_move as { actor?: string; act?: string } | null | undefined;
+  return {
+    structured: row.structured === true,
+    // The fallback is the subject's first line — computed on the SPINE, and
+    // repeated here only for a spine that predates the field.
+    headline: str("headline")
+      ?? ((r.task ?? r.subject ?? "").split("\n")[0].trim() || null),
+    summary: str("summary"),
+    incident: str("incident"),
+    wanted,
+    nextMove: nm && nm.actor && nm.act ? { actor: nm.actor, act: nm.act } : null,
+    lifecycle: (row.lifecycle && typeof row.lifecycle === "object")
+      ? {
+        stages: (row.lifecycle as { stages?: AskLifecycle["stages"] }).stages ?? [],
+        current: String((row.lifecycle as { current?: string }).current ?? ""),
+        ageHours: typeof (row.lifecycle as { age_hours?: unknown }).age_hours
+          === "number"
+          ? (row.lifecycle as { age_hours: number }).age_hours : null,
+        declined: (row.lifecycle as { declined?: boolean }).declined === true,
+      }
+      : null,
+  };
 }
 
 /**
@@ -685,6 +772,10 @@ export function queuedAsks(requests: DeskView["requests"]): QueuedAsk[] {
         declinedBy: r.declined_by ?? null,
         declinedAt: r.declined_at ?? null,
         declineReason: r.decline_reason ?? null,
+        // The lifecycle, not the routing. See `approvable`.
+        approvable: r.status !== "approved" && r.status !== "declined"
+          && r.status !== "resolved",
+        card: askCard(r),
       };
     })
     .sort((a, b) => {

@@ -25,7 +25,8 @@
         "execution_yours": false,
         "desk_stage": "awaiting_decision",
         "adjudication": null,
-        "superseded_by": null
+        "superseded_by": null,
+        "cascade": null
       },
       "expect": {
         "next_actor_resolved": "ceo",
@@ -55,7 +56,8 @@
         "execution_yours": false,
         "desk_stage": "owned_elsewhere",
         "adjudication": null,
-        "superseded_by": null
+        "superseded_by": null,
+        "cascade": null
       },
       "expect": {
         "next_actor_resolved": "chair",
@@ -85,7 +87,8 @@
         "execution_yours": false,
         "desk_stage": "owned_elsewhere",
         "adjudication": null,
-        "superseded_by": null
+        "superseded_by": null,
+        "cascade": null
       },
       "expect": {
         "next_actor_resolved": "seat",
@@ -115,7 +118,8 @@
         "execution_yours": false,
         "desk_stage": "owned_elsewhere",
         "adjudication": null,
-        "superseded_by": null
+        "superseded_by": null,
+        "cascade": null
       },
       "expect": {
         "next_actor_resolved": "nobody",
@@ -146,7 +150,8 @@
         "execution_yours": true,
         "desk_stage": "awaiting_decision",
         "adjudication": null,
-        "superseded_by": null
+        "superseded_by": null,
+        "cascade": null
       },
       "expect": {
         "next_actor_resolved": "ceo",
@@ -177,7 +182,8 @@
         "execution_yours": true,
         "desk_stage": "awaiting_decision",
         "adjudication": null,
-        "superseded_by": null
+        "superseded_by": null,
+        "cascade": null
       },
       "expect": {
         "next_actor_resolved": "ceo",
@@ -208,7 +214,8 @@
         "execution_yours": true,
         "desk_stage": "awaiting_decision",
         "adjudication": null,
-        "superseded_by": null
+        "superseded_by": null,
+        "cascade": null
       },
       "expect": {
         "next_actor_resolved": "unknown",
@@ -238,7 +245,8 @@
         "execution_yours": false,
         "desk_stage": "awaiting_execution",
         "adjudication": null,
-        "superseded_by": null
+        "superseded_by": null,
+        "cascade": null
       },
       "expect": {
         "next_actor_resolved": "chair",
@@ -268,7 +276,8 @@
         "execution_yours": false,
         "desk_stage": "awaiting_execution",
         "adjudication": null,
-        "superseded_by": null
+        "superseded_by": null,
+        "cascade": null
       },
       "expect": {
         "next_actor_resolved": "chair",
@@ -299,7 +308,8 @@
         "execution_yours": false,
         "desk_stage": "awaiting_execution",
         "adjudication": null,
-        "superseded_by": null
+        "superseded_by": null,
+        "cascade": null
       },
       "expect": {
         "next_actor_resolved": "seat",
@@ -330,7 +340,8 @@
         "execution_yours": false,
         "desk_stage": "owned_elsewhere",
         "adjudication": null,
-        "superseded_by": null
+        "superseded_by": null,
+        "cascade": null
       },
       "expect": {
         "next_actor_resolved": "chair",
@@ -360,7 +371,8 @@
         "execution_yours": false,
         "desk_stage": "awaiting_decision",
         "adjudication": null,
-        "superseded_by": null
+        "superseded_by": null,
+        "cascade": null
       },
       "expect": {
         "next_actor_resolved": "unknown",
@@ -389,7 +401,8 @@
         "execution_yours": false,
         "desk_stage": "awaiting_decision",
         "adjudication": null,
-        "superseded_by": null
+        "superseded_by": null,
+        "cascade": null
       },
       "expect": {
         "next_actor_resolved": "ceo",
@@ -419,7 +432,8 @@
         "execution_yours": false,
         "desk_stage": "awaiting_decision",
         "adjudication": null,
-        "superseded_by": null
+        "superseded_by": null,
+        "cascade": null
       },
       "expect": {
         "next_actor_resolved": "ceo",
@@ -452,7 +466,8 @@
         "execution_yours": false,
         "desk_stage": "owned_elsewhere",
         "adjudication": null,
-        "superseded_by": null
+        "superseded_by": null,
+        "cascade": null
       },
       "expect": {
         "next_actor_resolved": "nobody",
@@ -482,7 +497,8 @@
         "execution_yours": false,
         "desk_stage": "owned_elsewhere",
         "adjudication": null,
-        "superseded_by": null
+        "superseded_by": null,
+        "cascade": null
       },
       "expect": {
         "next_actor_resolved": "nobody",
@@ -512,7 +528,8 @@
         "execution_yours": false,
         "desk_stage": "owned_elsewhere",
         "adjudication": null,
-        "superseded_by": null
+        "superseded_by": null,
+        "cascade": null
       },
       "expect": {
         "next_actor_resolved": "nobody",
@@ -549,5 +566,5 @@
     "decided_awaiting_execution": 3,
     "explicit_next_actor": 4
   },
-  "digest": "c49516837a6a0033a65eae5be03a698d7c54a925827b3bab20f1a5f121d17fc2"
+  "digest": "293d783ec8398f119c2befdd12b9ec0489d59288c1ec9750a0e0e7cb1e9cb1be"
 }
