@@ -245,3 +245,28 @@ export function nextMoveLine(r: {
   const why = (r?.next_actor_why ?? "").trim();
   return { actor, why: why || null };
 }
+
+/** Actors a whose-move chip must stay SILENT about.
+ *
+ *  `ceo` because the chip renders on the CEO's own queue, where "→ ceo" would
+ *  be a badge on every row, and a badge on every row is not a badge. `nobody`
+ *  because a record row already carries the sentence "filed for the record",
+ *  and a chip beside it would be the same fact twice — the defect this
+ *  dispatch removed from the recommendation card two hours earlier. */
+const MOVE_CHIP_SILENT = new Set(["ceo", "nobody"]);
+
+/**
+ * Should a row render a whose-move chip, and what does it say?
+ *
+ * EXTRACTED FROM THE JSX BECAUSE THE MUTANT SURVIVED THERE. The first cut put
+ * this predicate inline in `RecRow`, where node's type stripper cannot reach
+ * it — and the mutation pass proved the point: deleting the silence rule
+ * altogether killed no test at all. A branch no test can reach is a branch
+ * that will be wrong one day without anyone noticing.
+ */
+export function moveChip(r: Parameters<typeof nextMoveLine>[0]):
+{ actor: string; why: string } | null {
+  const move = nextMoveLine(r);
+  if (!move || MOVE_CHIP_SILENT.has(move.actor)) return null;
+  return { actor: move.actor, why: move.why ?? "the spine stated no reason" };
+}

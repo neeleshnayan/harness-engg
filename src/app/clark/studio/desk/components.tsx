@@ -20,8 +20,8 @@ import {
   SeatTelemetry, costLabel, telemetryNote, tokensLabel,
 } from "./deskTelemetry";
 import { ChipTotal, chipShowsTotal } from "./deskAwaiting";
-import { NOBODY, isRecordRow, recordRowNote } from "./recordRow";
-import { nextMoveLine } from "./cardAnatomy";
+import { isRecordRow, recordRowNote } from "./recordRow";
+import { moveChip } from "./cardAnatomy";
 
 /**
  * The desk's shared rendering vocabulary.
@@ -125,14 +125,17 @@ export function RecRow({ r, onDecide }: {
           badge on every row, which is how a badge stops meaning anything. A
           record row is skipped too — its sentence below already says it. */}
       {(() => {
-        const move = nextMoveLine(r);
-        if (!move || move.actor === "ceo" || move.actor === NOBODY) return null;
-        return (
+        /* The rule lives in `moveChip`, not here — a predicate inline in JSX
+           is a predicate node's type stripper cannot test, and the mutation
+           pass proved it: deleting the silence rule from this spot killed no
+           test at all. */
+        const chip = moveChip(r);
+        return chip ? (
           <span className={`shrink-0 font-mono text-[10px] ${KT.muted}`}
-                title={move.why ?? "the spine stated no reason"}>
-            → {move.actor}
+                title={chip.why}>
+            → {chip.actor}
           </span>
-        );
+        ) : null;
       })()}
       {r.status === "open" && isRecordRow(r) ? (
         /* No control, and a sentence where the buttons were. A record row

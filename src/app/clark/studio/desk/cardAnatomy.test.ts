@@ -14,8 +14,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  ASK_HEADLINE_MAX, CARD_HEADLINE_MAX, bodyWithTail, clampLine, nextMoveLine,
-  recLifecycle, rejoin,
+  ASK_HEADLINE_MAX, CARD_HEADLINE_MAX, bodyWithTail, clampLine, moveChip,
+  nextMoveLine, recLifecycle, rejoin,
 } from "./cardAnatomy.ts";
 
 /** Verbatim from the CEO's desk, 2026-08-24 — the four headlines that ran to
@@ -236,4 +236,39 @@ test("'unknown' is the spine saying it could not read an owner, so it is NOT "
 test("an actor without a reason still gets a line, with why null", () => {
   assert.deepEqual(nextMoveLine({ next_actor_resolved: "nobody" }),
     { actor: "nobody", why: null });
+});
+
+/* --------------------------------------------------- the whose-move chip -- */
+
+test("D42: the chip NAMES the chair and carries the spine's reason", () => {
+  assert.deepEqual(
+    moveChip({ next_actor_resolved: "chair", next_actor_why: "the chair batches this" }),
+    { actor: "chair", why: "the chair batches this" });
+});
+
+test("D42: A CHIP ON THE CEO'S OWN ROWS IS A BADGE ON EVERY ROW, and a badge "
+  + "on every row is not a badge. It renders nothing", () => {
+  assert.equal(moveChip({ next_actor_resolved: "ceo" }), null);
+});
+
+test("D42: A RECORD ROW SAYS NOTHING HERE EITHER — it already carries 'filed "
+  + "for the record', and a chip beside that is the same fact twice", () => {
+  assert.equal(moveChip({ next_actor_resolved: "nobody" }), null);
+});
+
+test("D42: a seat is named — the chip's whole job is the rows that are NOT "
+  + "the reader's, and silencing all of them would delete the answer", () => {
+  assert.equal(moveChip({ next_actor_resolved: "seat" })?.actor, "seat");
+  assert.equal(moveChip({ next_actor_resolved: "chair" })?.actor, "chair");
+});
+
+test("D42: an unstated reason becomes a SENTENCE, never an empty tooltip", () => {
+  assert.equal(moveChip({ next_actor_resolved: "chair" })?.why,
+    "the spine stated no reason");
+});
+
+test("D42: no actor, or an unreadable one, renders no chip at all", () => {
+  assert.equal(moveChip({}), null);
+  assert.equal(moveChip({ next_actor_resolved: "unknown" }), null);
+  assert.equal(moveChip(null), null);
 });
