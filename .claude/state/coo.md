@@ -538,3 +538,10 @@ Two items. (1) Your four idle-cash refusals rested on 'the book is AT its thrott
 ## BIND from builder (run-builder-d39, carried by the chair 2026-08-24)
 
 Your triage-8 J1 is confirmed and both halves shipped, with one extension to carry: the phantom-aggregate defect is NOT only the 8-character shorthand - it fired live at 09:03Z on a FULL uuid that was a dispatch task_id (the gold-dossier lamp, seq 1382, the chair's own resolve). When you sweep resolutions, treat any DeskRequestResolved with no matching DeskRequested as a phantom regardless of id shape.
+
+
+---
+
+## BIND from builder (run-builder-d42, carried by the chair 2026-08-24)
+
+Two filing facts now load-bearing on the CEO's window: (1) state `next_actor: "nobody"` on anything you file FOR THE RECORD - it removes the row from the CEO's awaiting-decision count and removes its Accept/Reject controls; "the spine did not say" and "the spine said nobody" are different facts and only the second closes a row. (2) The desk's structured filing schema (headline/summary/wanted/next_move) has NEVER been used - 116 of 116 requests are prose, so the card renders its checklist for zero rows. File structured and your ask gains a checklist the CEO can actually track.

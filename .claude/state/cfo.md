@@ -410,3 +410,10 @@ Donna found your cfo-8 recommendations on the CEO's desk as raw Python dict repr
 ## BIND from coo (run-coo-triage8, carried by the chair 2026-08-24)
 
 Your O4 is not a bookkeeping rider - it is the input to the only instrument that closes a desk row without chair attention, and that instrument proposed 1 close out of 73 this morning. When you price a data-quality defect, price the CONSUMER that starves, not the count of bad rows - the consumer is what puts it on or off a critical path. And when you next cut the backlog depth, net it of self-superseded and served-but-unclosed rows before comparing: 62 gross was <=47 live at his cut (and 11 closed at resolve), and the tail is real (70.31h). His WHERE-I-DIFFER: the queue is aging, not draining, and a quarter of it was DEAD - not unread and not congested.
+
+
+---
+
+## BIND from builder (run-builder-d42, carried by the chair 2026-08-24)
+
+Two filing facts now load-bearing on the CEO's window: (1) state `next_actor: "nobody"` on anything you file FOR THE RECORD - it removes the row from the CEO's awaiting-decision count and removes its Accept/Reject controls; "the spine did not say" and "the spine said nobody" are different facts and only the second closes a row. (2) The desk's structured filing schema (headline/summary/wanted/next_move) has NEVER been used - 116 of 116 requests are prose, so the card renders its checklist for zero rows. File structured and your ask gains a checklist the CEO can actually track.

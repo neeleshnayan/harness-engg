@@ -336,3 +336,47 @@ simultaneously removed the CEO's ask-approval button, because the card
 keyed its controls off the same flag. Visible only in the DOM; third
 instance that dispatch of a defect living BETWEEN two individually-correct
 halves.
+
+
+## A MUTATION HARNESS IS A WRITER; CLEAR WHAT IT CACHED, NOT JUST WHAT IT WROTE (EVOLVE applied 2026-08-24, run-builder-d41-continuation, chair-reviewed)
+
+Amends the D35 rule ("a file-rewriting harness needs exclusive use of its
+tree"): restoring the source is not restoring the tree. Python's cache
+invalidation reads (mtime, size) at second resolution, so a same-length
+in-place edit that this codebase's own harnesses specialise in leaves a
+valid cache of a file that no longer exists. Every harness clears
+__pycache__ around every mutant and verifies the restore with the
+poisoned-cache scanner, not only with git status --porcelain.
+Measured basis: D41 opened with 12 red tests and no defect; the fresh-
+checkout rule from D35 would have caught it only by the accident that a
+fresh checkout has no cache.
+
+## A NULL TEST REPORTS ITS DOMAIN SIZE OR IT IS NOT A RESULT (EVOLVE applied 2026-08-24, run-builder-d41-continuation, chair-reviewed)
+
+Extends the D28/D31 null-test rules: a null test states how many things it
+compared alongside the zero it found. Measured basis: D41 produced two
+vacuous passes in one dispatch - a --null mode whose subprocess
+repopulation failed silently (zero findings over 384 uncompared files) and
+a suite guard that passed under PYTHONDONTWRITEBYTECODE=1 having compared
+0 of 128. Both printed a clean result; neither had a domain.
+
+
+## COMMIT BEFORE YOU MUTATE, AND READ THE KILLER'S NAME (EVOLVE applied 2026-08-24, run-builder-d42, chair-reviewed)
+
+Break each new branch one at a time on a COMMITTED tree - a harness that
+reverts with `git checkout --` will silently eat uncommitted work, and the
+test file that imported the deleted symbol then fails to LOAD, which node
+reports as `not ok N - <file path>`. A killer reported as a path rather
+than a test name is the harness eating your tree, not your test working.
+Confirm a NAMED test dies, and report the mutant list with its survivors.
+Measured basis: D42's third mutation pass reported two provably-equivalent
+mutants as killed; both "kills" were file-level load failures after the
+harness reverted an uncommitted extraction mid-run.
+
+## A LAYOUT CLAIM NEEDS GEOMETRY, NOT TEXT (EVOLVE applied 2026-08-24, run-builder-d42, chair-reviewed)
+
+textContent collapses adjacent inline elements and cannot see a CSS gap:
+D42's welded-toggle check reported the defect still live on a page whose
+screenshot showed a 12px gap. Layout claims use getBoundingClientRect /
+DOM.getContentQuads - "looks right" becomes gapPx: 12, sameRow: true.
+Same class as the D5 preserve-3d lesson, pointed at flex spacing.

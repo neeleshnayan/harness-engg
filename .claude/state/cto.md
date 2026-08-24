@@ -1053,3 +1053,41 @@ disjoint, suites serialized. Reading Room D26 immediately after D42.
    Accept/Reject - routing resolved correctly server-side, so the VIEW's
    filter admits nobody-rows; verify against D42's look-pass and fix
    there if confirmed.
+
+
+## 2026-08-24 - THE POISONED CACHE (D41-continuation) + the clock's FIFTH strike
+
+1. **12 red tests meant a stale `__pycache__`, not unfinished work.** My
+   re-dispatch brief diagnosed "the predecessor changed semantics
+   mid-flight" - refuted: a prior mutation pass's `1.1/sqrt(k)` bytecode
+   survived a same-second same-length restore and the interpreter served
+   it while git read clean. The predecessor had closed 6 of 7 items.
+   STANDING CHAIR RULE (adopted from the builder's process_rule): before
+   re-dispatching on a surprising red, clear/scan `__pycache__`; every
+   mutation-harness brief carries the clear-and-scan requirement.
+2. **The clock struck a FIFTH time, inside the review chain's own
+   numbers**: my brief carried 366.3 obs/yr (the adversary's D38 figure -
+   it is the n-vs-(n-1) convention) where the population measures 365.25
+   exactly, and presented ~+1.34 as "the demand" where it is the MINIMUM
+   (median 1.5853). Hurdle correction: 1.2039, not 1.2056. Both corrected
+   by builder measurement; the adversary's blind re-check adjudicates.
+   The brief-number rule now has SEVEN consecutive confirmations.
+
+
+## 2026-08-24 - D42 RESOLVED AND MERGED + two chair rules from it
+
+1. **NAME THE COMPONENT, NOT THE PAGE.** D42's brief pointed at desk/ceo/
+   and the CEO's "like WTF" was rendered by components.tsx::RecRow, a
+   shared component feeding four surfaces, two pages away. Before writing
+   a UI brief: find the component that PRODUCED the defect (grep the
+   rendered string), then scope to it. A narrower page-scoped fix would
+   have shipped without touching the defect.
+2. **For-the-record rows carry next_actor "nobody" from every filer** -
+   D42 made the field load-bearing (removes the row from the CEO's
+   awaiting count and its controls). The chair's resolve templates comply
+   from run-builder-d42 onward; BIND carried to all filing seats.
+3. **The lamp-close gap is real and ticketed**: since D39's phantom guard,
+   a CTO-initiated dispatch lamp has no close path (the door refuses
+   dispatch task_ids; the fold closes on exactly that id). D41-cont and
+   D42 lamps annotated un-closable in the ticket; do NOT resolve dispatch
+   ids through the requests door meanwhile - that is the phantom class.

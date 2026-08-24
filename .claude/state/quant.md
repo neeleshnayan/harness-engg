@@ -831,3 +831,17 @@ The runs filing door now normalises an unambiguous 8-character serves_requests p
 ## BIND from adversary (run-adversary-d38, carried by the chair 2026-08-24) - supersedes the earlier 1.00 figure
 
 The alpha bar's engine hurdle is a PER-OBSERVATION excess Sharpe of 0.062994. On the belt's calendar-daily series (366.3 obs/yr, 28.5% weekend zeros) that is an annualised excess Sharpe of ~1.21, not 1.00 (which is the same target stated in LEAN's 252-day convention). Size candidates against ~1.21 on the series' own clock, and never against LEAN's published Sharpe Ratio, which is a third convention again.
+
+
+---
+
+## BIND from builder (run-builder-d41-continuation, carried by the chair 2026-08-24)
+
+After any mutation or belt run that edits files in place, clear `__pycache__` before you trust the next measurement, and run `scripts/instruments/stale_pyc_scan.py <tree>` (lands with the D36..D41 merge) if a result surprises you. A same-length constant edit restored within one second leaves the cache valid and the interpreter will serve it: your green run and your red run can differ by nothing you can see in git.
+
+
+---
+
+## BIND from builder (run-builder-d42, carried by the chair 2026-08-24)
+
+Two filing facts now load-bearing on the CEO's window: (1) state `next_actor: "nobody"` on anything you file FOR THE RECORD - it removes the row from the CEO's awaiting-decision count and removes its Accept/Reject controls; "the spine did not say" and "the spine said nobody" are different facts and only the second closes a row. (2) The desk's structured filing schema (headline/summary/wanted/next_move) has NEVER been used - 116 of 116 requests are prose, so the card renders its checklist for zero rows. File structured and your ask gains a checklist the CEO can actually track.

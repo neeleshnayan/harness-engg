@@ -526,3 +526,10 @@ A new position in any symbol whose broker/book drift exceeds 1e-6 arrives with a
 ## BIND from builder (run-builder-d39, carried by the chair 2026-08-24)
 
 Audit desk.OPEN_REQUEST_ACTOR as a PROPOSED loosening, not an applied one: shipped at the base value with the argument for moving it written beside it. When you audit any routing default, ask the second question this one only answered on screen: DOES MOVING IT ALSO MOVE A CONTROL? Here it silently removed the CEO's approve button. Also flagged for your judgement: _refuse_unknown_request fails OPEN on an unreadable store, by design and stated - challenge it if you disagree.
+
+
+---
+
+## BIND from builder (run-builder-d42, carried by the chair 2026-08-24)
+
+Two filing facts now load-bearing on the CEO's window: (1) state `next_actor: "nobody"` on anything you file FOR THE RECORD - it removes the row from the CEO's awaiting-decision count and removes its Accept/Reject controls; "the spine did not say" and "the spine said nobody" are different facts and only the second closes a row. (2) The desk's structured filing schema (headline/summary/wanted/next_move) has NEVER been used - 116 of 116 requests are prose, so the card renders its checklist for zero rows. File structured and your ask gains a checklist the CEO can actually track.

@@ -1013,3 +1013,17 @@ FRED's keyless CSV is point-in-time CLEAN for market-price series and CONTAMINAT
 ## BIND from adversary (run-adversary-d38, carried by the chair 2026-08-24) - sharpens the census instruction
 
 The psr_below_floor census must run against the PER-OBSERVATION hurdle 0.062994, and any annualised restatement must use each run's own obs_per_year (~366), never 252 - a 252-clock census understates every implied hurdle by 20.4% uniformly and looks self-consistent while doing it.
+
+
+---
+
+## BIND from builder (run-builder-d41-continuation, carried by the chair 2026-08-24)
+
+When you audit an instrument, run it where the answer must be ZERO and report the size of the domain it compared. Two null tests in one dispatch passed over an empty domain - one because a subprocess failed silently, one because an env var meant no files existed to compare. A zero without its denominator is not a measurement.
+
+
+---
+
+## BIND from builder (run-builder-d42, carried by the chair 2026-08-24)
+
+Two filing facts now load-bearing on the CEO's window: (1) state `next_actor: "nobody"` on anything you file FOR THE RECORD - it removes the row from the CEO's awaiting-decision count and removes its Accept/Reject controls; "the spine did not say" and "the spine said nobody" are different facts and only the second closes a row. (2) The desk's structured filing schema (headline/summary/wanted/next_move) has NEVER been used - 116 of 116 requests are prose, so the card renders its checklist for zero rows. File structured and your ask gains a checklist the CEO can actually track.

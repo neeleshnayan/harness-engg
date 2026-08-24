@@ -78,6 +78,21 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
   do not enter a blind envelope.
 
 **BUILT**
+- **D42 MERGED - THE CEO'S CARDS NOW LOOK LIKE WHAT HE RATIFIED.** 11
+  commits, suite 553 -> 632 green on the merged live tree (2ead32c1), tsc
+  + next build clean, mutation 35/37 + 2 retired-with-proof. Cards lead
+  with a clamped NAME (79 clamped live, rejoin() proves nothing lost);
+  lifecycle rails with ages on asks and recs; spend off the card face per
+  the ratified demotion rule; CEO desk 12,903px -> 10,175px. THE "like
+  WTF" CLASS IS DEAD AND PROVEN DEAD BOTH WAYS: a next_actor-nobody row
+  renders zero buttons and "filed for the record", and the base arm
+  reproduces the CEO's exact defect which the probe detects. The defect
+  lived in a SHARED component (RecRow) two pages from the brief's named
+  surface - premise fold caught it; chair rule: name the component, not
+  the page. Found beyond the brief: four confident zeros under an
+  "unknown" hero on the CEO's most-read line, fixed. Measured: the
+  structured filing schema has NEVER been used (116/116 prose) - the
+  filing templates, not the UI, are the unblocker.
 - **D39 MERGED - THE CEO'S WINDOW IS REBUILT.** Both repos green on the
   merged trees (4,292 / 553 + tsc + build), mutation 24/24, spine
   restarted, contract banner cleared. What changed for the CEO: an
@@ -192,6 +207,23 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
   recorded absent, never zero).
 
 **MEASURED**
+- **ENTRY 20 REPRODUCES AT DEPLOYABLE SIZE.** The quant's three-arm re-belt
+  (agent lost to the rewind; chair read the stored results): nav=$500
+  fractional Sharpe 1.608 / PSR 77.7%, nav=$250 fractional 1.611 / 77.9%
+  - the two arms match to 0.003 Sharpe. Third arm (non-fractional $500)
+  timed out; unmeasured, absence reported absent. LEAN 252-convention
+  figures, not restated against hurdles per the clock ruling; new rows
+  under the clean field, never before/after pairs with the original.
+- **THE 12 RED TESTS ON D41 WERE A POISONED BYTECODE CACHE, NOT A DEFECT.**
+  A prior mutation pass's `1.1/sqrt(k)` survived in `__pycache__` (same-
+  length edit restored within one second leaves (mtime,size) unchanged);
+  the interpreter served the mutant while git read clean. Zero source
+  changes fixed all 12; the predecessor had closed 6 of 7 items before the
+  rewind killed it. Detector + suite tripwire shipped and proven by
+  planting the real mutant. Suite 4405 green, mutation 24/1/0. Register
+  draft rewritten on the series' own clock, HELD unsigned. Fifth clock
+  strike: the chair's brief numbers (366.3; "demand +1.34") corrected by
+  measurement (365.25 exactly; 1.34 is the minimum, median 1.5853).
 - **THE RE-CHECK RETURNED: KILL, narrow, ONE CLAUSE - the clock's fourth
   strike.** D38's constant is certified right per-observation; "1.00
   annualised" is the engine's 252-convention, not our series' truth
