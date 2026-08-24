@@ -35,17 +35,23 @@ ROOT = sys.argv[1]
 sys.path.insert(0, ROOT)
 from app.fund import statistics as st  # noqa: E402
 
-#: The D38 pull. Kept as the default so the figures in the register draft
-#: reproduce verbatim; pass a fresh dump as argv[2] to re-measure a grown belt.
+#: The D38 pull, SHELVED IN THE REPO so the register draft's figures reproduce
+#: from a fresh clone (adversary D41: a register citation and an instrument's
+#: default data path are the same kind of promise). Regenerate or grow it with
+#: scripts/instruments/d41/pull_jobs.py — one read-only
+#: `SELECT job_id, result FROM fund_lean_jobs WHERE result IS NOT NULL`.
+#: Pass a fresh dump as argv[2] to re-measure a grown belt without touching
+#: the frozen citation data.
 JOBS = (sys.argv[2] if len(sys.argv) > 2 else
-        r"C:\Users\user\AppData\Local\Temp\claude"
-        r"\C--Users-user-Documents-Krypton-Fund"
-        r"\bbc88cbf-5b81-4236-8781-b009121ec21f\scratchpad\advd38\jobs.json")
+        os.path.join(ROOT, "docs", "drafts", "data",
+                     "d38_jobs_2026-08-24.json"))
 
 if not os.path.exists(JOBS):
     raise SystemExit(
-        f"the jobs dump is not at {JOBS}. Pass one as the second argument — "
-        f"this instrument REFUSES rather than printing bands over zero rows, "
+        f"the jobs dump is not at {JOBS}. Regenerate it with "
+        f"scripts/instruments/d41/pull_jobs.py (one read-only SELECT over "
+        f"fund_lean_jobs) or pass one as the second argument — this "
+        f"instrument REFUSES rather than printing bands over zero rows, "
         f"because an empty population and a uniform one look identical in a "
         f"min/median/max table.")
 

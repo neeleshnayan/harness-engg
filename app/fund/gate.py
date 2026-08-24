@@ -1820,7 +1820,9 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
             # second half is what D41 adds, because the first half alone would
             # have blessed the defect it was sent to close.
             #
-            # THE MEASUREMENT (scratchpad/d41probe/, the reviewer's own demo).
+            # THE MEASUREMENT (run-adversary-d41, desk run record 2026-08-24;
+            # fixture: rf 5%/yr on a calendar-clock series — the reviewer's
+            # own known-true-Sharpe demo, reproduced on both trees).
             # On the engine basis the criterion scores LEAN's statistic, which is
             # computed on EXCESS returns. The only annualised figure this leg can
             # build is `sr * sqrt(K)` on the series it holds, and that series is
