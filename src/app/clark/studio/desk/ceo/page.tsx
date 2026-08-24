@@ -918,8 +918,11 @@ function DueChip({ date }: { date: string }) {
  * questions were missing here, and the answers were on the payload already:
  *
  *   1. WHAT IS THIS — `memoParts` gives the first SENTENCE, and on his live
- *      desk those ran 190, 152, 148 and 121 characters, i.e. two and three
- *      rendered lines apiece. Clamped to a name; the tail joins the body
+ *      desk those ran 188, 163, 158 and 138 characters, i.e. two and three
+ *      rendered lines apiece (RE-DERIVED — the first draft of this comment
+ *      said 190/152/148/121 in THREE files and was wrong in all three;
+ *      `cardAnatomy.test.ts` now asserts the four lengths so no copy can
+ *      drift again). Clamped to a name; the tail joins the body
  *      behind "+ the rest" and `clampLine`'s test proves nothing is lost.
  *   2. WHERE DOES IT STAND — the same rail the request card wears, from the
  *      same component, built from `resolved_at` and `decided_at`.
@@ -1630,9 +1633,11 @@ function AskRow({ ask, onDecided, sources }: {
      THE CLAMP IS THE D42 REPAIR AND IT IS THE RENDERER'S JOB BY THE SPINE'S
      OWN CONTRACT: `AskCard.headline`'s docstring says "for a prose ask this is
      the subject's first LINE, untouched — the renderer knows its own width and
-     does the truncating", and the renderer was not truncating. All 109
-     requests on the live desk are prose, so this printed the whole subject as
-     the card's name — seven rendered lines on the first ask of the day, which
+     does the truncating", and the renderer was not truncating. EVERY request
+     on the live desk is prose (116 of 116 at the time of writing, and the
+     count only grows — the invariant is that none is structured), so this
+     printed the whole subject as the card's name — seven rendered lines on
+     the first ask of the day, which
      is the wall of prose the CEO rejected the card for. Nothing is lost: the
      tail goes behind "+ the incident", and `clampLine`'s test proves the
      rejoin is exact. */

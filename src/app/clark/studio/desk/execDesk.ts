@@ -452,27 +452,7 @@ const REVERSIBILITY_REASON: Record<Reversibility, string> = {
   reversible: "revertible by a commit or the opposite click",
 };
 
-/**
- * The sentence that explains this row's position, in plain words.
- *
- * The CEO's instruction on the ranking was explicit: *do not invent a scoring
- * formula and bury it* — a human should be able to look at two rows and say why
- * one is above the other. So there is no score. There are four named keys, and
- * this returns the ones that actually separated this row, in the order they
- * were applied.
- *
- * Absences are stated, never smoothed: an unpriced row says it is unpriced
- * rather than reading as a cheap one, and a $0 row says nothing moves rather
- * than reading as unimportant.
- *
- * `omit` EXISTS BECAUSE A FACT RENDERED TWICE ON ONE CARD IS CLUTTER (D42,
- * found by looking at the rendered desk). The recommendation card printed
- * "due 2026-08-26" in its chip AND again as this sentence's first clause, and
- * after the lifecycle rail landed it printed "filed · 3.2h" above "waiting
- * since 2026-08-24" — the same timestamp twice, once as an age and once as a
- * date. Both defaults are FALSE, so every existing caller is unchanged; only
- * a caller that demonstrably renders the fact itself may drop it.
- */
+
 /**
  * What this sentence says when it cannot date the WAIT.
  *
@@ -495,6 +475,27 @@ export interface RankReasonOmit {
   waiting?: boolean;
 }
 
+/**
+ * The sentence that explains this row's position, in plain words.
+ *
+ * The CEO's instruction on the ranking was explicit: *do not invent a scoring
+ * formula and bury it* — a human should be able to look at two rows and say why
+ * one is above the other. So there is no score. There are four named keys, and
+ * this returns the ones that actually separated this row, in the order they
+ * were applied.
+ *
+ * Absences are stated, never smoothed: an unpriced row says it is unpriced
+ * rather than reading as a cheap one, and a $0 row says nothing moves rather
+ * than reading as unimportant.
+ *
+ * `omit` EXISTS BECAUSE A FACT RENDERED TWICE ON ONE CARD IS CLUTTER (D42,
+ * found by looking at the rendered desk). The recommendation card printed
+ * "due 2026-08-26" in its chip AND again as this sentence's first clause, and
+ * after the lifecycle rail landed it printed "filed · 3.2h" above "waiting
+ * since 2026-08-24" — the same timestamp twice, once as an age and once as a
+ * date. Both defaults are FALSE, so every existing caller is unchanged; only
+ * a caller that demonstrably renders the fact itself may drop it.
+ */
 export function rankReason(i: DeskItem, omit: RankReasonOmit = {}): string {
   const parts: string[] = [];
   if (i.dueDate && !omit.due) parts.push(`due ${i.dueDate}`);
@@ -507,10 +508,10 @@ export function rankReason(i: DeskItem, omit: RankReasonOmit = {}): string {
     parts.push(`$${i.moneyUsd.toLocaleString("en-US", { maximumFractionDigits: 2 })} at stake`);
   }
   /* THE WAIT IS OMITTED ONLY WHEN A CALLER ALREADY SHOWS IT — never because it
-     is inconvenient. `undated` still renders in that case: a caller's rail can
-     say "how long has this sat here" from a timestamp, and it says nothing at
-     all when there is no timestamp, which is exactly when this sentence must
-     speak. Absence keeps a voice. */
+     is inconvenient. `UNDATED_WAIT` still renders in that case: a caller's
+     rail can say "how long has this sat here" from a timestamp, and it says
+     nothing at all when there is no timestamp, which is exactly when this
+     sentence must speak. Absence keeps a voice. */
   if (!omit.waiting) {
     parts.push(i.waitingSince
       ? `waiting since ${i.waitingSince.slice(0, 10)}` : UNDATED_WAIT);

@@ -92,8 +92,10 @@ export function RequestCardBody({ card, subject, open, onToggle,
   /** What the CARD FACE actually printed, when the caller clamped it.
    *
    *  D42, and it is not a cosmetic parameter. The face used to print
-   *  `card.headline` whole; for all 109 prose requests on the live desk that
-   *  string IS the entire subject, so `hasMore` compared a value with itself,
+   *  `card.headline` whole; every request on the live desk is prose (116 of
+   *  116, and the count only grows — the invariant is that none is
+   *  structured), so that string IS the entire subject, `hasMore` compared a
+   *  value with itself,
    *  came out false, and the card offered no "+ the incident" toggle while
    *  rendering seven lines of narrative as its own name. Passing the clamped
    *  line makes the comparison mean what it says: is there anything the face
