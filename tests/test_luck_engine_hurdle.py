@@ -19,18 +19,22 @@ stops being:
      because the bases are SPLIT; before the split, reverting one re-pointed
      the other, which is the defect `test_reverting_the_alpha_basis_does_NOT_*`
      exists to catch.
-  3. THE SENTENCE TELLS THE TRUTH ABOUT A SKILL HURDLE — the target inverted
-     out of THIS run, and the Sharpe the level demands AGAINST THAT TARGET.
-     Never zero, and never absent-as-zero.
+  3. THE SENTENCE TELLS THE TRUTH ABOUT A SKILL HURDLE — the engine's own
+     constant target, and the Sharpe the level demands AGAINST THAT TARGET,
+     both stated ON THE SERIES' OWN MEASURED CLOCK. Never zero, never
+     absent-as-zero, and never two clocks in one payload (D41).
 """
 from __future__ import annotations
 
 import math
+import random
+from datetime import date, timedelta
 
 import pytest
 
 from app.fund import statistics as st
-from app.fund.gate import (CRITERIA, PREMIA_CRITERIA, PSR_BASES, evaluate)
+from app.fund.gate import (CRITERIA, PREMIA_CRITERIA, PSR_BASES, _luck_leg,
+                           evaluate)
 from test_luck_filter import _alpha, _premia, judge
 from test_premia_gate import CLEAN_HOLDOUT, CLEAN_SWEEP, CLEAN_WALK
 
@@ -698,3 +702,130 @@ def test_an_alpha_verdict_records_the_ALPHA_criteria_and_nothing_else():
                    walkforward=CLEAN_WALK)
     assert out["criteria"] == CRITERIA
     assert not [k for k in out["criteria"] if k.startswith("premia")]
+
+
+# =========================================================================
+# 4. THE ACCEPTANCE TEST — the demand IS the verdict boundary
+# =========================================================================
+
+RF_ANNUAL = 0.05
+VOL_ANNUAL = 0.20
+CALENDAR_YEAR = 365.25
+
+
+def _calendar_series(true_ann_excess_sharpe: float, years: int = 8,
+                     seed: int = 7) -> tuple[list[str], list[float]]:
+    """A CALENDAR-daily return series whose true annualised excess Sharpe is
+    known by construction — one observation per calendar day, which is the shape
+    LEAN's ``listPerformance`` actually has on this fund's runs.
+
+    The risk-free rate is added back in, because the engine subtracts
+    ``riskFreeRate / tradingDaysPerYear`` per observation from whatever series it
+    is handed: the raw series must carry it for the engine's own arithmetic to
+    recover the intended excess Sharpe.
+    """
+    rnd = random.Random(seed)
+    d0 = date(2016, 1, 1)
+    n = int(CALENDAR_YEAR * years)
+    sd_obs = VOL_ANNUAL / math.sqrt(CALENDAR_YEAR)
+    rf_obs = RF_ANNUAL / 252.0                   # exactly what LEAN subtracts
+    mu_excess = true_ann_excess_sharpe * VOL_ANNUAL / CALENDAR_YEAR
+    dates = [(d0 + timedelta(days=i)).isoformat() for i in range(n)]
+    rets = [mu_excess + rf_obs + rnd.gauss(0.0, sd_obs) for _ in range(n)]
+    return dates, rets
+
+
+def _engine_psr(rets: list[float], tdy: int = 252) -> float:
+    """LEAN's published PSR, re-derived HERE from the engine's own source rather
+    than imported from the module under test.
+
+    ``PortfolioStatistics.cs:311-312`` feeds ``ProbabilisticSharpeRatio`` a
+    benchmark of ``1/sqrt(tradingDaysPerYear)`` and a per-sample risk-free rate
+    of ``riskFreeRate/tradingDaysPerYear``; ``Statistics.cs:231-237`` subtracts
+    that rate from the mean. An independent re-derivation is the point: a test
+    that computed the engine's number with `app.fund.statistics` could not tell
+    a correct hurdle from a hurdle that agrees with our own arithmetic.
+    """
+    n = len(rets)
+    mu = sum(rets) / n
+    sd = math.sqrt(sum((v - mu) ** 2 for v in rets) / (n - 1))
+    srx = (mu - RF_ANNUAL / tdy) / sd
+    m2 = sum((v - mu) ** 2 for v in rets) / n
+    m3 = sum((v - mu) ** 3 for v in rets) / n
+    m4 = sum((v - mu) ** 4 for v in rets) / n
+    g1, g2 = m3 / m2 ** 1.5, m4 / m2 ** 2 - 3.0
+    skew = math.sqrt(n * (n - 1)) / (n - 2) * g1
+    kurt = ((n - 1) * ((n + 1) * g2 + 6)) / ((n - 2) * (n - 3))
+    shape = 1 - skew * srx + ((kurt - 1) / 4.0) * srx * srx
+    z = (srx - 1.0 / math.sqrt(tdy)) / math.sqrt(shape / (n - 1))
+    return 100.0 * 0.5 * (1 + math.erf(z / math.sqrt(2)))
+
+
+def _realised_excess_annualised(rets: list[float], k: float,
+                                tdy: int = 252) -> float:
+    """The number the sentence is ABOUT: this series' excess Sharpe, annualised
+    on the clock it is observed at."""
+    n = len(rets)
+    mu = sum(rets) / n
+    sd = math.sqrt(sum((v - mu) ** 2 for v in rets) / (n - 1))
+    return (mu - RF_ANNUAL / tdy) / sd * math.sqrt(k)
+
+
+def test_the_DEMAND_is_the_verdict_boundary_a_reader_can_check():
+    """THE ADVERSARY'S DEMONSTRATION (run-adversary-d38), as an acceptance test.
+
+    THE KILL. `checks["luck"]` shipped three `*_annualised` fields on TWO
+    clocks: `sharpe_annualised` on the series' own ~365 obs/yr beside a target
+    and a demand on the engine's 252. A reader comparing the run's annualised
+    Sharpe with the annualised Sharpe the level demands — the only comparison
+    those field names invite — read PASS on candidates the gate FAILED.
+
+    THE PROPERTY THIS PINS, and it needs no formula from the module: for a
+    series whose TRUE annualised excess Sharpe is known, the gate's verdict must
+    agree with the reader's comparison of that Sharpe against
+    `required_sharpe_annualised`. Six strategies are built spanning the
+    boundary, the engine's PSR is re-derived from LEAN's own source, and the two
+    answers must agree on all six.
+
+    AND THE OLD ANSWER MUST DISAGREE, or this test would pass on the broken
+    tree too. The same demand restated on the engine's 252 clock — exactly what
+    D38 published — is compared row by row and must disagree on at least one:
+    measured, it disagrees on three of six.
+    """
+    per_obs = float(st.lean_psr_target()["per_obs"])
+    crit = {**CRITERIA, "psr_basis": "engine_reported", "min_psr_pct": 65.0}
+    agree_own, agree_engine, margins = 0, 0, []
+    for true_ann in (0.90, 1.00, 1.10, 1.19, 1.21, 1.30):
+        dates, rets = _calendar_series(true_ann)
+        res = {
+            "robustness": {"psr_pct": round(_engine_psr(rets), 3),
+                           "psr_inputs": {"trading_days_per_year": 252}},
+            "daily_returns": {"present": True, "strategy": rets,
+                              "dates": dates},
+        }
+        out, failures = _luck_leg(res, crit, False, {})
+        cleared = not failures
+        k = float(out["obs_per_year"])
+        req = float(out["required_sharpe_annualised"])
+        realised = _realised_excess_annualised(rets, k)
+
+        # ONE CLOCK: the demand, the target and the series all on the same one.
+        assert out["required_sharpe_clock"] == round(k, 2)
+        assert out["engine_target_annualised"] == round(
+            per_obs * math.sqrt(k), 4)
+        # and the withdrawn field cannot be mistaken for the measurement
+        assert out["sharpe_annualised"] is None
+        assert out["sharpe_annualised_raw"] is not None
+
+        # THE READER'S COMPARISON == THE GATE'S VERDICT.
+        agree_own += int(cleared is (realised >= req))
+        # D38's restatement of the same demand on the engine's 252 clock.
+        agree_engine += int(cleared is (realised >= req / math.sqrt(k / 252.0)))
+        margins.append(abs(realised - req))
+
+    assert agree_own == 6, "the demand is not the boundary the gate applies"
+    # NOT A KNIFE EDGE (D34): every row sits clear of the boundary, so the six
+    # agreements are a property and not six coin flips that landed well.
+    assert min(margins) > 0.02, min(margins)
+    # THE DISCRIMINATOR: the answer this dispatch replaced gets it wrong.
+    assert agree_engine == 3, agree_engine
