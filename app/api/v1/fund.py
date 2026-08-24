@@ -3902,6 +3902,16 @@ def _guard_mark_sanity(order_id: str, approver: str) -> dict:
                  "move_pct": verdict.get("move_pct"),
                  "bound_pct": verdict.get("bound_pct"),
                  "basis": verdict.get("basis"),
+                 # BOTH holdings folds on the record (ticket d79f65b1). The
+                 # decision reads `held_qty` only; `held_qty_from_fills` is
+                 # here so a future divergence between the fund's one true
+                 # book and a fill-sum is visible to the riskofficer in the
+                 # event log rather than inferable only from a log line. On
+                 # 2026-08-24 these two disagreed about nine symbols and
+                 # nothing recorded it.
+                 "held_qty": verdict.get("held_qty"),
+                 "held_qty_from_fills": verdict.get("held_qty_from_fills"),
+                 "holdings_basis": verdict.get("holdings_basis"),
                  "at": datetime.now(timezone.utc).isoformat()},
         actor=approver or "unknown"))
     raise HTTPException(status_code=409,

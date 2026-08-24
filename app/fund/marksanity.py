@@ -81,24 +81,71 @@ def _num(v: Any) -> Optional[float]:
 
 
 def gather(store: Any, order_id: str) -> dict[str, Any]:
-    """One pass over the log for everything this check needs.
+    """Everything this check needs: one pass for the order and the marks, plus
+    the fund's own holdings fold.
 
     Returns, all optional and all absent-not-zero:
       symbol, quote_price   from the order's ORDER_PROPOSED payload
       reference_mark, struck_at   from the LAST NavStruck that priced the symbol
-      held_qty              net signed quantity from fills, the fund's own book
+      held_qty              the fund's holding, from ``PositionsProjection``
+      held_qty_from_fills   DIAGNOSTIC ONLY — see below. No branch reads it.
 
     ``reference_mark`` comes from the LAST strike only, never from an older one
     that happened to carry the symbol: a mark from three strikes ago is stale by
     an unknown amount, and a comparison against it would produce a confident
     number about nothing. Absent is the honest answer there.
+
+    **HOLDINGS COME FROM THE ONE TRUE FOLD (ticket d79f65b1, 2026-08-24).**
+    This function used to answer "does the fund hold it" by summing
+    ``OrderFilled`` events itself. That is a SECOND, thinner fold of a quantity
+    the fund already folds in exactly one place, and the two disagree the moment
+    anything other than a fill moves the book. ``BookReconciledToVenue`` does
+    precisely that — it SETS quantities absolutely
+    (``projections/positions.py:196-229``) — so after a venue sync the fill-sum
+    describes a book that no longer exists.
+
+    Measured on the live log the morning this was fixed, at the sync (seq 1414,
+    2026-08-24T12:36:46Z), the two folds disagreed about NINE of eleven symbols,
+    in BOTH directions:
+
+      * DBA / DBC / TLT — fill-sum 5.314306 / 8.122157 / 3.019871, true book
+        ZERO. The guard refused three approved repurchases as
+        ``held_but_unpriced`` and named a remedy that cannot exist: NAV marks
+        only what the book HOLDS (``projections/nav.py``'s compute iterates
+        ``book.positions``), so no strike can ever mint a mark for a symbol the
+        sync erased. The fund was told to do something structurally impossible.
+      * GLD / INTC / MSFT / NVDA / SOFI / XLE — fill-sum ZERO, true book
+        0.424471 / 1.608762 / 0.340051 / 0.749886 / 9.188190 / 2.749912. These
+        are positions the sync ADOPTED with no fill history — the custody
+        schema's ``foreign`` class, an actor outside the harness. The guard read
+        them as never-owned and took the new-symbol branch, skipping
+        corroboration on six real positions. That is the integrity case this
+        module exists to catch, and the wrong input walked it straight past.
+
+    So the number is READ from ``PositionsProjection`` now, not re-derived. The
+    projection is constructed WITHOUT a snapshot store deliberately: this guard
+    folds the log itself rather than trusting a cache, because a cache is one
+    more thing that can be stale in the direction that approves an order.
+
+    ``held_qty_from_fills`` is kept beside it as a DIAGNOSTIC, never an input —
+    the Clean Field Rule's "preserve the contaminated value beside the new one".
+    It is what makes a future divergence visible in the refusal record instead
+    of silent. ``tests/test_marksanity.py`` pins that no branch reads it.
     """
     from app.fund.events import EventType
 
     out: dict[str, Any] = {
         "symbol": None, "quote_price": None, "side": None, "qty": None,
-        "reference_mark": None, "struck_at": None, "held_qty": 0.0,
+        "reference_mark": None, "struck_at": None,
+        # ABSENT until the book fold answers. NOT 0.0: a zero here would mean
+        # "the fund holds none", which is a claim, and an unread book has not
+        # made any claim. Absence is never zero — and here the difference is
+        # the difference between refusing and approving.
+        "held_qty": None,
+        "held_qty_from_fills": None,
+        "holdings_basis": None,
         "gather_error": None,
+        "holdings_error": None,
     }
     struck_marks: dict[str, float] = {}
     struck_at: Optional[str] = None
@@ -143,12 +190,34 @@ def gather(store: Any, order_id: str) -> dict[str, Any]:
     if sym:
         out["reference_mark"] = struck_marks.get(sym)
         out["struck_at"] = struck_at if sym in struck_marks else None
-        held = 0.0
+        from_fills = 0.0
         for side, q, fsym in fills:
             if fsym != sym:
                 continue
-            held += q if side == "buy" else -q
-        out["held_qty"] = held
+            from_fills += q if side == "buy" else -q
+        out["held_qty_from_fills"] = from_fills
+
+        # THE BOOK. Read, never re-derived — see this function's docstring for
+        # the nine live symbols the two folds disagreed about. Its own try/except
+        # because it is a SEPARATE read from the stream above: a fold that raises
+        # must leave `held_qty` absent (and absent refuses), never fall back to
+        # the number the stream happened to have. Falling back would restore the
+        # exact defect this repair removes, quietly, on the failure path.
+        try:
+            from app.fund.projections.positions import PositionsProjection
+
+            book = PositionsProjection(store).build()
+            pos = book.positions.get(sym)
+            # `pop`-ped by a reconciliation, or never present: the fund holds
+            # none. That is a MEASURED zero — the fold looked — which is why it
+            # is written here and not defaulted above.
+            out["held_qty"] = float(pos["qty"]) if pos else 0.0
+            out["holdings_basis"] = "positions_projection"
+        except Exception as e:  # noqa: BLE001
+            logger.warning(
+                "mark-sanity could not fold the book for %s (%s): %s",
+                order_id, sym, e)
+            out["holdings_error"] = str(e)
     return out
 
 
@@ -163,12 +232,20 @@ def evaluate(facts: dict[str, Any],
     quote = _num(facts.get("quote_price"))
     ref = _num(facts.get("reference_mark"))
     sym = facts.get("symbol") or "?"
-    held = _num(facts.get("held_qty")) or 0.0
+    # NO `or 0.0`. That idiom turned an unread book into "the fund holds none",
+    # which is the new-symbol branch, which APPROVES. An absent holding is a
+    # refusal, not a zero.
+    held = _num(facts.get("held_qty"))
     result: dict[str, Any] = {
         "refuse": True, "reason": "", "symbol": sym,
         "quote_price": quote, "reference_mark": ref,
         "struck_at": facts.get("struck_at"), "move_pct": None,
         "bound_pct": bound_pct, "basis": "unknown",
+        # Both holdings numbers travel with the verdict so the refusal event
+        # carries the divergence rather than only its consequence.
+        "held_qty": held,
+        "held_qty_from_fills": _num(facts.get("held_qty_from_fills")),
+        "holdings_basis": facts.get("holdings_basis"),
     }
 
     if facts.get("gather_error"):
@@ -187,8 +264,38 @@ def evaluate(facts: dict[str, Any],
         result["basis"] = "no_quote_price"
         return result
 
+    if held is None:
+        # The book could not be folded. Every remaining branch is a statement
+        # about what the fund holds, so none of them can be reached honestly.
+        #
+        # Placed AFTER the quote check and BEFORE the reference check, and both
+        # positions are deliberate. After, because an order with no raising
+        # price is unapprovable whatever the book says, and that refusal names
+        # the operator's actual next step. Before, because an unreadable book
+        # must not reach the reference branches at all — including the
+        # `corroborated` one, which does not read `held`. This is a TIGHTENING:
+        # a well-corroborated order now refuses when the book is unreadable. It
+        # is the right direction and it is cheap, because a fund whose
+        # PositionsProjection raises cannot strike NAV either, so its marks are
+        # going stale in the same minute.
+        result["reason"] = (
+            f"the fund's own book could not be folded"
+            f"{' (' + str(facts.get('holdings_error')) + ')' if facts.get('holdings_error') else ''}"
+            f", so whether the fund holds {sym} is unknown — and an order "
+            f"cannot be corroborated against a book nobody can read. Fix the "
+            f"read and try again.")
+        result["basis"] = "holdings_unreadable"
+        return result
+
     if ref is None:
         if abs(held) > 1e-9:
+            # The remedy in this sentence is only TRUE because `held` now comes
+            # from the book NAV itself marks. When it came from the fill-sum,
+            # this branch could fire for a symbol the book does not hold, and
+            # "strike NAV first" was then unreachable advice — NAV marks
+            # `book.positions`, so it can never mark what the book has popped.
+            # A refusal naming an impossible remedy is a deadlock, and that
+            # deadlock stopped three approved repurchases on 2026-08-24.
             result["reason"] = (
                 f"the fund holds {held:g} {sym} but the last NAV strike carries "
                 f"no mark for it, so this order's ${quote:,.2f} cannot be "
