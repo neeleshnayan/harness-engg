@@ -714,3 +714,46 @@ belt, the chair's loops. That distribution is the org working.
    her sweep method note — cto.md is the highest-yield citation source —
    means THIS FILE must keep recording rulings promptly: her sweep reads
    it.
+
+
+---
+
+## 2026-08-24 — THE TIE-BREAK RULING (builder D36 challenge: HEARD, DECLINED) + two brief lessons
+
+**The challenge**: the PSR ruling picks the LOWEST level that holds
+full-gauntlet FP; measured, every level 50-99.9 gives identical FP and
+identical power, so the rule selects the most permissive value of a
+50-point indifference region. The builder shipped 50.0 per the rule and
+proposed 95.0 as free bite.
+
+**DECLINED, and the reason is the builder's own central finding**: the
+absolute target-0 statistic is measured NON-DISCRIMINATING on long-only
+equity — it measures market beta. Tightening a non-discriminating
+criterion adds refusals that correlate with beta, not skill: at 95, three
+of the four meta-controls (85.0/90.4/78.3 at target-0) would newly fail a
+criterion that cannot tell them from skill, and a modest genuine alpha
+candidate that beats the benchmark could sit below 95 for reasons of
+exposure, not edge. "Zero measured cost" was measured only on populations
+the gauntlet already refuses for other reasons. 50.0 stands, honestly
+labeled a TIE-BREAK, not a calibration. **What would change my mind**: a
+measured population where the absolute statistic separates skill (the
+registered trigger: first market-neutral or short-capable universe), or a
+measured false-pass the gauntlet missed that a higher level would have
+caught. Clause 7: re-filing needs new evidence.
+
+**TWO BRIEF-PREMISE LESSONS, both mine (the builder measured them):**
+1. When a brief attributes a magnitude to a mechanism, DERIVE the
+   mechanism formula before writing the number. I wrote "+0.093..+0.100
+   on a 0.46-cash book"; 0.46 was the INVESTED weight and +0.093 was
+   rf(1/sd_s - 1/sd_b), which does not depend on cash weight at all —
+   near the true credit on volscale by coincidence, 2.4x off on
+   earnwindow.
+2. Check whether a brief items INTERACT before stating an acceptance
+   criterion: "volscale must fail the luck test" was stated against an
+   input the same brief cash credit changes (P 51.8% -> 72.5%).
+
+**Also recorded**: the red head was mine (the completing-section
+filename) — fixed at head, archive tests iterate daily_stems(); Donna
+shape is now in the test contract. D36 merge WAITS on the adversary
+blind. Post-merge queue: premia re-belts are schema-4 gated; 739b5ac9
+rides the next builder dispatch (both-arms rule); D34 batch follows.

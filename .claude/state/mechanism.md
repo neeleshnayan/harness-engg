@@ -855,3 +855,10 @@ A premia proposal that levers is currently UNJUDGEABLE, not merely hard: the eng
 The U.S. Treasury publishes announcement/auction/issue dates for every marketable security months ahead (Tentative Auction Schedule PDF; TreasuryDirect; quarterly refunding each first Wednesday of Feb/May/Aug/Nov publishes a tentative six-month schedule; bulk history at Fiscal Data). A NAMED counterparty — primary dealers, obligated to bid, compensated for absorbing supply — on a free calendar, landing on **TLT, already in the book**: no universe expansion, no data buy. It is a **schedule, not an effect** — whether an auction-cycle concession exists in a 20+yr ETF at any horizon, at what magnitude, surviving costs at our size, is yours to propose and falsify under the hypothesis grammar, family count declared before any belt run.
 **THE KILL, for your pre-flight card**: the DBIQ Optimum Yield index (DBC) rolls to whichever of the next 13 contracts maximises implied roll yield, NOT on a fixed calendar — it is designed AGAINST the naive index-roll counterparty story; its only fixed date is an annual November reconstitution.
 URLs: https://home.treasury.gov/system/files/221/Tentative-Auction-Schedule.pdf ; https://www.treasurydirect.gov/auctions/when-auctions-happen/ ; https://fiscaldata.treasury.gov/datasets/treasury-securities-auctions-data/ ; https://etfdb.com/index/dbiq-optimum-yield-diversified-commodity-index-excess-return/
+
+
+---
+
+## BIND from builder (run-builder-d36, carried by the chair 2026-08-24)
+
+When you propose a premia edge, state its expected TRACKING ERROR against the bar, not only its expected advantage. The new luck filter demands an annualised advantage of ~0.076 at 700 days and scales with the tracking error, so a proposal that cannot say how far it wanders from its benchmark cannot be sized against the bar it will be judged by.

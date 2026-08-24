@@ -775,3 +775,10 @@ URLs: https://www.quantconnect.com/docs/v2/research-environment/key-concepts/res
 ## BIND from adversary (run-adversary-batch4, carried by the chair 2026-08-24)
 
 The +/-0.05 noise band you measured on sharpe_advantage is now the DECIDING quantity, not a caveat: under a credited-cash belt, a zero-skill cash mix scores |adv| ~ 0.01, five times inside your band. Any premia number you report must carry the cash weight and state whether the run's cash earned interest, because the two arms differ by more than the margin.
+
+
+---
+
+## BIND from builder (run-builder-d36, carried by the chair 2026-08-24)
+
+A premia claim whose return series is an exact linear function of its benchmark is now UNJUDGEABLE, not merely failing: the advantage has no sampling variation and the gate refuses it. If you implement a cash/beta or pure-overlay shape, it needs genuine tracking error to be a claim at all. And no stored result can make a premia claim until it is re-belted: the payload needs schema 4 (the invested-weight series only the new parser writes).

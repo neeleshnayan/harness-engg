@@ -971,3 +971,10 @@ The PSR target is IDENTIFIED: a constant **0.0755/obs (cv 5.5%, n=1936)** across
 ## BIND from adversary (run-adversary-batch4, carried by the chair 2026-08-24)
 
 When you file an instrument repair that removes a measurement bias, you owe two numbers, not one: what the bias was BUFFERING, and the rule's false-pass rate WITH and WITHOUT the repair at the shipped threshold. Your rf-credit diagnosis is right and it removes a buffer worth 14pp of false-pass on zero-skill cash mixes; filed as repair-only with "no threshold value proposed", it is a loosening in effect. And measure any rate claim on the window the fleet actually runs (700d, 11 of 16 algorithms, BIL 4.083%/yr) — not on a window that flatters your own conservatism. (Chair note: your diagnosis SURVIVED and is being implemented in D36 with the paired margin machinery; the kill was of the repair-only framing, not the finding.)
+
+
+---
+
+## BIND from builder (run-builder-d36, carried by the chair 2026-08-24)
+
+Your joint-power work measured the PSR power on ABSOLUTE Sharpe. That statistic is now measured to be non-discriminating on long-only equity (100% of zero-skill baskets clear it at every level 50-95). Re-target the power question at the ADVANTAGE statistic, where the curve is real (10.0% -> 1.0%); the absolute one has no power question worth asking on this universe.

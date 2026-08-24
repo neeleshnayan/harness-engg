@@ -67,6 +67,19 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
   do not enter a blind envelope.
 
 **BUILT**
+- **D36 RETURNED: gate v4.4 / premia v5r4 — the PSR repair delivered and
+  measured.** The honest sentence; the luck filter on our own module;
+  min_psr_pct 65→50 by the ruling's own rule (the falsifier did NOT
+  fire: full-gauntlet zero-skill FP identical at every level — the
+  finding is that absolute target-0 PSR measures market beta, not skill,
+  on long-only equity); the premia claim gains its own
+  advantage-statistic filter at 65.0; the cash credit built DEFAULT OFF
+  with the adversary margin table (0.25 binds). Mutation 28/28, identity
+  11/11 zero flips, 4,266 green. Builder tie-break CHALLENGE heard and
+  DECLINED (cto.md); its two brief-premise catches accepted as chair
+  defects. Adversary blind dispatched on the diff + pack v2 in one
+  batch; MERGE WAITS. The red head (the chair completing-section
+  filename) fixed same hour.
 - **Donna's first DESK SWEEP ran and the chair executed it: the CEO's desk
   42 → 31 items, on-fire 10 → 7 — and the fire list is now genuinely
   Monday (R39, sign-the-set, data decision).** 11 dispositions validated
