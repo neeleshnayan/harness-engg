@@ -155,7 +155,7 @@ export function laneCount(
   if (read === "loading") {
     return {
       value: null, shown, source: "loading",
-      note: `${READING_DESK} ${what} has not been counted yet.`,
+      note: `Not counted yet: ${what}.`,
     };
   }
   if (typeof served !== "number" || !Number.isFinite(served)) {

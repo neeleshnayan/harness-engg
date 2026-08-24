@@ -137,8 +137,8 @@ export function awaitingHeadline(input: AwaitingInput): AwaitingHeadline {
       value: null,
       atLeast: false,
       source: "loading",
-      note: `${READING_DESK} This figure has not been counted yet — nothing `
-        + "here has failed, and nothing here is a zero.",
+      note: "This figure has not been counted yet — nothing here has failed, "
+        + "and nothing here is a zero.",
       reconciliation: null,
     };
   }
@@ -301,8 +301,8 @@ export interface ShelfItem {
  */
 export function shelfAbsenceNote(read: DeskRead): string {
   if (read === "loading") {
-    return `${READING_DESK} How that number splits — today's decisions, your `
-      + "executions, your routing calls — is not worked out yet.";
+    return "How that number splits — today's decisions, your executions, "
+      + "your routing calls — is not worked out yet.";
   }
   return "The desk could not be read, so how that number splits — today's "
     + "decisions, your executions, your routing calls — is unknown too.";

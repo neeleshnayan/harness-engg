@@ -71,5 +71,15 @@ export function readError(reason: unknown): string {
   return t || "unreachable";
 }
 
-/** The one loading sentence, so three pages cannot phrase it three ways. */
+/**
+ * The one loading sentence, so three pages cannot phrase it three ways.
+ *
+ * IT IS SAID ONCE PER SURFACE, NOT ONCE PER SENTENCE. The first cut prefixed
+ * it to every derived note — the hero's gloss, the shelf line, all five lane
+ * notes — and the rendered page carried it ELEVEN TIMES in one screen, which
+ * is the "generic AI slop" the CEO named as this desk's failure mode and is no
+ * calmer for being quiet. Found by looking at the screenshot, not by any test.
+ * The derived notes now state their own fact ("… has not been counted yet")
+ * and let the greeting and the muted `…` in the hero carry the activity.
+ */
 export const READING_DESK = "Reading the desk…";

@@ -116,8 +116,8 @@ export function steeringSentence(input: SteerInput): Steer {
   if (read === "loading" && !view) {
     return {
       basis: "loading",
-      text: "Reading the desk engine… what to look at first has not been "
-        + "worked out yet.",
+      text: "What to look at first has not been worked out yet — the desk "
+        + "engine is still being read.",
       item: null,
       overdue: false,
     };

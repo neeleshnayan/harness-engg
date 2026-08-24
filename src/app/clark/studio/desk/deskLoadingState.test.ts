@@ -29,11 +29,15 @@ import type { CeoDeskView, DeskView } from "@/lib/fund_api";
  * tested the new state.
  *
  * WHAT MAKES THESE TESTS UNABLE TO BLESS THE BUG: the two states are asserted
- * against DIFFERENT, non-overlapping vocabulary. "could not be read" and
- * "UNKNOWN" belong to the failure branch and to nothing else; "Reading" and
- * "not been counted yet" belong to the loading branch and to nothing else.
- * A single branch that produced one string for both inputs would fail one of
- * every pair below, whichever way it collapsed.
+ * against DIFFERENT, NON-OVERLAPPING vocabulary, and the overlap was checked
+ * rather than assumed. "could not be read" and "UNKNOWN" belong to the failure
+ * branch and to nothing else; "has not been counted yet", "Not counted yet:"
+ * and "is not worked out yet" belong to the loading branch and to nothing
+ * else. The two sentences DO share their middles — "how that number splits",
+ * "what awaits you" — so an assertion written on those would pass on either
+ * branch, which is the miss this file is written to avoid. A single branch
+ * producing one string for both inputs fails one of every pair below,
+ * whichever way it collapsed.
  */
 
 /* --------------------------------------------------------------- fixtures */
@@ -116,7 +120,11 @@ test("fccb9cf3: the HEADLINE while the desk read is in flight says it is "
   assert.equal(h.value, null, "no number — the read has not answered");
   assert.equal(h.source, "loading",
     "`unknown` is the word for a read that FAILED; this one has not");
-  assert.match(h.note!, /Reading the desk/);
+  // THE MARKER IS UNIQUE TO THIS BRANCH. "How that number splits" and
+  // "what awaits you" appear in BOTH sentences; only the loading one says a
+  // thing has not been counted, and only the failure one says it could not be
+  // read. Matching on shared words would pass on either.
+  assert.match(h.note!, /has not been counted yet/);
   assert.ok(!/could not be read/.test(h.note!),
     "this is the exact sentence the CEO watched for thirty seconds");
   assert.ok(!/UNKNOWN/.test(h.note!),
@@ -166,13 +174,14 @@ test("fccb9cf3: the sentence that replaces the shelves says WHICH absence it "
   + "they lived in the page's JSX", () => {
   const loading = shelfAbsenceNote("loading");
   const failed = shelfAbsenceNote("unreadable");
-  assert.match(loading, /Reading the desk/);
+  assert.match(loading, /is not worked out yet/);
   assert.ok(!/could not be read/.test(loading),
     "the pending sentence must not borrow the failure's words");
   assert.match(failed, /The desk could not be read/);
-  assert.ok(!/Reading the desk/.test(failed),
-    "and the failure must not borrow the pending one's — 'Reading…' for a "
-    + "read that already failed is a progress bar for nothing in progress");
+  assert.ok(!/not worked out yet/.test(failed),
+    "and the failure must not borrow the pending one's — a progress sentence "
+    + "for a read that already failed is a progress bar for nothing in "
+    + "progress");
   assert.notEqual(loading, failed);
 });
 
@@ -196,7 +205,7 @@ test("fccb9cf3: all five lanes say they are being read, not that they are "
   for (const l of ls) {
     assert.equal(l.count.value, null, `${l.id} must render no number`);
     assert.equal(l.count.source, "loading", `${l.id} is not a finding yet`);
-    assert.match(l.count.note!, /Reading the desk/, l.id);
+    assert.match(l.count.note!, /^Not counted yet: /, l.id);
     assert.ok(!/Neither the fund nor this page could count/.test(l.count.note!),
       `${l.id} claimed an outage while the read was pending`);
   }
@@ -243,7 +252,7 @@ test("fccb9cf3: decidedCount passes the loading state through instead of "
   const c = decidedCount(169, 0, 0, "loading");
   assert.equal(c.value, null);
   assert.equal(c.source, "loading");
-  assert.match(c.note!, /Reading the desk/);
+  assert.match(c.note!, /^Not counted yet: /);
   assert.ok(!/decided in all/.test(c.note!),
     "the like-with-like remainder sentence is a claim about rows on screen");
 });
@@ -256,7 +265,7 @@ test("fccb9cf3: the steering sentence is quiet while the ENGINE read is in "
   assert.equal(s.basis, "loading");
   assert.equal(s.overdue, false, "a pending read is not an overdue anything");
   assert.equal(s.item, null);
-  assert.match(s.text, /Reading the desk engine/);
+  assert.match(s.text, /the desk engine is still being read/);
   assert.ok(!/could not be read/.test(s.text));
   assert.ok(!/UNKNOWN/.test(s.text));
 });

@@ -398,8 +398,8 @@ export default function CeoDeskPage() {
                   the eye passes over it. Rendering the first for the second is
                   ticket fccb9cf3, thirty seconds of it on the CEO's screen.
                   The choice itself is `heroFigure`, in a file tests can run. */}
-              <span className={`${KT.hero} ${
-                headline.source === "loading" ? KT.muted : ""}`}>
+              <span className={
+                headline.source === "loading" ? KT.heroDim : KT.hero}>
                 {heroFigure(headline)}
               </span>
               <span className={`${KT.label} pb-1`}>awaiting your decision</span>

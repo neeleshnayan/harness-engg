@@ -52,6 +52,13 @@ export const KT = {
   // small caps mono label, e.g. "LIVE NAV", "WHAT THE FUND HOLDS"
   label: "font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--kt-text-muted)]",
   hero: "font-mono tabular-nums text-4xl font-light tracking-tight text-[var(--kt-text-strong)]",
+  /** The hero at hero SIZE and muted TONE — for the moment a hero figure does
+   *  not exist yet. Written as its own token rather than `${KT.hero} ${KT.muted}`
+   *  because that composition does not work: both carry a `text-[…]` colour at
+   *  equal specificity and the winner is whichever Tailwind emits later, which
+   *  is the strong one. Measured on the rendered page 2026-08-24 — the class
+   *  was on the element and the pixel was rgb(233,231,226). */
+  heroDim: "font-mono tabular-nums text-4xl font-light tracking-tight text-[var(--kt-text-muted)]",
   numberLg: "font-mono tabular-nums text-2xl font-light text-[var(--kt-text-strong)]",
   number: "font-mono tabular-nums text-sm text-[var(--kt-text)]",
   title: "text-sm font-semibold text-[var(--kt-text)]",
