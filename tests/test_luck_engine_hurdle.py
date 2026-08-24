@@ -246,6 +246,71 @@ def test_both_readings_survive_the_revert_on_the_shipped_alpha_bar():
     assert luck["luck_psr_pct"] == pytest.approx(90.0, abs=0.05)
 
 
+@pytest.mark.parametrize("stored", ["not-a-number", [], {}, True, False, None])
+def test_a_malformed_stored_engine_PSR_is_a_VERDICT_not_a_crash(stored):
+    """A GATE MUST RETURN A VERDICT, NEVER RAISE — on the field D37 put on the
+    hot path.
+
+    `robustness.psr_pct` is a STORED value: written by an older belt,
+    round-tripped through JSON, possibly truncated. It was checked for `is
+    None` and nothing else, so a string, list or dict reached
+    `evaluated_pct >= level` and took the whole judgement down with a
+    TypeError, and a stored `true` was read as a probability of 1.0 —
+    `isinstance(True, int)` being how a bool gets in.
+
+    THE DEFECT IS OLDER THAN THIS DIFF AND THE DIFF IS WHY IT MATTERS: before
+    D37 the engine basis was an opt-in alternate, and after it every alpha
+    verdict this fund produces reads this field. The premia advantage block six
+    lines up has carried the presence-AND-numeric-type guard since v4.4; this
+    is the same guard on the other branch, and this is the test that fails if
+    either loses it. Found by the Gauntlet on the finished diff — the third
+    dispatch running in which a raise-path in this leg was found by something
+    other than the suite.
+    """
+    r = _alpha(psr=90.0)
+    r["robustness"]["psr_pct"] = stored
+    out = evaluate(r, CLEAN_HOLDOUT, CLEAN_SWEEP, walkforward=CLEAN_WALK)
+    luck = out["checks"]["luck"]
+    assert luck["measurable"] is False, luck
+    assert out["passed"] is False
+    assert any("the luck filter could not be applied" in f
+               for f in out["failures"]), out["failures"]
+    # AND THE TWO ABSENCES ARE NOT ONE SENTENCE: a field nobody wrote and a
+    # field somebody wrote badly are different facts about the belt, and a
+    # reader chasing one must not be sent to the other.
+    if stored is None:
+        assert "published no usable probabilistic Sharpe" in luck["reason"]
+    else:
+        assert "is not a number" in luck["reason"], luck["reason"]
+        assert repr(stored) in luck["reason"]
+
+
+@pytest.mark.parametrize("level,expect,forbid", [
+    (0.0, "off-switch", "refusal and not a bar"),
+    (-1.0, "off-switch", "refusal and not a bar"),
+    (100.0, "refusal and not a bar", "off-switch"),
+    (1e9, "refusal and not a bar", "off-switch"),
+])
+def test_the_range_refusal_explains_the_END_it_actually_failed(level, expect,
+                                                               forbid):
+    """A refusal sentence must be true of the value that caused it.
+
+    The first draft appended one fixed clause — "at 0 the criterion would pass
+    everything it can measure" — to EVERY out-of-range level, including 100.1,
+    where the consequence is the exact opposite: a level at or above 100 can
+    refuse a reading it measured perfectly. Explaining the wrong end of the
+    interval is the same defect this whole leg exists to end, at one tenth the
+    scale, and a test that only checks the interval "(0, 100)" appears cannot
+    see it. Caught by reading the sentence, pinned here so it stays fixed.
+    """
+    out = evaluate(_alpha(psr=90.0), CLEAN_HOLDOUT, CLEAN_SWEEP,
+                   walkforward=CLEAN_WALK, criteria={"min_psr_pct": level})
+    reason = out["checks"]["luck"]["reason"]
+    assert "(0, 100)" in reason, reason
+    assert expect in reason, reason
+    assert forbid not in reason, reason
+
+
 # =========================================================================
 # 3. WHERE AN AUDITOR LOOKS — the criteria a verdict records
 # =========================================================================

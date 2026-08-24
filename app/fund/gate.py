@@ -532,7 +532,9 @@ def fmt_bps(x: float) -> str:
 #: zero-skill false passes may not RISE. With a falsifier attached — if no level
 #: holds, keep the hurdle and correct its words. Both configurations are
 #: therefore REAL (`PSR_BASES`), because a falsifier whose alternative does not
-#: exist cannot fire.
+#: exist cannot fire — and after D37 both are not merely real but SHIPPED, one
+#: per claim type: `engine_reported` on the alpha bar, `target_zero_module` on
+#: the premia bar, where the statistic was measured to separate the population.
 #:
 #: THE MEASUREMENT (scripts/instruments/d36/calibrate.py, 200 Dirichlet
 #: zero-skill draws per window, seed 20260824, the adversary's pinned feed;
@@ -570,10 +572,20 @@ def fmt_bps(x: float) -> str:
 #:     full    engine-equivalent @65%          0.0%        0.0%   (today)
 #:     full    target-0, any level 50..99.9  100.0%        0.0%   HOLDS
 #:
-#: SO THE FALSIFIER DOES NOT FIRE, and the reason is worth more than the level:
-#: the luck filter is not what holds this population out. The refusal census
-#: under the shipped bar, PER WINDOW because the two do not agree and a single
-#: figure would hide it:
+#: THE FALSIFIER'S LITERAL TRIGGER DOES NOT FIRE — every level holds the
+#: invariant, so it is never true that "no level holds". THE DRAFT STOPPED
+#: THERE AND THAT WAS THE ERROR. Read the trigger's PURPOSE instead: it exists
+#: to catch the case where the measurement cannot choose a level, and a table
+#: whose every row reads HOLDS is that case in its strongest form. A criterion
+#: that admits 100% of a zero-skill population at 50 and at 99.9 alike has not
+#: been calibrated by a sweep — it has been declared non-discriminating BY the
+#: sweep. So the remedy the falsifier names is the right one and D37 applies it,
+#: which is a reading of the ruling and not a rewriting of it; the chair's
+#: wording anticipated a null result and this is one.
+#:
+#: And the reason is worth more than the level either way: the luck filter is
+#: not what holds this population out. The refusal census under the shipped bar,
+#: PER WINDOW because the two do not agree and a single figure would hide it:
 #:
 #:     700d  198 of 200 refused — must_beat_benchmark 194, breakeven 194,
 #:           fold count 189, the engine hurdle 112, holdout unmeasurable 23
@@ -602,8 +614,18 @@ def fmt_bps(x: float) -> str:
 #: against. WHAT SHIPS IS THE SENTENCE, which was never conditional on the
 #: level, plus the target-zero reading captured beside the judged one on every
 #: verdict. Nothing about the alpha bar's PASS/FAIL behaviour moves: re-judged
-#: over all 765 stored belt results, zero verdicts flip against the pre-v4.4
-#: tree (scratchpad/advd36/judge.py, both trees, alpha claim).
+#: over all 765 stored belt results, ZERO verdicts flip against the pre-v4.4
+#: tree — and zero flip against the DRAFT either (scratchpad/advd36/judge.py on
+#: three trees, compared by scratchpad/d37probe/compare.py, which null-tests
+#: itself against a planted flip). Say the second half plainly, because it cuts
+#: both ways: on this population the choice between engine@65 and target-zero@50
+#: is non-binding IN BOTH DIRECTIONS. The revert costs nothing and the constant
+#: it reverts bought nothing. What moves is 656 failure SENTENCES, which is the
+#: half of the ruling that was never conditional on any of this.
+#:
+#: The premia bar is BYTE-IDENTICAL to the draft over the same 765: zero flips
+#: and zero changed sentences. That is the certified surface staying frozen,
+#: measured rather than asserted.
 #:
 #: WHY NOT A DIFFERENT TARGET-ZERO LEVEL: because no defensible one exists yet.
 #: Choosing one needs the engine's target MEASURED rather than emulated from
@@ -1506,10 +1528,18 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
     # bypass. Refused rather than clamped — a bar that cannot state a readable
     # level has not been applied, and an unapplied criterion is not a passed one.
     if not 0.0 < level < 100.0:
+        # THE CONSEQUENCE CLAUSE FOLLOWS THE DIRECTION. The first draft said
+        # "at 0 the criterion would pass everything it can measure" for every
+        # out-of-range value, including 100.1, where the opposite is true. A
+        # sentence that explains the wrong end of the range is the same defect
+        # this whole leg is about, at one tenth the scale.
+        why = ("at or below zero it would pass every reading it can measure, "
+               "which is an off-switch and not a bar" if level <= 0.0 else
+               "at or above 100 it could refuse a reading it measured "
+               "perfectly, which is a refusal and not a bar")
         out["reason"] = (f"the bar states a luck level of {level}%, which is "
-                         f"not a probability strictly inside (0, 100); a level "
-                         f"outside it is not a confidence, and at 0 the "
-                         f"criterion would pass everything it can measure")
+                         f"not a probability strictly inside (0, 100); "
+                         f"a level outside it is not a confidence, and {why}")
         return out, [
             f"the luck filter could not be applied: {out['reason']} — an "
             f"unapplied criterion is not a passed one, and a criterion turned "
@@ -1631,9 +1661,11 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
             # and a bar stated against zero here would be a disclosure about a
             # criterion nobody is applying.
             target = None
+            why_no_target = (ident.get("reason")
+                             or "this run carries no usable return series")
             out["engine_implied_target_note"] = (
                 f"the engine's target could not be recovered "
-                f"({ident.get('reason') or 'this run carries no usable return series'})")
+                f"({why_no_target})")
 
     # --- WHAT THE LEVEL DEMANDS, in the claim's own units ------------------
     bar: dict[str, Any] = {"measurable": False}
@@ -1651,9 +1683,27 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
         out["statistic"] = (
             "LEAN's published Probabilistic Sharpe Ratio, whose target is not "
             "zero and is not published")
-        if engine is None:
-            out["reason"] = ("the engine published no probabilistic Sharpe for "
-                             "this run")
+        # A GATE MUST RETURN A VERDICT, NEVER RAISE — and `engine` is a STORED
+        # value from `robustness.psr_pct`, which may have been written by an
+        # older belt, round-tripped through JSON, or truncated. Checked for
+        # PRESENCE AND FOR BEING A REAL NUMBER, exactly as the premia advantage
+        # block above is: a `None` check alone let a string reach
+        # `evaluated_pct >= level` and take the whole judgement down with a
+        # TypeError, and let a stored `true` be read as a probability of 1.0 —
+        # a bool is not a percentage, and `isinstance(True, int)` is how it got
+        # in. Verified by fuzzing the field: 'x', [] and {} all raised.
+        #
+        # THIS PATH IS PRE-EXISTING AND D37 IS WHY IT IS FIXED NOW: reverting
+        # `psr_basis` to `engine_reported` moves this field from an opt-in
+        # alternate onto the shipped default for every alpha verdict the fund
+        # produces. Found by the Gauntlet on the finished diff; the same class
+        # it found in this leg one dispatch ago.
+        if not isinstance(engine, (int, float)) or isinstance(engine, bool):
+            out["reason"] = (
+                "the engine published no usable probabilistic Sharpe for this "
+                "run" if engine is None else
+                f"the engine's stored probabilistic Sharpe is not a number "
+                f"({engine!r})")
         else:
             out["measurable"] = True
     else:
@@ -1694,10 +1744,13 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
                       f"series puts its target at an annualised Sharpe of "
                       f"{tgt:+.2f}, NOT at zero.")
         req = out.get("required_sharpe_annualised")
-        demanded = ("" if req is None or tgt is None else
-                    f" Clearing {level}% against that target demands an "
-                    f"annualised Sharpe of about {req:+.2f} on "
-                    f"{out.get('n_obs')} observations of this shape.")
+        # NAMED `demand`, not `demanded`: the target-zero branch below has its
+        # own `demanded` for a different sentence, and two clauses sharing one
+        # name in one function is how the next editor edits the wrong one.
+        demand = ("" if req is None or tgt is None else
+                  f" Clearing {level}% against that target demands an "
+                  f"annualised Sharpe of about {req:+.2f} on "
+                  f"{out.get('n_obs')} observations of this shape.")
         # Capitalised HERE and not in the field: the note is also a stored
         # `reason`, where a leading capital reads wrong, and it opens a sentence
         # here, where a leading lower case reads wrong. One string, two homes.
@@ -1718,7 +1771,7 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
         return out, [
             f"the engine's probabilistic Sharpe {out['evaluated_pct']}% is "
             f"below {level}%. THIS IS A SKILL HURDLE, NOT A LUCK TEST."
-            f"{identified}{demanded}{unstated}{luck_note}{ran}"]
+            f"{identified}{demand}{unstated}{luck_note}{ran}"]
     demanded = ("" if out.get("required_sharpe_annualised") is None else
                 f", which on {out.get('n_obs')} observations of this shape "
                 f"demands an annualised "
@@ -1743,7 +1796,7 @@ def _bar_from_moments(level: float, moments: Optional[dict[str, Any]]
 
     THE TARGET IS ZERO HERE AND CANNOT BE ANYTHING ELSE — stated rather than
     passed in, because a parameter that can only ever hold one value is a
-    decoration, and this one was: it survived mutation M13's sibling by being
+    decoration, and this one was: it survived the mutation pass (M15) by being
     unreachable. The caller only has a non-zero target under
     ``engine_reported``, which inverts it out of ``series`` — and the premia
     branch fills ``moments`` and leaves ``series`` empty, so there is nothing to
