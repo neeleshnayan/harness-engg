@@ -337,6 +337,22 @@ test("fccb9cf3: EVERY page passes its OWN failure flag — a literal there is a 
   }
 });
 
+test("fccb9cf3: the CEO desk HANDS its derived state to the two folds that "
+  + "choose a sentence from it — a literal argument there renders one state's "
+  + "words in both, which is the ticket, and it survived a mutation pass", () => {
+  /* THE CEILING THIS TEST SITS AT, stated rather than implied: node's runner
+   * refuses `.tsx`, so a call inside JSX can only be checked as source text.
+   * The rendered proof for these two lines is the browser pass in the
+   * dispatch report, not this file. */
+  const src = strip(CEO);
+  assert.ok(src.includes("{shelfAbsenceNote(deskRead)}"),
+    "the shelf sentence must be chosen from the state the page derived");
+  assert.ok(!/shelfAbsenceNote\(\s*"/.test(src),
+    "a literal read state pins the sentence to one branch for ever");
+  assert.ok(src.includes("{heroFigure(headline)}"),
+    "and the hero figure from the one fold");
+});
+
 test("fccb9cf3: no page decides an UNREADABLE sentence from a bare null any "
   + "more — the expression that caused the incident is gone from the CEO "
   + "desk's shelf line, its lane (a) and the seat page's ask list", () => {
