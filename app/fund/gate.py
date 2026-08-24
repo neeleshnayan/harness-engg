@@ -1924,7 +1924,9 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
         # not 1.00. Measured on all 339 stored results carrying a usable series:
         # obs_per_year 365.25 on every one of them, so the hurdle reads 1.2039
         # on every one of them (min = median = max; reproduce
-        # `scratchpad/d41probe/clocks.py`). It is COMPUTED rather than written
+        # `scripts/instruments/d41/clocks.py`, which null-tests itself: an
+        # exact-252 series must read 1.000000 there or this whole paragraph is
+        # measuring something other than the clock). It is COMPUTED rather than written
         # because a series sampled any other way faces a different number, and
         # a constant here would be a fact about today's belt wearing the clothes
         # of a fact about the engine.

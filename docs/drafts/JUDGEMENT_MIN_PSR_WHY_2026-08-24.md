@@ -43,15 +43,23 @@ had to be corrected for saying a true thing in the wrong units, which is worth
 recording: the register is where a threshold's reason is supposed to be
 checkable, and a reason on the wrong clock is not checkable.
 
-## WHAT CHANGED BETWEEN THE D37 DRAFT AND THIS ONE, stated first
+## WHAT CHANGED BETWEEN THE D37 DRAFT AND THE D38 ONE — the first correction
 
 The D37 draft said the criterion applies **"not one hurdle but a different one
 for every candidate"**, running from an annualised Sharpe of 1.17 to 2.26 with
 a median of 1.695, and it built the whole `why` and the whole reopening path on
 that. **That was wrong, and the error was ours, not the engine's.** The spread
-was an artifact of the fund's own inversion. The hurdle is a CONSTANT and it is
-published — in LEAN's source rather than in its statistics block, which is a
-different thing from unpublished and the D37 draft conflated the two.
+was an artifact of the fund's own inversion. The engine's TARGET is a constant
+per observation and it is published — in LEAN's source rather than in its
+statistics block, which is a different thing from unpublished and the D37 draft
+conflated the two.
+
+(Note the word, since D41 turns on it: the per-observation TARGET is constant.
+The annualised HURDLE that constant implies is not — it depends on how often
+the series being judged was sampled, which is the correction above. The D37
+spread was false because it varied with the candidate's own volatility and
+risk-free rate; a hurdle that varies with the candidate's SAMPLING RATE is a
+different and real thing.)
 
 A draft that survived one review round and was refuted by the next is worth
 saying out loud, because the refuted text was one chair action away from
@@ -132,23 +140,31 @@ fund's runs hand it `listPerformance` sampled once per CALENDAR day — a run of
 zeros across every weekend — so the annualisation factor is not 252.
 
 `statistics.observations_per_year` derives the rate from each run's own dates as
-`(n - 1) / (span_days / 365.25)`; the `n - 1` is the interval count, and using
-`n` instead would overstate the rate by 1/(n-1) (0.29% on a 350-observation
-series — which is where a "366.3" reading of this same population comes from).
-Over **every stored belt result carrying both a series and readable dates
-(n = 339)**:
+`(n - 1) / (span_days / 365.25)`, where `n - 1` is the INTERVAL count. Over
+**every stored belt result carrying both a series and readable dates (n = 339)**:
 
 | quantity | min | median | max |
 |---|---|---|---|
 | observations per year | 365.25 | **365.25** | 365.25 |
+| the same, if divided by `n` instead of `n - 1` | 365.43 | *366.25* | 368.35 |
 | the hurdle on that clock (annualised excess Sharpe) | 1.2039 | **1.2039** | 1.2039 |
 | what 65% demands on that clock | 1.3659 | **1.5853** | 2.0135 |
 
-Reproduce: `<scratchpad>/d41probe/clocks.py <ClarkHarness-tree>`, which also
-carries its own NULL TEST — a synthetic series with exactly 252 observations a
-year must put the hurdle at exactly 1.000000, and a business-day series reads
-261.04 observations a year and a hurdle of 1.0178. Without that arm the table
-above cannot distinguish "measured the clock" from "printed a constant".
+The second row is in the table on purpose. A figure of **"366.3" has been quoted
+for this same population**, and it is not a different measurement — it is the
+`n`-instead-of-`n-1` convention, which overstates the rate by 1/(n-1) and which
+`observations_per_year`'s own docstring rejects with that reason. Printing both
+means nobody has to reconstruct which convention produced which number, which
+is how the two got confused in the first place.
+
+Reproduce: `scripts/instruments/d41/clocks.py <tree> [jobs.json]`. It carries
+its own NULL TEST — a synthetic series with exactly 252 observations a year
+must put the hurdle at exactly 1.000000, and a business-day series reads 261.04
+observations a year and a hurdle of 1.0178. Without that arm the table above
+cannot distinguish "measured the clock" from "printed a constant". It also
+REFUSES when the jobs dump is missing rather than printing bands over zero rows,
+because an empty population and a perfectly uniform one look identical in a
+min/median/max table — which is exactly what the first row of this table is.
 
 **Min = median = max is not a coincidence and must not be read as a law about
 the engine.** It is what one-observation-per-calendar-day looks like when

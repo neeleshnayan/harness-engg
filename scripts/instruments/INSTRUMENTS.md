@@ -23,6 +23,7 @@ constants at the top before running; none of these touch money paths.
 | `adv23/probe8.py` (+probe2) | Zero-skill Dirichlet false-pass census in the belt's own window geometry; probe8c arm samples the cash-heavy population a kill describes. | adversary D23 / builder D29 |
 | `adv23/astdiff_d24.py` | AST-diff with constants between two revs: which symbols changed, added, removed. Repoint the two revs and run. | adversary D22 |
 | `identity_dump.py` | 62-case alpha-verdict byte-identity dump (base worktree vs head) — the builder's half of the identity proof. | builder D23 |
+| `d41/clocks.py` | **Which clock the belt's stored series actually run on**, and what LEAN's per-observation PSR target is worth on it: obs/year, the hurdle, and what a level demands, over every stored result with readable dates — plus the `n` vs `n-1` convention side by side, because the two have been confused for one population. Null-tests itself (an exact-252 series must read 1.000000) and REFUSES on a missing dump rather than printing bands over zero rows. Cited by the `min_psr_pct` register draft. | builder D41 |
 | `mutate_d23.py` / `mutate_d24.py` / `d27mutate.py` | Mutation harnesses (byte-exact restore, CRLF-aware, git-status check). Copy the pattern, swap the mutant table. | builders D23/D24/D27 |
 
 ## Desk & store instruments
@@ -41,6 +42,7 @@ constants at the top before running; none of these touch money paths.
 | `d29/suite_when_free.sh` | Self-limiting suite runner: polls the belt lock, respects the 1.5 GB RAM floor, takes/releases `.suite_running`, writes a verdict file. THE pattern for heavy runs beside heavy neighbours. | builder D29 |
 | `cdp_strict.js` | Occlusion probe that intersects every clipping ancestor's rect before elementFromPoint — the honest click-interception count (its naive predecessor over-counted 30×). | builder D28 |
 | `cdp28.js` | CDP viewport/geometry sweep across widths for the Studio shell. | builder D28 |
+| `stale_pyc_scan.py` | **Does this tree SERVE bytecode its source denies?** Recompiles every source with the import machinery's own settings and names the first differing node with both values. Separates POISONOUS (invalidation key intact — Python will run it) from stale-not-served. RUN IT AFTER ANY MUTATION PASS: a same-length in-place edit (`1.0`->`1.1`) restored within one second leaves mtime and size unchanged, so the mutant is served to every later test while `git status` reads clean. Twelve red tests, no defect. | builder D41 |
 
 ## Data instruments
 
