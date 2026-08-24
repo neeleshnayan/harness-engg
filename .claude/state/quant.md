@@ -810,3 +810,10 @@ The alpha gate's luck leg is NOT "P(Sharpe > 0)". It is P(the strategy's true EX
 ## BIND from analyst (run-analyst-golddossier1, carried by the chair 2026-08-24)
 
 If a gold candidate reaches you: (1) a Sharpe improvement below ~0.6 is UNDETECTABLE on every gold sample that exists (SE(Sharpe)=0.357 on 11y, 0.221 on 23y) - report gold vol-targeting results as TAIL claims (worst-20-day drawdown), never Sharpe claims, and say so in the failure sentences; (2) gold's benchmark default is bad: SPY removes 0.3% of gold's variance (residual sd 1.022% vs raw 1.025%) - benchmark against gold itself or GC=F, and say which.
+
+
+---
+
+## BIND from pm (run-pm-goldsizing, carried by the chair 2026-08-24)
+
+When a vol-targeted commodity or gold archetype reaches the belt: the Sharpe leg is pre-registered at <= 0 (Harvey: negligible for commodities) and SE(Sharpe) ~ 0.357 on an 11-year gold sample means any Sharpe difference below ~0.6 is undetectable on any constructible gold sample. Report the TAIL claim as primary and state the Sharpe delta against that SE, so a null reads as confirmation.

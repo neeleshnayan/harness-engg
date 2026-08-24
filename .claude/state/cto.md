@@ -948,3 +948,37 @@ live in local worktrees and bundles until merged, and their work reaches
 the vault ONLY as reviewed merges on the mainline. 38 scaffolding branches
 pruned 2026-08-24. Backups cannot ride GitHub (GH001 >100MB) — local disk
 until the CEO picks an offsite (LFS or drive; his account decision).
+
+
+---
+
+## 2026-08-24 — Stan's gold review resolved + three standing items
+
+1. **THE ENTRY FREEZE (Stan G4, adopted as a standing chair flag)**: no new
+   position in DBA/DBC/GLD/INTC/MSFT/NVDA/SOFI/SPY/TLT/XLE until R39's
+   reconciliation lands - any exit rule on them is unexecutable at entry
+   (the 1e-6 drift check vs a 0.424471 orphan) and self-disarms on first
+   fire. Lifts automatically when /fund/venue/reconcile reads in_sync.
+2. **THE KNOWN EXCURSION (Stan G6, recorded)**: gross is $10.39 over the
+   throttled target, third consecutive review. Deliberately NOT trimmed -
+   R39 resets gross wholesale (45.58% post-Phase-4, compliant for the
+   first time). Re-check at R39 completion. A display-only control ignored
+   without comment three times stops being a control; this comment is the
+   record.
+3. **E-G4 CLOSED BY MEASUREMENT**: the two execution-cost numbers were
+   different populations - executed-alpaca-venue median 4.0bps / mean 10.6
+   (n=15); '38-308bps' mixed simulated + never-submitted legs (271-1702bps
+   incl. the phantom); D35's 2.89 was the 7 cleanest. The honest figure
+   for governing decisions is ~4-10bps executed-venue. Grace's O4-adjacent
+   lesson: STATE THE POPULATION next to any cost figure.
+4. **THE CONTEXT DIET (CEO: Stan 'should be only reading the
+   recommendations pointed to him not the whole firm universe')**: a
+   seat's inputs are its seat file, its chair-curated memory, the
+   artifacts its brief NAMES, and the live surfaces of its lane. Whole
+   peer memos enter only when the chair stages a WHERE-I-DIFFER pass on a
+   named shared decision - and then the brief cites the specific
+   run/section, never 'the memos are on the record'. The Vishesh<->Grace
+   full-read stays the exec-table's own design; everyone else gets
+   excerpts. (What Stan actually did was the staged form - view first,
+   one targeted pass - and it produced the throttle-vs-cost disagreement
+   and the E-G4 catch; the discipline now makes that the ONLY form.)

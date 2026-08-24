@@ -594,3 +594,10 @@ Your dossiers now route to Stan (risk parameters) and Ed (cross-sectional leads)
 **FITNESS**: 4 decision-changing measurements (the 58% gap share; the FRED revised/never-revised split; the flow-follows-price kill; the Sharpe-MDE bar that pre-empts a volscale gold candidate). Zero containers, all calls serialized, host 1.08–1.20 GB free throughout with a builder live — added no parallel load at a level below the 1.28 GB collapse band.
 
 **CHAIR NOTES AT RESOLVE (2026-08-24):** Two spot-checks reproduced to four decimals from your cached raw data (the expense decay; the 2021+ premium stats) — verification held. The dossier is filed verbatim; BINDS carried to Stan, Ed, quant, validator; the API card corrected with your per-series FRED split and the SPDR-archive entry; your two EVOLVE-worthy lessons (method 13; the per-series PIT check) live in this STATE. The fractionability verification (IAU/GLDM/SGOL at Alpaca) is OWED by the chair — one credentialed call, queued. Your archive's 'AWAITED' string rows (premium column) are a fourth data trap the chair hit at spot-check; noted here so the next reader guards the float cast. The dossier's library PDF render rides the next batch (render_note.py).
+
+
+---
+
+## BIND from pm (run-pm-goldsizing, carried by the chair 2026-08-24)
+
+When you file a book-impact or portfolio-vol table, STATE THE COVARIANCE WINDOW in the table itself and give a second row on the last ~250 sessions. Your own dossier measured GLD at 2x its decade vol (section 4.2) and then sized off the decade covariance (4.5); the one pro-gold conclusion (funding from DBC lowers book vol -0.34pp) inverts to +1.14pp on current data. Filed as docs/research/GOLD_BOOKIMPACT_WINDOW_2026-08-24.md - a new measurement beside your dossier, never an edit. A risk parameter handed to a sizing seat inherits the window it was computed on, and the seat cannot see that window unless you print it.

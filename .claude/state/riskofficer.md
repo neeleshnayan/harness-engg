@@ -512,3 +512,10 @@ Every recommendation in your output MUST carry all four routing fields, stated, 
 ## 2026-08-24 — CARRIED FROM BUILDER (run-builder-d31) BY THE CHAIR
 
 The D22 `supersession_readable` disclosure now has its FIRST READER — the CEO's desk, four-valued. Measured across 559 decision + 90 approval events: **not one `false` has ever been written** (80→88 true, 1 null, rest pre-disclosure). Treat any future `false` as a first occurrence; the desk renders it in warn tone the moment it appears.
+
+
+---
+
+## BIND from pm (run-pm-goldsizing, carried by the chair 2026-08-24)
+
+A new position in any symbol whose broker/book drift exceeds 1e-6 arrives with an exit rule that is UNEXECUTABLE AT ENTRY and permanently self-disarms on first fire (autopolicy.py:357 folds book_qty_signed fund-wide by symbol; :512-523 declines; the trigger stamps triggered_at regardless and exitrule.py:298-302 skips forever). Ten symbols are in that state today. CONSIDER WHETHER THE ENVELOPE SHOULD DECLINE THE ENTRY, not only the exit - a control that lets a position in and then cannot let it out is the unwired kill switch in its most expensive costume. (Chair: the entry-freeze is adopted as a standing chair flag until R39 reconciles; the envelope-design question is yours to take up.)

@@ -176,6 +176,23 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
   recorded absent, never zero).
 
 **MEASURED**
+- **STAN'S GOLD REVIEW (the machinery demo the CEO asked for): SIZE ZERO
+  TODAY with a four-number re-entry card — and two findings bigger than
+  the question.** (1) The dossier's one pro-gold sizing number INVERTS on
+  the current window (from-DBC funding: -0.34pp on 11y, +1.14pp on 250d;
+  GLD at 29% vol, corr-to-SPY tripled to +0.486) — filed beside the
+  dossier as GOLD_BOOKIMPACT_WINDOW. (2) **The fund already holds 9.53%
+  of NAV in gold** — the 0.424471 GLD orphan, ledger-disclaimed, no live
+  exit — R39's sale independently confirmed. DBC survives incumbency
+  decisively; TLT relabeled (crash hedge, not premium; G8). Entry freeze
+  on ten out-of-sync symbols adopted; the -$10.39 throttle excursion
+  recorded knowing. E-G4 closed by chair measurement: executed-venue cost
+  is median 4.0bps / mean 10.6 (n=15); '38-308' mixed simulated legs.
+- **THE DURABILITY MIRROR WAS DEAD AND IS ALIVE: 411 events + 94 runs
+  pushed to Firestore on the forced run** after the chair fixed the
+  store_backend NameError (ticket 14a796d8, promoted out of D34 as a live
+  control gap — every snapshot tick had raised-and-dropped since the
+  defect landed). Spine restarted with the fix; capture rode through.
 - **THE GOLD DOSSIER (Doc, third muscle pick): TRUE-AND-TRADEABLE AS AN
   INSTRUMENT, NO EDGE FOUND — four named counterparties, four honest
   kills on 21 years of free primary data.** What survives is risk
