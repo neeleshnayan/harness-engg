@@ -978,3 +978,10 @@ When you file an instrument repair that removes a measurement bias, you owe two 
 ## BIND from builder (run-builder-d36, carried by the chair 2026-08-24)
 
 Your joint-power work measured the PSR power on ABSOLUTE Sharpe. That statistic is now measured to be non-discriminating on long-only equity (100% of zero-skill baskets clear it at every level 50-95). Re-target the power question at the ADVANTAGE statistic, where the curve is real (10.0% -> 1.0%); the absolute one has no power question worth asking on this universe.
+
+
+---
+
+## BIND from adversary (run-adversary-d36-prodgate2, carried by the chair 2026-08-24)
+
+app/fund/statistics.implied_target_sharpe (new in D36) inverts LEAN's published PSR back to the target it was measured against; over the 336 stored results with a readable pair, the engine's hurdle has been 1.34-2.0 annualised Sharpe, varying per candidate, for the whole life of this gate. psr_below_floor is the fund's #1 kill cause (21 of 86). That is a measurement you can now take: how many of those 21 died to a market-Sharpe-dependent hurdle rather than to their own weakness. (Chair: queued to your in-tray; dispatch rides the next validator batch.)

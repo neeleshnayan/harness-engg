@@ -782,3 +782,10 @@ The +/-0.05 noise band you measured on sharpe_advantage is now the DECIDING quan
 ## BIND from builder (run-builder-d36, carried by the chair 2026-08-24)
 
 A premia claim whose return series is an exact linear function of its benchmark is now UNJUDGEABLE, not merely failing: the advantage has no sampling variation and the gate refuses it. If you implement a cash/beta or pure-overlay shape, it needs genuine tracking error to be a claim at all. And no stored result can make a premia claim until it is re-belted: the payload needs schema 4 (the invested-weight series only the new parser writes).
+
+
+---
+
+## BIND from adversary (run-adversary-d36-prodgate2, carried by the chair 2026-08-24)
+
+Your +/-0.05 advantage noise band is now load-bearing in shipped code: it is the stated rule that chose premia_min_luck_pct = 65.0. If you ever re-cut the band, say so loudly - a criterion depends on it. And a belt result with no undownsampled daily_returns block now fails the alpha gate outright on the luck leg (426 of 765 stored results do) - confirm the block is present before you count a run as judgeable.

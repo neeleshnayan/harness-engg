@@ -757,3 +757,47 @@ filename) — fixed at head, archive tests iterate daily_stems(); Donna
 shape is now in the test contract. D36 merge WAITS on the adversary
 blind. Post-merge queue: premia re-belts are schema-4 gated; 739b5ac9
 rides the next builder dispatch (both-arms rule); D34 batch follows.
+
+
+---
+
+## 2026-08-24 — THE FALSIFIER FIRED: the PSR level ruling resolves to its own pre-committed fallback
+
+The adversary killed D36's alpha luck level (narrow - one constant,
+everything else certified): the calibration's emulated engine target was
+estimated from 4 candidates at the 4th-27th percentile of the fund's own
+336-candidate population; at the population median (0.0909 - reached
+independently by the calendar/session clock factor 0.0755 x 1.2039) the
+calibration's own rule selects 99.9, and its own exit path prints the
+ruling's falsifier sentence.
+
+**THE RULING'S PRE-COMMITTED PATH EXECUTES: no defensible target-0 level
+exists on current evidence, so the ENGINE-REPORTED statistic stays at 65.0
+with the CORRECTED SENTENCE** (the sentence fix was always unconditional -
+the gate now SAYS it demands an implied annualised Sharpe of ~1.34-1.51,
+instead of calling it luck). Everything the blind certified ships
+unchanged: the statistics module, both-value capture, the premia advantage
+filter at 65.0, the credit off with its margin table, schema 4. My earlier
+tie-break declination is MOOT on new evidence - the "non-discriminating"
+finding was an artifact of the too-weak emulation target and a
+cash-diluted population; at corrected targets on invested populations the
+engine hurdle does real work (+10.67pp on one cell).
+
+**The honest open question graduates to an EXPERIMENT (v2 lane, queued):**
+pin the engine's actual PSR target by running ONE LEAN container over a
+synthetic series on the same clock as the calibration draws - the
+adversary's own what-would-change-my-mind. Until that measurement exists,
+no target-0 level claim is admissible.
+
+**Register action (chair, at D37 merge)**: the min_psr_pct entry keeps
+65.0; its why/falsified_by are rewritten to describe the engine statistic
+truthfully (implied target varies per candidate 1.34-2.0; the register
+entry must say so, not describe a 57% null audit of a different statistic).
+
+**Lessons, mine**: (1) when a rule's input is an estimate, sweep the
+estimator over the WHOLE population before believing its "measured range"
+- the ruling said "calibrated = lowest holding FP" and never said against
+which estimate of the shipped arm; the pre-committed falsifier saved it.
+(2) The kill->repair->clear loop's eighth iteration: D37 dispatched with
+the certified surface frozen and only the level + residual doc defects in
+scope.

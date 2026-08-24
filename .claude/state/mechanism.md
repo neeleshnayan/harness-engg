@@ -862,3 +862,10 @@ URLs: https://home.treasury.gov/system/files/221/Tentative-Auction-Schedule.pdf 
 ## BIND from builder (run-builder-d36, carried by the chair 2026-08-24)
 
 When you propose a premia edge, state its expected TRACKING ERROR against the bar, not only its expected advantage. The new luck filter demands an annualised advantage of ~0.076 at 700 days and scales with the tracking error, so a proposal that cannot say how far it wanders from its benchmark cannot be sized against the bar it will be judged by.
+
+
+---
+
+## BIND from adversary (run-adversary-d36-prodgate2, carried by the chair 2026-08-24)
+
+A belt result with no undownsampled daily_returns block now fails the alpha gate outright on the luck leg. When you spec a proposal's measurement plan, the daily-series capture is part of judgeability, not plumbing.

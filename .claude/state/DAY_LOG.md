@@ -67,6 +67,19 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
   do not enter a blind envelope.
 
 **BUILT**
+- **The blind on D36 + pack v2 returned: KILL (narrow - ONE constant) /
+  CANNOT TELL (two legs clean).** The 50.0 level rested on an emulation
+  target estimated from 4 of 336 candidates; the population median flips
+  the calibration's own answer to 99.9, and the clock-units factor
+  (365-day engine series vs 252-session draws, x1.2039) reaches the same
+  0.0909 independently. **The PSR ruling's pre-committed falsifier FIRED:
+  the engine statistic stays at 65.0 with the corrected sentence** - and
+  everything the blind certified (statistics module, premia advantage
+  filter, credit-off, schema 4; 765 stored results re-judged, zero flips)
+  ships unchanged. D37 repair pass dispatched (certified surface frozen);
+  pack v3 filed with exactly the adversary's two named repairs; the
+  proper engine-target measurement queued as a v2-lane experiment (one
+  LEAN container over a synthetic series - no more emulation).
 - **D36 RETURNED: gate v4.4 / premia v5r4 — the PSR repair delivered and
   measured.** The honest sentence; the luck filter on our own module;
   min_psr_pct 65→50 by the ruling's own rule (the falsifier did NOT
