@@ -120,7 +120,19 @@ def _plant(tmp_path: pathlib.Path, before: str, after: str,
     `keep_key=True` restores the original mtime, so the invalidation key still
     matches and Python would serve the stale cache. `keep_key=False` leaves the
     new mtime, which is the harmless case Python self-corrects.
+
+    THE LENGTH CHECK LIVES HERE, not in the caller. The key has two halves and
+    restoring the mtime only fixes one: a swap that changes the byte SIZE
+    invalidates the cache no matter what the clock says, and this helper would
+    then quietly hand back a harmless fixture while its docstring promised a
+    poisonous one. A future caller with a one-character-longer mutant would
+    have got a passing test that proved the opposite of its name.
     """
+    if keep_key and len(before.encode()) != len(after.encode()):
+        raise AssertionError(
+            "a plant that keeps the invalidation key must not change the byte "
+            f"size ({len(before.encode())} -> {len(after.encode())}); Python "
+            "checks size as well as mtime, so this fixture would be harmless")
     src = tmp_path / "planted.py"
     src.write_text(before, encoding="utf-8")
     py_compile.compile(str(src), cfile=str(sps.cached_path(src)), doraise=True)
