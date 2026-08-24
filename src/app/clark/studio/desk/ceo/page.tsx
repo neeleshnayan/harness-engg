@@ -31,9 +31,14 @@ import { ClarkMarkdown } from "../../components/ClarkMarkdown";
 import { blockedRecs } from "../deskEngine";
 import { BriefingsShelf, Fold, SupersessionNotice } from "../EngineViews";
 import { steeringSentence } from "../deskSteer";
+import {
+  ClickFeedback, adjudicationOf, cardText, cascadeChip, cascadeOf,
+  looksUnreadable, rowLamp, supersededBy,
+} from "../cardState";
 import { deskLanes } from "../deskLanes";
 import type { LineageSources } from "../lineage";
 import { LaneBlock, LineageInline } from "../DeskLaneViews";
+import { RequestCardBody } from "../RequestCard";
 
 /**
  * The CEO's desk — A DECISION LIST, and everything else behind a named door.
@@ -843,28 +848,50 @@ function RecCard({ item, onDecide, sources }: {
   sources: LineageSources;
 }) {
   const r = item.rec!;
-  const parts = memoParts(r.text);
+  /* THE DISPLAY LINE, NOT THE STORED ONE. Two rows on his live desk were
+     rendering as a raw Python dict repr; `cardText` prefers the spine's
+     repaired `text_display` and falls back to the stored value unchanged. */
+  const display = cardText(r);
+  const parts = memoParts(display.headline);
   const [open, setOpen] = useState(false);
   /* Separate from `open`: the rest of a memo and the chain behind it are
      different questions, and one toggle for both would make a reader open the
      prose to see the provenance. */
   const [chain, setChain] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<ClickFeedback>({ state: "idle" });
   const scale = cardStyle(item.reversibility);
+  const adj = adjudicationOf(r);
+  const superseded = supersededBy(r);
+  const cascade = cascadeOf(r);
+  const chip = cascadeChip(cascade);
+  const lamp = rowLamp(item, feedback);
+  /* The detail behind the toggle: whatever the spine extracted from a dict
+     payload, else the rest of the prose. Never both — a card that showed the
+     paragraph twice is how the old one earned "an infinite scroll". */
+  const rest = display.detail ?? parts.rest;
 
   const decide = async (status: "accepted" | "rejected") => {
-    setBusy(true);
-    setErr(null);
+    setFeedback({ state: "sending" });
     try {
       await fundApiClient.decideRecommendation(r.run_id, r.rec_id,
                                                { status, actor: "ceo" });
+      /* OPTIMISTIC **AND** REFETCHED, IN THAT ORDER, AND THE ORDER IS THE
+         FIX. The refetch pulls seven endpoints and does not reliably finish
+         inside a second; the CEO's stated acceptance criterion is that a
+         successful click looks different within one. So the lamp changes on
+         the response — which is the moment the spine actually recorded it —
+         and the refetch then replaces the optimistic sentence with the folded
+         truth. Neither alone is enough: optimism without the refetch is a
+         page that believes itself, and a refetch without optimism is the
+         silence he complained about. */
+      setFeedback({ state: "landed", status,
+                    at: new Date().toISOString() });
       await onDecide();
     } catch (e) {
       // A decision that failed must not look like a decision that landed.
-      setErr(e instanceof Error ? e.message : "the spine did not record it");
-    } finally {
-      setBusy(false);
+      setFeedback({ state: "failed",
+                    message: e instanceof Error ? e.message
+                      : "the spine did not record it" });
     }
   };
 
@@ -873,17 +900,70 @@ function RecCard({ item, onDecide, sources }: {
       <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
         {item.dueDate && <DueChip date={item.dueDate} />}
         <p className={`min-w-0 flex-1 ${scale.text}`}>{parts.headline}</p>
-        <span className="flex shrink-0 gap-2">
-          <button type="button" disabled={busy} onClick={() => decide("accepted")}
-                  className={`${KT.btn} disabled:opacity-40`}>
-            {busy ? "…" : "Accept"}
-          </button>
-          <button type="button" disabled={busy} onClick={() => decide("rejected")}
-                  className={`${KT.btnGhost} hover:border-[var(--kt-down)] hover:text-[var(--kt-down)] disabled:opacity-40`}>
-            Reject
-          </button>
+        <span className="flex shrink-0 items-center gap-2">
+          {lamp.showButtons ? (
+            <>
+              <button type="button" disabled={feedback.state === "sending"}
+                      onClick={() => decide("accepted")}
+                      className={`${KT.btn} disabled:opacity-40`}>
+                Accept
+              </button>
+              <button type="button" disabled={feedback.state === "sending"}
+                      onClick={() => decide("rejected")}
+                      className={`${KT.btnGhost} hover:border-[var(--kt-down)] hover:text-[var(--kt-down)] disabled:opacity-40`}>
+                Reject
+              </button>
+            </>
+          ) : null}
+          {lamp.label && (
+            /* THE ONE-SECOND ANSWER. Hierarchy from type and space, never
+               colour — the only exception is a genuine failure, which is
+               semantic. */
+            <span className={`font-mono text-[10px] ${
+              lamp.tone === "failed" ? KT.down : KT.muted}`}>
+              {lamp.label}
+            </span>
+          )}
         </span>
       </div>
+
+      {/* WHAT HE ALREADY DECIDED, AND WHEN. `decided_at` was in the store and
+          not in the projection, so no surface could say it. This line is the
+          difference between "your click landed" and silence. */}
+      {adj && (
+        <p className={`mt-1 text-[11px] ${KT.muted}`}>
+          {adj.label}
+          {adj.at ? ` · ${fmtAt(adj.at)}` : ""}
+          {adj.instruction ? ` · “${adj.instruction}”` : ""}
+        </p>
+      )}
+
+      {/* THE ROW IS BROKEN AND SAYS SO. A stored payload no fold could read
+          renders as a warning, never as a tidy blank — the CEO seeing that a
+          row is unreadable is strictly better than him seeing nothing. */}
+      {looksUnreadable(r) && (
+        <p className={`mt-1 text-[11px] ${KT.down}`}>
+          This row was filed as a data payload with no readable headline. The
+          text below is the record verbatim.
+        </p>
+      )}
+
+      {/* WHAT REPLACED IT. Rendered only when the note NAMED its superseder:
+          six of ten "superseded" mentions in the record are boilerplate about
+          something else, and a wrong link looks exactly like a right one. */}
+      {superseded && (
+        <p className={`mt-1 text-[11px] ${KT.muted}`}>
+          Superseded by <span className="font-mono">{superseded.ref}</span>
+          {" — "}<span className="italic">{superseded.quote}</span>
+        </p>
+      )}
+
+      {/* THE CASCADE, AS A REMINDER AND NOTHING ELSE. No control on this line
+          executes anything; the chair validates each member against the
+          record and then acts, exactly as the constitution says. */}
+      {chip && (
+        <p className={`mt-1 text-[11px] ${KT.muted}`}>{chip}</p>
+      )}
 
       <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
         <ProvenanceChip kind="agent" seat={r.seat} recId={r.rec_id} />
@@ -898,10 +978,20 @@ function RecCard({ item, onDecide, sources }: {
         <span className={`min-w-0 flex-1 font-mono text-[10px] ${KT.muted}`}>
           {rankReason(item)}
         </span>
-        {parts.rest && (
+        {rest && (
           <button type="button" onClick={() => setOpen((v) => !v)}
                   className={`font-mono text-[10px] ${KT.accent} hover:underline`}>
             {open ? "− less" : "+ the rest"}
+          </button>
+        )}
+        {/* THE CITATION, ONE CLICK AWAY (CEO, 2026-08-24: "I cant form a view
+            of whats closed and adjudicated by you"). It rides the existing
+            details toggle rather than adding a third one: a chair disposition
+            and its reason are one thing to read, not two. */}
+        {adj?.citation && (
+          <button type="button" onClick={() => setOpen((v) => !v)}
+                  className={`font-mono text-[10px] ${KT.accent} hover:underline`}>
+            {open ? "− reason" : "+ the reason"}
           </button>
         )}
         {/* THE CHAIN, on the row that carries the click. Where a decision
@@ -914,20 +1004,26 @@ function RecCard({ item, onDecide, sources }: {
         </button>
       </div>
 
-      {open && parts.rest && (
-        <p className={`mt-2 border-t border-[var(--kt-border)] pt-2 text-[12px] leading-relaxed ${KT.body}`}>
-          {parts.rest}
-        </p>
+      {open && (rest || adj?.citation) && (
+        <div className="mt-2 border-t border-[var(--kt-border)] pt-2">
+          {rest && (
+            <p className={`text-[12px] leading-relaxed ${KT.body}`}>{rest}</p>
+          )}
+          {adj?.citation && (
+            <p className={`${rest ? "mt-2" : ""} text-[12px] leading-relaxed ${KT.muted}`}>
+              <span className="font-mono text-[10px]">{adj.actor}: </span>
+              {/* VERBATIM AND UNTRUNCATED. A chair that paraphrased its own
+                  reason on the surface auditing that reason would be marking
+                  its own homework. */}
+              {adj.citation}
+            </p>
+          )}
+        </div>
       )}
       {chain && (
         <LineageInline
           anchor={{ kind: "rec", runId: r.run_id, recId: r.rec_id }}
           sources={sources} />
-      )}
-      {err && (
-        <p className={`mt-1.5 text-[11px] ${KT.down}`}>
-          Not recorded: {err} — the recommendation is still open.
-        </p>
       )}
     </div>
   );
@@ -1373,6 +1469,7 @@ function AskRow({ ask, onDecided, sources }: {
   const [busy, setBusy] = useState<"approve" | "decline" | null>(null);
   const [declining, setDeclining] = useState(false);
   const [chain, setChain] = useState(false);
+  const [incident, setIncident] = useState(false);
   const [reason, setReason] = useState("");
   const [err, setErr] = useState<string | null>(null);
 
@@ -1405,14 +1502,23 @@ function AskRow({ ask, onDecided, sources }: {
     ask.stage === "declined" ? "declined"
       : ask.stage === "cleared_to_trigger" ? "cleared — CTO will trigger"
         : "awaiting you";
-  const mine = ask.stage === "awaiting_ceo";
+  /* THE BUTTONS FOLLOW THE LIFECYCLE, NOT THE ROUTING. `stage` decides where
+     the ask is placed and whether it is counted as his; `approvable` decides
+     whether the control exists at all. They were one flag until 2026-08-24,
+     when routing an open request to the chair silently took the CEO's approve
+     button off his own page — a removed control, found by looking. */
+  const mine = ask.approvable;
+  const emphasised = ask.stage === "awaiting_ceo";
 
   return (
-    <div className={`${KT.panel} ${mine ? "p-4" : "p-3"} ${
+    <div className={`${KT.panel} ${emphasised ? "p-4" : "p-3"} ${
       ask.stage === "declined" ? "opacity-60" : ""}`}>
       <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
-        <p className={`min-w-0 flex-1 ${mine ? "text-[14px] leading-relaxed" : "text-[13px] leading-snug"}`}>
-          {ask.subject || (
+        <p className={`min-w-0 flex-1 ${emphasised ? "text-[14px] leading-relaxed" : "text-[13px] leading-snug"}`}>
+          {/* QUESTION 1: WHAT IS THIS. The headline, never the first line of a
+              dump — for a prose ask the spine gives the subject's first LINE
+              untouched, and the whole subject stays behind the toggle. */}
+          {ask.card.headline || ask.subject || (
             <span className={KT.sev.warn}>
               this ask recorded no subject — unreadable, not empty
             </span>
@@ -1448,6 +1554,12 @@ function AskRow({ ask, onDecided, sources }: {
             ? ` · declined by ${ask.declinedBy}${ask.declinedAt ? ` · ${fmtAt(ask.declinedAt)}` : ""}`
             : " · declined — the decline event recorded no actor")}
       </p>
+      {/* QUESTIONS 2, 3 AND 4 — where it stands, what is owed, whose move.
+          The rail carries the age of the CURRENT stage, which is the sentence
+          the old card buried: request 0c295ec7 was approved 22 minutes after
+          filing and then sat idle 2.5 days. */}
+      <RequestCardBody card={ask.card} subject={ask.subject}
+                       open={incident} onToggle={() => setIncident((v) => !v)} />
       {sources && (
         <button type="button" onClick={() => setChain((v) => !v)}
                 aria-expanded={chain}

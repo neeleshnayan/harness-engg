@@ -1124,7 +1124,7 @@ export interface DeskView {
   open_recommendations: (DeskRecommendation & {
     run_id: string; task: string; artifact_path?: string | null;
     trace_id?: string | null;
-  })[];
+  } & DeskCardFields)[];
   open_requests: number;
   /** Optional: absent on a spine that predates the counter, in which case the
    *  chip renders nothing rather than a fabricated zero. */
@@ -1141,6 +1141,66 @@ export interface DeskView {
   /** The honesty line: the spine records requests; it does not run agents. */
   execution_note: string;
   note: string;
+}
+
+/**
+ * THE CARD FIELDS (spine `app/fund/deskcard.py`, 2026-08-24). Every one is
+ * OPTIONAL: a spine that predates them sends nothing and the surface degrades
+ * to the rendering it had yesterday, never to a guess.
+ *
+ * Each exists because of a measured defect on the CEO's own screen, and the
+ * counts are from the live desk that morning (227 open recommendations):
+ * 2 rows rendered as a Python dict repr; 14 of the 34 rows on his decision
+ * list were `accepted` with the next move still his and looked undecided;
+ * 52 rows were closed by the chair and read as though he had approved them.
+ *
+ * NONE OF THEM CHANGES A COUNT. `execution_yours` in particular is a picture
+ * over the unchanged `awaiting_decision` stage — the desk-stage contract pins
+ * this page's total to `desk_load.total`, and a field that moved it would be
+ * changing a threshold's population under a rendering's name.
+ */
+export interface DeskCardFields {
+  /** The repaired display line — a dict payload's `title` where `text` holds
+   *  the repr. The stored `text` is NEVER rewritten; this sits beside it. */
+  text_display?: string | null;
+  /** Which key it came from: `text` | `title` | `verbatim` | `unreadable` … */
+  text_basis?: string | null;
+  /** The rest of a dict payload, for the details toggle. */
+  text_detail?: string | null;
+  /** Decided, and the next act is still the CEO's own. */
+  execution_yours?: boolean;
+  /** The spine's three-stage answer, so no client re-derives it. */
+  desk_stage?: string | null;
+  /** Who closed it, through which channel, quoting what. null = undecided. */
+  adjudication?: {
+    channel: "ceo" | "via_chair" | "chair" | "unknown";
+    actor: string; at: string | null; label: string;
+    /** The decision note, verbatim and untruncated. */
+    citation: string | null;
+    /** The CEO's own words when the actor string carried them
+     *  (`neelesh-via-cto [Agree]`) — delegation v2's audit trail. */
+    instruction: string | null;
+  } | null;
+  /** A supersession the edge TABLE does not know about because it was written
+   *  in English — and only when the note NAMED its superseder. Six of the ten
+   *  word-level matches in the live record are boilerplate about something
+   *  else, so absence here is the common and correct case. */
+  superseded_by?: { ref: string; phrase: string; quote: string } | null;
+  /** The constitution's cascade rule, finally with a field. A REMINDER: it
+   *  executes nothing. `not_open` is neither done nor pending — a finished
+   *  recommendation leaves the open population and cannot be told from one
+   *  that never existed. */
+  cascade?: {
+    total: number; done: number; pending: number; not_open: number;
+    members: { ref: string; status: string | null;
+      state: "done" | "pending" | "not_open" }[];
+    note: string;
+  } | null;
+  /** Who decided, and when — in the store since the decision endpoint was
+   *  written, and missing from the projection until 2026-08-24, which is why
+   *  no surface could say "you did this, at 09:12". */
+  decided_by?: string | null;
+  decided_at?: string | null;
 }
 
 /** One candidate, read as an organism: its variants, verdict and cause of death. */

@@ -1,0 +1,756 @@
+{
+  "contract": "desk_card",
+  "version": 1,
+  "rules_version": "v1 (2026-08-22)",
+  "request_routing_version": "request routing v1 (named 2026-08-24) — open -> ceo, approved -> chair",
+  "covers": "what a desk row RENDERS as — the nine states the CEO's window either got wrong or could not express on 2026-08-24. It binds no count; the stage contract binds the count.",
+  "lifecycle": [
+    "filed",
+    "approved",
+    "awaiting_dispatch",
+    "dispatched",
+    "delivered"
+  ],
+  "wanted_states": [
+    "open",
+    "in_progress",
+    "done"
+  ],
+  "adjudication_channels": [
+    "ceo",
+    "via_chair",
+    "chair",
+    "unknown"
+  ],
+  "cases": [
+    {
+      "name": "open recommendation — nobody has decided it",
+      "why": "the baseline. 20 of the 34 rows on his live decision list. Every other case is defined by how it must NOT look like this one.",
+      "row": {
+        "status": "open",
+        "kind": "awaits-ceo",
+        "text": "Decide this."
+      },
+      "expect": {
+        "status": "open",
+        "next_actor_resolved": "ceo",
+        "execution_yours": false,
+        "title": "Decide this.",
+        "title_display": "Decide this.",
+        "detail": null,
+        "adjudication": null,
+        "superseded_by": null,
+        "cascade": null,
+        "decided_by": null,
+        "decided_at": null
+      }
+    },
+    {
+      "name": "ACCEPTED, EXECUTION YOURS — the stuck lamp",
+      "why": "14 of the 34 rows on his live decision list (2026-08-24). He accepted R39 at seq 1281, the write landed, the page refetched — and the row came back with an Accept button on it, because nothing on screen distinguished 'you decided this, now execute it' from 'nobody has decided this'. A successful click and a dead click were the same picture. `execution_yours` must be true here and false on the row above, and NEITHER may change any count: both are inside awaiting_decision.",
+      "row": {
+        "status": "accepted",
+        "kind": "awaits-ceo",
+        "text": "Approve R39 as one sequence.",
+        "decided_by": "ceo",
+        "decided_at": "2026-08-24T09:12:00+00:00",
+        "next_actor": "ceo"
+      },
+      "expect": {
+        "status": "accepted",
+        "next_actor_resolved": "ceo",
+        "execution_yours": true,
+        "title": "Approve R39 as one sequence.",
+        "title_display": "Approve R39 as one sequence.",
+        "detail": null,
+        "adjudication": {
+          "channel": "ceo",
+          "actor": "ceo",
+          "at": "2026-08-24T09:12:00+00:00",
+          "label": "approved by the CEO",
+          "citation": null,
+          "instruction": null
+        },
+        "superseded_by": null,
+        "cascade": null,
+        "decided_by": "ceo",
+        "decided_at": "2026-08-24T09:12:00+00:00"
+      }
+    },
+    {
+      "name": "accepted, and the chair owes the execution",
+      "why": "the ordinary decided row. Shown, never counted, and NOT `execution_yours` — a fix that made every accepted row light up would pass the case above and still be wrong.",
+      "row": {
+        "status": "accepted",
+        "kind": "process",
+        "text": "Stage the exit rules.",
+        "decided_by": "ceo",
+        "decided_at": "2026-08-24T09:12:00+00:00"
+      },
+      "expect": {
+        "status": "accepted",
+        "next_actor_resolved": "chair",
+        "execution_yours": false,
+        "title": "Stage the exit rules.",
+        "title_display": "Stage the exit rules.",
+        "detail": null,
+        "adjudication": {
+          "channel": "ceo",
+          "actor": "ceo",
+          "at": "2026-08-24T09:12:00+00:00",
+          "label": "approved by the CEO",
+          "citation": null,
+          "instruction": null
+        },
+        "superseded_by": null,
+        "cascade": null,
+        "decided_by": "ceo",
+        "decided_at": "2026-08-24T09:12:00+00:00"
+      }
+    },
+    {
+      "name": "CLOSED BY THE CHAIR — its own visible category",
+      "why": "CEO, verbatim 2026-08-24: 'your desk on the UI only marks items as CEO approved... I cant form a view of whats closed and adjudicated by you.' Of 227 live rows, 185 are decided — 122 by the CEO, 52 by the chair alone (co-cto 39, cto 13), 11 via-chair — and the desk labelled all 185 the same way, which is to say it labelled none of them. The citation is the decision note, verbatim and untruncated.",
+      "row": {
+        "status": "accepted",
+        "kind": "process",
+        "text": "Merge the D37 bundle.",
+        "note": "Merged under delegation v2; suites green on the merged tree.",
+        "decided_by": "co-cto",
+        "decided_at": "2026-08-24T07:00:00+00:00"
+      },
+      "expect": {
+        "status": "accepted",
+        "next_actor_resolved": "chair",
+        "execution_yours": false,
+        "title": "Merge the D37 bundle.",
+        "title_display": "Merge the D37 bundle.",
+        "detail": null,
+        "adjudication": {
+          "channel": "chair",
+          "actor": "co-cto",
+          "at": "2026-08-24T07:00:00+00:00",
+          "label": "closed by the chair",
+          "citation": "Merged under delegation v2; suites green on the merged tree.",
+          "instruction": null
+        },
+        "superseded_by": null,
+        "cascade": null,
+        "decided_by": "co-cto",
+        "decided_at": "2026-08-24T07:00:00+00:00"
+      }
+    },
+    {
+      "name": "approved by the CEO, staged by the chair — the via channel",
+      "why": "11 live rows. Distinct from both: his decision, the chair's hand, and the bracketed instruction is the audit trail delegation v2 promised. Lifted verbatim, never summarised.",
+      "row": {
+        "status": "accepted",
+        "kind": "governance",
+        "text": "Adopt the request card schema.",
+        "decided_by": "neelesh-via-cto [Agree]",
+        "decided_at": "2026-08-24T08:00:00+00:00"
+      },
+      "expect": {
+        "status": "accepted",
+        "next_actor_resolved": "chair",
+        "execution_yours": false,
+        "title": "Adopt the request card schema.",
+        "title_display": "Adopt the request card schema.",
+        "detail": null,
+        "adjudication": {
+          "channel": "via_chair",
+          "actor": "neelesh-via-cto",
+          "at": "2026-08-24T08:00:00+00:00",
+          "label": "approved by the CEO, staged by the chair",
+          "citation": null,
+          "instruction": "Agree"
+        },
+        "superseded_by": null,
+        "cascade": null,
+        "decided_by": "neelesh-via-cto [Agree]",
+        "decided_at": "2026-08-24T08:00:00+00:00"
+      }
+    },
+    {
+      "name": "DICT PAYLOAD — renders its title, never its repr",
+      "why": "P-1, measured: 2 of 227 live rows (run-cfo-8 recs 1 and 2) rendered as a raw Python dict repr on the CEO's desk, both `accepted`. The stored `text` is left exactly as stored; `title_display` carries the repaired line and `detail` carries what would otherwise have been lost behind it.",
+      "row": {
+        "status": "open",
+        "kind": "harness_gap",
+        "text": "{'id': 'O4', 'title': 'Validate serves_requests ids at the filing door', 'detail': 'app/api/v1/fund.py:2136-2140 stores declared request ids with no check.'}"
+      },
+      "expect": {
+        "status": "open",
+        "next_actor_resolved": "chair",
+        "execution_yours": false,
+        "title": "{'id': 'O4', 'title': 'Validate serves_requests ids at the filing door', 'detail': 'app/api/v1/fund.py:2136-2140 stores declared request ids with no check.'}",
+        "title_display": "Validate serves_requests ids at the filing door",
+        "detail": "app/api/v1/fund.py:2136-2140 stores declared request ids with no check.",
+        "adjudication": null,
+        "superseded_by": null,
+        "cascade": null,
+        "decided_by": null,
+        "decided_at": null
+      }
+    },
+    {
+      "name": "SUPERSEDED IN PROSE, with its superseder named",
+      "why": "the supersession TABLE is empty live (blocked: 0). One decision note names a real superseder and must render a followable edge.",
+      "row": {
+        "status": "accepted",
+        "kind": "exit_rule",
+        "text": "The 2026-09-08 exit package.",
+        "note": "SUPERSEDED BY THE R39 PLAN (run-pm-r39): R37 is with the adversary.",
+        "decided_by": "cto",
+        "decided_at": "2026-08-23T12:00:00+00:00"
+      },
+      "expect": {
+        "status": "accepted",
+        "next_actor_resolved": "chair",
+        "execution_yours": false,
+        "title": "The 2026-09-08 exit package.",
+        "title_display": "The 2026-09-08 exit package.",
+        "detail": null,
+        "adjudication": {
+          "channel": "chair",
+          "actor": "cto",
+          "at": "2026-08-23T12:00:00+00:00",
+          "label": "closed by the chair",
+          "citation": "SUPERSEDED BY THE R39 PLAN (run-pm-r39): R37 is with the adversary.",
+          "instruction": null
+        },
+        "superseded_by": {
+          "ref": "run-pm-r39",
+          "phrase": "SUPERSEDED BY",
+          "quote": "SUPERSEDED BY THE R39 PLAN (run-pm-r39"
+        },
+        "cascade": null,
+        "decided_by": "cto",
+        "decided_at": "2026-08-23T12:00:00+00:00"
+      }
+    },
+    {
+      "name": "SUPERSEDED-SOUNDING PROSE THAT NAMES NOTHING — the null case",
+      "why": "THE CASE THAT MUST RENDER NO EDGE, and the reason the parser requires a named target. Six of the ten word-level 'supersed' hits in the live corpus are ONE boilerplate sentence stapled to unrelated resolutions, about two stray events and not about the row at all. A word-match parser would have drawn six wrong links on the CEO's control surface and one right one. A wrong link looks exactly like a right one; a gap looks like a gap.",
+      "row": {
+        "status": "accepted",
+        "kind": "process",
+        "text": "Recorded rather than hidden.",
+        "note": "They are inert - they resolve nothing and were superseded by this correctly-addressed event minutes later.",
+        "decided_by": "cto",
+        "decided_at": "2026-08-23T12:00:00+00:00"
+      },
+      "expect": {
+        "status": "accepted",
+        "next_actor_resolved": "chair",
+        "execution_yours": false,
+        "title": "Recorded rather than hidden.",
+        "title_display": "Recorded rather than hidden.",
+        "detail": null,
+        "adjudication": {
+          "channel": "chair",
+          "actor": "cto",
+          "at": "2026-08-23T12:00:00+00:00",
+          "label": "closed by the chair",
+          "citation": "They are inert - they resolve nothing and were superseded by this correctly-addressed event minutes later.",
+          "instruction": null
+        },
+        "superseded_by": null,
+        "cascade": null,
+        "decided_by": "cto",
+        "decided_at": "2026-08-23T12:00:00+00:00"
+      }
+    },
+    {
+      "name": "BUNDLE WITH MEMBERS — cascade pending",
+      "why": "the constitution's cascade rule (2026-08-21) has had no machinery since it was written: nothing in the schema could say which items a batch carried, so 'did the cascade happen' was unanswerable except by reading prose. FOUR members, and the arithmetic is 1 done / 2 pending / 1 not_open — each of the three outcomes exercised at least once, on purpose. `not_open` is the honest third: a finished recommendation leaves the open population entirely, so absence means 'finished, or never filed, and this fold cannot tell which'. It is never counted as done. This block executes nothing.",
+      "row": {
+        "status": "accepted",
+        "kind": "batch",
+        "text": "Accept COO triage #8 as one batch.",
+        "decided_by": "ceo",
+        "decided_at": "2026-08-24T09:00:00+00:00",
+        "members": [
+          {
+            "run_id": "run-member",
+            "rec_id": 1
+          },
+          {
+            "run_id": "run-member",
+            "rec_id": 2
+          },
+          {
+            "request_id": "req-structured"
+          },
+          {
+            "request_id": "req-served"
+          }
+        ]
+      },
+      "expect": {
+        "status": "accepted",
+        "next_actor_resolved": "chair",
+        "execution_yours": false,
+        "title": "Accept COO triage #8 as one batch.",
+        "title_display": "Accept COO triage #8 as one batch.",
+        "detail": null,
+        "adjudication": {
+          "channel": "ceo",
+          "actor": "ceo",
+          "at": "2026-08-24T09:00:00+00:00",
+          "label": "approved by the CEO",
+          "citation": null,
+          "instruction": null
+        },
+        "superseded_by": null,
+        "cascade": {
+          "total": 4,
+          "done": 1,
+          "pending": 2,
+          "not_open": 1,
+          "members": [
+            {
+              "ref": "rec:run-member#1",
+              "run_id": "run-member",
+              "rec_id": 1,
+              "status": "open",
+              "state": "pending"
+            },
+            {
+              "ref": "rec:run-member#2",
+              "run_id": "run-member",
+              "rec_id": 2,
+              "status": null,
+              "state": "not_open"
+            },
+            {
+              "ref": "req:req-structured",
+              "request_id": "req-structured",
+              "status": "approved",
+              "state": "pending"
+            },
+            {
+              "ref": "req:req-served",
+              "request_id": "req-served",
+              "status": "resolved",
+              "state": "done"
+            }
+          ],
+          "note": "CASCADE PENDING: 2 member(s) undecided; 1 member(s) are no longer on the open desk — finished, or never filed; this fold cannot tell which and does not count them as done. The chair validates and executes each one; nothing here executes anything."
+        },
+        "decided_by": "ceo",
+        "decided_at": "2026-08-24T09:00:00+00:00"
+      }
+    },
+    {
+      "name": "bundle members, referenced",
+      "why": "the two rows the bundle above points at: one still open, one closed. Present so the cascade arithmetic (1 done, 1 pending, 1 unresolvable) is derived from real rows rather than from a hand-written lookup.",
+      "row": {
+        "status": "open",
+        "kind": "process",
+        "text": "Member one."
+      },
+      "expect": {
+        "status": "open",
+        "next_actor_resolved": "ceo",
+        "execution_yours": false,
+        "title": "Member one.",
+        "title_display": "Member one.",
+        "detail": null,
+        "adjudication": null,
+        "superseded_by": null,
+        "cascade": null,
+        "decided_by": null,
+        "decided_at": null
+      }
+    }
+  ],
+  "request_cases": [
+    {
+      "name": "PROSE-ONLY REQUEST — the permanent fallback",
+      "why": "109 requests exist and none was filed under a schema that did not exist. `structured` is false, the headline is the subject's first LINE untouched, and the whole subject stays available as the incident. No migration: rewriting an old subject to look structured would invent a headline the filer never wrote.",
+      "row": {
+        "request_id": "req-prose",
+        "kind": "build",
+        "serves": "builder",
+        "status": "open",
+        "at": "2026-08-22T10:00:00+00:00",
+        "subject": "DESK RENDERING + ROUTING (Donna P-1/P-2/P-3)\nFive rows rendered as raw Python reprs this weekend, including the two that were genuinely his."
+      },
+      "expect": {
+        "status": "open",
+        "next_actor_resolved": "ceo",
+        "title_display": "DESK RENDERING + ROUTING (Donna P-1/P-2/P-3)",
+        "summary": null,
+        "detail": "DESK RENDERING + ROUTING (Donna P-1/P-2/P-3)\nFive rows rendered as raw Python reprs this weekend, including the two that were genuinely his.",
+        "wanted": [],
+        "next_move": null,
+        "structured": false,
+        "lifecycle": {
+          "stages": [
+            {
+              "stage": "filed",
+              "at": "2026-08-22T10:00:00+00:00",
+              "reached": true,
+              "current": true
+            },
+            {
+              "stage": "approved",
+              "at": null,
+              "reached": false,
+              "current": false
+            },
+            {
+              "stage": "awaiting_dispatch",
+              "at": null,
+              "reached": false,
+              "current": false
+            },
+            {
+              "stage": "dispatched",
+              "at": null,
+              "reached": false,
+              "current": false
+            },
+            {
+              "stage": "delivered",
+              "at": null,
+              "reached": false,
+              "current": false
+            }
+          ],
+          "current": "filed",
+          "age_hours": "<wall-clock>",
+          "declined": false
+        },
+        "adjudication": null
+      }
+    },
+    {
+      "name": "STRUCTURED REQUEST — the four questions",
+      "why": "the CEO-ratified card spec (KryptonPay/docs/design/REQUEST_CARD_2026-08-24.md). Headline, summary, the wanted checklist with per-item state, and an explicit actor+act — the old 'CEO-APPROVED — TRIGGER IT' chip implied his move when it was the chair's.",
+      "row": {
+        "request_id": "req-structured",
+        "kind": "build",
+        "serves": "builder",
+        "status": "approved",
+        "at": "2026-08-22T10:00:00+00:00",
+        "approved_at": "2026-08-22T10:22:00+00:00",
+        "approved_by": "ceo",
+        "headline": "Repair the CEO's desk read path",
+        "summary": "His clicks land; the fold that renders them back to him does not.",
+        "incident": "Six defects pooled in a starved batch.",
+        "wanted": [
+          {
+            "text": "Dict payloads render their text",
+            "state": "done"
+          },
+          {
+            "text": "Cascade block under decided bundles",
+            "state": "in_progress",
+            "note": "spine half landed"
+          },
+          {
+            "text": "Contract test crossing the boundary"
+          }
+        ],
+        "next_move": {
+          "actor": "the chair",
+          "act": "batch this into a builder dispatch"
+        }
+      },
+      "expect": {
+        "status": "approved",
+        "next_actor_resolved": "chair",
+        "title_display": "Repair the CEO's desk read path",
+        "summary": "His clicks land; the fold that renders them back to him does not.",
+        "detail": "Six defects pooled in a starved batch.",
+        "wanted": [
+          {
+            "text": "Dict payloads render their text",
+            "state": "done"
+          },
+          {
+            "text": "Cascade block under decided bundles",
+            "state": "in_progress",
+            "note": "spine half landed"
+          },
+          {
+            "text": "Contract test crossing the boundary",
+            "state": "open"
+          }
+        ],
+        "next_move": {
+          "actor": "the chair",
+          "act": "batch this into a builder dispatch"
+        },
+        "structured": true,
+        "lifecycle": {
+          "stages": [
+            {
+              "stage": "filed",
+              "at": "2026-08-22T10:00:00+00:00",
+              "reached": true,
+              "current": false
+            },
+            {
+              "stage": "approved",
+              "at": "2026-08-22T10:22:00+00:00",
+              "reached": true,
+              "current": false
+            },
+            {
+              "stage": "awaiting_dispatch",
+              "at": "2026-08-22T10:22:00+00:00",
+              "reached": true,
+              "current": true
+            },
+            {
+              "stage": "dispatched",
+              "at": null,
+              "reached": false,
+              "current": false
+            },
+            {
+              "stage": "delivered",
+              "at": null,
+              "reached": false,
+              "current": false
+            }
+          ],
+          "current": "awaiting_dispatch",
+          "age_hours": "<wall-clock>",
+          "declined": false
+        },
+        "adjudication": {
+          "channel": "ceo",
+          "actor": "ceo",
+          "at": "2026-08-22T10:22:00+00:00",
+          "label": "approved by the CEO",
+          "citation": null,
+          "instruction": null
+        }
+      }
+    },
+    {
+      "name": "SERVED REQUEST — the rail reaches delivered",
+      "why": "the far end of the lifecycle, and the one member of the cascade above that resolves to `done`. Requests keep their terminal rows in `desk._requests`, so a request member's closure is READABLE where a finished recommendation's is not — which is why the cascade reports `done` and `not_open` as two different facts rather than one optimistic one.",
+      "row": {
+        "request_id": "req-served",
+        "kind": "build",
+        "serves": "builder",
+        "status": "resolved",
+        "at": "2026-08-20T10:00:00+00:00",
+        "approved_at": "2026-08-20T10:30:00+00:00",
+        "approved_by": "neelesh-via-co-cto [lets go]",
+        "resolved_at": "2026-08-21T09:00:00+00:00",
+        "subject": "Ship the third dispatch state.",
+        "resolution": "SERVED by builder D30."
+      },
+      "expect": {
+        "status": "resolved",
+        "next_actor_resolved": "nobody",
+        "title_display": "Ship the third dispatch state.",
+        "summary": null,
+        "detail": "Ship the third dispatch state.",
+        "wanted": [],
+        "next_move": null,
+        "structured": false,
+        "lifecycle": {
+          "stages": [
+            {
+              "stage": "filed",
+              "at": "2026-08-20T10:00:00+00:00",
+              "reached": true,
+              "current": false
+            },
+            {
+              "stage": "approved",
+              "at": "2026-08-20T10:30:00+00:00",
+              "reached": true,
+              "current": false
+            },
+            {
+              "stage": "awaiting_dispatch",
+              "at": "2026-08-20T10:30:00+00:00",
+              "reached": true,
+              "current": false
+            },
+            {
+              "stage": "dispatched",
+              "at": null,
+              "reached": true,
+              "current": false
+            },
+            {
+              "stage": "delivered",
+              "at": "2026-08-21T09:00:00+00:00",
+              "reached": true,
+              "current": true
+            }
+          ],
+          "current": "delivered",
+          "age_hours": "<wall-clock>",
+          "declined": false
+        },
+        "adjudication": {
+          "channel": "via_chair",
+          "actor": "neelesh-via-co-cto",
+          "at": "2026-08-20T10:30:00+00:00",
+          "label": "approved by the CEO, staged by the chair",
+          "citation": "SERVED by builder D30.",
+          "instruction": "lets go"
+        }
+      }
+    },
+    {
+      "name": "next_move with an actor and no act — REFUSED",
+      "why": "both fields or neither. 'Next move: the chair' names an owner and leaves the reader to guess the obligation, which is exactly the defect the spec says the old chip had.",
+      "row": {
+        "request_id": "req-halfmove",
+        "kind": "build",
+        "serves": "builder",
+        "status": "open",
+        "at": "2026-08-22T10:00:00+00:00",
+        "subject": "Half a move.",
+        "next_move": {
+          "actor": "the chair"
+        }
+      },
+      "expect": {
+        "status": "open",
+        "next_actor_resolved": "ceo",
+        "title_display": "Half a move.",
+        "summary": null,
+        "detail": "Half a move.",
+        "wanted": [],
+        "next_move": null,
+        "structured": false,
+        "lifecycle": {
+          "stages": [
+            {
+              "stage": "filed",
+              "at": "2026-08-22T10:00:00+00:00",
+              "reached": true,
+              "current": true
+            },
+            {
+              "stage": "approved",
+              "at": null,
+              "reached": false,
+              "current": false
+            },
+            {
+              "stage": "awaiting_dispatch",
+              "at": null,
+              "reached": false,
+              "current": false
+            },
+            {
+              "stage": "dispatched",
+              "at": null,
+              "reached": false,
+              "current": false
+            },
+            {
+              "stage": "delivered",
+              "at": null,
+              "reached": false,
+              "current": false
+            }
+          ],
+          "current": "filed",
+          "age_hours": "<wall-clock>",
+          "declined": false
+        },
+        "adjudication": null
+      }
+    }
+  ],
+  "id_rules": {
+    "min_prefix": 8,
+    "doors_refusing_unknown_ids": [
+      "POST /fund/desk/requests/{id}/approve",
+      "POST /fund/desk/requests/{id}/decline",
+      "POST /fund/desk/requests/{id}/resolve"
+    ],
+    "note": "a shorthand is normalised where it is RECORDED (meta.serves_requests, advisory) and refused where it would ACT (the three doors). A 200 against an id no fold has seen is the worst shape: the caller believes it acted and the real row is untouched.",
+    "cases": [
+      {
+        "declared": "3eeb42d4",
+        "why": "the live shorthand: 6 of 13 declarations, 0 closes",
+        "ids": [
+          "3eeb42d4-1111-4111-8111-111111111111"
+        ],
+        "normalised": [
+          {
+            "declared": "3eeb42d4",
+            "resolved": "3eeb42d4-1111-4111-8111-111111111111"
+          }
+        ],
+        "ambiguous": [],
+        "unresolved": []
+      },
+      {
+        "declared": "a26debb9-827a-47e9-9cac-c5ca1ba2213f",
+        "why": "a full id, untouched and unreported",
+        "ids": [
+          "a26debb9-827a-47e9-9cac-c5ca1ba2213f"
+        ],
+        "normalised": [],
+        "ambiguous": [],
+        "unresolved": []
+      },
+      {
+        "declared": "abcd1234",
+        "why": "AMBIGUOUS — never guessed; picking one closes somebody else's ticket",
+        "ids": [
+          "abcd1234"
+        ],
+        "normalised": [],
+        "ambiguous": [
+          {
+            "declared": "abcd1234",
+            "matches": [
+              "abcd1234-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+              "abcd1234-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+            ]
+          }
+        ],
+        "unresolved": []
+      },
+      {
+        "declared": "THE DESK, REDESIGNED",
+        "why": "prose: 2 live declarations. Kept verbatim, reported unresolved, never dropped",
+        "ids": [
+          "THE DESK, REDESIGNED"
+        ],
+        "normalised": [],
+        "ambiguous": [],
+        "unresolved": [
+          "THE DESK, REDESIGNED"
+        ]
+      },
+      {
+        "declared": "3eeb42d",
+        "why": "seven characters — a typo, not a shorthand",
+        "ids": [
+          "3eeb42d"
+        ],
+        "normalised": [],
+        "ambiguous": [],
+        "unresolved": [
+          "3eeb42d"
+        ]
+      }
+    ]
+  },
+  "expect_totals": {
+    "execution_yours": 1,
+    "counted_for_ceo": 3,
+    "superseded_edges": 1,
+    "repaired_reprs": 1,
+    "requests_on_the_ceos_figure": 2
+  },
+  "digest": "168c0b96bafc93a8416ddc1716ef1ca8cf318c83485c4af34b28b666bc8ee810"
+}

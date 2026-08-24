@@ -238,7 +238,7 @@ export function recItems(
  * Three deliberate acts, on purpose.
  */
 export const CONTRACT_DIGEST =
-  "0fdfb5123edf0ab0188ef09acadba87b8adc3ef6c72e2bc6a16499a0a5bdb593";
+  "293d783ec8398f119c2befdd12b9ec0489d59288c1ec9750a0e0e7cb1e9cb1be";
 
 /** What the live spine's contract digest says about this page's fixture.
  *  `null` = they agree and nothing is rendered. */
@@ -599,6 +599,93 @@ export interface QueuedAsk {
   declinedAt: string | null;
   /** The rejection's MANDATORY written reason — the spine refuses one without. */
   declineReason: string | null;
+  /**
+   * CAN THE CEO STILL ACT ON THIS? Deliberately NOT the same question as
+   * `stage`, and separating the two is a repair rather than a refinement.
+   *
+   * The card used to render its Approve/Decline buttons on
+   * `stage === "awaiting_ceo"`. When request routing v2 moved an open request
+   * to the chair (2026-08-24), every ask left that stage — and the buttons
+   * went with them, silently removing the CEO's ability to approve a desk
+   * request from his own page. Caught by looking at the rendered page; no test
+   * and no type could have seen it, because both halves were individually
+   * correct.
+   *
+   * WHOSE MOVE IT IS decides counting and placement. WHETHER A CONTROL EXISTS
+   * is a different question and answers to the row's own lifecycle: an ask
+   * that is neither approved nor declined can still be approved or declined,
+   * whatever the counter says about whose queue it sits on. Routing must never
+   * take a control away.
+   */
+  approvable: boolean;
+  /** THE REQUEST CARD (spec: docs/design/REQUEST_CARD_2026-08-24.md,
+   *  CEO-ratified). Every field OPTIONAL and read from the spine; a request
+   *  filed as prose — which all 109 rows filed before the schema were — has
+   *  `structured: false` and renders through the old one-blob fallback.
+   *  Forever: this is not a deprecation path. */
+  card: AskCard;
+}
+
+export interface AskCard {
+  structured: boolean;
+  /** The card's NAME. For a prose ask this is the subject's first LINE,
+   *  untouched — the renderer knows its own width and does the truncating. */
+  headline: string | null;
+  summary: string | null;
+  /** The full narrative, behind the details toggle. Nothing is deleted; it is
+   *  just not charged to a reader who did not ask for it. */
+  incident: string | null;
+  wanted: { text: string; state: "open" | "in_progress" | "done";
+    note?: string | null }[];
+  /** Whose move and WHAT ACT — both or neither. The old "CEO-APPROVED —
+   *  TRIGGER IT" chip named an owner and left the obligation to be guessed,
+   *  and it named the wrong owner. */
+  nextMove: { actor: string; act: string } | null;
+  lifecycle: AskLifecycle | null;
+}
+
+export interface AskLifecycle {
+  stages: { stage: string; at: string | null; reached: boolean;
+    current: boolean }[];
+  current: string;
+  /** Hours in the CURRENT stage. NULL when the stage carries no timestamp —
+   *  never 0. Request 0c295ec7 was approved 22 minutes after filing and then
+   *  sat 2.5 days; "awaiting dispatch · 0.0h" over that would be this fund's
+   *  oldest mistake on its newest surface. */
+  ageHours: number | null;
+  declined: boolean;
+}
+
+/** The card fields as the spine sends them, or an empty prose card. */
+function askCard(r: DeskView["requests"][number]): AskCard {
+  const row = r as Record<string, unknown>;
+  const str = (k: string) => {
+    const v = row[k];
+    return typeof v === "string" && v.trim() ? v.trim() : null;
+  };
+  const wanted = Array.isArray(row.wanted) ? row.wanted as AskCard["wanted"] : [];
+  const nm = row.next_move as { actor?: string; act?: string } | null | undefined;
+  return {
+    structured: row.structured === true,
+    // The fallback is the subject's first line — computed on the SPINE, and
+    // repeated here only for a spine that predates the field.
+    headline: str("headline")
+      ?? ((r.task ?? r.subject ?? "").split("\n")[0].trim() || null),
+    summary: str("summary"),
+    incident: str("incident"),
+    wanted,
+    nextMove: nm && nm.actor && nm.act ? { actor: nm.actor, act: nm.act } : null,
+    lifecycle: (row.lifecycle && typeof row.lifecycle === "object")
+      ? {
+        stages: (row.lifecycle as { stages?: AskLifecycle["stages"] }).stages ?? [],
+        current: String((row.lifecycle as { current?: string }).current ?? ""),
+        ageHours: typeof (row.lifecycle as { age_hours?: unknown }).age_hours
+          === "number"
+          ? (row.lifecycle as { age_hours: number }).age_hours : null,
+        declined: (row.lifecycle as { declined?: boolean }).declined === true,
+      }
+      : null,
+  };
 }
 
 /**
@@ -629,6 +716,38 @@ export function isSeatFiled(actor?: string | null): boolean {
  * is the first seat-filed ask the fund has produced, and renders as
  * "awaiting CEO approval" because NO DeskRequestApproved event exists yet.
  */
+/**
+ * What stage an ask is at — READ from the spine, derived only as a fallback.
+ *
+ * THE DIVERGENCE THIS CLOSES (2026-08-24, found by looking at the rendered
+ * page). An open desk request used to be `awaiting_ceo` here, decided by this
+ * function. The spine moved the same rule (`desk.OPEN_REQUEST_ACTOR`: an open
+ * request is blocked on the CHAIR dispatching it — 28 of the 49 requests
+ * resolved in the live log window carry no approval event at all), and this
+ * page went on listing **eleven** asks as decisions he owed. Its own
+ * reconciliation banner reported the two counts disagreeing by exactly eleven.
+ *
+ * Both suites were green over it, because each pinned its own side. That is
+ * the 11-vs-6 defect, for the third time, and the answer is the same one that
+ * worked twice before: the spine owns the rule and the client reads it.
+ *
+ * The DERIVED branch is kept for a spine that predates the field, and it
+ * reproduces the OLD behaviour exactly — degrade to yesterday, never to a
+ * guess.
+ */
+export function askStage(r: DeskView["requests"][number]): AskStage {
+  if (r.status === "declined") return "declined";
+  if (r.status === "resolved") return "resolved";
+  const spine = (r as { next_actor_resolved?: string | null })
+    .next_actor_resolved;
+  if (typeof spine === "string" && spine) {
+    // The CEO owes it only if the spine says the next actor is him. Everything
+    // else the chair fires — shown, never counted as his decision.
+    return spine === "ceo" ? "awaiting_ceo" : "cleared_to_trigger";
+  }
+  return r.status === "approved" ? "cleared_to_trigger" : "awaiting_ceo";
+}
+
 export function queuedAsks(requests: DeskView["requests"]): QueuedAsk[] {
   return requests
     .filter((r) => r.status !== "resolved")
@@ -647,14 +766,16 @@ export function queuedAsks(requests: DeskView["requests"]): QueuedAsk[] {
         subject: r.task ?? r.subject,
         note: r.note ?? null,
         at: r.at ?? null,
-        stage: (r.status === "declined" ? "declined"
-          : r.status === "approved" ? "cleared_to_trigger"
-            : "awaiting_ceo") as AskStage,
+        stage: askStage(r),
         approvedBy: r.approved_by ?? null,
         approvedAt: r.approved_at ?? null,
         declinedBy: r.declined_by ?? null,
         declinedAt: r.declined_at ?? null,
         declineReason: r.decline_reason ?? null,
+        // The lifecycle, not the routing. See `approvable`.
+        approvable: r.status !== "approved" && r.status !== "declined"
+          && r.status !== "resolved",
+        card: askCard(r),
       };
     })
     .sort((a, b) => {
