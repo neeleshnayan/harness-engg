@@ -113,3 +113,12 @@ the course instead of re-taking the exam.**
   queried at vintage 2022-06-01 served late-May-2022 values with correct
   vintage windows — the point-in-time capability the keyless fredgraph.csv
   silently lacks. Key lives in .env only. Verified: chair probe 2026-08-24.
+
+- **THE CLOCK CHECK (standing, four measured strikes in one week)**: LEAN's
+  statistics are stated in a 252-trading-day convention while its emitted
+  daily series carries ~366 calendar points/yr (weekend zeros included).
+  ANY figure crossing the engine boundary must state its clock; the factor
+  sqrt(366.3/252) = 1.2039 re-entered four separate reviews (D36 draws,
+  D37 decomposition, D38 annualisation, the chair's own ruling text).
+  Per-observation quantities are the only safe currency. Verified:
+  run-adversary-d38, 339-run census.
