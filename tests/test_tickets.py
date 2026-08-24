@@ -749,6 +749,24 @@ class TestTheEndpoint:
         assert {t["state"] for t in b["tickets"]} == {"in_flight"}
         assert b["filters"] == {"type": None, "state": "in_flight"}
 
+    @pytest.mark.parametrize("q", ["type=dispach", "state=dine",
+                                   "type=lesson", "state=returned&type=ask"])
+    def test_an_unrecognised_filter_is_refused_not_answered_with_zero(
+            self, client, q):
+        """``?state=dine`` would otherwise return ``total: 0`` — which reads
+        exactly like "no ticket is in that state". Absence-as-zero at the query
+        layer. ``lesson`` is in the design's type table and NOT in slice 1's,
+        so it is a live example rather than a typo; ``returned`` is a real
+        state no legacy adapter can produce, and asking for it must say the
+        state is empty, which it does through a 200 with total 0."""
+        r = client.get(f"/api/v1/fund/tickets?{q}")
+        if q == "state=returned&type=ask":
+            assert r.status_code == 200 and r.json()["total"] == 0, \
+                "a RECOGNISED state with no rows is an honest empty answer"
+            return
+        assert r.status_code == 422
+        assert "allowed" in r.json()["detail"]
+
     def test_a_page_cap_reports_itself_truncated(self, client):
         b = client.get("/api/v1/fund/tickets?limit=3").json()
         assert len(b["tickets"]) == 3 and b["shown"] == 3

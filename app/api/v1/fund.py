@@ -2486,6 +2486,23 @@ def tickets_view(ticket_type: Optional[str] = Query(None, alias="type"),
     """
     from app.fund import tickets as tk
 
+    # AN UNRECOGNISED FILTER IS REFUSED, NOT ANSWERED WITH ZERO. `?state=dine`
+    # would otherwise return `total: 0` — indistinguishable from "no ticket is
+    # in that state", which is the absence-as-zero shape at the query layer.
+    # 422 with the vocabulary attached; it can only refuse, and a valid filter
+    # takes exactly the path it took before.
+    for name, value, allowed in (("type", ticket_type, tk.TICKET_TYPES),
+                                 ("state", state, tk.TICKET_STATES)):
+        if value and value not in allowed:
+            raise HTTPException(
+                status_code=422,
+                detail={"error": f"unknown {name} filter",
+                        name: value, "allowed": list(allowed),
+                        "note": f"refused rather than answered with an empty "
+                                f"list: zero rows for a {name} that does not "
+                                f"exist reads exactly like zero rows for one "
+                                f"that does"})
+
     runs, runs_limit = None, None
     ds = _deskstore()
     if ds is not None:
