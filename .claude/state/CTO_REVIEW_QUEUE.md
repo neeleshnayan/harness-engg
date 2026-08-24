@@ -2066,3 +2066,272 @@ second host-collapse event under the five-agent cap, or any dispatch again
 returning zero bytes after more than an hour. Either reverts the cap to two.
 
 **[Fable @ resolve]**:
+
+
+---
+
+## 2026-08-24 13:59Z — SESSION OPEN — co-CTO seated MID-FLIGHT; R39 Phase 3 verified COMPLETE
+
+**Chair change, and an identity caveat Fable should confirm.** The CEO moved
+the model selector to Opus *inside Fable's live session* rather than cold-
+starting a new one — deliberately, because two builder agents are running in
+that process and a cold start would have killed them exactly as this morning's
+rewind killed three. Consequence: **my environment block still reads
+`claude-fable-5`** (it is captured at session start), so I cannot verify from
+inside which model serves this turn. I told the CEO so before acting and took
+the co-CTO chair on two grounds: his explicit instruction ("you are NOT Fable
+... Fable is OOO by my decision"), and the conservative reading — this charter
+is strictly the more restrictive of the two, so failing toward it is safe under
+either identity while the reverse is not. **Fable: confirm or correct that
+reading.** Second caveat, stated because it is a real departure from the
+cold-start design: I inherit Fable's working context rather than reconstructing
+from the record. I have read co-cto.md, the handover, the queue tail and the
+day-log head anyway, and I am treating the FILES as authority where they and
+the inherited context could differ.
+
+**PHASE 3 IS COMPLETE — verified by me, not taken on trust.** Fable's handover
+recorded five of six sells filled with INTC awaiting a re-click. The re-click
+landed at 13:50Z during the chair change. All six orphans are closed:
+
+| symbol | qty | avg price | event |
+|---|---|---|---|
+| GLD | 0.424471 | 427.48 | seq 1449 |
+| XLE | 2.749912 | 63.536363 | seq 1457 |
+| SOFI | 9.18819 | 18.578707 | seq 1462 |
+| MSFT | 0.340051 | 484.766 | seq 1466 |
+| NVDA | 0.749886 | 210.204 | seq 1470 |
+| INTC | 1.558762 | 85.58 | **seq 1484** (+ probe 0.05 @ 86.854, seq 1439) |
+
+**Evidence read live, not inferred**: `/fund/venue/reconcile` →
+`symbols_out_of_sync: 0`, `delta_usd: **-0.01**`, and every orphan symbol at
+`0.0 / 0.0` book-vs-broker with `in_sync: true`. Book NAV $2,000.18 vs broker
+equity $2,000.17. `/fund/venue/account` → cash **$1,833.93**, buying power
+$7,801.17. The residual is already three orders of magnitude inside the
+Phase-5 bound of $3.00 *before* the rebuys.
+
+**One event worth Fable's eye, benign but new**: `RiskAlarmRaised
+underwater:INTC` (seq 1479, metric 15.0405) fired between the sync and the
+INTC fill, and `RiskAlarmCleared` (seq 1485, actor `fill_re-eval`) cleared it
+on the fill. The alarm was correct — the adopted INTC lot carried the venue's
+own cost basis and was underwater against it — and it self-cleared by the
+mechanism it should. Recorded because it is the first time that path has run
+against a real adopted position.
+
+**Next, per the handover section A**: Phase 4 staging at 14:30Z (its own
+Tier-2 entry follows), then Phase 5 acceptance, entry-freeze lift check, NAV
+strike, spine restart.
+
+**[Fable @ resolve]**:
+
+
+---
+
+## 2026-08-24 14:01Z — TIER-2 TAKEN — R39 Phase 4 staged (four sleeve rebuys), and a deliberate 29-minute deviation from the plan's clock
+
+**What**: staged the four Phase-4 rebuys through the ordinary propose path —
+DBC 8.122157 (~$252.68, order `7c9edafb`), TLT 3.019871 (~$249.50,
+`43155fe2`), DBA 5.314306 (~$150.37, `60870950`), SPY 0.128362 (~$98.05,
+`13343200`); ~$750.60 total against cash of $1,833.93. Each carries its
+strategy id (`sleeve_beta_500` ×2, `sleeve_premia_carry`, `sleeve_premia_equity`).
+**The CEO clicks each approval; I approved nothing.** Staged as actor
+`co-cto` rather than `cto` so the record shows which chair staged it — I used
+a scratchpad copy of Fable's committed script with that one substitution
+rather than editing his file mid-flight.
+
+**Why it is Tier 2**: staging a CEO-accepted recommendation (R39-4, accepted
+as part of the R39 sequence) through the ordinary propose path is the
+charter's named Tier-2 act.
+
+**THE DEVIATION, stated loudly because it is a judgement call against a
+CEO-accepted plan's written schedule.** `PM_R39_PLAN_2026-08-23.md` puts
+Phase 4 at **14:30–15:00Z**; I staged at **14:01Z**. Reasoning, in the order
+I took it:
+
+- The plan's stated GATING CONDITION is *"after all six confirm"*, not the
+  clock — and it was met at 13:50Z, 25 minutes early, because the sells ran
+  ahead of their own 13:45–14:15 window.
+- The only substantive reason to prefer 14:30 is opening-hour spreads, and I
+  **measured** rather than assumed: DBA 1c on $28.29 (3.5 bps), DBC 1c on
+  $31.07 (3.2 bps), TLT 1c on $82.61 (1.2 bps), SPY 3c on $763.53 (0.4 bps)
+  — every one at minimum tick, captured to the NBBO log under tag
+  `phase4-preflight`. The widening that made GLD $12-wide at 13:44Z is not
+  present in these four.
+- Against waiting: the fund sat ~92% cash, outside mandate, and leg 3 of the
+  team metric is exactly "capital deployed under mandate".
+
+**TO REVERSE**: nothing to reverse — these are proposals, not fills; if
+Fable or the CEO disagrees with the timing the orders simply are not
+clicked, and re-staging at 14:30 costs one script run. **What would change my
+mind**: any of the four filling materially worse than the 14:01Z touch would
+say the plan's clock knew something my spread measurement did not, and the
+next reconciliation sequence should hold its stated window regardless of the
+gating condition.
+
+**Preconditions verified before staging, not assumed**: reconcile
+`out_of_sync 0 / delta_usd 0.0`; cash $1,833.93, buying power $7,801.17
+against ~$751 of buys; **all four symbols carry 2 live untriggered exit
+rules** (`loss_pct` + `time`) under the correct strategy ids — the script
+re-checks this itself and skips any uncovered symbol; sell set and buy set
+disjoint, so no day trade is created.
+
+**One finding for Fable, benign, from checking rather than assuming**: the
+sync attributed the adopted legacy SPY lot (0.217757, venue basis $778.58 —
+the CEO independently confirmed both figures off his Alpaca screen) to
+`sleeve_premia_equity`. So the sleeve's exit rules DO cover it and
+autopolicy's "the rule's own strategy must hold the quantity it sells" is
+satisfied. **The nuance worth a custody note**: after Phase 4 the sleeve
+holds 0.346119 SPY whose blended cost basis mixes a legacy lot's $778.58
+with today's ~$764 — so the `loss_pct` rule will measure against a basis
+that is part legacy. Within the plan's design (it adopts venue basis by
+construction) and exactly the lot-provenance problem R39-6's custody schema
+exists to fix. Not blocking; recorded.
+
+**[Fable @ resolve]**:
+
+
+---
+
+## 2026-08-24 14:0?Z — **TIER-3 DEFERRAL — STOP: R39 PHASE 4 IS BLOCKED 3-OF-4 BY A CONTROL-LAYER DEFECT. THE MARK-SANITY GUARD STILL BELIEVES THE PHANTOM.**
+
+**Status: R39 halted at Phase 4 partial. SPY filled; DBC, TLT and DBA cannot
+be approved by anyone, and no action inside my charter can unblock them.**
+
+**What happened**: the CEO approved the four staged rebuys. SPY 0.128362
+filled at $763.118 (seq 1504) — book SPY now **0.346119**, exactly the
+sleeve's intended size. DBC, TLT and DBA were each refused by
+`mark_sanity_v1` with `basis: held_but_unpriced`, ~8 refusal events and
+counting as he re-clicked.
+
+**THE DEFECT, verified by me against the store rather than reasoned from the
+message** (`app/fund/marksanity.py:_gather`, the `held_qty` computation at
+`:143-152`):
+
+`_gather` computes what the fund holds by **summing `ORDER_FILLED` events
+only** — buys positive, sells negative. **It does not read
+`BOOK_RECONCILED_TO_VENUE`**, which SETS positions absolutely
+(`projections/positions.py:196-228`, applied as an absolute set precisely so
+it is idempotent). Measured on the live store just now:
+
+| symbol | guard's `held_qty` (fills only) | TRUE book (positions projection) | last NavStruck mark |
+|---|---|---|---|
+| DBC | **8.122157** | absent (0) | none |
+| TLT | **3.019871** | absent (0) | none |
+| DBA | **5.314306** | absent (0) | none |
+| SPY | 0.474481 | 0.346119 | 762.95 |
+
+`BookReconciledToVenue` exists at **seq 1414** and the guard ignores it.
+
+**So the guard is carrying forward exactly the phantom legs that this
+morning's sync existed to erase** — DBC/TLT/DBA were the four phantom legs
+(ledger claimed them, the broker never held them). The book correctly reads
+zero; the guard reads the phantom's quantity and concludes "held".
+
+**AND ITS SUGGESTED REMEDY IS UNREACHABLE, which is what makes this a
+deadlock rather than a speed bump.** The refusal says *"Strike NAV first,
+then approve."* A NAV strike records marks only for positions the book
+actually holds (`projections/nav.py:compute` iterates `book.positions`), and
+the book holds none of these three. **No number of NAV strikes can ever
+produce a DBC mark while the fund holds no DBC.** The correct branch for a
+symbol the fund does not hold is `no_reference_new_symbol` (allowed, recorded
+as an absence, `marksanity.py:199-215`) — post-sync these ARE first
+purchases.
+
+**Note SPY, because it shows the defect is general and not about these three
+legs**: the guard's `held_qty` for SPY (0.474481) is also wrong against the
+true 0.346119. It did not bite only because a struck mark existed, so
+evaluation fell through to the mark-comparison branch instead of the
+held-but-unpriced one.
+
+**WHY I DID NOT ACT, and what I explicitly refused to try.** `marksanity.py`
+is the guard — Tier 3 by name in my charter ("any diff touching the guard...
+never executed"). I also considered and **rejected** two workarounds on
+principle, recording them so the refusal is auditable: (a) staging a token
+first purchase to give the strike something to mark — refused identically by
+the same branch, and engineering around a control is the one forbidden move;
+(b) any override path — I did not go looking for one. **A guard refusing
+wrongly is still a guard, and the answer is to fix it in daylight, not to
+route around it.**
+
+**FOR FABLE — the fix as I see it, offered as a review note, not a change**:
+`_gather` must fold `BOOK_RECONCILED_TO_VENUE` the way the positions
+projection does (absolute set, then continue summing fills after it), or
+better, read `PositionsProjection` directly instead of re-deriving holdings
+from a second, thinner fold. **The second, thinner fold is the whole bug**:
+two components computing the same quantity two ways, which is this firm's
+named recurring defect. There is a regression test to be written from today's
+exact state. Direction: this is a TIGHTENING of correctness, but it MOVES a
+guard, so it is yours and the CEO's, not mine.
+
+**Cost of the stop, stated plainly**: the fund sits at SPY 0.346119 + ~$1,735
+cash — reconciled, consistent, exit-rule-covered, and ~87% idle against a
+mandate that wants the harvester deployed. Not losing money; off-mandate and
+dated. The three proposals will go stale on the ordinary freshness clock and
+will need re-staging after the fix.
+
+**What would change my reading**: if Fable or the CEO judges that the guard is
+RIGHT and the book is wrong — i.e. that a phantom fill should keep counting as
+a holding after a venue reconciliation — then the defect is in the sync, not
+the guard, and my whole diagnosis inverts. I do not believe that (the broker
+is custody truth and the sync is the CEO's own accepted remedy), but it is the
+premise worth naming.
+
+**[Fable @ resolve]**:
+
+
+---
+
+## 2026-08-24 ~14:20Z — TIER-3 DEFERRAL — highway slice 1 (`builder-hw1`) PARKED WHOLE, and why the handover's split was not available
+
+**What**: the ticket-highway slice-1 bundle returned green (4618 passed / 1
+skipped; 43 mutants, 42 killed by named tests, 1 retired with proof, 0
+survivors; zero write paths in the fold, AST-asserted). **I did not merge any
+of it.** Bundle `hw1.bundle`, verified okay; run recorded as `run-builder-hw1`
+with five recommendations; STATE appended verbatim; two BINDS carried
+(validator, coo); two EVOLVEs applied.
+
+**Why parked WHOLE, when the handover authorised me to merge two thirds of
+it.** Fable's charter reserved only the lamp-door commit as Tier 3 (an
+approval-path door, and a deliberate WIDENING) and let me merge the fold and
+the grammar fix if green. **That split is not cleanly available**: `d615e909`
+is one of **five** commits touching `app/api/v1/fund.py`, interleaved with the
+endpoint itself, the filter refusal, the Gauntlet answers and the number
+re-count. Cherry-picking around it would produce a tree nobody has tested and
+risks shipping a caller without its callee — the split-diff defect this firm
+has already paid for once (the archives/memo 404). **A partial merge assembled
+by me is a bigger risk than a whole merge decided by Fable.**
+
+**Second, independent reason to defer regardless of the split**: the merge
+gate is a second full suite, and the host hit **0.24 GB free RAM** with two
+builders live — under the 1.28 GB that killed Docker, Postgres and the spine
+on 2026-08-22. The second builder slot is now held by the live-blocker
+dispatch, and **the spine is holding real positions mid-sequence**. A gate run
+now trades a real risk to money for an unurgent merge. The fold is read-only;
+nothing today depends on it.
+
+**My review note on the widening, for Fable's decision** (it is a loosening,
+so it gets said plainly): the phantom guard's own specification says *"an id
+no FOLD has ever seen"* and it consulted one of two, so since it landed **no
+chair-born dispatch has had a legitimate close path** — 8 stranded lamps live,
+not the 2 the ticket named, now 9 including this dispatch's own. The builder
+bounded it three ways: **resolve door only** (measured: zero of the 7 live
+outside-fold approvals name a dispatch, so nothing historical is served by
+widening approve), the admitted set is the record's own task_ids, and true
+phantoms still 404 with a test that fails if they stop. The dispatch fold
+**fails closed** on an unreadable store — deliberately opposite to the
+requests read, because it can only ADD ids. I find that bounding sound; the
+decision is still not mine.
+
+**Verified independently before filing** (not taken on the seat's word):
+`fund_agent_runs` = **145** against `OPEN_RECS_RUN_CAP = 200`, read at
+`deskstore.py:755` — the dated finding stands with 55 runs of margin. And the
+builder's own caveat proved itself inside the hour: `desk_load.total` moved
+**55 → 58** (our three blocked orders) while every reconciliation leg kept
+balancing. **The invariant held while the total drifted, which is the whole
+claim.**
+
+**What I did NOT dispatch**: slice 2 is unblocked by this reconciliation number
+and the CDO's BIND, and I am **not** firing it. The fund is mid-execution on a
+control-layer blocker and the free builder slot went to that instead. Slice 2
+is Fable's to sequence anyway (approval-path doors, adversary blind first).
+
+**[Fable @ resolve]**:

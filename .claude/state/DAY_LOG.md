@@ -98,6 +98,23 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
   do not enter a blind envelope.
 
 **BUILT**
+- **TICKET HIGHWAY SLICE 1 RETURNED GREEN AND IS PARKED WHOLE FOR FABLE
+  (co-CTO, 14:20Z).** 696 tickets folded from the existing event stream
+  (121 ask / 25 dispatch / 550 rec), reconciling **7 of 7 legs** with
+  desk_load, the arithmetic asserted against an independently computed
+  counter rather than typed. 4618 passed / 1 skipped; 43 mutants, 42
+  killed by NAMED tests, 1 retired with proof, 0 survivors; zero write
+  paths, AST-asserted. **Parked whole, not merged**: the Tier-3 lamp-door
+  commit is one of five touching `fund.py`, so the handover's split was
+  not cleanly available and a partial merge would ship an untested tree;
+  the merge gate is also a second full suite the host cannot afford while
+  a live-blocker builder runs. Queue entry carries the review note on the
+  widening. **DATED FINDING, co-CTO verified live**: the fold and
+  desk_load agree only under `OPEN_RECS_RUN_CAP = 200`; `fund_agent_runs`
+  reads **145** — 55 runs of margin, then every leg drifts with no alarm.
+  The lamp-close blocker was worse than ticketed: **8 stranded dispatches,
+  not 2** — now 9, including slice 1's own, since the door that would
+  close them is the unmerged fix in its own bundle.
 - **D42 MERGED - THE CEO'S CARDS NOW LOOK LIKE WHAT HE RATIFIED.** 11
   commits, suite 553 -> 632 green on the merged live tree (2ead32c1), tsc
   + next build clean, mutation 35/37 + 2 retired-with-proof. Cards lead
@@ -383,9 +400,25 @@ morning desk)*
   close, Grace's adoption scorecard (S1) for his read.
 
 **ON FIRE**
-- Nothing new. The 5bps cost assumption vs 308bps INTC measurement is the
-  closest thing — it is a belief with money behind it and it is now dated:
-  the D36/D34 family must consume the measured spread table or say why not.
+- **R39 IS HALTED AT PHASE 4, 3-OF-4, BY A CONTROL-LAYER DEFECT (co-CTO,
+  14:05Z).** `mark_sanity_v1` derives `held_qty` by summing OrderFilled
+  events ONLY and never reads `BookReconciledToVenue` (seq 1414), so it
+  still believes the fund holds the phantom legs the morning's sync erased
+  — DBC 8.122157 / TLT 3.019871 / DBA 5.314306 against a true book holding
+  NONE of them. It refuses each buy as `held_but_unpriced`, and its own
+  suggested remedy ("strike NAV first") is UNREACHABLE because a strike
+  marks only genuinely-held positions. **Deadlock: no repurchase of any
+  symbol a reconciliation has ever zeroed can be approved by anyone.**
+  Guard code = Tier 3; parked, not touched. Ticket `d79f65b1`, queue entry
+  with the measured table and the proposed direction. SPY filled fine
+  (0.128362 @ 763.118 → sleeve at its intended 0.346119) because a mark
+  existed; its `held_qty` is wrong too (0.474481 vs 0.346119) and simply
+  did not bite. **State: SPY 0.346119 + ~$1,735 cash, reconciled and
+  exit-covered, ~87% idle against mandate.** The three proposals will go
+  stale and need re-staging after the fix.
+- The 5bps cost assumption vs 308bps INTC measurement — a belief with money
+  behind it and now dated: the D36/D34 family must consume the measured
+  spread table or say why not.
 
 ## 2026-08-23 (UTC)
 

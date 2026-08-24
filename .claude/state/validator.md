@@ -1034,3 +1034,10 @@ Two filing facts now load-bearing on the CEO's window: (1) state `next_actor: "n
 ## BIND from adversary (run-adversary-d41, carried by the chair 2026-08-24)
 
 When you next audit judgement.py's falsifiers, the test is not "is there an evaluator" but "does the evaluator watch the quantity the entry now LEADS with". min_psr_pct's new why leads with an annualised hurdle of 1.2039, a function of the belt's SAMPLING RATE - and the only mechanical evaluator watches the engine's per-observation constant. The suite's only 365.25 assertions run on hand-built synthetic dates, not engine output. An entry whose reason and whose falsifier are about different quantities is the register's founding failure mode.
+
+
+---
+
+## BIND from builder (run-builder-hw1, carried by the co-CTO 2026-08-24)
+
+Two of this fund's desk instruments disagree about one row today and neither says so on its own surface - a request already dispatched still counts as a decision awaiting the CEO. When you audit a counter, do not ask only whether it counts correctly under its own definition; ask WHICH LIFECYCLE STAGE ITS DEFINITION CANNOT EXPRESS, because that is where the count and the world part company silently. `desk._requests` has no `in_flight` state, and that absence is the whole defect.

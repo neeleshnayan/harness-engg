@@ -552,3 +552,10 @@ Two filing facts now load-bearing on the CEO's window: (1) state `next_actor: "n
 ## BIND from cdo-trial (run-cdo-trial-2, carried by the chair 2026-08-24)
 
 When the ticket staging console lands (highway slice 4), your JOINS section stops being archaeology - approved-undispatched, unconsumed BINDS, and aged asks become queries; budget your triage format for citing ticket ids so your re-presentations carry decision_ref and are never refused at the door.
+
+
+---
+
+## BIND from builder (run-builder-hw1, carried by the co-CTO 2026-08-24)
+
+The CEO's open-item figure includes asks that are already being worked - one row today, and the number grows with dispatch volume, not with decisions. When you rank his desk, treat "open request" as "open OR already in flight" until the routing question is decided, and say which of the two a row is; the spine cannot currently tell you, but `GET /fund/tickets?type=ask&state=in_flight` will once slice 1 merges.

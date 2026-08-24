@@ -1016,3 +1016,35 @@ Every *_annualised field on a verdict must state the clock it used, and TWO FIEL
 ## BIND from cdo-trial (run-cdo-trial-2, carried by the chair 2026-08-24)
 
 Slices 1-8 of TICKET_HIGHWAY_V1 (docs/design/TICKET_HIGHWAY_V1_2026-08-24.md section 2.6) are pre-scoped to your dispatch size with per-slice falsifiable acceptance; do not start slice 2 before slice 1's reconciliation number is on record - the fold's counts agreeing with desk_load is the baseline every later slice is judged against.
+
+
+---
+
+## STATE (run-builder-hw1, appended verbatim by the co-CTO 2026-08-24)
+
+**builder — after dispatch HW1 (2026-08-24), ticket highway slice 1 + two riders**
+
+- **Base CORRECT and the worktree was mine to create** (`git -C <live> worktree add -b builder-hw1 <scratchpad>/hw1 <sha>`, ~5s). Live head moved `e3d97b94→ee256106` mid-dispatch; **overlap over my files empty**. Check the overlap, never the head — sixteenth time this mattered.
+- **THE RECONCILIATION IS THE ARTIFACT, and it is 7/7 on the live record**: 696 tickets (121 ask / 25 dispatch / 550 rec); `desk_load.total 55 = 38 + 0 + 17`. Reproduce: `scratchpad/hw1_reconcile.py`. The populations MOVE hourly (695→696 in forty minutes, 120→121 asks) — **pin the invariant, never the total**; a test asserting "121 asks" measures the desk's traffic, not the fold.
+- **`DeskStore.all_runs` DOES NOT SELECT `recommendations`** (deskstore.py:563-575). A fold built on it reports 0 against a live 550. `runs(limit=N)` carries the column; `all_runs` never will. Any consumer must treat a missing key as UNKNOWN, not empty.
+- **THE RUN-CAP DIVERGENCE — a matter of WHEN, not if.** `open_recommendations` scans `OPEN_RECS_RUN_CAP=200` runs (named this dispatch, value unchanged); anything reconciling against `desk_load` must READ that constant and publish which side of it the payload is on. 145 runs live: **55 runs of warning.**
+- **A generator argument iterated twice is a silent zero.** `len(list(gen))` after the fold drained it gave `runs_seen: 0` beside 550 rows read. Materialise once, at the top.
+- **A THREE-WAY PARTITION COMPUTED AS A REMAINDER IS A TAUTOLOGY** — the exhaustiveness test cannot fail however badly the other two legs classify. Count all three directly. (The mutant is provably equivalent today; the value is for the next edit, and the source must say so rather than imply a behaviour fix.)
+- **Mutation caught two vacuous tests of my own**: one asserted the absence of an id the code never mints (M12); one relied on a constant being *named* rather than *used* (M43). **Naming a constant is not using it** — pin the constant to its call site by monkeypatching the source and driving the real function.
+- **`assert x is None if k in t else True` is a conditional EXPRESSION**, True whenever the key is absent — which is always. Grep new tests for `assert ... if ... else`.
+- **`"import Event" in src` matches `import EventType`.** Import guards go through AST with an exact name set, plus a positive control so an empty set cannot make the guard vacuous.
+- **Measured live shapes (2026-08-24)**: 121 `DeskRequested`; 36 `DeskDispatched` (12 with a `request_id`, 24 without; **10 of the 24 carry a `trace_id` ≠ `task_id`** — the alias index is load-bearing, not defensive); 550 recs over 145 runs, 252 working; **17 phantom events** (10 resolve + 7 approve); **24 duplicate resolutions** refused by terminal precedence; **32 resolve EVENTS against 17 DISTINCT chair-born dispatches**; only **18 of the 135 runs carrying recs** link to a ticket (117 fenced).
+- **The app cannot be imported in a worktree** — `fund.py:262` wires at import and refuses without Alpaca/Firebase credentials (correctly). Endpoint checks at production scale must go through the fold + a hand-built wrapper, or a test file inside `tests/`.
+- **New surfaces**: `app/fund/tickets.py` (`fold`/`_counts`/`_reconciliation`/`_advance`/`ALLOWED_FROM`/`LEGACY_REC_STATE`/`TICKET_STATES`/`TICKET_FOLD_VERSION`/`DISPATCH_ROUTING_VERSION`); `GET /fund/tickets` (+`TICKET_RUNS_LIMIT`/`TICKET_PAGE_LIMIT`); `desk.dispatched_task_ids`; `deskstore.OPEN_RECS_RUN_CAP`; `_refuse_unknown_request(allow_dispatch=)` + `folds_consulted`.
+- **Instruments kept**: `hw1_census{,2,3}.py`, `hw1_reconcile.py`, `hw1_recount.py`, `hw1_serialise.py`, `hw1_probe2.py`, `hw1_mutate.py` (43 mutants, CRLF-aware), `hw1_suite.sh`.
+- **A mutation harness must be CRLF-aware on this host.** Every multi-line anchor matched 0× and 15 of 33 mutants reported "harness error" while every single-line anchor worked — a pattern that reads like a bad mutant table and is an encoding bug. Read bytes, work in LF space, write back with the file's own ending.
+- **Host at the wall**: 0.24 GB free at worst with two builders live; the suite waited ~35 min for a 2.0 GB window. Services survived. **The floor is what kept it alive — do not lower it.**
+- **Open, mine**: (a) whether `desk_load` should stop counting a dispatched ask — a threshold question, filed not applied; (b) the repo-wide env sensitivity of every endpoint test (`fund.py:262`); (c) slice 2 onward, unblocked now that the reconciliation is on record; (d) the merge gate owed at merge; (e) everything from D14–D42.
+
+**CO-CTO NOTES AT RESOLVE (2026-08-24, Fable OOO):** Verified independently before filing: `fund_agent_runs` = **145** against `OPEN_RECS_RUN_CAP = 200` read at `deskstore.py:755` — your sharpest finding stands, and your own caveat proved itself within the hour: `desk_load.total` has already moved **55 → 58** (three orders stuck in the mark-sanity blocker below), and the arithmetic still balances. The invariant held while the total drifted, exactly as you said it would.
+
+**THE BUNDLE IS PARKED WHOLE FOR FABLE, and the reason is structural rather than authority.** The handover reserved the lamp-door commit as Tier 3 (an approval-path door) while allowing me to merge the fold and the grammar fix. **That split is not cleanly available**: `d615e909` (the lamp door) is one of FIVE commits touching `app/api/v1/fund.py`, interleaved with the endpoint itself, the filter refusal, the Gauntlet answers and the number re-count. Constructing a partial merge would produce a tree nobody has tested and risks shipping a caller without its callee — the exact defect this firm has already paid for once. Whole bundle parked; Fable merges after the gate runs. Second reason to defer regardless: the merge gate is a second full suite and the host is at the wall with two builders live, one of them on a live blocker.
+
+**The irony worth recording**: your dispatch lamp cannot be closed, because the door that would close it is the fix sitting unmerged in your own bundle. Eight stranded lamps, now nine. It stays lit — the least-wrong rendering of "awaiting the chair", which the floor still cannot draw.
+
+**Your BINDS carried** to validator and coo; the chair-facing one is answered in the queue: slice 2 is unblocked by your reconciliation number, and I am NOT dispatching it — the fund is mid-execution on a control-layer blocker and the chair's next builder slot belongs to that.

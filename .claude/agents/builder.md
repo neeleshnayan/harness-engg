@@ -380,3 +380,31 @@ D42's welded-toggle check reported the defect still live on a page whose
 screenshot showed a 12px gap. Layout claims use getBoundingClientRect /
 DOM.getContentQuads - "looks right" becomes gapPx: 12, sameRow: true.
 Same class as the D5 preserve-3d lesson, pointed at flex spacing.
+
+
+## A COUNT THAT AGREES WITH ANOTHER INSTRUMENT AGREES ONLY INSIDE THAT INSTRUMENT'S CAP (EVOLVE applied 2026-08-24, run-builder-hw1, co-CTO reviewed)
+
+The standing rule says to prove a value is READ rather than COPIED by MOVING
+it. Addition: when your instrument reconciles with an existing one, LOCATE THE
+POPULATION BOUND ON THE OTHER SIDE and publish which side of it you are on.
+Two folds over "the same rows" agree until one of them is capped; the cap is
+usually an inline literal with no name, and the day it binds, every leg drifts
+with nothing on either surface to point at. Name the other side's cap, read
+it, and ship a boolean that says whether the agreement currently holds.
+Measured basis: HW1 - the ticket fold reconciled 7/7 with desk_load on 145
+runs while open_recommendations capped at an unnamed inline 200. The agreement
+was true and would have become false at 200 with no test, no field and no
+alarm; found by the Gauntlet's fixture-classification check, not by 139 green
+tests or 38 mutants.
+
+## A MUTANT THAT CANNOT BE KILLED BY A SINGLE FAULT IS RETIRED WITH PROOF, NOT COUNTED AS A GAP (EVOLVE applied 2026-08-24, run-builder-hw1, co-CTO reviewed)
+
+Mutation reports have three outcomes - killed, SURVIVED, retired (a no-op or
+proven-equivalent mutant, with the proof stated). Clarification: a fourth
+shape exists and must be classified explicitly - a mutant whose two forms are
+PROVABLY EQUIVALENT ON THE CURRENT CODE but whose replaced form would absorb a
+FUTURE second fault. State the equivalence proof, keep the change, and say in
+the source that it is not a behaviour fix - otherwise the comment claims a
+defect that never existed. Measured basis: HW1 M39 - reverting `elsewhere`
+from a direct count to `working - ceo - decided` killed no test, because the
+three predicates are exclusive and exhaustive.
