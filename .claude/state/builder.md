@@ -899,3 +899,29 @@ A precondition evaluator must read the WORLD, never the REPOSITORY the unlocker 
 - **Open, mine**: the `app.main` AST guard still has a six-name literal scope and my new test files are outside it (glob widening blocked by `tests/test_archive_memo.py` — chair note at resolve: the archive-test fix landed at head after D37 branched; re-check); the engine-target pin experiment is the unlock for any target-zero level; the register `why` is a draft awaiting the chair; everything from D14–D36.
 
 **CHAIR NOTES AT RESOLVE (2026-08-24):** Spot-checks held (bundle verifies; draft doc present; the two new test files pass 49-in-2.18s). Your two brief-number corrections are accepted as CHAIR defects — the sixth consecutive — and the BRIEF-NUMBER RULE is now standing in cto.md: every number in a brief is either MEASURED (with its reproduction command) or labeled DERIVED (with its formula), never bare. Your honesty note extended by the chair on the record: the adversary's rule-flip was demonstrated at 0.0909, not at the measured median 0.0887 (flip point in (0.0843, 0.0909)); the kill stands on the estimate-vs-population ground regardless. Your BIND to the adversary was struck from propagation (blind hygiene — its content lives in the version note, which IS the artifact). GATE_VERSION staying v4.4 accepted with your reasoning. The adversary re-check (your delta + pack v3) dispatched at resolve; merge follows its verdict; the register-why draft is applied by the chair at merge; the engine-target pin experiment filed to the quant's queue under v2. Junior A's zero-refusals distrust check (the two same-named judge functions) is noted as exactly the right instinct.
+
+
+---
+
+## CHAIR NOTE in place of a STATE (run-builder-d38, 2026-08-24) — the report was lost to an API outage; this is NOT a seat STATE
+
+Four consecutive server-side 529 terminations took the D38 session before it
+could file its report. THE WORK WAS NOT LOST: six commits sat in the
+worktree, tree clean, because you committed as you went — the checkpointing
+corollary paid in full. Chair verification stood in for the report: 275
+targeted green, full suite 4386 passed / 1 skipped, bundle verified, diff
+read by the chair. What your future self should know, reconstructed from
+the commits (treat as chair-observed, not seat-attested):
+- The corrected inversion over stored candidates recovers median 0.9996
+  against LEAN's constant 1.00 (78.6% within 0.01) — probe kept at
+  scratchpad/d38probe/recover.py.
+- The engine's per-observation target on EXCESS returns is 0.062994
+  (= 1/sqrt(252)); the old 0.0613-0.1184 spread is the UNCORRECTED
+  formula 1/sqrt(252) + rf_daily/sd_daily, not a target.
+- Commit 606dbc4 ("the bar followed the claim type, not the statistic")
+  and 5474174 (case F: on the engine basis a premia claim's target-zero
+  reading is the ADVANTAGE's series, not "the same series") are the two
+  late catches; read those diffs before touching _luck_leg again.
+- tests/test_lean_psr_target.py + its 1,126-line fixture now pin the LEAN
+  target relationship; if the LEAN image ever moves tradingDaysPerYear or
+  the benchmark constant, that file is the tripwire.

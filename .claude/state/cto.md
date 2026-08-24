@@ -869,3 +869,24 @@ TradingHalted/ExitRuleTriggered) — the very founding pattern of this fund
 subset of controls_fired); P2's bound needs a MEASURED basis before any
 number is proposed (brief-number rule). The pack buys nothing until 12
 more informative fills exist, so nothing on the critical path waits.
+
+
+---
+
+## 2026-08-24 — THE 529 OUTAGE: what held and the standing procedure
+
+Anthropic's subagent API returned 529 Overloaded on four consecutive D38
+sessions (~25 min span, escalating back-offs); the main session was
+unaffected throughout. WHAT HELD: the seat had committed as it went, so
+four dead sessions cost zero bytes — the checkpointing corollary
+(constitution, the host-collapse lesson) now has an API-outage proof too.
+THE PROCEDURE, standing: (1) on a 529 termination, resume via SendMessage
+(the transcript survives); (2) back off 4min, then ~15-20min between
+attempts — never hammer; (3) after the second failed resume, VERIFY THE
+WORKTREE YOURSELF — if the work is committed, chair-verify (targeted +
+full suites, bundle, diff read) and file the resolve with the report
+honestly marked lost; never fabricate a seat STATE — a chair note labeled
+as such goes in its place; (4) dispatches that only REPORT remain held
+until the API recovers; work-producing dispatches should not be fired
+into a known outage. D38 filed this way; the final adversary re-check is
+HELD with a retry timer.

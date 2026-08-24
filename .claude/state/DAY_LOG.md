@@ -67,6 +67,15 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
   do not enter a blind envelope.
 
 **BUILT**
+- **D38 shipped THROUGH a four-strike API outage and is chair-verified**:
+  the true-target sentence (LEAN's constant 1.00 excess Sharpe, read not
+  inverted), the register draft rewritten, the corrected inversion's own
+  proof (median 0.9996 vs 1.00 over stored candidates, 78.6% within 0.01),
+  and a permanent tripwire test pinning the LEAN target relationship. Full
+  suite 4,386 green; bundle verified. The seat's report was lost to the
+  529s; the work was not — it committed as it went (the checkpointing
+  corollary's first API-outage proof). Final adversary re-check HELD on
+  a retry timer until subagents run again; merge follows it.
 - **D37 returned and resolved: the level revert is clean and MEASURED
   FREE** - premia surface byte-identical to the certified draft, alpha
   zero flips in both directions over 765 stored results (the killed
