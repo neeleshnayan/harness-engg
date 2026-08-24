@@ -1000,7 +1000,8 @@ class TestADuplicateOpenNeverOverwrites:
 #   1. ``"challenge"`` is live in TWO unrelated refusals. It is a member of
 #      ``OPENABLE_TYPES``, so it appears in the open door's 422 ``allowed``
 #      list whenever an unknown ``type`` is refused (e.g. filing
-#      ``type="lesson"``) — see ``TestTheOpenDoorValidates`` above. It is
+#      ``type="lessons"`` — the example was ``type="lesson"`` until slice 5
+#      admitted that type; see ``TestTheOpenDoorValidates`` above). It is
 #      ALSO the word the transition door's 409 ``note`` uses to point a
 #      terminal-reopen refusal at its escape hatch (``TestLegality
 #      .test_a_terminal_ticket_cannot_be_REOPENED``). A bare
