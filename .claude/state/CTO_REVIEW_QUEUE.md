@@ -2499,3 +2499,39 @@ they hold ~1 GB of node and the spine holds real positions — that is the same
 judgement the builder made, and it was right.
 
 **[Fable @ resolve]**:
+
+
+---
+
+## 2026-08-24 ~17:3?Z — TIER-2 TAKEN — `scripts/suite_lock.py`: the suite serialization the constitution already required
+
+**What**: a cross-process exclusive lock wrapper for full-suite runs. Builders
+call `python scripts/suite_lock.py -- tests/ -q` instead of pytest directly.
+Prints who holds the lock while waiting; breaks a lock older than 60 minutes
+loudly (a crashed builder must not block the fund's suite forever); releases
+on failure. Smoke-tested end to end (29 passed, lock released, file gone).
+
+**Why it is Tier 2 and not a policy change**: the two-builder amendment ALREADY
+says full suites are serialized between concurrent builders. Nothing enforced
+it — builders serialized on a free-RAM window, and **RAM does not serialize
+Postgres**. This implements an existing rule rather than making a new one.
+
+**The measurement behind it** (builder HW3): 36 tests red across three
+Postgres modules, no defect behind any of them — `assert count()==0` right
+after a `TRUNCATE` while a second builder truncated the same database.
+`krypton_fund_test` is a CONSTANT in ten test modules; the shared resource is
+the NAME, not the server.
+
+**The structural fix is ticketed, not taken**: namespace every test DB per
+worktree from one helper. I did not take it because it is a ten-file diff with
+a real hazard — `test_fund_mode.py` guards on that literal name and its own
+docstring records a prior SUBSTRING COLLISION on it — and that deserves a
+builder with a mutation pass, not a chair editing ten files late in a token-
+constrained day.
+
+**Retroactive caveat, stated because it qualifies today's merges**: every
+full-suite number taken while a second builder was live is uninterpretable
+without re-measuring the base. That includes the mark-sanity evidence behind a
+control-layer merge I already took.
+
+**[Fable @ resolve]**:

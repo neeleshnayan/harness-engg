@@ -559,3 +559,10 @@ When the ticket staging console lands (highway slice 4), your JOINS section stop
 ## BIND from builder (run-builder-hw1, carried by the co-CTO 2026-08-24)
 
 The CEO's open-item figure includes asks that are already being worked - one row today, and the number grows with dispatch volume, not with decisions. When you rank his desk, treat "open request" as "open OR already in flight" until the routing question is decided, and say which of the two a row is; the spine cannot currently tell you, but `GET /fund/tickets?type=ask&state=in_flight` will once slice 1 merges.
+
+
+---
+
+## BIND from builder (run-builder-hw3, carried by the co-CTO 2026-08-24)
+
+The `## TICKETS` and `## BINDS` parsers now exist and the chair's queue is a SELECT - but the PRODUCERS do not write either block yet, so structured filing is still the measured 0 of 116. When you rank what unblocks what, the highway's remaining value is gated on slice 7 (templates in the brief boilerplate), not on more machinery. Ask for the adoption number per run; the endpoint reports `block_present` false vs true-and-empty precisely so that number is readable. (Same BIND to Grace.)

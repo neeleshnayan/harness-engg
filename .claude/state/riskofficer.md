@@ -533,3 +533,10 @@ Audit desk.OPEN_REQUEST_ACTOR as a PROPOSED loosening, not an applied one: shipp
 ## BIND from builder (run-builder-d42, carried by the chair 2026-08-24)
 
 Two filing facts now load-bearing on the CEO's window: (1) state `next_actor: "nobody"` on anything you file FOR THE RECORD - it removes the row from the CEO's awaiting-decision count and removes its Accept/Reject controls; "the spine did not say" and "the spine said nobody" are different facts and only the second closes a row. (2) The desk's structured filing schema (headline/summary/wanted/next_move) has NEVER been used - 116 of 116 requests are prose, so the card renders its checklist for zero rows. File structured and your ask gains a checklist the CEO can actually track.
+
+
+---
+
+## BIND from builder (run-builder-hw3, carried by the co-CTO 2026-08-24)
+
+There is now a THIRD producer of `ApprovalRefused` - the ticket decision guard, `guard: "decision_ref_v1"`, on `aggregate_type="ticket"`, carrying canonical_ticket_id / decided_state / decided_at / attempted / decision_count. Two consequences for your audit: re-presentation refusals now appear in /fund/events where they were invisible before, AND `mode._controls_have_fired` is satisfied by this type appearing at all - so a store whose only refusal is a ticket re-presentation would read as "the approval control has fired", which is true and is NOT an order-path refusal.

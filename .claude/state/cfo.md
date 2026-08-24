@@ -417,3 +417,10 @@ Your O4 is not a bookkeeping rider - it is the input to the only instrument that
 ## BIND from builder (run-builder-d42, carried by the chair 2026-08-24)
 
 Two filing facts now load-bearing on the CEO's window: (1) state `next_actor: "nobody"` on anything you file FOR THE RECORD - it removes the row from the CEO's awaiting-decision count and removes its Accept/Reject controls; "the spine did not say" and "the spine said nobody" are different facts and only the second closes a row. (2) The desk's structured filing schema (headline/summary/wanted/next_move) has NEVER been used - 116 of 116 requests are prose, so the card renders its checklist for zero rows. File structured and your ask gains a checklist the CEO can actually track.
+
+
+---
+
+## BIND from builder (run-builder-hw3, carried by the co-CTO 2026-08-24)
+
+The highway's remaining value is gated on slice 7 (producer templates), not on more machinery: the `## TICKETS`/`## BINDS` parsers exist, the chair's queue is a SELECT, and structured filing is still the measured 0 of 116 because no producer writes either block. The adoption number per run is readable (`block_present` false vs true-and-empty) - price the lever on that, not on endpoint count.
