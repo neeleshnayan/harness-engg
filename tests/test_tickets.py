@@ -832,8 +832,13 @@ class TestTheEndpoint:
         # than vanishing from the dict. It gained a key in slice 2 (a
         # door-born-only species, §1.2's escape hatch from a terminal row) and
         # this fixture has no legacy carrier that could produce one.
+        # `lesson` joined the vocabulary in slice 5 (it arrived WITH its
+        # consumption receipt, which was the condition slice 2 stated for
+        # admitting it). Like `challenge` it has no legacy carrier, so this
+        # fixture produces zero of them — and zero-and-PRESENT is the assertion.
         assert b["counts"]["by_type"] == {"ask": 6, "dispatch": 2,
-                                          "recommendation": 12, "challenge": 0}
+                                          "recommendation": 12, "challenge": 0,
+                                          "lesson": 0}
 
     def test_a_filter_narrows_the_list_and_not_the_census(self, client):
         b = client.get("/api/v1/fund/tickets?type=ask").json()
@@ -853,14 +858,23 @@ class TestTheEndpoint:
             self, client, q):
         """``?state=dine`` would otherwise return ``total: 0`` — which reads
         exactly like "no ticket is in that state". Absence-as-zero at the query
-        layer. ``lesson`` is in the design's type table and NOT in slice 1's,
-        so it is a live example rather than a typo; ``returned`` is a real
-        state no legacy adapter can produce, and asking for it must say the
-        state is empty, which it does through a 200 with total 0."""
+        layer. ``returned`` is a real state no legacy adapter can produce, and
+        asking for it must say the state is empty, which it does through a 200
+        with total 0.
+
+        ``type=lesson`` CHANGED SIDES IN SLICE 5, and the case is kept rather
+        than deleted because the move is the interesting part: it was a live
+        example of a REFUSED filter (in the design's type table, not in the
+        fold's) and it is now a live example of a RECOGNISED one with no rows.
+        The distinction the test defends — 422 for a word the vocabulary does
+        not contain, 200-with-zero for one it does — is unchanged; only which
+        side ``lesson`` sits on moved.
+        """
+        recognised = ("state=returned&type=ask", "type=lesson")
         r = client.get(f"/api/v1/fund/tickets?{q}")
-        if q == "state=returned&type=ask":
+        if q in recognised:
             assert r.status_code == 200 and r.json()["total"] == 0, \
-                "a RECOGNISED state with no rows is an honest empty answer"
+                "a RECOGNISED filter with no rows is an honest empty answer"
             return
         assert r.status_code == 422
         assert "allowed" in r.json()["detail"]

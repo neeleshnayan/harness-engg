@@ -218,6 +218,134 @@ def _parse_one(raw: str) -> dict[str, Any]:
                    f"{sorted(set(['transition', 'open']) | set(_ALIASES))}"}
 
 
+# -------------------------------------------------- lessons with receipts --
+
+#: The heading a seat writes for the propagation half of the protocol.
+BINDS_HEADING = re.compile(r"^\s{0,3}#{1,6}\s*BINDS\s*$", re.IGNORECASE)
+
+#: What separates the seat list from the lesson. Em dash, en dash, hyphen or
+#: colon — all four appear in the constitution's own examples and in the memory
+#: files, and a grammar that accepted one of them would read a quarter of what
+#: the firm already writes.
+_BINDS_SPLIT = re.compile(r"\s*(?:—|–|:|\s-\s)\s*")
+
+BINDS_BLOCK_VERSION = "## BINDS grammar v1 (2026-08-24, highway slice 5)"
+
+
+def parse_binds_block(text: Optional[str],
+                      seats: Optional[set[str]] = None) -> dict[str, Any]:
+    """One ``## BINDS`` block -> one lesson per RECEIVING SEAT.
+
+    Design §1.5 and failure #8: *"BINDS carried by hand"*. The constitution
+    already specifies the content — *"named seats, and for each one the lesson
+    written as an instruction to THAT seat"* — and specifies nothing about the
+    carrier, because until now the carrier was a chair reading a report and
+    remembering. This turns each entry into a row.
+
+    **ONE TICKET PER RECEIVING SEAT, NOT ONE PER ENTRY**, and that is the whole
+    reason the split is here rather than at the door. An entry addressed to
+    ``mechanism, analyst`` is TWO obligations: the analyst consuming it says
+    nothing about whether the mechanism ever did, and a single row would go
+    ``done`` on the first receipt and take the second lesson with it.
+
+    ``seats`` defaults to the bench in ``desk.ROSTER``, READ and not copied —
+    the roster changes by editing the constitution and that file together, and
+    a second list here would let this parser address a seat that no longer
+    exists. An unrecognised name is REPORTED unparsed, never silently
+    addressed: a lesson filed for ``buidler`` is a lesson nobody receives.
+    """
+    if text is None:
+        return {"block_present": False, "lessons": [], "unparsed": [],
+                "version": BINDS_BLOCK_VERSION,
+                "note": "no text was supplied — the block is UNKNOWN, which is "
+                        "not the same as a seat that bound nobody"}
+    if seats is None:
+        from app.fund.desk import ROSTER
+        seats = {r["agent"] for r in ROSTER}
+
+    lines = str(text).splitlines()
+    start = None
+    for i, line in enumerate(lines):
+        if BINDS_HEADING.match(line):
+            start = i + 1
+            break
+    if start is None:
+        return {"block_present": False, "lessons": [], "unparsed": [],
+                "version": BINDS_BLOCK_VERSION,
+                "note": "this output carries no '## BINDS' block — the seat "
+                        "bound nobody, or has not adopted the section"}
+
+    body: list[str] = []
+    for line in lines[start:]:
+        if _ANY_HEADING.match(line):
+            break
+        body.append(line)
+
+    lessons, unparsed = [], []
+    for raw in _logical_lines(body):
+        entry = raw.replace("**", "").replace("__", "").strip()
+        head, rest = _split_entry(entry)
+        if not rest:
+            unparsed.append({"raw": raw,
+                             "why": "no separator between the seat name(s) and "
+                                    "the lesson — expected 'seat — lesson', "
+                                    "'seat: lesson' or 'seat - lesson'"})
+            continue
+        named = [s.strip().lower() for s in re.split(r"[,/&]| and ", head)
+                 if s.strip()]
+        known = [s for s in named if s in seats]
+        unknown = [s for s in named if s not in seats]
+        if unknown:
+            unparsed.append({"raw": raw, "why":
+                             f"unrecognised seat name(s) {unknown} — a lesson "
+                             f"filed for a seat that does not exist is a "
+                             f"lesson nobody receives. Bench: {sorted(seats)}"})
+        for s in known:
+            lessons.append({"seat": s, "lesson": rest.strip(), "raw": raw})
+    return {"block_present": True, "lessons": lessons, "unparsed": unparsed,
+            "version": BINDS_BLOCK_VERSION,
+            "note": (f"{len(lessons)} lesson(s) across "
+                     f"{len({x['seat'] for x in lessons})} seat(s); "
+                     f"{len(unparsed)} entry/entries this grammar could not "
+                     "read and did NOT drop")}
+
+
+def _split_entry(entry: str) -> tuple[str, str]:
+    """``"quant — name the leg"`` -> ``("quant", "name the leg")``.
+
+    Splits on the FIRST separator only, because a lesson routinely contains
+    colons and dashes of its own and splitting on all of them would truncate
+    every instruction after its first clause.
+    """
+    parts = _BINDS_SPLIT.split(entry, maxsplit=1)
+    if len(parts) < 2:
+        return entry, ""
+    return parts[0], parts[1]
+
+
+def lessons_as_proposals(lessons: list[dict[str, Any]], *,
+                         from_seat: Optional[str] = None
+                         ) -> list[dict[str, Any]]:
+    """Lesson rows -> ``open`` proposals for the ordinary staging path.
+
+    NO SECOND WRITE PATH. A lesson becomes a ticket exactly the way every other
+    proposal does: staged here, resolved by the chair, appended by
+    ``open_ticket``. The alternative — a BINDS endpoint that minted lesson
+    tickets directly — would be a door with its own copy of the type check, the
+    subject check and the routing vocabulary.
+    """
+    return [{"kind": "open", "ticket_id": None, "to_state": None,
+             "fields": {"type": "lesson", "for": x["seat"],
+                        "subject": x["lesson"],
+                        # WHOSE MOVE A LESSON IS: the receiving SEAT's, and it
+                        # is declared rather than inferred so the in-tray query
+                        # is a SELECT rather than a guess.
+                        "next_actor": "seat",
+                        **({"from_seat": from_seat} if from_seat else {})},
+             "raw": x["raw"]}
+            for x in lessons]
+
+
 # ------------------------------------------------------------- the table --
 
 class StagedTickets:

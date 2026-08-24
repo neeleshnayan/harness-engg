@@ -3141,6 +3141,184 @@ def _apply_staged(row: dict, decision, actor: str) -> dict:
         reversibility=fields.get("reversibility")))
 
 
+# ---------------------------------------------------------------------------
+# LESSONS WITH RECEIPTS — slice 5.
+#
+# DIRECTION: three NEW endpoints. `POST /fund/tickets/binds` PARSES and STAGES
+# only — it appends nothing, and a lesson becomes a ticket by the chair
+# resolving the staged row through `open_ticket`, with no second write path.
+# `POST /fund/tickets/{id}/consumed` appends a receipt and CANNOT change a
+# ticket's state (see its docstring for why that separation is the point).
+# `GET /fund/tickets/lessons` is read-only.
+#
+# WHAT THIS CLOSES: failure #8, *"BINDS carried by hand"*. The falsifier the
+# design wrote for it is "a filed lesson reaches the receiving seat's dispatch
+# without a receipt, OR a lesson silently vanishes" — the second half is why
+# the view below never filters unconsumed rows out and sorts them to the top.
+# ---------------------------------------------------------------------------
+
+class BindsBlock(BaseModel):
+    text: Optional[str] = None
+    run_id: Optional[str] = None
+    from_seat: Optional[str] = None
+    dry_run: bool = False
+
+
+@router.post("/fund/tickets/binds")
+def stage_binds_block(req: BindsBlock):
+    """A ``## BINDS`` block -> one STAGED lesson per receiving seat.
+
+    ONE PER SEAT, NOT ONE PER ENTRY. An entry addressed to two seats is two
+    obligations; a single row would go ``done`` on the first receipt and take
+    the second seat's lesson with it.
+
+    Staged, never appended. The chair resolves the batch exactly as it resolves
+    any other proposal, which is what keeps "a seat cannot write to another
+    seat's memory" structurally true while the carrying stops being manual.
+    """
+    from app.fund import ticketstaging
+    parsed = ticketstaging.parse_binds_block(req.text)
+    proposals = ticketstaging.lessons_as_proposals(parsed["lessons"],
+                                                   from_seat=req.from_seat)
+    if req.dry_run or not proposals:
+        return {**parsed, "staged": [], "stored": False,
+                "store_available": _stagedstore() is not None}
+    st = _stagedstore()
+    if st is None:
+        return {**parsed, "staged": None, "stored": False,
+                "store_available": False,
+                "note": parsed["note"] + " — the staging table is UNAVAILABLE "
+                        "off Postgres, so these lessons were parsed and NOT "
+                        "stored; null, not an empty list"}
+    rows = st.stage(proposals, run_id=req.run_id, seat=req.from_seat)
+    return {**parsed, "staged": rows, "stored": True, "store_available": True}
+
+
+class TicketConsumed(BaseModel):
+    consumed_by_dispatch: str
+    seat: Optional[str] = None
+    actor: str = "cto"
+
+
+@router.post("/fund/tickets/{ticket_id}/consumed")
+def consume_ticket(ticket_id: str, req: TicketConsumed):
+    """Record that a lesson was CARRIED INTO a named dispatch.
+
+    A RECEIPT, NOT A TRANSITION, and the separation is the design's (§1.5):
+    consumption records that the lesson reached a seat's brief; whether the
+    lesson is DONE is the chair's judgement at resolve and takes a transition
+    of its own. Folding the receipt as a state change would close the loop
+    automatically — and "the system's contribution is staging, never
+    appending" is the one rule this highway does not bend.
+
+    THE DISPATCH MUST BE NAMED. A receipt that cannot say which brief carried
+    the lesson is the linkage rot this highway exists to end, in miniature: it
+    would move a counter and leave nobody able to check it.
+    """
+    from app.fund.events import Event, EventType
+    if not (req.consumed_by_dispatch or "").strip():
+        raise HTTPException(
+            status_code=422,
+            detail="name the dispatch that carried this lesson — a receipt "
+                   "that cannot say which brief carried it moves a counter "
+                   "and leaves nobody able to check it")
+    folded = _ticket_fold()
+    row = _refuse_unknown_ticket(folded, ticket_id)
+    if row and row.get("type") not in (None, "lesson"):
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "consumption receipts are for lesson tickets",
+                    "ticket_id": ticket_id, "type": row.get("type"),
+                    "note": "a receipt on an ask or a recommendation would "
+                            "put a number on the lessons view that is not a "
+                            "lesson, and consumption lag would stop meaning "
+                            "what its name says"})
+    payload = {"ticket_id": ticket_id,
+               "consumed_by_dispatch": req.consumed_by_dispatch.strip(),
+               "seat": req.seat or (row.get("filed_for") if row else None),
+               "at": datetime.now(timezone.utc).isoformat(),
+               "actor": req.actor}
+    _store.append(Event(aggregate_id=ticket_id, aggregate_type="ticket",
+                        type=EventType.TICKET_CONSUMED,
+                        payload=payload, actor=req.actor))
+    return payload
+
+
+@router.get("/fund/tickets/lessons")
+def lessons_view(seat: Optional[str] = Query(None),
+                 limit: int = Query(500, ge=1, le=5000)):
+    """Every lesson, its receipts, and how long it waited. Read-only.
+
+    **AN UNCONSUMED LESSON AGES VISIBLY RATHER THAN VANISHING**, which is
+    slice 5's stated acceptance and the second half of failure #8's falsifier.
+    Concretely: unconsumed rows are never filtered out, they sort to the TOP by
+    age, and their lag is ``null`` with ``lag_basis: "unconsumed"`` — never 0.
+    A lag of zero for a lesson nobody carried would read as instant delivery.
+
+    The aggregate is a MEDIAN and it is reported with its own denominator: a
+    median over the consumed rows only, beside the count of rows it could not
+    include. A single number over a population that is mostly unconsumed would
+    describe the delivered minority and be read as the whole.
+    """
+    from app.fund import tickets as tk
+    folded = _ticket_fold()
+    rows = folded.get("tickets")
+    if rows is None:
+        return {"readable": False, "lessons": None, "counts": None,
+                "note": folded.get("note")}
+    lessons = [r for r in rows if r["type"] == "lesson"]
+    if seat:
+        lessons = [r for r in lessons if r.get("filed_for") == seat]
+    out, lags = [], []
+    for r in lessons:
+        cons = r.get("consumptions") or []
+        first = cons[0] if cons else None
+        lag = (tk._age_hours(r.get("filed_at"), first.get("at"))
+               if first else None)
+        if lag is not None:
+            lags.append(lag)
+        out.append({
+            "ticket_id": r["ticket_id"], "seat": r.get("filed_for"),
+            "subject": r.get("subject"), "state": r["state"],
+            "filed_at": r.get("filed_at"), "terminal": r["terminal"],
+            "consumed": bool(cons), "consumptions": cons,
+            "consumed_by_dispatch": (first or {}).get("consumed_by_dispatch"),
+            "consumption_lag_hours": lag,
+            # Three bases, not two: `unconsumed` (nothing carried it),
+            # `unknown` (a receipt exists and one of its two timestamps could
+            # not be parsed) and `event_timestamps`. Collapsing the first two
+            # would report a broken clock as an uncarried lesson.
+            "lag_basis": ("event_timestamps" if lag is not None
+                          else "unconsumed" if not cons else "unknown"),
+            "age_hours": r.get("age_hours"),
+            "age_basis": r.get("age_basis"),
+        })
+    # UNCONSUMED FIRST, OLDEST FIRST. The board's job is to make the
+    # never-carried lesson the most conspicuous row on it.
+    out.sort(key=lambda x: (x["consumed"], -(x["age_hours"] or 0.0)))
+    consumed = sum(1 for x in out if x["consumed"])
+    return {
+        "readable": True, "lessons": out[:limit], "shown": min(len(out), limit),
+        "total": len(out), "truncated": len(out) > limit,
+        "filters": {"seat": seat},
+        "counts": {
+            "lessons": len(out), "consumed": consumed,
+            "unconsumed": len(out) - consumed,
+            "terminal": sum(1 for x in out if x["terminal"]),
+        },
+        "median_lag_hours": (sorted(lags)[len(lags) // 2] if lags else None),
+        # THE DENOMINATOR THE MEDIAN IS OVER, published beside it. A median
+        # taken over the consumed minority and read as the population is the
+        # exact shape of a number that means something other than its label.
+        "median_lag_basis": (f"median over the {len(lags)} lesson(s) with a "
+                             f"readable receipt; {len(out) - len(lags)} row(s) "
+                             "are NOT in this figure"
+                             if lags else
+                             f"no lesson has a readable receipt yet, so the lag "
+                             f"is UNKNOWN over {len(out)} row(s) — never zero"),
+    }
+
+
 # ===========================================================================
 # THE DESK ENGINE v1 — docs/DESK_ENGINE_V1_2026-08-23.md
 #

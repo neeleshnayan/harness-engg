@@ -70,12 +70,16 @@ TICKET_FOLD_VERSION = ("ticket fold v3 (2026-08-24) — v1's legacy adapters, "
 #: the escape hatch it names does not exist would be a dead end wearing a rule's
 #: clothes.
 #:
-#: ``lesson`` is still DELIBERATELY ABSENT. It has no historical carrier (memo
-#: §1.4) and its point is the consumption receipt — a lesson ticket without
+#: ``lesson`` ARRIVED IN SLICE 5, WITH ITS RECEIPT AND NOT BEFORE. Slice 2's
+#: note here said it was deliberately absent because "a lesson ticket without
 #: ``TICKET_CONSUMED`` being appended by the chair's resolve pipeline is a row
-#: that can be filed and never read, which is the failure it exists to end.
-#: It enters the highway with that pipeline, in slice 5.
-TICKET_TYPES = ("ask", "dispatch", "recommendation", "challenge")
+#: that can be filed and never read, which is the failure it exists to end" —
+#: that condition is now met: ``POST /fund/tickets/{id}/consumed`` appends the
+#: receipt and ``GET /fund/tickets/lessons`` makes the lag a number. Like
+#: ``challenge`` it has NO legacy adapter and never will: pre-highway BINDS are
+#: not retro-ticketed (memo §1.4), because a receipt invented for a lesson
+#: nobody can prove was carried is worse than an honest absence.
+TICKET_TYPES = ("ask", "dispatch", "recommendation", "challenge", "lesson")
 
 #: The types a door may MINT. Identical to ``TICKET_TYPES`` today, and a
 #: separate name rather than an alias because the two answer different
