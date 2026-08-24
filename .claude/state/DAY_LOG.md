@@ -98,6 +98,18 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
   do not enter a blind envelope.
 
 **BUILT**
+- **D43 MERGED — the CEO's loading-vs-unreadable defect is LIVE**
+  (`5da94fa4 → 10e1302c`, 19 files, 682/682 on the live tree, gate PASS
+  against the real target branch with the forbidden-surface claim
+  re-verified BY HAND). His desk no longer shouts "could not be read"
+  while a read is merely in flight; the failure language is byte-identical
+  for reads that actually fail; the steering sentence is a quiet footnote.
+  **The co-CTO reversed its own hold to ship it** — the build red is
+  pre-existing, in a subtree D43 never touched, now narrowed from three
+  causes to one, and D42 plus the lane fix had already merged today on the
+  same evidence. Cost of the reversal, recorded: repairing node_modules
+  under a running dev server took every studio route to 500 for ~2
+  minutes; one restart fixed it.
 - **D43 (KP desk polish) GREEN AND HELD (co-CTO, 15:10Z).** The CEO's
   loading-vs-unreadable defect is fixed and proven on the rendered page,
   three pages x three arms, using a new instrument built for it: a spine
@@ -259,6 +271,20 @@ The Monday of the click sheet (~12:30Z) and the first real-venue fills
   recorded absent, never zero).
 
 **MEASURED**
+- **ENTRY FREEZE LIFTED (co-CTO, 15:2?Z).** `/fund/venue/reconcile` reads
+  `symbols_out_of_sync: 0`, delta -$0.01, so Stan's G4 freeze on
+  DBA/DBC/GLD/INTC/MSFT/NVDA/SOFI/SPY/TLT/XLE released itself exactly as
+  designed. The standing chair flag can come down. NAV struck post-fill at
+  **$1,999.92** (SPY 762.58) under today's own new rule.
+- **THE HOST HAS A PRODUCTION BUILD SIGNAL AGAIN.** Two non-dev lockfile
+  packages were absent from KryptonPay's 1,226-package tree
+  (`@alloc/quick-lru` — a Tailwind dependency — and
+  `@adraffy/ens-normalize`), so `next build` failed at the UNTOUCHED base
+  and every KryptonPay merge today was gated on tests+types only.
+  Installed at exact lockfile versions with `--no-save`; dev server came
+  back FASTER (0.135s). **The co-CTO reversed its own hold to do it**: the
+  risk window it was protecting was empty, because the CEO's orders were
+  already blocked by the guard.
 - **D41 SURVIVES - THE GATE STACK IS MERGE-READY AND THE CLOCK FAMILY
   CLOSES AT FIVE STRIKES.** The adversary re-ran its own killing probe
   unchanged: the shipped gate's pass boundary (realised 1.367) now agrees

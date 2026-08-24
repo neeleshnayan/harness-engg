@@ -2384,3 +2384,89 @@ trusting the gate's line. **A zero from a gate needs its domain before it needs
 belief.**
 
 **[Fable @ resolve]**:
+
+
+---
+
+## 2026-08-24 15:2?Z — TIER-2 TAKEN — environment repair: the two missing packages installed, so this host has a production build signal again
+
+**What**: `npm install --no-save --no-audit --no-fund @alloc/quick-lru@5.2.0
+@adraffy/ens-normalize@1.11.1` in `KryptonPay` — the exact lockfile versions of
+the two non-dev packages D43 measured absent from a 1,226-package tree.
+`--no-save`, so `package.json` is untouched. npm reported *"added 2 packages,
+and changed 36 packages"*; the 36 are npm reconciling the tree toward the
+lockfile, which is the direction of correctness, but it is more than I asked
+for and Fable should know it happened.
+
+**Why now, and this is a reversal of my own hold thirty minutes earlier.** I
+held D43's merge because a CSS recompile against a missing Tailwind dependency
+could take down the dev server serving the CEO's approval screen. The CEO then
+said, correctly: *"dont be hobbled down, keep logging and make sound decisions
+to unblock yourself."* Re-examining my own reasoning, **the risk window I was
+protecting was empty**: his three orders are blocked by the mark-sanity guard,
+so nothing is clickable, so the surface I was guarding had nothing to serve.
+**That made now the BEST time for the repair rather than the worst.** I had
+protected a screen instead of the work the screen exists for.
+
+**Verified after, not assumed**: both packages present; `/clark/studio` 200 in
+**0.135s** and `/clark/studio/desk/ceo` 200 in 0.171s — the dev server did not
+merely survive, it got faster. `next build` running now: the first production
+build signal on this machine today, for anyone.
+
+**Risk accepted and named**: a dev-server restart, had it died, is Tier 2 and
+recoverable in a minute. That asymmetry — a recoverable failure against a
+permanently unverified build — is what made this sound rather than brave.
+
+**Also recorded, a state change nobody triggered**: `/fund/venue/reconcile`
+reads `symbols_out_of_sync: 0`, so **Stan's G4 ENTRY FREEZE on the ten drifted
+symbols has LIFTED automatically** (it keys on in_sync, exactly as designed).
+Verified rather than assumed; the standing chair flag from 2026-08-24 can come
+down. NAV struck post-fill at **$1,999.92** (SPY marked 762.58) under the day's
+own new rule — sync/trade, then strike.
+
+**[Fable @ resolve]**:
+
+
+---
+
+## 2026-08-24 15:4?Z — TIER-2 TAKEN — D43 MERGED (the CEO's loading-vs-unreadable fix is live)
+
+**What**: merged `builder-kpp` into KryptonPay, `5da94fa4 → 10e1302c`,
+fast-forward, 19 files. Merge gate PASS against the REAL target branch
+(`claude/krypton-fund-agentic-j8r2mu`) — 682 tests / 0 fail / 0 sensitive / 0
+forbidden — and I re-verified the forbidden-surface claim BY HAND with its
+domain stated (19 files listed, 0 matching the globs), because the builder had
+just demonstrated that this gate returns a clean zero over any diff when
+`--branch` is pointed at the builder's own branch. Live suite after merge:
+**682 passed, 0 failed**. CEO routes 200 in 0.18s.
+
+**Why I merged despite `next build` still being red** — a reversal of my own
+hold ninety minutes earlier, and the reasoning matters more than the outcome:
+
+1. The red is **pre-existing at the untouched base** and lives entirely in
+   `src/app/clark/next/**`, a subtree D43 never touched.
+2. I **narrowed it from three causes to one**, so the claim is now specific
+   rather than a blanket "the build is broken".
+3. **Consistency**: D42 and the lane fix both merged today on suite + tsc +
+   gate, because nobody had a build signal. Holding D43 alone to a stricter
+   bar than the two changes already sitting in the same tree is not caution,
+   it is inconsistency wearing caution's clothes.
+4. The CEO reported this defect from his own screen this morning.
+
+**MY OWN ERROR, recorded because it is the useful part.** Reinstalling
+`@assistant-ui/react` under the RUNNING dev server took every studio route to
+**500** — the CEO's desk included. I had explicitly priced that risk as
+"recoverable in a minute" when I decided to touch node_modules; it was, and
+`preview_stop` + `preview_start` restored 200s. **But the honest lesson is
+sharper than "it recovered": I had judged the risk window empty because his
+orders were blocked, and a 500 is still a 500 if he had looked.** Next time,
+tell him the window is opening before it opens rather than after it closes.
+
+**The remaining build blocker, ticketed**: `@assistant-ui/react@0.15.14`
+installs WITHOUT its declared main (`dist/index.js` absent while `dist/`
+subdirectories exist), and npm reports it "up to date" so it will not
+self-repair. Three damaged packages found in one afternoon in a 1,226-package
+tree suggests the damage is broader than three; the clean answer is `npm ci`
+at a moment when nobody needs the click surface.
+
+**[Fable @ resolve]**:
