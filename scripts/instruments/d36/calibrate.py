@@ -4,8 +4,13 @@ WHAT THIS ANSWERS. The chair's ruling (cto.md, 2026-08-24) restored `min_psr_pct
 to its documented job — a target-ZERO luck filter — and set the level by
 measurement under a hard invariant: **full-gauntlet zero-skill false passes may
 not rise above today's measured rate**. With its own falsifier attached: if no
-level holds, the shipped configuration keeps the ~1.34-equivalent hurdle with the
-sentence corrected to say what it is.
+level holds, the shipped configuration keeps the engine's hurdle with the
+sentence corrected to say what it is. (The ruling's shorthand for that hurdle
+was "~1.34", and this file said so until D38. It is an annualised Sharpe of
+exactly 1.00 — LEAN hardcodes `1/sqrt(tradingDaysPerYear)` on excess returns;
+1.34 was the fund's own uncorrected inversion. Nothing in this instrument's
+arithmetic depends on which, because the emulated arm sweeps a target range and
+does not read that number.)
 
 THE POPULATION is the adversary's: Dirichlet random weights over a risky
 universe, rebalanced monthly, judged against equal-weight buy-and-hold of the

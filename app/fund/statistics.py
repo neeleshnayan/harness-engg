@@ -89,7 +89,15 @@ def lean_psr_target(trading_days_per_year: float | int | None = None
     ``LEAN_TRADING_DAYS_PER_YEAR``. Absence is reported, not silently defaulted.
     """
     k = trading_days_per_year
-    assumed = not isinstance(k, (int, float)) or isinstance(k, bool) or k <= 0
+    # `math.isfinite` AND NOT `k <= 0` ALONE. Every NaN comparison is False, so
+    # a NaN clock passed `k <= 0` and was reported as READ, with a NaN target;
+    # an infinite clock passed too and produced a per-observation target of
+    # 0.0 — which on the engine basis silently converts a skill hurdle into a
+    # target-zero criterion, a LOOSENING arriving through a malformed stored
+    # payload. Found by the Gauntlet on the finished diff; the parametrised
+    # bad-clock tests I wrote first did not include either value.
+    assumed = (not isinstance(k, (int, float)) or isinstance(k, bool)
+               or not math.isfinite(k) or k <= 0)
     kk = float(LEAN_TRADING_DAYS_PER_YEAR if assumed else k)
     per_obs = 1.0 / math.sqrt(kk)
     return {
@@ -657,12 +665,23 @@ def engine_risk_free_per_obs(published_sharpe: float | None,
     reports ``reproduces_annual_stdev`` and the size of the disagreement. A
     caller that ignores it is recovering a rate from someone else's series.
 
-    MEASURED over the 339 stored results carrying a series: the recovered annual
-    rate runs -0.0065 / 0.0538 / 0.0713 (min / median / max), which is the
-    shape of a US policy-rate history and not of an arithmetic accident. The
-    published inputs are printed to three decimals, which bounds the recovered
-    per-observation rate's error at roughly 2e-6 — four orders below the target
-    it corrects.
+    MEASURED over the 339 stored results carrying a series, and stated as TWO
+    populations because the flag above separates them and one number would hide
+    that (reproduce: `scratchpad/d38probe/recover.py <tree>`, the two `rf` rows):
+
+        all 339                      -0.0065 / 0.0533 / 0.1384
+        the 227 that reproduce       -0.0065 / 0.0538 / 0.0713
+                                      min   / median / max, annual
+
+    The reproducing subset is a US policy-rate history. The wider one carries a
+    tail out to 13.8% that the volatility flag is exactly what identifies: a
+    rate recovered from a series the engine did not score is arithmetic, not a
+    measurement. (An earlier draft of this docstring quoted the SUBSET's figures
+    against the FULL population's n — the Gauntlet caught it.)
+
+    The published inputs are printed to three decimals, which bounds the
+    recovered per-observation rate's error at roughly 2e-6 — four orders below
+    the target it corrects.
     """
     out: dict[str, Any] = {"measurable": False, "rf_per_obs": None,
                            "rf_annual": None, "reason": None}

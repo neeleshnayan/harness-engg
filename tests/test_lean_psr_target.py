@@ -75,12 +75,21 @@ def test_different_clocks_give_different_per_obs_targets():
 # C. Unusable clocks fall back AND say so
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("bad", [None, 0, -5, 0.0, "252", True, [], {}])
+@pytest.mark.parametrize("bad", [None, 0, -5, 0.0, "252", True, [], {},
+                                 float("nan"), float("inf"), float("-inf")])
 def test_unusable_clock_falls_back_and_reports_assumed(bad):
     """Would catch: a falsy-but-numeric clock (0, 0.0) being silently treated
     as unusable without saying so, a non-numeric clock crashing instead of
-    falling back, or — the sharpest case — a bool being accepted as a number
-    (True == 1 in Python, which would silently score against K=1)."""
+    falling back, or a bool being accepted as a number (True == 1 in Python,
+    which would silently score against K=1).
+
+    NaN AND inf ARE THE CASES THAT ACTUALLY SHIPPED BROKEN, and this list did
+    not include them until the Gauntlet ran. Every NaN comparison is False, so
+    `k <= 0` did not fire: NaN produced a NaN target reported as READ, and inf
+    produced a per-observation target of **0.0** — which on the engine basis
+    turns a skill hurdle into a target-zero criterion. A loosening, arriving
+    through a malformed field in a stored engine payload. Both live here now.
+    """
     out = st.lean_psr_target(bad)
     assert out["trading_days_per_year"] == pytest.approx(252.0, abs=0.0)
     assert out["assumed"] is True

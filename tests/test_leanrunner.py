@@ -286,7 +286,8 @@ def test_psr_inputs_captures_the_runs_own_trading_days_and_the_hurdle():
     assert got["target"]["annualised"] == pytest.approx(1.0)
 
 
-@pytest.mark.parametrize("stored", [None, 0, -1, "252", True, [], {}])
+@pytest.mark.parametrize("stored", [None, 0, -1, "252", True, [], {},
+                                    float("nan"), float("inf")])
 def test_an_unusable_trading_days_is_ABSENT_not_the_default(stored):
     """Would catch: a malformed stored clock being written into the capture as
     if the engine had published it — `True` is the sharp case, since `True == 1`

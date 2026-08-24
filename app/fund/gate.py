@@ -742,10 +742,17 @@ def fmt_bps(x: float) -> str:
 #: NOT FIXED HERE, and it is the honest limit of this pass: the 2000-day
 #: geometry two algorithms declare is UNREACHABLE on the pinned feed (1,378
 #: shared sessions), so it is absent from both tables — not passing, not
-#: failing, absent. And the version number does NOT advance for the revert: the
-#: v4.4 draft was never merged and never judged anything, so there is no stored
-#: verdict stamped with the level this note walks back and no preserved-version
-#: dict describing a bar that never ran. v4.4 is what this file says it is.
+#: failing, absent. And the version number does NOT advance for the revert or
+#: for D38's sentence correction, which is one claim and needs checking twice.
+#: MEASURED rather than reasoned: `SELECT verdict->>'gate_version', count(*)
+#: FROM fund_candidates WHERE verdict IS NOT NULL GROUP BY 1` returns v1, v2, v4,
+#: v4.1, v4.3 and v5r3-premia — and NO v4.4. The whole v4.4 line (the draft, the
+#: D37 revert and this correction) is unmerged and has judged nothing, so there
+#: is no stored verdict stamped with the level this note walks back, none
+#: stamped with the 656 sentences D38 rewrites, and no preserved-version dict
+#: describing a bar that never ran. v4.4 is what this file says it is AT MERGE.
+#: If any part of this line ever ships ahead of the rest, that census is the
+#: check that says the argument no longer holds.
 GATE_VERSION = "v4.4"
 
 #: THE PREMIA BAR, versioned separately and on purpose.
@@ -1943,9 +1950,13 @@ def _luck_leg(result: dict[str, Any], c: dict[str, Any], is_premia: bool,
         # returns on the candidate's own calendar clock. Against a target that
         # is EXCESS returns on the engine's 252 clock those are different units,
         # and the engine's own published `Sharpe Ratio` is a third convention
-        # again (geometric annual performance over annual stdev — measured
-        # median +0.074 above the PSR's arithmetic basis over 339 stored runs,
-        # p05 +0.54, max +1.44). Quoting any of them beside a 1.00 target would
+        # again (geometric annual performance over annual stdev). Measured over
+        # 339 stored runs, published MINUS the PSR's arithmetic basis: min
+        # -0.0002, p05 +0.002, MEDIAN +0.074, p95 +0.54, max +1.44 — a whole
+        # Sharpe point apart in the tail. (An earlier draft of this comment
+        # labelled the +0.54 as p05; it is p95. Caught by the Gauntlet, which is
+        # the second number in this dispatch that was right and mislabelled.)
+        # Quoting any of them beside a 1.00 target would
         # be the same mislabelling this leg exists to end. The probability at
         # the head of the sentence IS the run's measurement.
         return out, [

@@ -1638,7 +1638,11 @@ def psr_inputs(stats: dict, daily: Optional[dict[str, Any]] = None,
     """
     cfg = config if isinstance(config, dict) else {}
     tdy = cfg.get("tradingDaysPerYear")
-    if isinstance(tdy, bool) or not isinstance(tdy, (int, float)) or tdy <= 0:
+    # `math.isfinite` as well as `> 0`: a NaN fails every comparison, so
+    # `tdy <= 0` alone let NaN and inf through and the capture reported them as
+    # the run's clock. Same guard, same reason, as `statistics.lean_psr_target`.
+    if (isinstance(tdy, bool) or not isinstance(tdy, (int, float))
+            or not math.isfinite(tdy) or tdy <= 0):
         tdy = None
     from app.fund import statistics as _stats
     out: dict[str, Any] = {
