@@ -220,6 +220,22 @@ active and directing throughout.*
 
 ---
 
+### 20:20 UTC - THE HYG SESSION IS LIVE (and the launch found a real race)
+
+- **Session `361becc7de90` running**: `hyg_fast_flip_probe`, strategy `95520a8a`, signal intake
+  configured, alpaca venue. First live LEAN session in the fund's history to run under a registered
+  strategy with the clean flow.
+- **THE LAUNCH ITSELF FOUND A DEFECT**: the chair had armed TWO waiters (a bash background one
+  assumed dead at its 600s timeout ran the full 95 minutes - the chair's assumption, not a
+  measurement) and both POSTed at 20:20:03, **2ms apart. BOTH got 200.** The single-session guard is
+  a TOCTOU read of the in-memory dict. The duplicate was stopped within a minute, zero signals
+  emitted during the overlap (verified against the log). Ticket `dc12903f`; the atomic-uniqueness
+  repair rides the engine-machinery builder brief. Had it survived under the CEO's standing HYG
+  approval, it would have doubled the position - the exact class autopolicy v5's caps exist to bound.
+
+
+---
+
 ## 2026-08-24 (UTC)
 
 The Monday of the click sheet (~12:30Z) and the first real-venue fills
