@@ -5362,18 +5362,40 @@ def venue_reconcile():
     return payload
 
 
-def _engine_leg_payload() -> dict[str, Any]:
+def _live_sessions_or_none() -> tuple[list[dict[str, Any]] | None, str | None]:
+    """The session list, or ``None`` when it cannot be read — never ``[]``.
+
+    ``[]`` is a claim ("nothing is running"); ``None`` is the absence of one.
+    Both callers below need that distinction, so it is made once here rather
+    than twice, half-right.
+    """
+    try:
+        return _lean().live_sessions(), None
+    except Exception as e:  # noqa: BLE001 — unreachable is not empty
+        return None, f"{type(e).__name__}: {e}"
+
+
+def _engine_leg_payload(events: list[dict[str, Any]] | None = None
+                        ) -> dict[str, Any]:
     """The engine leg, with its own failure named rather than raised.
 
     A reporting leg must not be able to take down the reconcile endpoint the
     desk already reads. If the fold cannot be built, the leg says so in the
     payload — an unreadable leg and a leg reporting agreement must never be
     the same rendering.
+
+    **THE SESSION READ IS OUTSIDE THE TRY, AND THAT IS THE POINT.** The first
+    version called ``_lean().live_sessions()`` inside it, so a Docker outage
+    turned the WHOLE reconciliation unreadable — though this leg folds from
+    the event log and needs the session list only to describe what it cannot
+    read. Same defect as computing the leg inside ``Reconciler.drift``, one
+    layer down: a leg that vanishes when an unrelated dependency is down.
     """
     from app.fund import engineledger
+    sessions, _ = _live_sessions_or_none()
     try:
         leg = engineledger.engine_leg(_store, attribution=_attribution,
-                                      sessions=_lean().live_sessions())
+                                      sessions=sessions, events=events)
         return engineledger.attach_strategy_names(
             leg, lambda sid: (_strategies.get(sid) or {}).get("name"))
     except Exception as e:  # noqa: BLE001
@@ -5417,20 +5439,19 @@ def engine_view(limit: int = 200):
     fact about this fund (none has ever been started) rather than an alarm.
     """
     from app.fund import engineledger
-    ledger = engineledger.signal_ledger(_store, limit=limit)
+    # ONE FOLD FOR ONE PAGE. The first version let the ledger and the leg each
+    # stream the log independently, so one payload could carry a ledger read at
+    # one instant beside a reconciliation read at another — two folds over the
+    # same question, which is how two surfaces start disagreeing about one
+    # book. It also scanned the whole log twice per request.
+    events = list(_store.stream(since_seq=0,
+                                limit=engineledger.SIGNAL_SCAN_LIMIT))
+    ledger = engineledger.signal_ledger(_store, limit=limit, events=events)
     engineledger.attach_strategy_names(
         ledger, lambda sid: (_strategies.get(sid) or {}).get("name"))
-    try:
-        sessions = _lean().live_sessions()
-        sessions_error = None
-    except Exception as e:  # noqa: BLE001 — unreachable is not empty
-        # None, NOT []. An engine we cannot ASK about is not an engine that is
-        # not running, and ``engine_status`` owns that distinction end to end.
-        # The endpoint used to hand it [] and then patch `state` and `note`
-        # afterwards — which left `liveness_note` still saying "nothing has
-        # ever run", the exact confusion this whole module exists to remove.
-        sessions = None
-        sessions_error = f"{type(e).__name__}: {e}"
+    # None, NOT []. An engine we cannot ASK about is not an engine that is not
+    # running, and ``engine_status`` owns that distinction end to end.
+    sessions, sessions_error = _live_sessions_or_none()
     status = engineledger.engine_status(sessions, ledger)
     if sessions_error:
         # The CAUSE is the endpoint's to add — it is the only layer that saw
@@ -5438,7 +5459,7 @@ def engine_view(limit: int = 200):
         status["note"] = f"{status['note']} ({sessions_error})"
         status["sessions_error"] = sessions_error
     return {"status": status, "ledger": ledger,
-            "reconcile": _engine_leg_payload()}
+            "reconcile": _engine_leg_payload(events)}
 
 
 # --- ledger writes (subscribe / redeem) ------------------------------------

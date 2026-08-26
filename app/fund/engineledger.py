@@ -363,21 +363,33 @@ def engine_leg(store: EventStore | None = None,
     rows = [_row(r) for r in folded["engine"].values()]
 
     # --- the engine's own book: unreadable, and named so -------------------
+    # ``sessions=None`` means the LIST could not be read, which is a third
+    # thing again: not "no session" and not "a session". Counting it as zero
+    # would print "nothing to ask" over an engine nobody managed to ask.
+    sessions_readable = sessions is not None
     sessions = list(sessions or [])
     running = [s for s in sessions if s.get("state") in ("starting", "running")]
+    if not sessions_readable:
+        direct_reason = (
+            "a live LEAN session publishes no holdings — and the session "
+            "list itself could not be read, so whether one is running is "
+            "UNKNOWN too.")
+    elif running:
+        direct_reason = (
+            "a live LEAN session publishes no holdings — its session record "
+            "carries state, container and a log tail only (leanrunner.py).")
+    else:
+        direct_reason = (
+            "a live LEAN session publishes no holdings — its session record "
+            "carries state, container and a log tail only (leanrunner.py). "
+            "With no session running there is additionally nothing to ask.")
     direct = {
         "readable": False,
         "qty_basis": "UNKNOWN",
-        "sessions": len(sessions),
-        "sessions_running": len(running),
-        "reason": (
-            "a live LEAN session publishes no holdings — its session record "
-            "carries state, container and a log tail only (leanrunner.py). "
-            "With no session running there is additionally nothing to ask."
-            if not running else
-            "a live LEAN session publishes no holdings — its session record "
-            "carries state, container and a log tail only (leanrunner.py)."
-        ),
+        "sessions_readable": sessions_readable,
+        "sessions": len(sessions) if sessions_readable else None,
+        "sessions_running": len(running) if sessions_readable else None,
+        "reason": direct_reason,
         "would_need": (
             "the algorithm posting its own holdings alongside its signals, or "
             "the spine reading the session's LEAN results folder"

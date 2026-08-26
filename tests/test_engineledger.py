@@ -68,8 +68,12 @@ class _Store:
     def __init__(self, events):
         self._events = list(events)
         self.appended = []
+        #: How many times the log was folded. A page that reads the same
+        #: question twice can render two different moments in one payload.
+        self.streams = 0
 
     def stream(self, since_seq=0, limit=100_000):
+        self.streams += 1
         return [e for e in self._events if e["seq"] > since_seq][:limit]
 
     def append(self, event):  # pragma: no cover - reaching it IS the failure
@@ -96,9 +100,12 @@ _DECLINED_EVENTS = None      # bound after _proposed/_ev are defined, below
 
 
 def _leg(events, positions=None, sessions=(), raises=None):
+    """``sessions=None`` is PASSED THROUGH, not coerced — it is the "the list
+    could not be read" case and the helper must not quietly turn it into an
+    empty list, which is what the production code used to do."""
     store = _Store(events)
     return EL.engine_leg(store, attribution=_Attribution(positions, raises),
-                         sessions=list(sessions))
+                         sessions=None if sessions is None else list(sessions))
 
 
 _DECLINED_EVENTS = [_proposed(1),
@@ -1025,3 +1032,67 @@ class TestTheGauntletsFindings:
 
         with pytest.raises(StrategyError):
             StrategyService(store=_Store([])).get("no-such-strategy")
+
+
+class TestTheReadThrough:
+    """Two defects the late read-through of the diff caught, which no test and
+    no suite could have — both are about a leg VANISHING rather than a value
+    being wrong, and a vanished leg passes every assertion nobody wrote."""
+
+    def test_a_docker_outage_does_not_blank_the_reconciliation(self, monkeypatch):
+        """R1. The session read sat inside _engine_leg_payload's try, so an
+        unreachable Docker turned the whole third leg 'unreadable' — although
+        the leg folds from the event log and needs the session list only to
+        describe what it cannot read. Same shape as computing the leg inside
+        Reconciler.drift, one layer down."""
+        c = _client(monkeypatch, _DECLINED_EVENTS,
+                    drift={"configured": True, "book_nav": 1999.01},
+                    lean_raises=RuntimeError("docker is down"))
+        eng = c.get("/api/v1/fund/venue/reconcile").json()["engine"]
+        assert eng["verdict"]["state"] == "diverged"      # still a real answer
+        assert eng["implied"]["symbols_out_of_sync"] == 1
+        assert eng["direct"]["sessions_readable"] is False
+
+    def test_an_unreadable_session_list_does_not_claim_nothing_to_ask(self):
+        """The count and the sentence both. `len(None or [])` is 0, and 0
+        running sessions printed 'there is additionally nothing to ask' — a
+        statement about an engine nobody managed to ask."""
+        leg = _leg(_DECLINED_EVENTS, positions={"s1": {}}, sessions=None)
+        d = leg["direct"]
+        assert d["sessions"] is None            # not 0
+        assert d["sessions_running"] is None    # not 0
+        assert d["sessions_readable"] is False
+        assert "nothing to ask" not in d["reason"]
+        assert "could not be read" in d["reason"]
+
+    def test_a_readable_empty_list_still_says_nothing_to_ask(self):
+        """The other side: with the list READ and empty, 'nothing to ask' is
+        true and must survive."""
+        leg = _leg(_DECLINED_EVENTS, positions={"s1": {}}, sessions=[])
+        assert leg["direct"]["sessions"] == 0
+        assert leg["direct"]["sessions_readable"] is True
+        assert "nothing to ask" in leg["direct"]["reason"]
+
+    def test_one_page_call_folds_the_log_exactly_once(self, monkeypatch):
+        """R2. The ledger and the leg each streamed the log independently, so
+        one payload could carry a ledger read at one instant beside a
+        reconciliation read at another — two folds over one question, which is
+        how two surfaces start disagreeing about one book."""
+        store = _Store(_DECLINED_EVENTS)
+        c = _client(monkeypatch, _DECLINED_EVENTS, drift={"configured": True})
+        from app.api.v1 import fund as fundapi
+        monkeypatch.setattr(fundapi, "_store", store)
+        body = c.get("/api/v1/fund/engine").json()
+        assert store.streams == 1, f"the log was folded {store.streams} times"
+        # And the two halves agree, because they saw the same events.
+        assert body["ledger"]["total"] == body["reconcile"]["signals_raised"]
+
+    def test_the_reconcile_endpoint_still_folds_for_itself(self, monkeypatch):
+        """A default of None must not become a default of "no events"."""
+        store = _Store(_DECLINED_EVENTS)
+        c = _client(monkeypatch, _DECLINED_EVENTS, drift={"configured": True})
+        from app.api.v1 import fund as fundapi
+        monkeypatch.setattr(fundapi, "_store", store)
+        eng = c.get("/api/v1/fund/venue/reconcile").json()["engine"]
+        assert eng["signals_raised"] == 1
+        assert store.streams == 1
