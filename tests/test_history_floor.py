@@ -310,6 +310,18 @@ def test_the_repo_ships_exactly_the_geometries_that_were_measured():
         capture_output=True, text=True, cwd=root.parents[1]).stdout
     tracked_dirs = {line.split("/")[2] for line in tracked.splitlines()
                     if line.count("/") >= 2}
+    # MACHINERY INSTRUMENTS ARE A CLASS, NOT AN OMISSION (2026-08-27). The
+    # hyg_fast_flip_probe became TRACKED the night its session went live —
+    # the algorithm trading the book belongs in the record — which promoted
+    # it into this census. It is deliberately barred from the belt (no gate
+    # verdict, by argument; quant dispatch #7), so its geometry will never
+    # judge a candidate and a false-pass row for it would be a measurement
+    # nothing consumes. The exemption is DOUBLE-KEYED so neither key alone
+    # suffices: the name must be in this list (a reviewed diff) AND the
+    # file's own first line must declare it an instrument. An algorithm
+    # claiming the docstring without the list fails the census; a list entry
+    # whose file dropped the claim fails loudly here.
+    INSTRUMENTS_NOT_CANDIDATES = {"hyg_fast_flip_probe"}
     seen, missing = set(), []
     for d in sorted(p for p in root.iterdir()
                     if p.is_dir() and p.name in tracked_dirs):
@@ -319,6 +331,12 @@ def test_the_repo_ships_exactly_the_geometries_that_were_measured():
         code = (d / "main.py").read_text(encoding="utf-8", errors="replace") \
             if (d / "main.py").exists() else \
             src[0].read_text(encoding="utf-8", errors="replace")
+        if d.name in INSTRUMENTS_NOT_CANDIDATES:
+            head = "\n".join(code.splitlines()[:5])
+            assert "MACHINERY INSTRUMENT, NOT A CANDIDATE" in head, (
+                f"{d.name} is exempted as a machinery instrument but its file "
+                f"no longer declares itself one — re-measure or re-declare.")
+            continue
         hold = declared_hold_days(code)["hold_days"]
         floor = effective_history_floor(code, end, run_date=end)["effective"]
         need = anchor
