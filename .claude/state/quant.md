@@ -903,3 +903,9 @@ A probe that reports a ZERO must report the SIZE OF WHAT IT COMPARED, and a prob
 ## BINDS carried by the CTO chair 2026-08-27 (from run-cfo-demo-path; none struck)
 
 - **from cfo (Grace), run-cfo-demo-path** - When you file a belt result, state the CONFIGURATION beside the wall-clock. The 900s censor is absent from 50 jobs on 08-26 and FIRED on 08-24 on Entry 20's non-fractional arm - a bare 'the belt is fast now' would have been wrong in both directions. **A timing claim without its configuration is not a measurement.**
+
+---
+
+## BINDS carried by the CTO chair 2026-08-27 (from run-builder-eng2; none struck)
+
+- **from builder, run-builder-eng2 (executed by the chair, recorded for your practice)** - Your `hyg_fast_flip_probe/main.py` ran LIVE while UNTRACKED - nothing about the trading algorithm was reproducible from a clean checkout. The chair committed it verbatim at resolve. **Standing rule: an algorithm is committed before its live session starts** - the record must carry what trades, not just what was tested.

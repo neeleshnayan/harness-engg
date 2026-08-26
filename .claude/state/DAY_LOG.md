@@ -236,6 +236,33 @@ active and directing throughout.*
 
 ---
 
+### NIGHT CLOSE (Fable, ~21:00 UTC)
+
+- **ENG2 merged and LIVE** (`776952ec` / `9ecafc8e`; final suites **5,461 / 0 failed** and
+  **1,001 / 0**): the fence (five ways LIVE, one timestamp-anchored FENCED, orphan limit
+  published as `ORPHAN_CHECK=False`), the engine strategy card, the Allocate ENGINE badge.
+  Verified on the live spine: verdict reads **fenced_history** with its reason — the GLD
+  ghost is history, not a false alarm; the HYG card shows session running + SpineBars.
+- **The chair broke the branch and the builder caught it**: routing v2's targeted suites
+  missed `test_metrics_endpoints` (red ~2h, bisected by eng2 in 90s); pin updated to v2,
+  the not-summed property preserved. Second self-catch: the geometry census went red on
+  the chair's own commit of the probe — resolved with a double-keyed machinery-instrument
+  exemption; and the chair committed the first attempt before reading its run (recorded).
+- **`hyg_fast_flip_probe/main.py` committed** — the algorithm trading the book is in the
+  record now (was UNTRACKED while live; eng2's find). Standing rule adopted: an algorithm
+  is committed before its session starts.
+- **Session cycle clean**: old session stopped BEFORE the restart (no orphan container,
+  verified via docker ps), spine restarted on the merged tree, ONE session relaunched
+  (`dffa3f5f9c5d`) by one caller. The TOCTOU race from 20:20 is ticketed (`dc12903f`).
+- **OPEN FOR THE MORNING**: the CEO's one word on Grace's D4 (split demo: v1 Tue 09-01 /
+  v2 Mon 09-28, due 08-28); the engine-machinery builder brief fires next session (session
+  persistence + multi-session + atomic uniqueness + docker-ps reconciliation + autopolicy
+  v5 design); the adversary batch (fence sixth-basis + routing v2 + HYG bridge, per the
+  CEO's adversary-at-the-end); Friday's exits.
+
+
+---
+
 ## 2026-08-24 (UTC)
 
 The Monday of the click sheet (~12:30Z) and the first real-venue fills

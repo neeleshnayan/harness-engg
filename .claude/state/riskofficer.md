@@ -546,3 +546,9 @@ There is now a THIRD producer of `ApprovalRefused` - the ticket decision guard, 
 ## BINDS carried by the co-CTO 2026-08-26 (from run-builder-eng1; chair reviewed at resolve, none struck)
 
 - **from builder, run-builder-eng1** — A new read-only surface names the `external:` channel as a first-class actor class. **Two facts for your envelope work, neither of which changes a control.** The fund's ONE engine-raised order was declined by `claude:loop-test` — an actor on no allowlist and outside the `neelesh*` set the approval guard governs; declines are not guarded by design, and that is now visible per-signal (`decided_by`). And engine signals are proposed with `venue="paper"` HARDCODED, so an approved engine fill would never reach Alpaca — if the CEO flips that line, **every engine signal becomes an autopolicy-eligible shape on the real venue at once**, and your envelope should have an opinion BEFORE it moves, not after.
+
+---
+
+## BINDS carried by the CTO chair 2026-08-27 (from run-builder-eng2; none struck)
+
+- **from builder, run-builder-eng2** - **A LEAN container outlives the spine process and cannot be stopped after a restart.** `_run_live` starts `docker run` from a daemon thread; `stop_live` kills by name only for sessions in the current process's `_live` dict, which is empty after a restart. **An orphaned container keeps POSTing to the token-gated intake with a token nobody can revoke from the UI.** Audit whether a signal token survives the session it was issued to, and what stops an orphan's proposals reaching the approval queue - sharper now that the CEO's standing HYG approval moves signals with no click.
