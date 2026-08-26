@@ -210,3 +210,16 @@ test("the retired rule is not offered to the CEO as a standing question", () => 
   // that went is replaced by one that leads somewhere real.
   assert.ok(arr.includes("Is the engine running"));
 });
+
+test("a payload with an ACCOUNT and no pdt block is UNKNOWN, not a crash", () => {
+  // KILLS M-PDT-4 / mutant P7 (`!compliance || !pdt` -> `!compliance`). The
+  // `pdt` block is required by the type and not by the wire: an older spine, a
+  // partial response or a proxy that drops a key all produce this shape, and
+  // the difference between the two guards is a thrown TypeError on the fund's
+  // status panel versus an honest UNKNOWN row.
+  const noPdt = { account: comp().account } as unknown as ComplianceStatus;
+  const r = readPdt(noPdt);
+  assert.equal(r.state, "unreadable");
+  assert.equal(r.live, false);
+  assert.match(r.detail, /UNKNOWN, not unrestricted/);
+});

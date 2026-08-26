@@ -321,3 +321,43 @@ test("the headline word appears once per row, not twice", () => {
       "an archived row's headline must say so, so the page need not");
   }
 });
+
+// ------------------------------------------- closing the mutation survivors
+
+test("a RUNNING engine sorts above a quiet one that would win on name", () => {
+  // KILLS B8. The original ordering assertion passed under a mutant that
+  // removed the running-first rule, because the only running row also happened
+  // to win the name tie-break. The fixture now makes the two rules DISAGREE:
+  // "AAA quiet engine" beats "LEAN - HYG…" alphabetically and must still lose.
+  const withQuiet = [
+    strat({ strategy_id: "aaa", name: "AAA quiet engine", archived: false,
+            definition: { engine: "lean" } }),
+    ...LIVE,
+  ];
+  const payload = enginePayload({
+    strategies: [
+      { strategy_id: "aaa", name: "AAA quiet engine", engine: "lean", state: "draft",
+        archived: false, allocation_pct: 0, assets: [], datasource: { readable: true },
+        session_state: "none", sessions: [] },
+      ...enginePayload().strategies,
+    ],
+  });
+  const b = engineBook(withQuiet, payload);
+  assert.deepEqual(b.rows.map((r) => r.strategy.strategy_id), [HYG, "aaa", GLD]);
+});
+
+test("a deployed engine strategy is marked as ALSO in the book", () => {
+  // KILLS B12 (`inBook` emptied). The field is what stops the panel from
+  // reading as a second, contradictory book: without it a deployed engine
+  // strategy appears in two lists with nothing saying they are one row.
+  const deployed = LIVE.map((s) =>
+    s.strategy_id === HYG
+      ? { ...s, state: "deployed" as const, actual_pct: 11, exposure_usd: 220 }
+      : s);
+  const b = engineBook(deployed, enginePayload());
+  assert.equal(b.rows.find((r) => r.strategy.strategy_id === HYG)!.inBook, true);
+  // ...and an unfunded draft is not.
+  assert.equal(b.rows.find((r) => r.strategy.strategy_id === GLD)!.inBook, false);
+  assert.equal(engineBook(LIVE, enginePayload()).rows.find((r) => r.strategy.strategy_id === HYG)!.inBook,
+    false, "a draft with no exposure is not in the book");
+});

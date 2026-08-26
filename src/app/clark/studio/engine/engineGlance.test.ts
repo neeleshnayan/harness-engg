@@ -571,3 +571,76 @@ test("an unread ledger sorts to an empty list, not a crash", () => {
   assert.deepEqual(sortedSignals(null), []);
   assert.deepEqual(sortedSignals(undefined), []);
 });
+
+// ------------------------------------------- closing the mutation survivors
+//
+// Every test below was written because a MUTANT SURVIVED the suite above.
+// Each names its mutant. The one survivor NOT closed here is G16 (the
+// divide-by-zero guard in `fateBar`'s pct), which is RETIRED WITH PROOF: when
+// `covered === 0` every count is zero, and every NaN pct it would produce
+// belongs to a segment the `s.n > 0` filter removes before it can be rendered.
+// The guard is kept anyway — it absorbs a second fault if that filter ever
+// changes — and it is recorded as not a behaviour fix rather than as a gap.
+
+test("a zero unclassified count adds NOTHING to the 'needs you' line", () => {
+  // KILLS G10 (`unclassified > 0` -> `>= 0`). A standing clause reading
+  // "· 0 signals in a state this page has no word for" is furniture, and
+  // furniture is how a real entry stops being read.
+  const clean = glanceTiles(view(), NOW).find((t) => t.key === "needs")!;
+  assert.doesNotMatch(clean.sub, /no word for/);
+  assert.equal(clean.sub, "no engine signal is waiting on a decision");
+});
+
+test("an unreadable session list is UNKNOWN even when the state word is not", () => {
+  // KILLS G11. `unknown` was true in the fixtures only because the spine also
+  // set `state: "unknown"` — so the sessions_readable clause was doing nothing
+  // that the state word was not already doing. A payload that says RUNNING and
+  // could not read its session list is exactly the case where the two diverge,
+  // and it is the dangerous direction: a confident word over an unread list.
+  const v = view({
+    status: { ...view().status, state: "running", sessions: [], sessions_readable: false },
+  });
+  const t = glanceTiles(v, NOW).find((x) => x.key === "engine")!;
+  assert.equal(t.value, "RUNNING");
+  assert.equal(t.unknown, true, "an unread session list makes the tile an absence");
+});
+
+test("an ABSENT sessions_readable is not 'unreadable'", () => {
+  // KILLS G12 (`=== false` -> `!x`). The field is optional; an older spine
+  // omitting it has said nothing, and "the field is missing" must not render
+  // as "the list could not be read". Absence of a disclosure is not a
+  // disclosure of absence.
+  const v = view({ status: { ...view().status, sessions_readable: undefined } });
+  const t = glanceTiles(v, NOW).find((x) => x.key === "engine")!;
+  assert.doesNotMatch(t.sub, /could not be read/);
+  assert.match(t.sub, /hyg_fast_flip_probe/);
+});
+
+test("a degenerate axis does not claim to end NOW", () => {
+  // KILLS G20 (`tEnd === nowMs && nowMs > tLast` -> `tEnd === nowMs`). When
+  // the only signal is at this instant the axis has no extent, so "now" is
+  // not a right edge the reader can measure a silence against.
+  const at = new Date(NOW).toISOString();
+  const tl = signalTimeline(ledger({ signals: [sig({ raised_at: at })], last_signal_at: at }), NOW);
+  assert.equal(tl.degenerate, true);
+  assert.equal(tl.endIsNow, false);
+  // ...and a real gap DOES claim it.
+  const old = signalTimeline(ledger({ signals: [sig({ raised_at: "2026-08-01T00:00:00Z" })] }), NOW);
+  assert.equal(old.endIsNow, true);
+});
+
+test("an undated row already FIRST in the payload still sorts last", () => {
+  // KILLS G30 (`return 1` -> `return 0`). The original assertion passed under
+  // the mutant because the undated row happened to sit in the middle of the
+  // input and V8's stable sort left it near where it started. A comparator
+  // returning 0 for one direction and -1 for the other is INCONSISTENT, and an
+  // inconsistent comparator's output is implementation-defined — so the test
+  // has to put the undated row where the mutant would visibly keep it.
+  const rows = [
+    sig({ order_id: "none", raised_at: null }),
+    sig({ order_id: "old", raised_at: "2026-08-01T00:00:00Z" }),
+    sig({ order_id: "new", raised_at: "2026-08-27T00:00:00Z" }),
+  ];
+  const out = sortedSignals(ledger({ signals: rows, total: 3, returned: 3 }));
+  assert.deepEqual(out.map((s) => s.order_id), ["new", "old", "none"]);
+});
