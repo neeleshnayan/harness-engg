@@ -520,6 +520,28 @@ class TestTheContext:
                              attribution=_Attribution({SID: {}}),
                              context=ctx)["signals_fenced"] == 0
 
+    def test_an_OMITTED_context_is_unreadable_in_both_folds(self):
+        """MUTANTS M31 and M39: default the missing context to
+        ``EngineContext(sessions=[])``.
+
+        The test above passes a context explicitly, so it cannot see this: the
+        mutant only bites when a caller supplies NONE. A default of "readable,
+        and nothing is running" would let any caller that forgot the argument
+        fence the fund's whole history — the omitted-argument path being
+        exactly the one nobody looks at.
+        """
+        leg = EL.engine_leg(_Store(DEAD_HISTORY),
+                            attribution=_Attribution({SID: {}}))
+        assert leg["fence"]["sessions_readable"] is False
+        assert leg["signals_fenced"] == 0
+        assert leg["verdict"]["state"] == "diverged"
+
+        cards = EL.engine_strategies([LEAN_HYG], ledger=None,
+                                     algorithm_source=lambda n: None,
+                                     datasource_reader=declared_datasource)
+        # An unreadable session list makes "is it running" UNKNOWN, not "none".
+        assert cards["strategies"][0]["session_state"] is None
+
     def test_an_empty_session_list_is_not_an_unreadable_one(self):
         """The distinction the whole class exists for: ``[]`` is a claim,
         ``None`` is the absence of one, and they lead to OPPOSITE verdicts."""
