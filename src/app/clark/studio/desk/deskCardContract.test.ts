@@ -44,7 +44,7 @@ import { readFileSync } from "node:fs";
  * a human reading what actually changed.
  */
 const CARD_CONTRACT_DIGEST =
-  "168c0b96bafc93a8416ddc1716ef1ca8cf318c83485c4af34b28b666bc8ee810";
+  "6ebd6089c9c78841e8bf26864b754d45c946ce4d14d2d1eab382f4906db3ac57";
 
 const CONTRACT_URL = new URL(
   "../../../../../contract/desk_card_contract.v1.json", import.meta.url);
@@ -401,7 +401,10 @@ test("the request routing is the one the spine ships, on both sides", () => {
   const { body } = loadContract();
   const by = new Map(body.request_cases.map(
     (c) => [c.name, c.expect.next_actor_resolved] as const));
-  assert.equal(by.get("PROSE-ONLY REQUEST — the permanent fallback"), "ceo");
+  // ROUTING v2 (2026-08-27, CEO decision): an OPEN ask is the CHAIR's move —
+  // "all decisions route to you; you move whats relevant to COO's desk for
+  // approval and batching and that dispatches to my desk." v1 pinned "ceo".
+  assert.equal(by.get("PROSE-ONLY REQUEST — the permanent fallback"), "chair");
   assert.equal(by.get("STRUCTURED REQUEST — the four questions"), "chair",
     "status `approved` — the CEO decided it; the chair must dispatch it");
   assert.equal(by.get("SERVED REQUEST — the rail reaches delivered"), "nobody");
