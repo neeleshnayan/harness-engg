@@ -174,6 +174,15 @@ export const FATE_HELP: Record<Fate, string> = {
   failed: "It reached the venue and did not complete.",
 };
 
+/**
+ * `1 signal` / `2 signals`. Not cosmetic: these sentences are the surface the
+ * CEO reads, and "1 signal(s)" is the tell of a number formatted by a machine
+ * that did not look at it. It shipped in the first draft of this page.
+ */
+export function plural(n: number, word: string, pluralForm?: string): string {
+  return `${n} ${n === 1 ? word : (pluralForm ?? word + "s")}`;
+}
+
 export function fateTone(fate: Fate | string): Tone {
   switch (fate) {
     case "filled": return "good";
@@ -264,7 +273,7 @@ export function ledgerAbsence(ledger: SignalLedger | null | undefined): string |
 export function ledgerTruncation(ledger: SignalLedger | null | undefined): string | null {
   if (!ledger) return null;
   if (ledger.returned >= ledger.total) return null;
-  return `Showing ${ledger.returned} of ${ledger.total} signals.`;
+  return `Showing ${ledger.returned} of ${plural(ledger.total, "signal")}.`;
 }
 
 // ------------------------------------------------------------ reconciliation
@@ -344,10 +353,10 @@ export function driftExplanation(row: EngineSymbolRow): string | null {
   const unfilled = (row.signals?.raised ?? 0) - (row.signals?.filled ?? 0);
   const parts: string[] = [];
   if (unfilled > 0) {
-    parts.push(`${unfilled} of ${row.signals?.raised ?? 0} signal(s) on this symbol never filled`);
+    parts.push(`${unfilled} of ${plural(row.signals?.raised ?? 0, "signal")} on this symbol never filled`);
   }
   if ((row.other_fills ?? 0) > 0) {
-    parts.push(`${row.other_fills} fill(s) on this strategy came from somewhere other than the engine`);
+    parts.push(`${plural(row.other_fills ?? 0, "fill")} on this strategy came from somewhere other than the engine`);
   }
   if (parts.length === 0) return "The two books disagree and no signal or outside fill explains it.";
   return `${parts.join("; ")}.`;

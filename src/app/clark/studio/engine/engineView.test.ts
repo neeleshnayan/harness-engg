@@ -20,6 +20,7 @@ import {
   fateBuckets,
   fateTone,
   countTone,
+  plural,
   ledgerAbsence,
   ledgerTruncation,
   syncWord,
@@ -286,13 +287,14 @@ test("disagreements sort above undetermined, and both above agreement", () => {
 test("a drift is explained by the unfilled signals that caused it", () => {
   const e = driftExplanation(symbolRow());
   assert.ok(e);
-  assert.match(e!, /1 of 1 signal\(s\) on this symbol never filled/);
+  assert.match(e!, /1 of 1 signal on this symbol never filled/);
+  assert.doesNotMatch(e!, /\(s\)/);
 });
 
 test("a drift on a strategy with outside fills says so rather than blaming the engine", () => {
   const e = driftExplanation(symbolRow({ other_fills: 2 }));
   assert.ok(e);
-  assert.match(e!, /2 fill\(s\) on this strategy came from somewhere other than the engine/);
+  assert.match(e!, /2 fills on this strategy came from somewhere other than the engine/);
 });
 
 test("an unexplained drift admits it is unexplained", () => {
@@ -429,4 +431,22 @@ test("the live reading tones exactly one figure and it is the refusal", () => {
   const loud = b.filter((x) => x.countTone !== "quiet");
   assert.equal(loud.length, 1);
   assert.equal(loud[0].fate, "refused");
+});
+
+
+test("sentences are written in English, not in machine plural", () => {
+  // "1 signal(s)" shipped in the first draft of this page.
+  assert.equal(plural(1, "signal"), "1 signal");
+  assert.equal(plural(0, "signal"), "0 signals");
+  assert.equal(plural(2, "signal"), "2 signals");
+  assert.equal(plural(1, "entry", "entries"), "1 entry");
+  assert.equal(plural(3, "entry", "entries"), "3 entries");
+});
+
+test("a truncation sentence and a multi-signal drift both read singular at one", () => {
+  assert.equal(ledgerTruncation(ledger({ total: 1, returned: 0 })), "Showing 0 of 1 signal.");
+  const e = driftExplanation(symbolRow({
+    signals: { raised: 3, filled: 1, awaiting: 0, refused: 2, in_flight: 0, failed: 0 },
+  }));
+  assert.match(e!, /2 of 3 signals on this symbol never filled/);
 });
