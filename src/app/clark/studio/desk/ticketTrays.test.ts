@@ -539,10 +539,16 @@ test("MUTANT M52: a CLOSED lesson still proves lessons exist", () => {
   const closedLesson = tk({ ticket_id: "L1", type: "lesson", filed_for: "pm",
                             state: "done", terminal: true });
   const other = tk({ ticket_id: "X", filed_for: "pm" });
-  const tray = trayFor("pm", [closedLesson, other])!;
+  const rows = [closedLesson, other];
+  const tray = trayFor("pm", rows)!;
   assert.equal(tray.unconsumedLessons.length, 0,
     "a closed lesson is not unconsumed");
-  assert.doesNotMatch(tray.note, /exists in the record at all/,
-    "but the record DOES hold a lesson, so the never-filed sentence is false");
   assert.match(tray.note, /no unconsumed lesson is addressed to this seat/);
+  // THE SENTENCE MOVED TO `trayPopulationNote` when the caveat stopped being
+  // repeated per seat, and this assertion moved WITH IT. It did not move on
+  // its own: the mutation pass caught M52 alive a second time, because a test
+  // pointed at the surface a sentence used to live on is a test of nothing.
+  assert.doesNotMatch(trayPopulationNote(rows) ?? "",
+    /exists in the record at all/,
+    "the record DOES hold a lesson, so the never-filed sentence is false");
 });
