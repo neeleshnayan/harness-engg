@@ -149,13 +149,41 @@ class TestDecisionsForFilterRobustness:
         out = ticketguard.decisions_for(events, run_id, rec_id)
         assert [d["seq"] for d in out] == expected_seqs
 
-    def test_kept_dict_has_exactly_the_four_published_keys(self):
-        """A fifth key (the sort scratch field, or a leaked payload key)
-        would silently widen every consumer's view of a decision row."""
+    def test_kept_dict_has_exactly_the_six_published_keys(self):
+        """A seventh key (the sort scratch field, or a leaked payload key)
+        would silently widen every consumer's view of a decision row.
+
+        SIX SINCE 2026-08-26, not four: ``note`` and ``next_actor`` are
+        carried because the guard's comparison is no longer status-only. The
+        count is asserted rather than a subset checked — dropping either of
+        the two new keys would make ``redecision_lineage`` read every row's
+        note as absent and every re-record as a no-op, which is the shape of
+        the defect this repair exists to remove."""
         events = [_raw_event(1, 1, "accepted", run_id="r1", actor="ceo")]
         out = ticketguard.decisions_for(events, "r1", 1)
         assert len(out) == 1
-        assert set(out[0].keys()) == {"seq", "status", "at", "actor"}
+        assert set(out[0].keys()) == {"seq", "status", "at", "actor", "note",
+                                      "next_actor"}
+
+    def test_the_two_new_keys_carry_the_payloads_own_values(self):
+        """The regression this guards: a fold that returns the KEY without
+        the VALUE passes a set-of-keys assertion and reads None forever."""
+        events = [_raw_event(
+            1, 1, "done", run_id="r1", actor="cto",
+            payload={"rec_id": 1, "status": "done", "at": "t", "run_id": "r1",
+                     "note": "closed on the record", "next_actor": "ceo"})]
+        out = ticketguard.decisions_for(events, "r1", 1)
+        assert out[0]["note"] == "closed on the record"
+        assert out[0]["next_actor"] == "ceo"
+
+    def test_a_payload_with_neither_field_reads_them_as_None(self):
+        """Every decision event older than those payload fields. Absent is
+        reported absent — never "" for the note, which would be a claim that
+        the row's note was deliberately cleared."""
+        events = [_raw_event(1, 1, "accepted", run_id="r1")]
+        out = ticketguard.decisions_for(events, "r1", 1)
+        assert out[0]["note"] is None
+        assert out[0]["next_actor"] is None
 
     def test_actor_comes_from_the_event_not_the_payload(self):
         """The payload has no actor field of its own on the real door; a
@@ -219,10 +247,17 @@ class TestRedecisionLineage:
     differ only when a reopen has happened."""
 
     def test_empty_input_returns_the_exact_no_decision_shape(self):
+        """Asserted as an EQUALITY, not a subset: the no-decision branch and
+        the decided branch must publish the same key set, or a consumer that
+        reads `recorded_note` off a never-decided row gets a KeyError on the
+        one path nobody exercises. `recorded_note` is "" and
+        `recorded_next_actor` is None on this branch because a row with no
+        decisions has had neither written."""
         assert ticketguard.redecision_lineage([]) == {
             "decided": False, "decision_count": 0, "recorded_status": None,
             "recorded_at": None, "recorded_by": None, "same_status_run": 0,
-            "first_ever_at": None, "basis": "no_decision_events",
+            "first_ever_at": None, "recorded_note": "",
+            "recorded_next_actor": None, "basis": "no_decision_events",
         }
 
     def test_one_element(self):

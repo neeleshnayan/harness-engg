@@ -303,7 +303,27 @@ def _refusal(ticket: dict[str, Any], lin: dict[str, Any], to: str, *,
 #: tell which rule refused without inspecting the aggregate type, and the two
 #: rules are genuinely different (see ``check_redecision``).
 LEGACY_REDECISION_GUARD_VERSION = (
-    "decision_ref_v1-legacy (2026-08-24, narrow re-decision form)")
+    "decision_ref_v1.1-legacy (2026-08-26, true-no-op form)")
+
+#: THE TWO FIELDS ``deskstore.decide_recommendation`` REWRITES ON EVERY CALL —
+#: the decider and the clock (``r["decided_by"]`` / ``r["decided_at"]``,
+#: deskstore.py). They are deliberately OUT of the comparison below, and the
+#: reason is arithmetic rather than taste: including them would find a change
+#: on every single re-record, and the guard would refuse nothing at all. A
+#: control that can never fire is this firm's named worst defect.
+REDECISION_ALWAYS_REWRITTEN = ("decided_by", "decided_at")
+
+#: THE FIELDS THE CALLER CONTROLS, in the order the writer writes them — and
+#: therefore the whole of what "this write changes nothing" can mean.
+#:
+#: ``tests/test_redecision_writeset.py`` reads ``decide_recommendation``'s own
+#: source with ``ast`` and asserts that this tuple plus
+#: ``REDECISION_ALWAYS_REWRITTEN`` covers every recommendation field that
+#: writer assigns or pops. A sixth field appearing there without appearing
+#: here is a field this guard would silently not compare — which is EXACTLY
+#: the defect the v1 form shipped with, at a scope of one (it compared
+#: ``status`` alone while the writer wrote five).
+REDECISION_COMPARED = ("status", "note", "next_actor")
 
 #: The event type the legacy door writes, and therefore the only one that
 #: counts as a decision on a recommendation row. Named rather than inlined
@@ -355,6 +375,16 @@ def decisions_for(events: Any, run_id: Any, rec_id: Any) -> list[dict[str, Any]]
             # of its own, so reading `payload["actor"]` would give None on
             # every real row and put "by None" in a refusal message.
             "actor": e.get("actor"),
+            # THE OTHER TWO FIELDS THE DOOR WRITES, carried since 2026-08-26
+            # because the guard's comparison is no longer status-only. Read
+            # from the payload rather than reconstructed: `note` is the note
+            # the caller SUPPLIED (`payload["note"] = req.note`, fund.py) and
+            # `next_actor` is the row's value AFTER the write
+            # (`payload["next_actor"] = hit.get("next_actor")`). The two are
+            # not the same kind of field and `redecision_lineage` folds each
+            # one the way its own door writes it.
+            "note": p.get("note"),
+            "next_actor": p.get("next_actor"),
             "_order": (0, seq, i) if isinstance(seq, int) else (1, 0, i),
         })
     out.sort(key=lambda d: d["_order"])
@@ -385,7 +415,8 @@ def redecision_lineage(decisions: list[dict[str, Any]]) -> dict[str, Any]:
     if not decisions:
         return {"decided": False, "decision_count": 0, "recorded_status": None,
                 "recorded_at": None, "recorded_by": None, "same_status_run": 0,
-                "first_ever_at": None, "basis": "no_decision_events"}
+                "first_ever_at": None, "recorded_note": "",
+                "recorded_next_actor": None, "basis": "no_decision_events"}
     last = decisions[-1]
     status = last.get("status")
     # Walk back from the end; the run ENDS at the first event whose status
@@ -398,6 +429,15 @@ def redecision_lineage(decisions: list[dict[str, Any]]) -> dict[str, Any]:
         run_len += 1
     first_of_run = decisions[len(decisions) - run_len]
     ever = [d for d in decisions if d.get("status") == status]
+    # THE ROW'S STANDING NOTE, AND IT IS THE LAST NON-EMPTY ONE — not the last
+    # note field seen. `decide_recommendation` writes the column only when the
+    # supplied note is truthy (`if note:`), so a `done` recorded with no note
+    # leaves last week's note in place, and a fold that took the last field
+    # would report the row's note as "" while the table still held a sentence.
+    # It walks EVERY decision rather than the current same-status run, for the
+    # same reason: a note written during an earlier `accepted` survives.
+    notes = [d.get("note") for d in decisions
+             if isinstance(d.get("note"), str) and d.get("note")]
     return {
         "decided": True,
         "decision_count": len(decisions),
@@ -410,29 +450,147 @@ def redecision_lineage(decisions: list[dict[str, Any]]) -> dict[str, Any]:
         # field every consumer must branch on, and the branch is where the
         # absence gets read as a zero.
         "first_ever_at": ever[0].get("at") if ever else None,
+        "recorded_note": notes[-1] if notes else "",
+        # THE ROW'S CURRENT ROUTING OWNER. Unlike `note`, the door puts the
+        # POST-WRITE value on the event (`hit.get("next_actor")`), so the last
+        # decision's field IS what the row holds — including the None that a
+        # terminal status leaves behind when the writer pops it.
+        #
+        # ONE HONEST GAP, AND IT FAILS OPEN. `next_actor` is also writable at
+        # FILING time (`deskstore.build_recommendations`), and any decision
+        # event older than that payload field carries no `next_actor` key at
+        # all. Against such a row this reads None, so a request naming an
+        # actor reads as a CHANGE and PASSES. Allowing a write that might have
+        # changed nothing is the cheap error; refusing one that would have
+        # changed something is the expensive one, and it is the error the v1
+        # form actually made 17 times in the record.
+        "recorded_next_actor": last.get("next_actor"),
         "seqs": [d.get("seq") for d in decisions],
         "basis": "decision_events",
     }
 
 
+def redecision_writes(lineage: dict[str, Any], *, to: Any, note: Any = "",
+                      next_actor: Any = None) -> dict[str, list[str]]:
+    """What ``deskstore.decide_recommendation`` would ACTUALLY change.
+
+    Returns ``{"changes": [...], "unchanged": [...], "not_written": [...]}`` —
+    three disjoint lists partitioning ``REDECISION_COMPARED``. Pure: it models
+    the writer's own branches, reads no store and opens no connection.
+
+    **WHY THIS FUNCTION EXISTS — THE SCOPE REPAIR OF 2026-08-26.** The v1 form
+    of ``check_redecision`` compared ``status`` ALONE and told the caller its
+    write "changes nothing". An adversary blind review measured the cost by
+    replaying the whole record through the shipped guard: **17 of the 37
+    refusals (13 note-only, 4 note + ``next_actor``) carried a REAL table
+    write** — a corrected note or a re-routing on a row whose status was
+    already right. Seven of the 17 are from a single chair sweep on
+    2026-08-24. And ``note`` is not prose: ``deskcard.superseded_by`` parses
+    it into the supersession marker rendered on the CEO's desk card
+    (``desk.py``, both fold sites), so a blocked note was a blocked marker.
+    ``POST /fund/desk/runs/{run_id}/recommendations/{rec_id}`` is the ONLY
+    caller of that writer repo-wide, so a routing correction on an
+    already-correct status had no door left at all — the same shape as the
+    deadlock this guard's own family was built to remove.
+
+    **THE INTENT IS UNCHANGED: refuse DUPLICATES, not CORRECTIONS.** What
+    moved is only the scope of "duplicate" — from "the status matches" to
+    "every field this write would touch already holds the value it would
+    write". Refusals therefore only ever get FEWER, never more.
+
+    **``decided_by`` AND ``decided_at`` ARE OUT, and that is not an oversight.**
+    See ``REDECISION_ALWAYS_REWRITTEN``: the writer stamps both on every call,
+    so a comparison including them would find a change every time and this
+    control would refuse nothing.
+
+    THE THREE BRANCHES FOR ``next_actor`` MIRROR THE WRITER'S OWN ``if / elif``
+    (deskstore.py), including the ``elif`` that CLEARS the field on a terminal
+    status — clearing a standing owner is a real write and must pass. Key
+    presence is deliberately NOT compared, only the VALUE: the writer's
+    ``r.pop("next_actor", None)`` turns ``{"next_actor": None}`` into ``{}``,
+    which no reader can distinguish because every one of them uses ``.get``.
+
+    ONE ORDERING NOTE, stated because it is reachable and looks odd: a request
+    that supplies ``next_actor`` alongside a TERMINAL status takes the first
+    branch here, while the writer refuses that combination outright with a 422
+    (a contradiction, refused rather than quietly ignored). This function
+    classifies it rather than raising, because its job is to describe a write,
+    not to police one; whichever answer it gives, the door's own 422 is what
+    the caller ends up seeing when the guard allows.
+    """
+    # READ FROM THE WRITER'S OWN MODULE, never restated here. Two copies of
+    # "which statuses are terminal" is how the clear-on-terminal branch would
+    # drift out of agreement with the code it models — and a duplicate that
+    # happens to agree today cannot be told from a value that is being read.
+    # `tests/test_redecision_writeset.py` proves the read by MOVING the
+    # source: it monkeypatches deskstore's tuple and this function follows.
+    from app.fund.deskstore import TERMINAL_REC_STATUSES, _next_actor
+
+    changes: list[str] = []
+    unchanged: list[str] = []
+    not_written: list[str] = []
+
+    # `status` is written on every call; it is never `not_written`.
+    (changes if lineage.get("recorded_status") != to
+     else unchanged).append("status")
+
+    # `note` is written only when it is a non-empty string — `if note:` in the
+    # writer, which is why an empty note does not erase a standing one.
+    if isinstance(note, str) and note:
+        (changes if note != (lineage.get("recorded_note") or "")
+         else unchanged).append("note")
+    else:
+        not_written.append("note")
+
+    na = _next_actor(next_actor)
+    held = _next_actor(lineage.get("recorded_next_actor"))
+    if na:
+        (changes if na != held else unchanged).append("next_actor")
+    elif isinstance(to, str) and to in TERMINAL_REC_STATUSES:
+        (changes if held is not None else unchanged).append("next_actor")
+    else:
+        not_written.append("next_actor")
+
+    return {"changes": changes, "unchanged": unchanged,
+            "not_written": not_written}
+
+
 def check_redecision(decisions: list[dict[str, Any]], *, to: Any,
-                     run_id: Any, rec_id: Any) -> Optional[dict[str, Any]]:
+                     run_id: Any, rec_id: Any, note: Any = "",
+                     next_actor: Any = None) -> Optional[dict[str, Any]]:
     """The NARROW rule for the legacy door. ``None`` to allow; a dict to 409.
 
-    **REFUSE A DECISION THAT RE-RECORDS THE STATUS THIS ROW ALREADY HOLDS.
-    EVERY STATUS CHANGE PASSES UNTOUCHED.** That is the whole rule, and its
-    two halves were measured before it was written
-    (``scripts/instruments/hw4/redecision_census.py``, whole log, seq 1-1545,
-    2026-08-24):
+    **REFUSE A DECISION THAT WOULD CHANGE NOTHING THE ROW STORES. EVERY
+    DECISION THAT WOULD CHANGE SOMETHING PASSES UNTOUCHED** — a new status, a
+    new note, a new routing owner, any one of them is enough. That is the
+    whole rule. ``redecision_writes`` is where "would change something" is
+    computed, field by field, against the writer's own branches.
 
-      * It refuses **37 of 678** decision events over five months — the
+    **v1.1, 2026-08-26 — THE SCOPE REPAIR, and the number it costs.** The v1
+    form compared ``status`` alone. An adversary blind review replayed the
+    record through it and measured **17 of its 37 refusals carrying a real
+    table write**; those 17 now PASS and land their notes. The refusal
+    population that remains is the true no-ops. Direction: this LOOSENS a
+    guard shipped two days earlier, back to the scope its own stated intent
+    always had, and it was reviewed as a loosening before it was written.
+
+    The v1 measurement below still frames the population
+    (``scripts/instruments/hw4/redecision_census.py``, whole log, seq 1-1545,
+    2026-08-24) and the arithmetic on top of it is the repair's own:
+
+      * v1 refused **37 of 678** decision events over five months — the
         consecutive-repeat population. Those 37 sit on **27 rows**; the worst
         is R39's ``run-triage7-decisions#1``, eight ``accepted`` events at seqs
-        1122, 1123, 1195, 1201, 1202, 1203, 1253, 1281, of which this rule
-        refuses the last seven.
-      * It touches **none** of the **136 rows carrying a genuine multi-status
-        progression** (``accepted -> done`` and its kin), because none of those
-        transitions re-records a status the row already holds.
+        1122, 1123, 1195, 1201, 1202, 1203, 1253, 1281, every one of them
+        carrying an EMPTY note and the same ``next_actor``, of which both v1
+        and v1.1 refuse the last seven. R39 is untouched by the repair, which
+        is the point: the motivating incident is still caught.
+      * **v1.1 refuses 20 of those 37.** The other 17 — 13 note-only, 4 note
+        plus ``next_actor`` — were corrections, not duplicates. Reproduce with
+        ``scripts/instruments/hw5/redecision_scope.py``.
+      * Both forms touch **none** of the **136 rows carrying a genuine
+        multi-status progression** (``accepted -> done`` and its kin), because
+        none of those transitions re-records a status the row already holds.
 
     NOTE THE NUMBER THE BRIEF FOR THIS WORK CARRIED, because it is a label
     slip worth not repeating: "28 same-status repeats — 13 accepted, 12 done,
@@ -453,12 +611,13 @@ def check_redecision(decisions: list[dict[str, Any]], *, to: Any,
     **WHY THERE IS NO STATUS CARVE-OUT, unlike ``REDECISION_GUARDED``.** The
     ticket rule excludes ``declined`` and the terminals so that closing a row
     never becomes harder than opening it. That concern does not arise here,
-    and the reason is structural rather than a judgement call: this rule
-    refuses status ``S`` only when the row ALREADY holds ``S``, so for every
-    row and every other status the door is exactly as open as it was. No row
-    can be trapped, because the only thing refused is the transition that
-    would change nothing. A ``done`` row can still be reopened, rejected,
-    re-accepted or noted; it merely cannot be marked ``done`` twice.
+    and the reason is structural rather than a judgement call: the only thing
+    this rule refuses is a write that would leave every stored field exactly
+    as it found it, so for every row and every other write the door is exactly
+    as open as it was. No row can be trapped, because nothing that would move
+    the row is refused. A ``done`` row can still be reopened, rejected,
+    re-accepted, re-noted or re-routed; it merely cannot be marked ``done``
+    twice with the same note and the same owner.
 
     **THIS GUARD CANNOT STOP A RE-PRESENTATION** — the same subject filed as a
     fresh ``(run_id, rec_id)``, which is the OTHER half of the R39 defect and
@@ -473,7 +632,8 @@ def check_redecision(decisions: list[dict[str, Any]], *, to: Any,
     if not isinstance(to, str) or not to:
         return None
     lin = redecision_lineage(decisions)
-    if lin["recorded_status"] != to:
+    writes = redecision_writes(lin, to=to, note=note, next_actor=next_actor)
+    if writes["changes"]:
         return None
     prior = lin["same_status_run"]
     return {
@@ -491,20 +651,38 @@ def check_redecision(decisions: list[dict[str, Any]], *, to: Any,
         "prior_same_status": prior,
         "decision_count": lin["decision_count"],
         "first_ever_at": lin["first_ever_at"],
+        # WHAT THE GUARD ACTUALLY COMPARED, published so a caller can act on
+        # the refusal instead of guessing at it. `scripts/desk_sweep.py` reads
+        # `unchanged_fields` to say whether the citation it was carrying is
+        # already on the record byte-for-byte — Donna's rule ("no citation, no
+        # closure") is only satisfiable if somebody can tell.
+        "unchanged_fields": writes["unchanged"],
+        "not_written_fields": writes["not_written"],
         # `prior` COUNTS THE EVENTS ALREADY ON THE RECORD, so it is 1 the first
         # time this refusal fires and 8 on R39's ninth attempt. An earlier
         # draft said "N time(s) since", which read as "N MORE times after the
         # first" and was wrong by one at every value — the kind of sentence a
         # suite cannot see and a reader trusts.
+        # THE SENTENCE THIS GUARD SHIPPED WITH WAS FALSE FOR 17 OF ITS 37
+        # REFUSALS. It said the write "changes nothing" while the write
+        # carried a corrected note. It is now true by construction — the
+        # refusal only exists when `changes` is empty — and it NAMES the
+        # fields it compared, so a caller who disagrees can check rather than
+        # trust. A message that asserts something the code does not check is
+        # how a control gets believed past its scope.
         "detail": (
             f"ONE DECISION, ONE ROW. {run_id}#{rec_id} already records "
             f"{to!r} — recorded {prior} time(s), first at "
             f"{lin['recorded_at']} by {lin['recorded_by']}, out of "
-            f"{lin['decision_count']} decision(s) on this row in total. "
-            f"Re-recording a status the row already holds writes a second "
-            f"event that changes nothing and makes one decision look like "
-            f"two. Any status CHANGE is accepted as before; if this row needs "
-            f"to move, send the status it should move TO."),
+            f"{lin['decision_count']} decision(s) on this row in total. This "
+            f"request would rewrite {', '.join(writes['unchanged'])} with the "
+            f"value(s) already stored"
+            + (f" and writes no {', '.join(writes['not_written'])} at all"
+               if writes["not_written"] else "")
+            + f", so it changes nothing and makes one decision look like two. "
+            f"A CHANGE to any of {', '.join(REDECISION_COMPARED)} is accepted "
+            f"as before: send a different status, a corrected note or a new "
+            f"next_actor and this door will record it."),
     }
 
 

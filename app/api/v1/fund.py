@@ -2399,10 +2399,14 @@ def decide_recommendation(run_id: str, rec_id: int, req: RecDecision):
     along with the approval would leave the row wedged on the desk forever.
     Closing a door must never be harder than opening one.
 
-    A ROW CANNOT RE-RECORD THE STATUS IT ALREADY HOLDS (the narrow decision
-    guard, 2026-08-24, CEO's decision with the numbers in front of him). Every
-    status CHANGE passes exactly as before. See `_refuse_if_redecided` for the
-    direction statement and the measured refusal count.
+    A ROW CANNOT RE-RECORD A DECISION THAT WOULD CHANGE NOTHING IT STORES (the
+    narrow decision guard, 2026-08-24, CEO's decision with the numbers in
+    front of him; scope repaired 2026-08-26 on an adversary blind review).
+    Every decision that CHANGES something passes exactly as before — a new
+    status, a corrected note, a new `next_actor`, any one of them. The v1 form
+    compared the status alone and refused 17 real note corrections in the
+    record while telling the caller its write changed nothing. See
+    `_refuse_if_redecided` for the direction statement and the measured counts.
     """
     ds = _deskstore()
     from app.fund.deskengine import rec_ref
@@ -2420,8 +2424,17 @@ def decide_recommendation(run_id: str, rec_id: int, req: RecDecision):
     # and the measured population includes `done` and `staged`. It is BEFORE
     # the store check on purpose: the refusal is a fact about the event log,
     # which is readable whether or not the desk table is.
+    #
+    # `note` AND `next_actor` GO IN TOO, and that is the 2026-08-26 repair. A
+    # duplicate is only a duplicate if the whole write is one: v1 passed the
+    # status alone and refused 17 real note corrections in the record with a
+    # 409 saying the write "changes nothing". The other three fields the
+    # writer touches are `decided_by`/`decided_at` (stamped every call — see
+    # `ticketguard.REDECISION_ALWAYS_REWRITTEN`) and nothing else; an AST test
+    # holds that list to the writer's own source.
     redecision_readable, redecision_basis = _refuse_if_redecided(
-        run_id, rec_id, to=req.status, actor=req.actor)
+        run_id, rec_id, to=req.status, actor=req.actor, note=req.note,
+        next_actor=req.next_actor)
     if ds is None:
         raise HTTPException(status_code=503, detail="needs FUND_STORE=postgres")
     from app.fund.events import Event, EventType
@@ -3894,9 +3907,10 @@ REDECISION_BASIS_NO_METHOD = "store_cannot_answer"
 REDECISION_BASIS_ERROR = "store_error"
 
 
-def _refuse_if_redecided(run_id: str, rec_id: int, *, to: str,
-                         actor: str) -> tuple:
-    """409-and-RECORD a row asked to re-record the status it already holds.
+def _refuse_if_redecided(run_id: str, rec_id: int, *, to: str, actor: str,
+                         note: str = "",
+                         next_actor: Optional[str] = None) -> tuple:
+    """409-and-RECORD a decision that would change nothing the row stores.
 
     Returns ``(redecision_readable, redecision_basis)`` — True plus
     ``decision_events`` when the row's history was read and this status is a
@@ -3922,16 +3936,33 @@ def _refuse_if_redecided(run_id: str, rec_id: int, *, to: str,
       **total**         **37 of 678 in five months**
       ================  ==========================================
 
-    Every one of the 37 is a second event recording a status the row already
-    held — an event that changed no state and made one decision look like two.
+    **THAT TABLE IS THE v1 SCOPE, AND 17 OF ITS 37 WERE WRONG.** Corrected
+    2026-08-26 on an adversary blind review, which replayed the record through
+    the shipped guard and measured what each refused write would have DONE:
+    **17 of the 37 (13 note-only, 4 note + ``next_actor``) carried a real
+    table write.** ``deskstore.decide_recommendation`` writes five fields, not
+    one, and this endpoint is its only caller repo-wide — so a note correction
+    or a re-routing on a row whose status was already right had no door at
+    all. Seven of the 17 came from one chair sweep two days earlier.
+
+    **v1.1 refuses the TRUE NO-OPS ONLY: 20 of the 37.** The comparison now
+    covers ``status``, ``note`` and ``next_actor`` — every field the writer
+    writes except ``decided_by``/``decided_at``, which change on every call by
+    construction and would make the guard refuse nothing if counted. See
+    ``ticketguard.redecision_writes``; reproduce with
+    ``scripts/instruments/hw5/redecision_scope.py``. R39's eight events are
+    untouched by the repair (empty note, unchanged owner, still 7 refused of
+    8), which is the test that it did not throw away what it was built for.
+
     None of the 136 rows carrying a genuine multi-status progression is
-    touched. ``scripts/desk_sweep.py`` — the chair's bulk-closure instrument,
-    which posts ``done`` — is the caller most exposed: 237 rows in the record
-    have already recorded ``done``, so re-sweeping any of them now refuses.
-    That is the intended behaviour and the script was taught to report it as
-    ALREADY rather than FAIL in the same commit; a control that makes the
-    chair's own tooling print failures for no-ops is a defect, not a
-    tightening.
+    touched by either form. ``scripts/desk_sweep.py`` — the chair's
+    bulk-closure instrument, which posts ``done`` — remains the caller most
+    exposed: 237 rows in the record have already recorded ``done``, so
+    re-sweeping one with the SAME citation refuses. That is the intended
+    behaviour and the script reports it as ALREADY rather than FAIL; a control
+    that makes the chair's own tooling print failures for no-ops is a defect,
+    not a tightening. Re-sweeping with a CORRECTED citation now lands, which
+    is the half v1 silently dropped.
 
     IT FAILS OPEN AND SAYS SO. If the event log cannot be read, the decision
     proceeds with ``redecision_readable: False`` on the event and in the
@@ -3966,7 +3997,7 @@ def _refuse_if_redecided(run_id: str, rec_id: int, *, to: str,
         return False, REDECISION_BASIS_ERROR
     refusal = ticketguard.check_redecision(
         ticketguard.decisions_for(events, run_id, rec_id),
-        to=to, run_id=run_id, rec_id=rec_id)
+        to=to, run_id=run_id, rec_id=rec_id, note=note, next_actor=next_actor)
     if refusal is None:
         return True, REDECISION_BASIS_READ
     _store.append(Event(
@@ -3987,6 +4018,13 @@ def _refuse_if_redecided(run_id: str, rec_id: int, *, to: str,
                  "recorded_by": refusal["recorded_by"],
                  "prior_same_status": refusal["prior_same_status"],
                  "decision_count": refusal["decision_count"],
+                 # WHICH FIELDS THE GUARD COMPARED, on the record too. An
+                 # auditor reading this event later must be able to tell a
+                 # v1.1 refusal (three fields compared, a true no-op) from a
+                 # v1 one (status alone, and 17 of them wrong) without
+                 # knowing which spine version wrote it.
+                 "unchanged_fields": refusal["unchanged_fields"],
+                 "not_written_fields": refusal["not_written_fields"],
                  "at": datetime.now(timezone.utc).isoformat()},
         actor=actor or "unknown"))
     raise HTTPException(status_code=409, detail=refusal)
