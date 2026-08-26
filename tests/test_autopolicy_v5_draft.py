@@ -872,4 +872,3 @@ class TestEveryOtherBoundary:
         epsilon, not merely at zero."""
         assert V5._pct_of(1.0, V5.POSITION_EPS) is None
         assert V5._pct_of(1.0, V5.POSITION_EPS * 10) is not None
-

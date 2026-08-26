@@ -1093,4 +1093,3 @@ class TestTheOneWayGuardIsWiredAtTheRIGHTCallSite:
         as ended once anything else had retired it."""
         calls = self._calls()
         assert sum(1 for _, g in calls if not g) >= 3, calls
-

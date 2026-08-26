@@ -23,7 +23,8 @@ from app.fund import leansessions as LS
 #
 # ``app.api.v1.fund`` wires its event store AT IMPORT (fund.py:262). Import it
 # inside a test that has already set FUND_STORE=postgres and it goes to the
-# MODE-resolved database (krypton_fund_dev), which does not exist here, and
+# MODE-resolved OPERATIONAL ledger for whatever mode is declared, which
+# does not exist on this host, and
 # retries the connection for 30 seconds before failing. So it is imported at
 # module scope, where collection happens before any fixture runs — AND with
 # FUND_STORE forced to a non-Postgres value for the duration, because an
@@ -629,4 +630,3 @@ class TestTheLookupDoesNotExpireAtTheCap:
         assert store.update_session({**s, "state": LS.VANISHED}) == 1
         assert store.update_session({**s, "state": "ended"}) == 1
         assert store.session(s["session_id"])["state"] == "ended"
-
