@@ -445,6 +445,25 @@ export default function CeoDeskPage() {
                 {headline.note}
               </p>
             )}
+            {/* ── THE EXCEPTIONS DESK, LINKED AND NOT SUBSTITUTED ────────────
+                The ticket highway's exceptions view splits the decisions you
+                owe from the executions you owe and states the rule behind
+                every row. It reads `GET /fund/tickets`, which ships on a
+                build the chair has not merged — so this is a LINK and not a
+                redirect: repointing the screen you click approvals on at an
+                endpoint that 404s today would take the control down with the
+                count. Promoting it is one routing line, after the merge.
+
+                NOTHING ABOVE OR BELOW THIS LINE CHANGED. It adds a
+                destination and removes no control — the D39 lesson is that a
+                default often carries one. */}
+            <p className={`mt-2 text-xs ${KT.muted}`}>
+              <Link href="/clark/studio/desk/ceo/exceptions" className="underline">
+                exceptions only
+              </Link>
+              {" — the same rows, split into the decisions you owe and the "}
+              {"executions you owe, each stating why it is on your desk"}
+            </p>
             {/* ── THE STEERING SENTENCE, DEMOTED (2026-08-24) ─────────────────
                 IT WAS THE LARGEST THING IN THE HEADER. Measured on the live
                 desk before this change: 73px tall at 15px in the warn amber,
