@@ -5175,8 +5175,19 @@ def external_signal(req: ExternalSignalRequest):
             detail=f"unknown strategy {req.strategy_id!r} — register the engine's "
                    "algorithm as a strategy first, so its trades are attributable",
         )
+    # VENUE: "alpaca", the broker's paper account — NOT the internal simulator
+    # (CEO decision, 2026-08-26/27, executed by the CTO chair with a
+    # second-look flag). The line said venue="paper" from birth, which routed
+    # every approved engine signal to PaperConnector — a simulator filling at
+    # our own quote, carrying zero cost information by construction. The CEO,
+    # told this, said the simulator "was supposed to cleaned up and removed
+    # long back" and, on the e2e charter, "lets clean up and test e2e". An
+    # engine fill should mean what every other fill in this fund means: a real
+    # fill at the broker's paper account. Approval is unchanged — every engine
+    # order still waits for the CEO's click; autopolicy touches only
+    # exit-rule-triggered SELLs, which an engine signal is not.
     order = Order(
-        venue="paper",
+        venue="alpaca",
         symbol=req.symbol.upper().strip(),
         side=Side(req.side),
         qty=req.qty,
