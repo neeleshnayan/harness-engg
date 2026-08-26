@@ -99,13 +99,22 @@ class _Attribution:
 _DECLINED_EVENTS = None      # bound after _proposed/_ev are defined, below
 
 
-def _leg(events, positions=None, sessions=(), raises=None):
+def _leg(events, positions=None, sessions=(), raises=None,
+         known_since=None, archived=None):
     """``sessions=None`` is PASSED THROUGH, not coerced — it is the "the list
     could not be read" case and the helper must not quietly turn it into an
-    empty list, which is what the production code used to do."""
+    empty list, which is what the production code used to do.
+
+    ``known_since`` defaults to ``None`` so that every test predating the fence
+    keeps its original meaning: with no session-memory anchor the fence can
+    prove nothing and fences nothing, which is exactly the behaviour those
+    tests were written against. The fence tests pass one explicitly."""
     store = _Store(events)
+    ctx = EL.EngineContext(sessions=None if sessions is None else list(sessions),
+                           known_since=known_since,
+                           archived_strategy_ids=archived)
     return EL.engine_leg(store, attribution=_Attribution(positions, raises),
-                         sessions=None if sessions is None else list(sessions))
+                         context=ctx)
 
 
 _DECLINED_EVENTS = [_proposed(1),
@@ -471,7 +480,8 @@ class TestEngineLeg:
 
     def test_the_leg_writes_nothing(self):
         store = _Store([_proposed(1), _ev(2, "OrderDeclined")])
-        EL.engine_leg(store, attribution=_Attribution({"s1": {}}), sessions=[])
+        EL.engine_leg(store, attribution=_Attribution({"s1": {}}),
+                      context=EL.EngineContext(sessions=[]))
         EL.signal_ledger(store)
         assert store.appended == []
 
@@ -830,7 +840,7 @@ class TestTheRealFold:
                                     payload={"approver": "claude:loop-test"})]
         store = _Store(events)
         leg = EL.engine_leg(store, attribution=self._attribution(events),
-                            sessions=[])
+                            context=EL.EngineContext(sessions=[]))
         (row,) = leg["implied"]["per_symbol"]
         assert row["book_qty"] == 0.0
         assert row["engine_implied_qty"] == 0.1
@@ -846,7 +856,7 @@ class TestTheRealFold:
                                            "strategy_id": "s1", "fees": 0}),
         ]
         leg = EL.engine_leg(_Store(events), attribution=self._attribution(events),
-                            sessions=[])
+                            context=EL.EngineContext(sessions=[]))
         (row,) = leg["implied"]["per_symbol"]
         assert row["in_sync"] is True
         assert leg["verdict"]["state"] == "in_sync"
