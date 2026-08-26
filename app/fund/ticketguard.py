@@ -536,6 +536,14 @@ def redecision_writes(lineage: dict[str, Any], *, to: Any, note: Any = "",
 
     # `note` is written only when it is a non-empty string — `if note:` in the
     # writer, which is why an empty note does not erase a standing one.
+    #
+    # THE `or ""` BELOW IS NOT A BEHAVIOUR FIX, and saying so is the point.
+    # `redecision_lineage` always publishes `recorded_note` as a string, and
+    # this branch is only entered for a NON-EMPTY note, which equals neither
+    # None nor "" — so removing it changes no answer on the current code
+    # (mutation M4, retired with that proof rather than counted as a gap). It
+    # is kept because this function is public and a caller may hand-build a
+    # lineage, and because a future second fault should not land on a None.
     if isinstance(note, str) and note:
         (changes if note != (lineage.get("recorded_note") or "")
          else unchanged).append("note")

@@ -413,6 +413,39 @@ class TestNextActorField:
                          to="accepted", next_actor=" CEO "),
                    [], ["status", "next_actor"], ["note"])
 
+    @pytest.mark.parametrize("recorded", [
+        pytest.param(" CEO ", id="recorded-spaced-and-upper"),
+        pytest.param("Ceo", id="recorded-mixed-case"),
+        pytest.param("ceo ", id="recorded-trailing-space")])
+    def test_the_RECORDED_owner_is_normalised_too(self, recorded):
+        """BOTH SIDES, and this is not symmetry for its own sake — it is a
+        mutation survivor (M7). Normalising only the supplied value passes
+        every test above, because the door writes an already-normalised value
+        onto the event and the live payloads are therefore all clean.
+
+        ``redecision_writes`` is PUBLIC and takes a lineage dict; a payload
+        written by an older door, a replay, or an instrument folding history
+        by hand can carry a raw string. Against one of those, a half-normalised
+        comparison reports a CHANGE that is not one — which is safe here
+        (it allows) but silently disables the guard on that row, and a control
+        that quietly stops applying is the failure this whole stack is about.
+        """
+        _partition(_call(_lineage("accepted", "", recorded),
+                         to="accepted", next_actor="ceo"),
+                   [], ["status", "next_actor"], ["note"])
+
+    def test_a_never_noted_row_may_publish_its_note_as_None(self):
+        """``redecision_lineage`` always publishes ``recorded_note`` as a
+        string, so the ``or ""`` inside the comparison is unreachable through
+        the production path. It is kept for callers that build a lineage dict
+        by hand — and PROVABLY it changes no answer, because the branch is
+        only entered for a non-empty ``note``, which equals neither None nor
+        "". Recorded here so the next reader does not take the guard for a
+        behaviour fix (mutation M4, retired with this proof)."""
+        _partition(_call({"recorded_status": "done",
+                          "recorded_next_actor": None}, to="done", note="x"),
+                   ["note"], ["status", "next_actor"], [])
+
     def test_supplied_value_against_recorded_none_is_a_change(self):
         _partition(_call(_lineage("accepted", "", None),
                          to="accepted", next_actor="CEO"),

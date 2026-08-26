@@ -386,6 +386,44 @@ class TestACorrectionIsNotADuplicate:
         assert "status, note, next_actor with the value(s) already stored" \
             in text
 
+    def test_a_NOTELESS_decision_does_not_erase_the_standing_note(
+            self, monkeypatch):
+        """MUTATION SURVIVOR M22, and the sharpest of the six.
+
+        The writer's ``if note:`` means an empty note LEAVES the previous one
+        in place. So a row that went ``accepted`` with a citation and was then
+        closed with no citation still HOLDS that citation — and re-sending it
+        is a true duplicate that must refuse.
+
+        A fold that took the last note FIELD rather than the last non-empty
+        one would read the row's note as erased, call the resend a change, and
+        let the duplicate through. Nothing else in this file can see that: it
+        needs three decisions with an empty note in the MIDDLE.
+        """
+        ds = _Deskstore()
+        c = _client(monkeypatch, _AggStore(), ds)
+        assert _decide(c, "accepted", note="cited: memo 3").status_code == 200
+        assert _decide(c, "done", note="").status_code == 200
+        resend = _decide(c, "done", note="cited: memo 3")
+        assert resend.status_code == 409, resend.text
+        assert len(ds.writes) == 2
+
+    def test_the_STANDING_owner_is_the_latest_one_not_the_first(
+            self, monkeypatch):
+        """MUTATION SURVIVOR M23. A row re-routed chair -> ceo holds ``ceo``;
+        re-sending ``ceo`` is a duplicate. A fold reading the FIRST decision's
+        owner would compare against ``chair``, call it a change, and let a
+        third identical write through — one decision looking like three."""
+        ds = _Deskstore()
+        c = _client(monkeypatch, _AggStore(), ds)
+        assert _decide(c, "accepted", note="n",
+                       next_actor="chair").status_code == 200
+        assert _decide(c, "accepted", note="n",
+                       next_actor="ceo").status_code == 200
+        third = _decide(c, "accepted", note="n", next_actor="ceo")
+        assert third.status_code == 409, third.text
+        assert len(ds.writes) == 2
+
     def test_a_row_walks_correct_note_wrong_note_correct_note(
             self, monkeypatch):
         """THE PIVOT AS ONE WALK. Each 409 sits between two 200s that differ
@@ -530,7 +568,7 @@ class TestTheScopeInstrument:
         assert m.main([]) == 2
         assert "REFUSED" in capsys.readouterr().err
 
-    def test_the_null_arm_states_its_domain_size_and_can_fail(self, capsys):
+    def test_the_null_arm_states_its_domain_size(self, capsys):
         """A --null that compared nothing prints the same clean line as one
         that compared R39's eight. The domain size is in the sentence."""
         m = self._mod()
@@ -538,6 +576,33 @@ class TestTheScopeInstrument:
         out = capsys.readouterr().out
         assert "8 events over 1 row(s) compared" in out
         assert "freed 0" in out
+
+    def test_the_null_arm_CAN_FAIL_when_the_guard_stops_refusing(
+            self, monkeypatch, capsys):
+        """MUTATION SURVIVORS M34/M35: a null arm whose exit code is a
+        constant is a check that cannot fire, which is this firm's named
+        worst defect wearing a green tick. Break the guard underneath it and
+        the arm must return 1.
+
+        Patched at ``ticketguard.check_redecision`` — the real dependency —
+        rather than at the instrument's own function, so what is proven is
+        that the arm is actually consulting the control."""
+        from app.fund import ticketguard as tg
+        m = self._mod()
+        monkeypatch.setattr(tg, "check_redecision",
+                            lambda *a, **k: None)
+        assert m.main(["--null"]) == 1
+        assert "freed 7" in capsys.readouterr().out
+
+    def test_the_null_arms_DOMAIN_assertion_can_fire(self, monkeypatch):
+        """The other half. If the arm's own fixture stopped producing the
+        eight-event shape it claims to replay, its zero would be measured
+        over the wrong population — so the domain size is asserted, and the
+        assertion is proven reachable rather than assumed."""
+        m = self._mod()
+        monkeypatch.setattr(m, "v1_refuses", lambda lineage, to: False)
+        with pytest.raises(AssertionError):
+            m.main(["--null"])
 
 
 # ============================================================================
