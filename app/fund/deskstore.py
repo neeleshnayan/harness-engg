@@ -163,6 +163,20 @@ def _run_status(raw: Any) -> Optional[str]:
 #: had been marking them `done`, which says EXECUTED. Reading an observation and
 #: executing a change are not the same act, and a vocabulary that cannot tell
 #: them apart makes the distinction unrecordable.
+#: HOW MANY RUNS ``open_recommendations`` SCANS. Named 2026-08-24; the value is
+#: unchanged and it was an inline literal inside the method until then.
+#:
+#: It earns a name because a SECOND reader now exists. The ticket fold's
+#: reconciliation is defined against this population (``tickets._reconciliation``
+#: — the fold's counts must equal ``desk_load``'s, and ``desk_load`` is fed from
+#: here), and the fold reads runs under its own, larger cap. While the run table
+#: is smaller than this number the two populations are identical; past it they
+#: silently diverge, and the invariant a whole test class exists to guarantee
+#: would break with nothing to point at. So the fold READS this constant and
+#: publishes whether it is inside the cap, rather than either copy guessing what
+#: the other does. 145 runs live on 2026-08-24.
+OPEN_RECS_RUN_CAP = 200
+
 REC_STATUSES = ("open", "accepted", "rejected", "staged", "done", "noted")
 
 #: Statuses after which nothing more is expected of anyone. Named rather than
@@ -738,7 +752,7 @@ class DeskStore:
     def open_recommendations(self) -> list[dict[str, Any]]:
         """Every rec awaiting a decision, across all runs — attribution attached."""
         out = []
-        for run in self.runs(limit=200):
+        for run in self.runs(limit=OPEN_RECS_RUN_CAP):
             for r in run["recommendations"]:
                 if r.get("status") in ("open", "accepted", "staged"):
                     out.append({**r, "run_id": run["run_id"],

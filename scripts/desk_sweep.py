@@ -13,24 +13,168 @@ every write an audited event through the ordinary endpoints, and makes the
 sweep one command instead of one script per row.
 
 Every row needs a citation. No citation, no closure - Donna's rule.
+
+ALREADY IS NOT A FAILURE (2026-08-24). The decide door refuses a decision that
+would change nothing the row stores - the narrow decision guard, on the CEO's
+decision, and this script is the caller most exposed to it because it posts
+`done` in bulk. **236 rows CURRENTLY hold `done`**, so re-sweeping one of them
+with the SAME citation refuses. That refusal means
+"there was nothing to do here", which is a different outcome from "this
+closure did not happen", and printing both as FAIL would train the chair to
+ignore the word. The sweep therefore reports three outcomes, and its exit
+status counts only the third.
+
+  THE 236 IS TWO NUMBERS AND THIS SENTENCE HAD THE WRONG ONE (corrected
+  2026-08-26). The earlier text said 237, which is the count of rows that have
+  EVER recorded `done`; the count that this guard actually refuses is the rows
+  that CURRENTLY hold it, and those differ by exactly the reopen
+  (`run-pm-sleeve-v2#15` went accepted -> done -> open -> accepted -> staged,
+  so it has recorded `done` and re-sweeping it would legitimately move it).
+  Both are true statements about different populations, which is why nobody
+  caught it. Measured 2026-08-26 over the whole log (1,569 events, seq
+  1..1,569; 678 decision events on 491 rows): ever-done 237, currently-done
+  236. THE INVARIANT, since both figures grow: currently-done <= ever-done,
+  and the gap is the number of reopened rows. Reproduce BOTH with
+  `scripts/instruments/hw5/redecision_scope.py`, which emits
+  `rows_currently_holding` and `rows_ever_recording` side by side - the hw4
+  census emits neither, and citing it here was a reproduction command that
+  did not reproduce the claim.
+
+AND AN `ALREADY` NOW SAYS WHAT BECAME OF ITS CITATION (2026-08-26). The first
+cut of the third outcome dropped it silently: a refused POST records nothing,
+so a sweep row whose citation was BETTER than the one on the record printed
+ALREADY and lost it, against this file's own rule three lines up. Two things
+fixed that, and only one of them is here. The door's guard was repaired to
+compare `note` as well as `status`, so a sweep carrying a DIFFERENT citation
+now lands it and prints OK - that is where the dropped work went, and 17 real
+note corrections in the record were blocked by the unrepaired form. What
+remains here is the honest report of the other case: when the door still
+refuses, it publishes `unchanged_fields`, and an `already` line says plainly
+whether the citation it was carrying is already on the record byte-for-byte
+or whether this sweep recorded none. Against a spine older than the repair
+that field is absent, and the line says so rather than assuming the good case.
 """
 import json
+import os
 import sys
+import urllib.error
 import urllib.request
 
-BASE = "http://127.0.0.1:8090/api/v1"
+#: The spine, overridable so this script can be RUN AGAINST A TEST SERVER.
+#: It was a bare constant until 2026-08-24, which made the whole instrument
+#: untestable by construction: there was no way to exercise it except by
+#: pointing it at the live fund. A tool that can only be tried in production
+#: is a tool nobody tries.
+BASE = os.getenv("DESK_SWEEP_BASE", "http://127.0.0.1:8090/api/v1")
+
+#: The guard whose 409 means ALREADY rather than FAILED. Matched on the
+#: machine-readable `hint`, never on the prose: the detail sentence is written
+#: for a human and will be reworded, and a classifier keyed on prose silently
+#: reclassifies the day somebody improves the wording.
+ALREADY_HINT = "already_at_this_status"
+
+
+def classify(code, body):
+    """`ok` / `already` / `fail`, from an HTTP status and a response body.
+
+    Pure, so the three outcomes can be tested without a spine. `already` is
+    ONLY a 409 carrying the re-decision guard's own hint - a 409 from the
+    supersession brake is a genuine refusal to act and stays a failure, and an
+    unparseable body is a failure rather than a hopeful guess.
+    """
+    if code == 200:
+        return "ok"
+    if code != 409:
+        return "fail"
+    try:
+        parsed = json.loads(body)
+    except (ValueError, TypeError):
+        return "fail"
+    # A NON-DICT BODY IS A FAILURE, NOT A CRASH (found 2026-08-26 by reading
+    # this path rather than by any test). `(json.loads(body) or {}).get(...)`
+    # survives `null` and dies on `[1,2]`, `"text"` or `123` with an
+    # AttributeError that `except (ValueError, TypeError)` does not catch —
+    # and nothing above `_post` catches it either, so a proxy or a gateway
+    # returning a JSON array for one row of a 40-row sweep aborted the whole
+    # batch and lost the 37 rows behind it. The direction is strict: an
+    # unrecognisable body classifies as `fail`, never as `already`.
+    if not isinstance(parsed, dict):
+        return "fail"
+    detail = parsed.get("detail")
+    if isinstance(detail, dict) and detail.get("hint") == ALREADY_HINT:
+        return "already"
+    return "fail"
+
+
+#: What became of the citation this sweep was carrying, when the door refused.
+#: FOUR answers and not two, because "the door did not tell me" is a different
+#: fact from "the door told me it was not recorded" and only one of them is a
+#: problem with this sweep.
+CITATION_ON_RECORD = "on_record"
+CITATION_NOT_RECORDED = "not_recorded"
+CITATION_UNKNOWN = "unknown"
+CITATION_UNREADABLE = "unreadable"
+
+
+def citation_outcome(detail):
+    """Where this row's citation ended up, read from the guard's 409 body.
+
+    Pure, so the four answers can be tested without a spine.
+
+    `unchanged_fields` is the guard's own list of the fields it compared and
+    found identical. `note` appearing in it means the citation this sweep was
+    carrying is ALREADY on the record, byte-for-byte - which is why the refusal
+    is honest: there was nothing to write. `note` absent from it means the door
+    would not have written a note at all, so this sweep recorded none.
+
+    A body with no `unchanged_fields` at all is a spine older than the
+    2026-08-26 scope repair, whose guard compared `status` alone and could
+    therefore refuse a row while dropping a DIFFERENT citation on the floor.
+    That is reported UNKNOWN rather than assumed good: absence is never a pass.
+    """
+    if not isinstance(detail, dict):
+        return CITATION_UNREADABLE
+    fields = detail.get("unchanged_fields")
+    if not isinstance(fields, list):
+        return CITATION_UNKNOWN
+    return CITATION_ON_RECORD if "note" in fields else CITATION_NOT_RECORDED
+
+
+#: One sentence per outcome, so the chair reads a fact instead of a word. The
+#: two that need action are worded as such: nothing here should read like
+#: reassurance when the citation did not land.
+CITATION_SAYS = {
+    CITATION_ON_RECORD: "this citation is already on the record, unchanged",
+    CITATION_NOT_RECORDED: ("NO CITATION WAS RECORDED by this sweep - the "
+                            "door wrote no note"),
+    CITATION_UNKNOWN: ("CITATION UNKNOWN - this spine predates the scope "
+                       "repair and does not say whether the note landed"),
+    CITATION_UNREADABLE: "CITATION UNKNOWN - the refusal body was unreadable",
+}
+
+
+def already_message(detail):
+    """The `ALREADY` line's text, from the guard's 409 body. Pure."""
+    d = detail if isinstance(detail, dict) else {}
+    return (f"already {d.get('recorded_status')!r} since {d.get('recorded_at')}"
+            f" - {CITATION_SAYS[citation_outcome(detail)]}")
 
 
 def _post(path, payload):
+    """`(outcome, message)`. The message is None on a clean 200."""
     req = urllib.request.Request(
         BASE + path, data=json.dumps(payload).encode(),
         headers={"Content-Type": "application/json"}, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
             json.loads(r.read())
-            return None
+            return "ok", None
     except urllib.error.HTTPError as e:
-        return f"{e.code} {e.read()[:150].decode()}"
+        raw = e.read()
+        outcome = classify(e.code, raw)
+        if outcome == "already":
+            return outcome, already_message(json.loads(raw).get("detail"))
+        return outcome, f"{e.code} {raw[:150].decode(errors='replace')}"
 
 
 def _full_ids():
@@ -42,7 +186,7 @@ def _full_ids():
 
 def resolve(rows):
     full = _full_ids()
-    ok = fail = 0
+    ok = already = fail = 0
     for row in rows:
         rid = row["id"]
         if len(rid) == 8:
@@ -50,28 +194,47 @@ def resolve(rows):
         cite = (row.get("citation") or "").strip()
         if not cite:
             print(f"REFUSED {rid[:8]}: no citation"); fail += 1; continue
-        err = _post(f"/fund/desk/requests/{rid}/resolve",
-                    {"resolution": cite, "actor": "cto"})
-        if err:
-            print(f"FAIL {rid[:8]}: {err}"); fail += 1
+        outcome, msg = _post(f"/fund/desk/requests/{rid}/resolve",
+                             {"resolution": cite, "actor": "cto"})
+        if outcome == "ok":
+            print(f"OK      {rid[:8]}"); ok += 1
+        elif outcome == "already":
+            print(f"ALREADY {rid[:8]}: {msg}"); already += 1
         else:
-            print(f"OK   {rid[:8]}"); ok += 1
-    print(f"\nresolved {ok}, failed {fail}, of {len(rows)}")
+            print(f"FAIL    {rid[:8]}: {msg}"); fail += 1
+    print(f"\nresolved {ok}, already {already}, failed {fail}, of {len(rows)}")
+    return fail
 
 
 def decide(rows):
-    ok = fail = 0
+    ok = already = fail = 0
     for row in rows:
+        ref = f"{row['run_id']}#{row['rec_id']}"
         note = (row.get("note") or "").strip()
         if not note:
-            print(f"REFUSED {row['run_id']}#{row['rec_id']}: no note"); fail += 1; continue
-        err = _post(f"/fund/desk/runs/{row['run_id']}/recommendations/{row['rec_id']}",
-                    {"status": row.get("status", "done"), "actor": "cto", "note": note})
-        if err:
-            print(f"FAIL {row['run_id']}#{row['rec_id']}: {err}"); fail += 1
+            print(f"REFUSED {ref}: no note"); fail += 1; continue
+        outcome, msg = _post(
+            f"/fund/desk/runs/{row['run_id']}/recommendations/{row['rec_id']}",
+            {"status": row.get("status", "done"), "actor": "cto", "note": note})
+        if outcome == "ok":
+            print(f"OK      {ref}"); ok += 1
+        elif outcome == "already":
+            # NOT A FAILURE AND NOT A CLOSURE EITHER. The row was already in
+            # the state this sweep wanted it in, so the sweep did nothing and
+            # nothing needed doing. Counted separately so a batch of 40 that
+            # closes 12 and skips 28 does not read as 28 problems.
+            #
+            # THE MESSAGE CARRIES THE CITATION'S FATE (see `already_message`).
+            # It is not folded into the counter: an `already` whose citation is
+            # already on the record and one whose citation is unknown are both
+            # "nothing to do" as far as this sweep's exit code goes, and
+            # inventing a fourth count would put a judgement in a number. The
+            # chair reads the line.
+            print(f"ALREADY {ref}: {msg}"); already += 1
         else:
-            print(f"OK   {row['run_id']}#{row['rec_id']}"); ok += 1
-    print(f"\ndecided {ok}, failed {fail}, of {len(rows)}")
+            print(f"FAIL    {ref}: {msg}"); fail += 1
+    print(f"\ndecided {ok}, already {already}, failed {fail}, of {len(rows)}")
+    return fail
 
 
 if __name__ == "__main__":
@@ -82,4 +245,10 @@ if __name__ == "__main__":
         sys.exit(0)
     mode, path = sys.argv[1], sys.argv[2]
     rows = json.loads(open(path, encoding="utf-8").read())
-    {"resolve": resolve, "decide": decide}[mode](rows)
+    # EXIT NON-ZERO ON A REAL FAILURE, and only on one. The script previously
+    # exited 0 whatever happened, so a sweep of 40 rows that failed all 40 was
+    # indistinguishable to any caller from one that closed all 40. `already`
+    # is deliberately NOT counted here: nothing needed doing and nothing went
+    # wrong, and a non-zero exit for that would make the guard look like a
+    # breakage every time the chair re-ran a sweep.
+    sys.exit(1 if {"resolve": resolve, "decide": decide}[mode](rows) else 0)

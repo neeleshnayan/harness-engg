@@ -1977,12 +1977,21 @@ def desk_resolve(request_id: str, req: DeskResolve):
     supposed to happen did not. A 404 is a tightening in front of an untouched
     write path — it can only refuse, and a real request takes exactly the path
     it took yesterday.
+
+    IT ALSO CLOSES A DISPATCH (ticket d03c09b6, 2026-08-24). This is the door
+    ``_activity`` already watches: it retires a seat's lamp on a
+    ``DeskRequestResolved`` naming the dispatch's ``task_id``
+    (desk.py:781-790), and the live record carries 32 such resolution EVENTS
+    against 17 DISTINCT chair-born dispatches. The guard above did not read that fold, so from the day it shipped a
+    CTO-born dispatch had no legitimate close path and 8 lamps were left
+    burning. ``allow_dispatch=True`` is that repair, bounded to this one door;
+    see ``_refuse_unknown_request`` for what it does and does not widen.
     """
     from app.fund.events import Event, EventType
     if not (req.resolution or "").strip():
         raise HTTPException(status_code=422,
                             detail="name the artifact that served this request")
-    _refuse_unknown_request(request_id)
+    _refuse_unknown_request(request_id, allow_dispatch=True)
     payload = {"request_id": request_id, "resolution": req.resolution.strip(),
                "trace_id": (req.trace_id or "").strip() or request_id,
                "at": datetime.now(timezone.utc).isoformat(), "actor": req.actor}
@@ -2389,6 +2398,15 @@ def decide_recommendation(run_id: str, rec_id: int, req: RecDecision):
     disposition is *withdraw it*, and an engine that blocked the withdrawal
     along with the approval would leave the row wedged on the desk forever.
     Closing a door must never be harder than opening one.
+
+    A ROW CANNOT RE-RECORD A DECISION THAT WOULD CHANGE NOTHING IT STORES (the
+    narrow decision guard, 2026-08-24, CEO's decision with the numbers in
+    front of him; scope repaired 2026-08-26 on an adversary blind review).
+    Every decision that CHANGES something passes exactly as before — a new
+    status, a corrected note, a new `next_actor`, any one of them. The v1 form
+    compared the status alone and refused 17 real note corrections in the
+    record while telling the caller its write changed nothing. See
+    `_refuse_if_redecided` for the direction statement and the measured counts.
     """
     ds = _deskstore()
     from app.fund.deskengine import rec_ref
@@ -2401,6 +2419,24 @@ def decide_recommendation(run_id: str, rec_id: int, req: RecDecision):
         readable = _refuse_if_superseded(rec_ref(run_id, rec_id),
                                          kind="desk_run",
                                          target_id=run_id, actor=req.actor)
+    # RUNS ON EVERY STATUS, unlike the supersession brake above, because a
+    # duplicate `rejected` is the same nothing-event as a duplicate `accepted`
+    # and the measured population includes `done` and `staged`. It is BEFORE
+    # the store check on purpose: the refusal is a fact about the event log,
+    # which is readable whether or not the desk table is.
+    #
+    # `note` AND `next_actor` GO IN TOO, and that is the 2026-08-26 repair. A
+    # duplicate is only a duplicate if the whole write is one: v1 passed the
+    # status alone and refused 17 real note corrections in the record with a
+    # 409 saying the write "changes nothing". The writer touches FIVE fields;
+    # these are three of them and the other TWO are `decided_by`/`decided_at`,
+    # stamped on every call and therefore excluded (see
+    # `ticketguard.REDECISION_ALWAYS_REWRITTEN` for why counting them would
+    # make the guard refuse nothing at all). An AST test holds that split to
+    # the writer's own source, so a sixth field cannot appear unnoticed.
+    redecision_readable, redecision_basis = _refuse_if_redecided(
+        run_id, rec_id, to=req.status, actor=req.actor, note=req.note,
+        next_actor=req.next_actor)
     if ds is None:
         raise HTTPException(status_code=503, detail="needs FUND_STORE=postgres")
     from app.fund.events import Event, EventType
@@ -2426,9 +2462,1154 @@ def decide_recommendation(run_id: str, rec_id: int, req: RecDecision):
                                  # advance the row); False = the edge store was
                                  # unreadable and the brake was not consulted.
                                  "supersession_readable": readable,
+                                 # True = the row's decision history was read
+                                 # and this decision changes something the row
+                                 # stores; False = the guard could not look,
+                                 # and `redecision_basis` says which of the two
+                                 # reasons. Never None — this guard applies to
+                                 # every status.
+                                 "redecision_readable": redecision_readable,
+                                 "redecision_basis": redecision_basis,
                                  "at": datetime.now(timezone.utc).isoformat()},
                         actor=req.actor))
-    return {**hit, "supersession_readable": readable}
+    return {**hit, "supersession_readable": readable,
+            "redecision_readable": redecision_readable,
+            "redecision_basis": redecision_basis}
+
+
+# ===========================================================================
+# THE TICKET HIGHWAY, slice 1 — docs/design/TICKET_HIGHWAY_V1_2026-08-24.md
+#
+# ONE READ-ONLY ENDPOINT OVER ONE READ-ONLY FOLD. No door, no event type, no
+# staging table; those are slices 2 and 4. Slice 1 ships value alone by making
+# the desk's three existing species legible as one lifecycle, and it can only
+# be a rendering: `app/fund/tickets.py` appends nothing and an AST test says so.
+# ===========================================================================
+
+#: How many run rows the ticket fold reads for its recommendation leg. A SAFETY
+#: VALVE, NOT A PAGE SIZE — the same distinction `DeskStore.all_runs` makes in
+#: its own docstring, and for the same measured reason: the last cap on this
+#: table was read as a count and truncated the firm's first spend meter to half
+#: of lifetime. 145 runs live on 2026-08-24, so this does not bite; if it ever
+#: does, `counts.runs_truncated` says so rather than the number quietly
+#: shrinking.
+#:
+#: `runs()` and NOT `all_runs()`: all_runs omits the `recommendations` column
+#: entirely (deskstore.py:563-575), so a fold built on it reports zero
+#: recommendation tickets against a record holding 550. The fold refuses to
+#: read that as zero, but the right fix is to hand it the rows that carry the
+#: column.
+TICKET_RUNS_LIMIT = 1000
+
+#: Default page size for the ticket list. The COUNTS AND THE RECONCILIATION ARE
+#: ALWAYS OVER THE WHOLE POPULATION and never over the page — the served-vs-
+#: shown honesty this desk already practises, because a census computed over a
+#: truncated page is a smaller number wearing a total's name.
+TICKET_PAGE_LIMIT = 200
+
+
+def _ticket_fold():
+    """The ticket population, folded once, as every reader here sees it.
+
+    ONE FOLD, ONE PLACE — the view and the three doors of slice 2 all consult
+    it, and two copies of "which runs feed the recommendation leg" is exactly
+    how the fold and ``desk_load`` would drift apart while each looked right.
+
+    ONE OUTAGE, ONE POLICY — the store's CONSTRUCTION is inside the try, and it
+    was not. ``_deskstore()`` builds a ``DeskStore`` on first call, so with
+    Postgres down the FIRST request after a restart raised out of it while
+    every later one (cache warm, or the recorder failing on ``runs()`` instead)
+    degraded quietly to an unknown recommendation leg. That is the identical
+    defect the D22 review found in ``_edges_by_target``, whose docstring says
+    it plainly: *a control whose behaviour depends on whether an unrelated
+    request warmed a cache has two policies and no way to tell which one ran.*
+    Now there is one: the leg is UNKNOWN, never zero, however the read failed.
+    """
+    from app.fund import tickets as tk
+    runs, runs_limit = None, None
+    try:
+        ds = _deskstore()
+        if ds is not None:
+            runs, runs_limit = ds.runs(limit=TICKET_RUNS_LIMIT), TICKET_RUNS_LIMIT
+    except Exception as e:  # noqa: BLE001
+        # None, not [] — an unreadable recorder must not fold into "no
+        # recommendations". The fold reports the leg unknown.
+        logger.info("ticket fold: runs unavailable: %s", e)
+    return tk.fold(_store, runs=runs, runs_limit=runs_limit)
+
+
+@router.get("/fund/tickets")
+def tickets_view(ticket_type: Optional[str] = Query(None, alias="type"),
+                 state: Optional[str] = Query(None),
+                 limit: int = Query(TICKET_PAGE_LIMIT, ge=1, le=5000)):
+    """Every desk request, dispatch and recommendation as one ticket population.
+
+    DEGRADES RATHER THAN REFUSES when the recommendation store is absent. A
+    spine without Postgres can still read the event log, so the ask and
+    dispatch legs are real and the recommendation leg is reported UNKNOWN —
+    `counts.recommendations_read: false`. Returning 503 for the whole payload
+    would throw away two thirds of a readable answer; returning zero
+    recommendations would be a lie. Same choice `desk.view` already makes.
+    """
+    from app.fund import tickets as tk
+
+    # AN UNRECOGNISED FILTER IS REFUSED, NOT ANSWERED WITH ZERO. `?state=dine`
+    # would otherwise return `total: 0` — indistinguishable from "no ticket is
+    # in that state", which is the absence-as-zero shape at the query layer.
+    # 422 with the vocabulary attached; it can only refuse, and a valid filter
+    # takes exactly the path it took before.
+    for name, value, allowed in (("type", ticket_type, tk.TICKET_TYPES),
+                                 ("state", state, tk.TICKET_STATES)):
+        if value and value not in allowed:
+            raise HTTPException(
+                status_code=422,
+                detail={"error": f"unknown {name} filter",
+                        name: value, "allowed": list(allowed),
+                        "note": f"refused rather than answered with an empty "
+                                f"list: zero rows for a {name} that does not "
+                                f"exist reads exactly like zero rows for one "
+                                f"that does"})
+
+    folded = _ticket_fold()
+    rows = folded["tickets"]
+    if rows is None:
+        # `types`/`states` ride the degraded branch too: they are the
+        # vocabulary, not a reading, so a client populating a filter control
+        # must not lose them precisely when the fold is unreadable. The counts
+        # are None; the schema is not.
+        return {**folded, "shown": None, "total": None, "truncated": None,
+                "filters": {"type": ticket_type, "state": state},
+                "limit": limit,
+                "types": list(tk.TICKET_TYPES), "states": list(tk.TICKET_STATES)}
+    if ticket_type:
+        rows = [r for r in rows if r["type"] == ticket_type]
+    if state:
+        rows = [r for r in rows if r["state"] == state]
+    total = len(rows)
+    return {**folded, "tickets": rows[:limit], "shown": min(total, limit),
+            # `total` is the count AFTER filtering and BEFORE the page cap, so
+            # a reader can tell a filter from a truncation. `counts.total` above
+            # it is the unfiltered population; two different questions, two
+            # different fields, neither borrowing the other's name.
+            "total": total, "truncated": total > limit,
+            "filters": {"type": ticket_type, "state": state},
+            "limit": limit,
+            "types": list(tk.TICKET_TYPES), "states": list(tk.TICKET_STATES)}
+
+
+# ---------------------------------------------------------------------------
+# ONE DECISION, ONE ROW — slice 3's addition to slice 2's transition door.
+#
+# DIRECTION: a pure TIGHTENING of a door that is itself new. It adds one
+# refusal — a decided ticket presented bare for the SAME decision again — and
+# one check, that a `merged` names a row the fold has actually seen. It can
+# only refuse; a ticket with no prior decision to the state being asked for
+# takes byte-identically the path it took before this landed, and no legacy
+# endpoint is touched at all.
+#
+# WHAT THIS DOES NOT DO: it does not touch `decide_recommendation`,
+# `desk_approve`, `desk_decline` or `desk_resolve`. The eight R39 re-decisions
+# landed on the FIRST of those, and wiring this guard into it would change a
+# live approval-adjacent path the CEO's desk posts to today. That is a human
+# decision with the numbers in front of it, not a slice's side effect — and the
+# numbers are in `scripts/instruments/hw3/r39_census.py`.
+# ---------------------------------------------------------------------------
+
+
+def _refuse_decided_representation(row: dict, to: str, decision_ref, superseder_ref,
+                                   actor: str) -> None:
+    """409-and-RECORD a decided ticket presented bare (design §1.5).
+
+    THE REFUSAL APPENDS AN `ApprovalRefused` EVENT, and that is the point of it
+    being here rather than in `ticketguard`: the riskofficer audits refusals
+    from `/fund/events`, not from anybody's terminal. This is the third
+    producer of that type (channel guard, mark sanity, supersession being the
+    others) and the same knock-on `_refuse_if_superseded` discloses applies —
+    `mode._controls_have_fired` is satisfied by the type appearing at all, and
+    a store whose only refusal was this one would read as "the approval control
+    has fired". It genuinely is an approval refused, so nothing false is told;
+    whoever owns that precondition should know a third producer exists.
+    """
+    from app.fund import ticketguard
+    from app.fund.events import Event, EventType
+    refusal = ticketguard.check_representation(
+        row, to=to, decision_ref=decision_ref, superseder_ref=superseder_ref)
+    if refusal is None:
+        return
+    _store.append(Event(
+        aggregate_id=row.get("ticket_id") or "unknown", aggregate_type="ticket",
+        type=EventType.APPROVAL_REFUSED,
+        payload={"kind": "ticket", "target_id": row.get("ticket_id"),
+                 "approver": actor or "", "guard": refusal["guard"],
+                 "reason": refusal["detail"],
+                 # THE LINEAGE ON THE RECORD TOO, not only in the response.
+                 # "who was stopped from re-deciding what, and where the
+                 # canonical decision lives" is the question this event exists
+                 # to answer six months from now.
+                 "attempted": to,
+                 "canonical_ticket_id": refusal["canonical_ticket_id"],
+                 "decided_state": refusal["decided_state"],
+                 "decided_at": refusal["decided_at"],
+                 "decision_count": refusal["decision_count"],
+                 "at": datetime.now(timezone.utc).isoformat()},
+        actor=actor or "unknown"))
+    raise HTTPException(status_code=409, detail=refusal)
+
+
+# ---------------------------------------------------------------------------
+# THE AGENT->CTO->AGENT HOP — slice 4: staging, the parser, the batch console.
+#
+# DIRECTION: four NEW endpoints, none of which can append a ticket event on its
+# own. `POST /fund/tickets/staged` PARSES a seat's output into a Postgres table
+# and appends NOTHING — `app/fund/ticketstaging.py` does not import
+# `app.fund.events`, and a test asserts that by AST. The only path from a
+# staged row to the event log runs through `ticket_transition` / `ticket_open`
+# above, with every guard those doors carry, driven by the chair's own session
+# at `POST /fund/tickets/staged/resolve`. Seats gain no pen; what they gain is
+# a queue the chair can clear in one POST instead of by recollection.
+# ---------------------------------------------------------------------------
+
+_staged_cache = None
+
+
+def _stagedstore():
+    """The staging table, or None off Postgres.
+
+    None rather than raising, and every reader renders it as a stated absence:
+    a firestore-backed process simply has no staging table, exactly as it has
+    no in-trays. `staged: null` is not `staged: []`.
+    """
+    global _staged_cache
+    from app.fund.events import store_backend
+    if store_backend() != "postgres":
+        return None
+    if _staged_cache is None:
+        from app.fund.ticketstaging import StagedTickets
+        _staged_cache = StagedTickets()
+    return _staged_cache
+
+
+class TicketsBlock(BaseModel):
+    """A seat's output, for parsing. The TEXT, never a decision."""
+    text: Optional[str] = None
+    run_id: Optional[str] = None
+    seat: Optional[str] = None
+    dry_run: bool = False
+
+
+@router.post("/fund/tickets/staged")
+def stage_tickets_block(req: TicketsBlock):
+    """Parse a seat's ``## TICKETS`` block into staged rows. APPENDS NOTHING.
+
+    ``dry_run`` returns the parse without writing even to the staging table —
+    the shape a producer uses to check its own block before filing, and the
+    shape the adoption measurement uses without polluting the queue.
+
+    AN ABSENT BLOCK AND AN EMPTY ONE ARE DIFFERENT ANSWERS, and both ride the
+    response: ``block_present`` false means the producer has not adopted the
+    format (the slice-7 number), true with no proposals means it had nothing to
+    file. Failure #6 in the design's own table is that structured filing sits
+    at 0 of 116; collapsing these two would make that number unreadable.
+    """
+    from app.fund import ticketstaging
+    parsed = ticketstaging.parse_tickets_block(req.text)
+    if req.dry_run or not parsed["proposals"]:
+        return {**parsed, "staged": [], "stored": False,
+                "store_available": _stagedstore() is not None}
+    st = _stagedstore()
+    if st is None:
+        return {**parsed, "staged": None, "stored": False,
+                "store_available": False,
+                "note": parsed["note"] + " — the staging table is UNAVAILABLE "
+                        "off Postgres, so these proposals were parsed and NOT "
+                        "stored; null, not an empty list"}
+    try:
+        rows = st.stage(parsed["proposals"], run_id=req.run_id, seat=req.seat)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return {**parsed, "staged": rows, "stored": True, "store_available": True}
+
+
+@router.get("/fund/tickets/staged")
+def staged_tickets(status: Optional[str] = Query("staged"),
+                   limit: int = Query(500, ge=1, le=5000)):
+    """The chair's batch console: what seats have proposed, awaiting a click."""
+    from app.fund import ticketstaging
+    if status is not None and status not in ticketstaging.STAGED_STATUSES:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "unknown status filter", "status": status,
+                    "allowed": list(ticketstaging.STAGED_STATUSES),
+                    "note": "refused rather than answered with an empty list — "
+                            "zero rows for a status that does not exist reads "
+                            "exactly like zero rows for one that does"})
+    st = _stagedstore()
+    if st is None:
+        return {"readable": False, "staged": None, "counts": None,
+                "note": "no staging table off Postgres; the queue is UNKNOWN, "
+                        "which is not the same as empty"}
+    try:
+        rows, counts = st.staged(status=status, limit=limit), st.counts()
+    except Exception as e:  # noqa: BLE001
+        logger.warning("staging table unreadable: %s", e)
+        return {"readable": False, "staged": None, "counts": None,
+                "note": f"the staging table could not be read ({e})"}
+    return {"readable": True, "staged": rows, "counts": counts,
+            "shown": len(rows), "limit": limit, "filters": {"status": status},
+            "statuses": list(ticketstaging.STAGED_STATUSES)}
+
+
+class StagedDecision(BaseModel):
+    staged_id: str
+    verdict: str                       # accept | strike
+    reason: Optional[str] = None
+    confirm: Optional[str] = None      # per-row echo, decision transitions only
+    instruction: Optional[str] = None
+
+
+class StagedResolve(BaseModel):
+    decisions: List[StagedDecision]
+    actor: str = "cto"
+
+
+@router.post("/fund/tickets/staged/resolve")
+def resolve_staged(req: StagedResolve):
+    """One POST, one batch, one appended event per ACCEPTED row.
+
+    **THIS IS NOT A BACK DOOR AROUND THE GUARDS AND THAT IS THE POINT.** Each
+    acceptance is executed by calling `ticket_transition` / `ticket_open`
+    directly, so an accepted row takes byte-identically the path a hand-typed
+    transition takes: approval channel, phantom guard, terminal requirements,
+    the §1.5 decision_ref rule, terminal precedence. A batch console that
+    appended its own events would be a second write path with its own copy of
+    five guards, and the day they drifted nobody would know which one ran.
+
+    THE ECHO IS STILL PER-TARGET. The approval-channel guard wants
+    `confirm = ticket_id[:8]`, and batching does not dissolve that: a row
+    proposing a DECISION transition carries its own `confirm`, and one that
+    does not is refused exactly as a hand-typed call would be. Non-decision
+    transitions (`in_flight`, `returned`) need no echo, and those are most of
+    what a seat proposes — so one click still clears most batches.
+
+    PARTIAL FAILURE IS REPORTED PER ROW, never as a batch verdict. `applied`,
+    `struck`, `refused` and `missing` are four different outcomes and a caller
+    that got 200 deserves to know which rows landed.
+    """
+    st = _stagedstore()
+    if st is None:
+        raise HTTPException(
+            status_code=503,
+            detail="no staging table off Postgres — nothing to resolve, and "
+                   "returning 200 with an empty result would report success "
+                   "for work that could not be attempted")
+    out = {"applied": [], "struck": [], "refused": [], "missing": [],
+           "actor": req.actor}
+    for d in req.decisions:
+        verdict = (d.verdict or "").strip().lower()
+        if verdict not in ("accept", "strike"):
+            raise HTTPException(
+                status_code=422,
+                detail=f"verdict must be 'accept' or 'strike', got {d.verdict!r}")
+        if verdict == "strike":
+            try:
+                row = st.resolve(d.staged_id, verdict="struck",
+                                 actor=req.actor, reason=d.reason)
+            except ValueError as e:
+                raise HTTPException(status_code=422, detail=str(e))
+            (out["struck"] if row else out["missing"]).append(
+                {"staged_id": d.staged_id,
+                 **({"reason": d.reason} if row else
+                    {"why": "not found, or already resolved — a second resolve "
+                            "is refused in the UPDATE predicate, not in a "
+                            "check-then-write"})})
+            continue
+        # CLAIM FIRST. See `StagedTickets.attach_event` for why this order and
+        # what its failure state is called.
+        row = st.resolve(d.staged_id, verdict="accepted", actor=req.actor)
+        if row is None:
+            out["missing"].append(
+                {"staged_id": d.staged_id,
+                 "why": "not found, or already resolved"})
+            continue
+        try:
+            applied = _apply_staged(row, d, req.actor)
+        except HTTPException as e:
+            st.attach_event(d.staged_id, event_ref=None,
+                            note=f"door refused: {e.detail!r}")
+            out["refused"].append(
+                {"staged_id": d.staged_id, "status": e.status_code,
+                 "detail": e.detail,
+                 "state": "accepted_without_event — the row is claimed and "
+                          "NOTHING was appended; it cannot be re-resolved and "
+                          "must be re-filed"})
+            continue
+        except Exception as e:  # noqa: BLE001
+            # THE ORPHAN CASE, FOUND IN THE READ-THROUGH AND NOT BY A TEST.
+            # Without this arm a malformed staged row (a `transition` with a
+            # null ticket_id, a field the door's model rejects) propagates a
+            # 500 with the row ALREADY CLAIMED and `attach_event` never
+            # reached — leaving it `accepted`, `event_ref` NULL and
+            # `resolution_reason` NULL, which is indistinguishable on the
+            # console from a row that succeeded. The claim-first order is
+            # right; it just obliges every exit from here to write down what
+            # happened. Re-raised after recording, because a 500 IS what this
+            # is and swallowing it would be worse than the orphan.
+            st.attach_event(d.staged_id, event_ref=None,
+                            note=f"door raised {type(e).__name__}: {e}")
+            raise
+        st.attach_event(d.staged_id,
+                        event_ref=applied.get("ticket_id"))
+        out["applied"].append({"staged_id": d.staged_id, "result": applied})
+    return out
+
+
+def _apply_staged(row: dict, decision, actor: str) -> dict:
+    """Execute one accepted staged row through the ORDINARY door.
+
+    Kept as its own function so the "no second write path" claim is checkable:
+    everything this does is call an endpoint above.
+    """
+    import json
+    fields = row.get("fields") or {}
+    if isinstance(fields, str):
+        # psycopg decodes JSONB to a dict; a str arrives only from a
+        # hand-built row or a driver that does not. Both, because a
+        # branch that handles one shape is green in tests and blind in
+        # production - the rule `tickets._payload` already follows.
+        fields = json.loads(fields)
+    if row["kind"] == "transition":
+        return ticket_transition(row["ticket_id"], TicketTransition(
+            to=row["to_state"], actor=actor,
+            basis=fields.get("basis") or "staged",
+            citation=fields.get("citation"), reason=fields.get("reason"),
+            decision_ref=fields.get("decision_ref"),
+            superseder_ref=fields.get("superseder_ref"),
+            staged_ref=row["staged_id"],
+            confirm=decision.confirm, instruction=decision.instruction))
+    return ticket_open(TicketOpen(
+        type=fields.get("type") or "ask",
+        subject=fields.get("subject") or row.get("raw") or "",
+        filed_for=fields.get("for") or fields.get("filed_for"),
+        actor=actor, parent_id=fields.get("parent_id"),
+        kind=fields.get("kind"), next_actor=fields.get("next_actor"),
+        due_date=fields.get("due") or fields.get("due_date"),
+        reversibility=fields.get("reversibility")))
+
+
+# ---------------------------------------------------------------------------
+# LESSONS WITH RECEIPTS — slice 5.
+#
+# DIRECTION: three NEW endpoints. `POST /fund/tickets/binds` PARSES and STAGES
+# only — it appends nothing, and a lesson becomes a ticket by the chair
+# resolving the staged row through `ticket_open`, with no second write path.
+# `POST /fund/tickets/{id}/consumed` appends a receipt and CANNOT change a
+# ticket's state (see its docstring for why that separation is the point).
+# `GET /fund/tickets/lessons` is read-only.
+#
+# WHAT THIS CLOSES: failure #8, *"BINDS carried by hand"*. The falsifier the
+# design wrote for it is "a filed lesson reaches the receiving seat's dispatch
+# without a receipt, OR a lesson silently vanishes" — the second half is why
+# the view below never filters unconsumed rows out and sorts them to the top.
+# ---------------------------------------------------------------------------
+
+class BindsBlock(BaseModel):
+    text: Optional[str] = None
+    run_id: Optional[str] = None
+    from_seat: Optional[str] = None
+    dry_run: bool = False
+
+
+@router.post("/fund/tickets/binds")
+def stage_binds_block(req: BindsBlock):
+    """A ``## BINDS`` block -> one STAGED lesson per receiving seat.
+
+    ONE PER SEAT, NOT ONE PER ENTRY. An entry addressed to two seats is two
+    obligations; a single row would go ``done`` on the first receipt and take
+    the second seat's lesson with it.
+
+    Staged, never appended. The chair resolves the batch exactly as it resolves
+    any other proposal, which is what keeps "a seat cannot write to another
+    seat's memory" structurally true while the carrying stops being manual.
+    """
+    from app.fund import ticketstaging
+    parsed = ticketstaging.parse_binds_block(req.text)
+    proposals = ticketstaging.lessons_as_proposals(parsed["lessons"],
+                                                   from_seat=req.from_seat)
+    if req.dry_run or not proposals:
+        return {**parsed, "staged": [], "stored": False,
+                "store_available": _stagedstore() is not None}
+    st = _stagedstore()
+    if st is None:
+        return {**parsed, "staged": None, "stored": False,
+                "store_available": False,
+                "note": parsed["note"] + " — the staging table is UNAVAILABLE "
+                        "off Postgres, so these lessons were parsed and NOT "
+                        "stored; null, not an empty list"}
+    rows = st.stage(proposals, run_id=req.run_id, seat=req.from_seat)
+    return {**parsed, "staged": rows, "stored": True, "store_available": True}
+
+
+class TicketConsumed(BaseModel):
+    consumed_by_dispatch: str
+    seat: Optional[str] = None
+    actor: str = "cto"
+
+
+@router.post("/fund/tickets/{ticket_id}/consumed")
+def consume_ticket(ticket_id: str, req: TicketConsumed):
+    """Record that a lesson was CARRIED INTO a named dispatch.
+
+    A RECEIPT, NOT A TRANSITION, and the separation is the design's (§1.5):
+    consumption records that the lesson reached a seat's brief; whether the
+    lesson is DONE is the chair's judgement at resolve and takes a transition
+    of its own. Folding the receipt as a state change would close the loop
+    automatically — and "the system's contribution is staging, never
+    appending" is the one rule this highway does not bend.
+
+    THE DISPATCH MUST BE NAMED. A receipt that cannot say which brief carried
+    the lesson is the linkage rot this highway exists to end, in miniature: it
+    would move a counter and leave nobody able to check it.
+    """
+    from app.fund.events import Event, EventType
+    if not (req.consumed_by_dispatch or "").strip():
+        raise HTTPException(
+            status_code=422,
+            detail="name the dispatch that carried this lesson — a receipt "
+                   "that cannot say which brief carried it moves a counter "
+                   "and leaves nobody able to check it")
+    index = _ticket_index()
+    _refuse_unknown_ticket(ticket_id, index)
+    # `index is None` is the fold's disclosed fail-open — the receipt goes
+    # through and the type check below is SKIPPED rather than assumed passed.
+    # This door does not 503 the way the transition door does, and the line is
+    # the same one: a receipt records something that already happened, so
+    # refusing it on an unreadable fold loses the fact; a TRANSITION decides
+    # something, so appending one the fold would refuse at replay is a lie.
+    row = (index or {}).get(ticket_id) or {}
+    if row and row.get("type") not in (None, "lesson"):
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "consumption receipts are for lesson tickets",
+                    "ticket_id": ticket_id, "type": row.get("type"),
+                    "note": "a receipt on an ask or a recommendation would "
+                            "put a number on the lessons view that is not a "
+                            "lesson, and consumption lag would stop meaning "
+                            "what its name says"})
+    payload = {"ticket_id": ticket_id,
+               "consumed_by_dispatch": req.consumed_by_dispatch.strip(),
+               "seat": req.seat or (row.get("filed_for") if row else None),
+               "at": datetime.now(timezone.utc).isoformat(),
+               "actor": req.actor}
+    _store.append(Event(aggregate_id=ticket_id, aggregate_type="ticket",
+                        type=EventType.TICKET_CONSUMED,
+                        payload=payload, actor=req.actor))
+    return payload
+
+
+@router.get("/fund/tickets/lessons")
+def lessons_view(seat: Optional[str] = Query(None),
+                 limit: int = Query(500, ge=1, le=5000)):
+    """Every lesson, its receipts, and how long it waited. Read-only.
+
+    **AN UNCONSUMED LESSON AGES VISIBLY RATHER THAN VANISHING**, which is
+    slice 5's stated acceptance and the second half of failure #8's falsifier.
+    Concretely: unconsumed rows are never filtered out, they sort to the TOP by
+    age, and their lag is ``null`` with ``lag_basis: "unconsumed"`` — never 0.
+    A lag of zero for a lesson nobody carried would read as instant delivery.
+
+    The aggregate is a MEDIAN and it is reported with its own denominator: a
+    median over the consumed rows only, beside the count of rows it could not
+    include. A single number over a population that is mostly unconsumed would
+    describe the delivered minority and be read as the whole.
+    """
+    from app.fund import tickets as tk
+    folded = _ticket_fold()
+    rows = folded.get("tickets")
+    if rows is None:
+        return {"readable": False, "lessons": None, "counts": None,
+                "note": folded.get("note")}
+    lessons = [r for r in rows if r["type"] == "lesson"]
+    if seat:
+        lessons = [r for r in lessons if r.get("filed_for") == seat]
+    out, lags = [], []
+    for r in lessons:
+        cons = r.get("consumptions") or []
+        first = cons[0] if cons else None
+        lag = (tk._age_hours(r.get("filed_at"), first.get("at"))
+               if first else None)
+        if lag is not None:
+            lags.append(lag)
+        out.append({
+            "ticket_id": r["ticket_id"], "seat": r.get("filed_for"),
+            "subject": r.get("subject"), "state": r["state"],
+            "filed_at": r.get("filed_at"), "terminal": r["terminal"],
+            "consumed": bool(cons), "consumptions": cons,
+            "consumed_by_dispatch": (first or {}).get("consumed_by_dispatch"),
+            "consumption_lag_hours": lag,
+            # Three bases, not two: `unconsumed` (nothing carried it),
+            # `unknown` (a receipt exists and one of its two timestamps could
+            # not be parsed) and `event_timestamps`. Collapsing the first two
+            # would report a broken clock as an uncarried lesson.
+            "lag_basis": ("event_timestamps" if lag is not None
+                          else "unconsumed" if not cons else "unknown"),
+            "age_hours": r.get("age_hours"),
+            "age_basis": r.get("age_basis"),
+        })
+    # UNCONSUMED FIRST, OLDEST FIRST. The board's job is to make the
+    # never-carried lesson the most conspicuous row on it.
+    #
+    # SORTED ON `filed_at`, NOT ON `age_hours`, AND THE DIFFERENCE IS MEASURED.
+    # `tickets._age_hours` rounds to three decimals — 3.6 seconds — so three
+    # lessons filed in the same second all carry the SAME age, the sort becomes
+    # a tie, and Python's stability then hands the order to whatever the fold
+    # happened to produce (newest first). The test written for this ordering
+    # failed on exactly that. The filing instant has full resolution and needs
+    # no arithmetic; the id breaks the remaining tie so the order is TOTAL and
+    # two calls cannot disagree.
+    #
+    # An UNREADABLE `filed_at` sorts to the very top ("" < any ISO string), and
+    # that is the right direction rather than an accident: a lesson whose own
+    # filing time cannot be read is precisely a row somebody should look at.
+    out.sort(key=lambda x: (x["consumed"], x["filed_at"] or "",
+                            x["ticket_id"]))
+    consumed = sum(1 for x in out if x["consumed"])
+    return {
+        "readable": True, "lessons": out[:limit], "shown": min(len(out), limit),
+        "total": len(out), "truncated": len(out) > limit,
+        "filters": {"seat": seat},
+        "counts": {
+            "lessons": len(out), "consumed": consumed,
+            "unconsumed": len(out) - consumed,
+            "terminal": sum(1 for x in out if x["terminal"]),
+        },
+        "median_lag_hours": (sorted(lags)[len(lags) // 2] if lags else None),
+        # THE DENOMINATOR THE MEDIAN IS OVER, published beside it. A median
+        # taken over the consumed minority and read as the population is the
+        # exact shape of a number that means something other than its label.
+        "median_lag_basis": (f"median over the {len(lags)} lesson(s) with a "
+                             f"readable receipt; {len(out) - len(lags)} row(s) "
+                             "are NOT in this figure"
+                             if lags else
+                             f"no lesson has a readable receipt yet, so the lag "
+                             f"is UNKNOWN over {len(out)} row(s) — never zero"),
+    }
+
+
+# ===========================================================================
+# THE TICKET HIGHWAY, slice 2 — THE DOORS (§2.3)
+#
+# Three POSTs and one generalized phantom guard. DIRECTION, stated per door
+# because this firm sends every loosening to the adversary blind:
+#
+#   * `POST /fund/tickets` — NEW SURFACE. It admits exactly what
+#     `POST /fund/desk/requests` already admits (an `actor` string from the
+#     body, no allowlist), and it appends a NEW event type on a NEW aggregate
+#     type. No existing caller can do anything it could not do yesterday.
+#   * `POST /fund/tickets/{id}/transition` — NEW SURFACE, on the approval
+#     path, and therefore STRICTLY TIGHTER than its legacy siblings: every
+#     decision transition takes the whole approval-channel guard (allowlist +
+#     confirm echo + the verbatim-instruction rule), where `desk_decline`
+#     takes none of it. See `tickets.DECISION_TRANSITIONS` for why declining
+#     is guarded here and not there.
+#   * `POST /fund/tickets/{id}/link` — NEW SURFACE, bookkeeping only. Both
+#     ends are validated against the fold; nothing it writes is read by any
+#     control in this slice.
+#
+# NOTHING BELOW WIDENS AN EXISTING CALLER'S POWERS. The legacy desk doors are
+# byte-identical, `_refuse_unknown_request` is untouched (this slice does not
+# call it), and no threshold, envelope or guard value moves.
+# ===========================================================================
+
+
+def _ticket_index() -> Optional[dict]:
+    """``{ticket_id: ticket}`` for the doors, or None when the fold is unreadable.
+
+    **None IS THE FAIL-OPEN SIGNAL and it is deliberate.** See
+    ``_refuse_unknown_ticket`` for the direction argument; this function's only
+    job is to make "we could not look" a value rather than an exception, so the
+    two failure modes cannot be confused at the call site.
+    """
+    try:
+        folded = _ticket_fold()
+    except Exception as e:  # noqa: BLE001
+        logger.warning("ticket fold unavailable: %s", e)
+        return None
+    rows = folded.get("tickets")
+    if rows is None:
+        logger.warning("ticket fold unreadable: %s", folded.get("note"))
+        return None
+    return {t["ticket_id"]: t for t in rows}
+
+
+def _refuse_unknown_ticket(ticket_id: str, index: Optional[dict]) -> None:
+    """404 a ticket id the fold has never seen. THE PHANTOM GUARD, generalized.
+
+    This is ``_refuse_unknown_request`` (fund.py, the desk doors) pointed at the
+    ticket fold instead of ``desk._requests``, and it exists for the same
+    measured reason: ``desk_resolve`` and ``desk_approve`` appended without ever
+    looking the row up, so a POST against the 8-character shorthand the desk
+    itself prints returned **200** and wrote an event against an aggregate no
+    fold reads. Bare ids like ``1c53589f`` are sitting in Postgres today. A 200
+    against a phantom is the worst available shape: the caller believes it
+    acted, the record says something happened, and the thing that was supposed
+    to happen did not.
+
+    ONE FOLD, NOT TWO. The desk guard had to grow an ``allow_dispatch`` flag
+    because it consulted ``desk._requests`` while chair-born dispatches live
+    only in ``desk._activity`` — two folds, one door, and eight lamps that no
+    legitimate event could close. **The ticket fold has no such split**: asks,
+    dispatches, recommendations and door-born tickets are all first-class rows
+    in one population, so there is no flag here and nothing for one to widen.
+    This slice does not call ``_refuse_unknown_request`` at all.
+
+    **FAILS OPEN ON AN UNREADABLE FOLD, DELIBERATELY, AND SAYS SO IN THE LOG.**
+    If the fold cannot be read this cannot distinguish "no such ticket" from
+    "cannot tell", and refusing every call because a READ failed would turn a
+    rendering guard into an outage on the approval path. The guard's job is to
+    catch a typo, not to gate the channel; the channel's own controls (the
+    allowlist, the echo, the supersession check) are untouched either way. The
+    direction is inherited from ``_refuse_unknown_request`` unchanged and on
+    purpose — one guard family, one failure policy, so nobody has to remember
+    which of two guards fails which way.
+
+    NOTE THE ONE PLACE THIS SLICE DOES **NOT** FAIL OPEN: the transition door
+    refuses with 503 when it cannot read the ticket's CURRENT STATE. Identity
+    and legality are different questions. Admitting an append whose legality
+    could not be checked would produce an event the fold refuses at replay —
+    a 200 the caller believes and the record does not honour, which is the
+    exact shape this guard exists to end.
+    """
+    if index is None:
+        logger.warning("ticket existence check unavailable, proceeding "
+                       "WITHOUT it for %s", ticket_id)
+        return
+    if ticket_id in index:
+        return
+    from app.fund.deskengine import MIN_ID_PREFIX
+    hits = sorted(k for k in index
+                  if k and len(ticket_id) >= MIN_ID_PREFIX
+                  and k.startswith(ticket_id))
+    raise HTTPException(
+        status_code=404,
+        detail={
+            "error": "no such ticket",
+            "ticket_id": ticket_id,
+            # Which fold was consulted, on the refusal itself — the field the
+            # desk guard grew after a caller holding a dispatch id could not
+            # tell "that id does not exist" from "this door does not read that
+            # fold". There is exactly one fold here and it says so.
+            "folds_consulted": ["tickets"],
+            "did_you_mean": hits,
+            "note": ("this id matches no ticket in the fold. Refused rather "
+                     "than recorded: appending here would write an event "
+                     "against an aggregate that does not exist, return 200, "
+                     "and leave the real ticket untouched"),
+        })
+
+
+def _ticket_supersession_ref(ticket: Optional[dict]) -> Optional[str]:
+    """The supersession-store key for this ticket, or None if it has none.
+
+    The edge store's vocabulary is ``req:<uuid>`` and ``rec:<run>#<n>``
+    (``deskengine.parse_ref``) — it predates tickets and this slice does not
+    extend it. So a ticket that IS one of those rows can be checked, and a
+    dispatch, a challenge or a door-born ticket CANNOT.
+
+    Returning None is not "no edge exists"; it is "this ticket has no key in
+    that store". The caller must publish ``supersession_checked: false`` rather
+    than let a ticket with no key read as a ticket with a clean check — the
+    difference between an unrun check and a passed one is the whole of what the
+    D22 review found missing from the fail-open leg.
+    """
+    from app.fund.deskengine import parse_ref, req_ref
+    if not ticket:
+        return None
+    if ticket.get("type") == "recommendation":
+        # A recommendation ticket's id IS its `rec_ref` — the fold mints it
+        # that way (tickets.py) precisely so a second identity never exists.
+        tid = ticket.get("ticket_id")
+        return tid if parse_ref(tid) else None
+    if ticket.get("type") == "ask" and ticket.get("request_id"):
+        return req_ref(ticket["request_id"])
+    return None
+
+
+class TicketOpen(BaseModel):
+    """Filing a ticket. Types, and the three routing fields, at birth."""
+    type: str
+    subject: str
+    filed_for: Optional[str] = None
+    parent_id: Optional[str] = None
+    kind: Optional[str] = None
+    actor: str = "cto"
+    trace_id: Optional[str] = None
+    # THE THREE FIELDS THE DESK CANNOT ROUTE WITHOUT. Measured (builder D9):
+    # `kind` is free text with 84 distinct values across 219 recommendations,
+    # so routing on it moves 18.7% of rows; `due_date` is the desk's TOP
+    # ranking key and separates ZERO rows because nothing has ever written it.
+    # This door is where they get written.
+    next_actor: Optional[str] = None
+    due_date: Optional[str] = None
+    reversibility: Optional[str] = None
+    money_at_stake: Optional[float] = None
+
+
+def _refuse_422(error: str, **detail) -> None:
+    raise HTTPException(status_code=422, detail={"error": error, **detail})
+
+
+@router.post("/fund/tickets")
+def ticket_open(req: TicketOpen):
+    """File a ticket. NEW SURFACE — it widens no existing caller's powers.
+
+    Admission is the same as ``POST /fund/desk/requests``: an ``actor`` from the
+    body, no allowlist. Filing work has never been an approval-guarded act here
+    and this door does not make it one — what a ticket may then DO is guarded at
+    the transition door, which is where the decisions are.
+
+    IDS ARE FULL uuid4, ALWAYS (§1.1). Prefixes are accepted at doors only to
+    produce ``did_you_mean`` and are never stored; the 8-character-prefix habit
+    is what rotted 54 of 56 linkages.
+
+    ``filed_for`` IS DELIBERATELY NOT VALIDATED AGAINST A ROSTER, and the reason
+    is measured rather than lazy: this codebase carries TWO seat vocabularies
+    that disagree — ``desk.ROSTER`` and ``desk.REQUEST_KINDS.values()`` — and a
+    ticket can legitimately be filed for the ``chair`` or the ``ceo``, who are
+    in neither. Validating against the wrong one would refuse legitimate seats
+    (the exact defect that made a seat missing from ``REQUEST_KINDS`` report no
+    runs at all). An unvalidated string is honest; a wrong refusal is not.
+    """
+    import uuid
+
+    from app.fund import tickets as tk
+    from app.fund.desk import FILEABLE_NEXT_ACTORS
+    from app.fund.events import Event, EventType
+
+    ttype = (req.type or "").strip().lower()
+    if ttype not in tk.OPENABLE_TYPES:
+        _refuse_422("unknown ticket type", type=req.type,
+                    allowed=list(tk.OPENABLE_TYPES))
+    if not (req.subject or "").strip():
+        _refuse_422("a ticket needs a subject",
+                    note="'do research' is not an ask anyone can act on, and a "
+                         "blank subject renders as a blank row forever")
+    # Read from `desk`, never restated. `FILEABLE_NEXT_ACTORS` excludes
+    # `unknown` on purpose: `unknown` is what the SPINE concludes when it
+    # cannot tell, not something a filer may claim.
+    if req.next_actor is not None and req.next_actor not in FILEABLE_NEXT_ACTORS:
+        _refuse_422("unknown next_actor", next_actor=req.next_actor,
+                    allowed=list(FILEABLE_NEXT_ACTORS))
+    if req.reversibility is not None and req.reversibility not in tk.REVERSIBILITY:
+        _refuse_422("unknown reversibility", reversibility=req.reversibility,
+                    allowed=list(tk.REVERSIBILITY))
+    if req.due_date is not None:
+        try:
+            # STRICT, AND strptime IS THE STRICTNESS. `2026-02-31` matches any
+            # shape check you would write by hand and is not a date; a due date
+            # that can never arrive is a row that can never age.
+            datetime.strptime(req.due_date.strip(), "%Y-%m-%d")
+        except (ValueError, AttributeError):
+            _refuse_422("due_date must be a real calendar date as YYYY-MM-DD",
+                        due_date=req.due_date)
+    if req.money_at_stake is not None and req.money_at_stake < 0:
+        _refuse_422("money_at_stake cannot be negative",
+                    money_at_stake=req.money_at_stake)
+
+    if req.parent_id:
+        # THE PHANTOM GUARD ON THE PARENT. A ticket whose parent does not exist
+        # is an unlinkable row born linked — the 54-of-56 rot, freshly made.
+        _refuse_unknown_ticket(req.parent_id, _ticket_index())
+
+    tid = str(uuid.uuid4())
+    payload = {"ticket_id": tid, "type": ttype,
+               "subject": req.subject.strip(),
+               "filed_for": (req.filed_for or "").strip() or None,
+               "parent_id": req.parent_id or None,
+               "kind": (req.kind or "").strip() or None,
+               "next_actor": req.next_actor,
+               "due_date": (req.due_date or "").strip() or None,
+               "reversibility": req.reversibility,
+               "money_at_stake": req.money_at_stake,
+               "trace_id": (req.trace_id or "").strip() or tid,
+               "at": datetime.now(timezone.utc).isoformat(),
+               "actor": req.actor}
+    _store.append(Event(aggregate_id=tid, aggregate_type="ticket",
+                        type=EventType.TICKET_OPENED,
+                        payload=payload, actor=req.actor))
+    return payload
+
+
+class TicketTransition(BaseModel):
+    to: str
+    actor: str = "cto"
+    basis: Optional[str] = None
+    citation: Optional[str] = None
+    reason: Optional[str] = None
+    decision_ref: Optional[str] = None
+    superseder_ref: Optional[str] = None
+    staged_ref: Optional[str] = None
+    policy_version: Optional[str] = None
+    confirm: Optional[str] = None      # approval-channel guard v1: echo of id[:8]
+    instruction: Optional[str] = None  # via-cto: the CEO's quoted instruction
+
+
+@router.post("/fund/tickets/{ticket_id}/transition")
+def ticket_transition(ticket_id: str, req: TicketTransition):
+    """Move a ticket, legally, with the guard its transition class demands.
+
+    SIX CHECKS, IN THIS ORDER, and the order is the same reasoning
+    ``desk_approve`` records for its own (identity before anything else, so a
+    caller the allowlist is about to refuse never learns anything):
+
+      1. **the vocabulary** — an unrecognised target state is 422 with the list,
+         never a silent no-op. It runs first BECAUSE the guard depends on it:
+         whether a transition is guarded at all is a question about which class
+         of transition it is, and that cannot be answered before the word is
+         recognised. Nothing is leaked — this vocabulary is already served
+         publicly by ``GET /fund/tickets`` as ``states``;
+      2. **the approval-channel guard**, for the decision transitions of
+         ``tickets.DECISION_TRANSITIONS``. REUSED, NOT REWRITTEN:
+         ``_guard_approval`` with ``DESK_APPROVAL_ALLOWLIST``, the same
+         allowlist, echo and verbatim-instruction rule the desk's approve door
+         takes. A threshold or identity that exists twice has already drifted
+         once;
+      3. **the terminal record** — ``tickets.TERMINAL_REQUIREMENTS``: no
+         citation, no close;
+      4. **the phantom guard** — ``_refuse_unknown_ticket``;
+      5. **legality** — ``tickets.ALLOWED_FROM``, read from the fold's own table
+         rather than restated here. Terminal is terminal: no ``ALLOWED_FROM``
+         entry admits a terminal source, so a closed ticket cannot be reopened
+         through this door and a dispute is a NEW ``challenge`` ticket (§1.2);
+      6. **the supersession refusal**, for the advancing transitions of
+         ``tickets.ADVANCING_TICKET_STATES`` — ``_refuse_if_superseded``,
+         generalized by giving it the ticket's own row reference.
+
+    **CHECKS 2 AND 3 WERE THE OTHER WAY ROUND UNTIL A QA PASS REPRODUCED WHAT
+    THAT COST, and the docstring above them claimed this order while the code
+    had the other.** An actor OFF the allowlist asking to close a ticket
+    without a citation received ``422 "a 'done' transition must carry
+    'citation'"`` — the required field name handed to a caller the very next
+    line was going to refuse. Small information, but it is exactly the leak
+    this door's own stated principle forbids, and the docstring asserting the
+    safe order was doing the work of hiding it. Identity now runs first and a
+    test pins the pair (bad actor AND missing record must answer 403).
+
+    503, NOT A FAIL-OPEN, WHEN THE FOLD CANNOT BE READ. The phantom guard fails
+    open by design (it cannot tell "absent" from "unreadable", and a rendering
+    guard must not become an outage). Legality is a different question: without
+    the current state this door would append a transition the fold REFUSES at
+    replay, returning 200 for something that never happened. That is the shape
+    the phantom guard exists to end, so the honest answer is "ask again".
+    """
+    from app.fund import tickets as tk
+    from app.fund.events import Event, EventType
+
+    to = (req.to or "").strip().lower()
+    if to not in tk.TICKET_STATES:
+        _refuse_422("unknown ticket state", to=req.to,
+                    allowed=list(tk.TICKET_STATES),
+                    note="refused rather than appended: a transition to a state "
+                         "no fold recognises would land as a refused transition "
+                         "at replay and read as a 200 to the caller")
+
+    actor = req.actor
+    if to in tk.DECISION_TRANSITIONS:
+        # THE EXISTING GUARD, CALLED — not a second one written to look like it.
+        # FIRST, before any check that would describe the request back to the
+        # caller. See this function's docstring for what running it third cost.
+        actor = _guard_approval("ticket", ticket_id, req.actor, req.confirm,
+                                req.instruction, DESK_APPROVAL_ALLOWLIST)
+
+    if to in tk.TERMINAL_REQUIREMENTS:
+        field, why = tk.TERMINAL_REQUIREMENTS[to]
+        if not (getattr(req, field, None) or "").strip():
+            # NO CITATION, NO CLOSE — the Donna-sweep rule made mechanical
+            # (§1.2's terminal table). Each terminal names the one thing the
+            # record must carry, and the door is where it becomes a refusal
+            # rather than a convention somebody remembers.
+            _refuse_422(f"a {to!r} transition must carry {field!r}",
+                        required=field, why=why)
+    if to == "expired":
+        # THE AGING POLICY IS NOT RATIFIED, SO EXPIRY IS SHUT. §1.2 makes the
+        # policy behind an expiry sweep a CEO decision; none exists. A door
+        # that closes aged work under no stated rule is how a queue gets
+        # quietly emptied instead of quietly worked. One constant turns it on,
+        # in a versioned change with a name in it.
+        if tk.AGING_POLICY_VERSION is None:
+            raise HTTPException(
+                status_code=422,
+                detail={"error": "expiry is not available",
+                        "note": "memo §1.2 makes the aging policy behind an "
+                                "expiry sweep CEO-ratified, and none exists. "
+                                "tickets.AGING_POLICY_VERSION is None; setting "
+                                "it is a versioned human change, not a call "
+                                "this door may make"})
+        # AND WHEN IT IS RATIFIED, THE SWEEP MUST NAME IT. §1.2's terminal
+        # table requires an expiry to carry its policy version; a sweep that
+        # closes work under an unnamed rule is unauditable even when the rule
+        # exists. Written now rather than left for the commit that flips the
+        # constant, because that commit will be a one-line change nobody
+        # re-reads this door for.
+        if (req.policy_version or "").strip() != tk.AGING_POLICY_VERSION:
+            _refuse_422("an expiry must name the aging policy it swept under",
+                        policy_version=req.policy_version,
+                        expected=tk.AGING_POLICY_VERSION)
+
+    index = _ticket_index()
+    _refuse_unknown_ticket(ticket_id, index)
+    if index is None:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "the ticket fold is unreadable",
+                    "ticket_id": ticket_id,
+                    "note": "this door cannot check whether the transition is "
+                            "legal without the ticket's current state, and "
+                            "appending one the fold would refuse at replay "
+                            "returns 200 for something that never happened"})
+    row = index[ticket_id]
+    frm = row["state"]
+    # ONE DECISION, ONE ROW — slice 3, design §1.5. AFTER identity and BEFORE
+    # legality, for the same reason the approval guard comes before the
+    # supersession lineage: a caller the phantom guard is about to refuse must
+    # not learn who decided what, and a caller re-presenting a decided ticket
+    # must learn the canonical id before it is told the transition was illegal
+    # anyway (a bare second `accepted` on a still-`accepted` row IS legal under
+    # ALLOWED_FROM, so the legality check below would let it straight through —
+    # that is precisely the R39 shape and precisely why this line is here).
+    _refuse_decided_representation(row, to, req.decision_ref,
+                                   req.superseder_ref, actor)
+    if to == "merged":
+        from app.fund import ticketguard
+        bad = ticketguard.merge_target_error(ticket_id, req.decision_ref,
+                                             set(index))
+        if bad:
+            _refuse_422("this merge names no row it can fold into", note=bad)
+    if frm not in tk.ALLOWED_FROM.get(to, ()):
+        raise HTTPException(
+            status_code=409,
+            detail={"error": "illegal transition",
+                    "ticket_id": ticket_id, "from": frm, "to": to,
+                    "allowed_from": list(tk.ALLOWED_FROM.get(to, ())),
+                    "terminal": frm in tk.TERMINAL_STATES,
+                    "note": ("terminal is terminal: no reopen transition exists "
+                             "and a dispute with a closed ticket is a NEW "
+                             "ticket of type 'challenge', linked to this one"
+                             if frm in tk.TERMINAL_STATES else
+                             f"a ticket at {frm!r} does not advance to {to!r}")})
+
+    supersession_readable = None
+    ref = _ticket_supersession_ref(row)
+    if to in tk.ADVANCING_TICKET_STATES and ref:
+        supersession_readable = _refuse_if_superseded(
+            ref, kind="ticket", target_id=ticket_id, actor=actor)
+
+    payload = {"ticket_id": ticket_id, "from": frm, "to": to, "actor": actor,
+               "basis": (req.basis or "").strip() or "transition",
+               "citation": req.citation, "reason": req.reason,
+               "decision_ref": req.decision_ref,
+               "superseder_ref": req.superseder_ref,
+               "staged_ref": req.staged_ref,
+               "policy_version": req.policy_version,
+               # WHETHER THE BRAKE WAS CHECKED AT ALL, and it has THREE
+               # answers, not two. True: checked against a readable edge store.
+               # False: the store could not be read and this went through
+               # anyway (the accepted fail-open, now visible in the record).
+               # None: this ticket has no key in the supersession store, or the
+               # transition was not an advancing one — the check did not apply.
+               # Collapsing the third into either of the others would let an
+               # unrun check read as a passed one.
+               "supersession_readable": supersession_readable,
+               "supersession_checked": supersession_readable is not None,
+               "at": datetime.now(timezone.utc).isoformat()}
+    _store.append(Event(aggregate_id=ticket_id, aggregate_type="ticket",
+                        type=EventType.TICKET_TRANSITIONED,
+                        payload=payload, actor=req.actor))
+    return payload
+
+
+class TicketLink(BaseModel):
+    link_kind: str
+    target_id: str
+    basis: Optional[str] = None
+    actor: str = "cto"
+
+
+@router.post("/fund/tickets/{ticket_id}/link")
+def ticket_link(ticket_id: str, req: TicketLink):
+    """Record one edge between two tickets. BOTH ENDS ARE VALIDATED.
+
+    A link is bookkeeping and takes no approval guard — it grants nobody
+    anything and no control in this slice reads what it writes. What it must
+    not do is create the rot it exists to end, so:
+
+      * both ids go through the phantom guard, not just the one in the path.
+        A link to a ticket that does not exist is exactly the 54-of-56 defect,
+        freshly manufactured at a door built to prevent it;
+      * a ticket may not link to ITSELF;
+      * a ``parent`` link that would close a CYCLE is refused. Any consumer
+        walking the tree would loop forever, and "the tree" is what
+        ``parent_id`` means.
+
+    ``decision_ref`` is RECORDED here and ENFORCED in slice 3, where a decided
+    ticket re-presented bare becomes a 409 with its lineage (§1.5). Said plainly
+    so the next builder does not assume the enforcement half already exists.
+    """
+    from app.fund import tickets as tk
+    from app.fund.events import Event, EventType
+
+    kind = (req.link_kind or "").strip().lower()
+    if kind not in tk.LINK_KINDS:
+        _refuse_422("unknown link_kind", link_kind=req.link_kind,
+                    allowed=list(tk.LINK_KINDS))
+    target = (req.target_id or "").strip()
+    if not target:
+        _refuse_422("a link needs a target_id")
+    if target == ticket_id:
+        _refuse_422("a ticket cannot link to itself",
+                    ticket_id=ticket_id, link_kind=kind)
+
+    index = _ticket_index()
+    _refuse_unknown_ticket(ticket_id, index)
+    _refuse_unknown_ticket(target, index)
+
+    # THREE ANSWERS, NOT TWO — the same shape as `supersession_checked`, and
+    # for the same reason. True: the walk ran. False: the fold was unreadable,
+    # so the phantom guard failed open (by design) and this link is recorded
+    # WITHOUT the check. None: no cycle is possible for this link kind, so
+    # nothing was checked and nothing needed to be.
+    #
+    # It read `index is not None` for every kind, which reported True on a
+    # `serves` link where no walk had run — an unrun check reading as a passed
+    # one, which is precisely the defect the supersession field was given a
+    # third answer to avoid. Caught on the read-through, not by the suite: the
+    # fail-open test uses `parent`, so the mutant that hardcodes this True died
+    # against a case where True was the right answer.
+    cycle_possible = kind == "parent"
+    cycle_checked = (index is not None) if cycle_possible else None
+    if cycle_checked:
+        seen, cur = set(), target
+        while cur and cur not in seen:
+            seen.add(cur)
+            if cur == ticket_id:
+                _refuse_422(
+                    "that parent link would close a cycle",
+                    ticket_id=ticket_id, target_id=target,
+                    chain=sorted(seen),
+                    note="parent_id is a tree; a cycle in it makes every "
+                         "consumer that walks the ancestry loop forever")
+            nxt = index.get(cur)
+            cur = (nxt or {}).get("parent_id")
+
+    payload = {"ticket_id": ticket_id, "link_kind": kind, "target_id": target,
+               "basis": (req.basis or "").strip() or None,
+               # True / False / None — see the three answers above.
+               "cycle_checked": cycle_checked,
+               "at": datetime.now(timezone.utc).isoformat(),
+               "actor": req.actor}
+    _store.append(Event(aggregate_id=ticket_id, aggregate_type="ticket",
+                        type=EventType.TICKET_LINKED,
+                        payload=payload, actor=req.actor))
+    return payload
 
 
 # ===========================================================================
@@ -2546,8 +3727,46 @@ def _supersession_check(ref: str) -> dict:
         return {"refusal": None, "supersession_readable": False}
 
 
-def _refuse_unknown_request(request_id: str) -> None:
+def _refuse_unknown_request(request_id: str, *,
+                            allow_dispatch: bool = False) -> None:
     """404 a request id no fold has ever seen. Never raises for any other cause.
+
+    **THE LAMP-CLOSE FIX (ticket d03c09b6, 2026-08-24) IS THE
+    ``allow_dispatch`` FLAG, AND ITS DIRECTION IS STATED OUT LOUD BECAUSE IT
+    WIDENS WHAT A DOOR ADMITS.**
+
+    The guard's own first sentence is "an id no FOLD has ever seen" — and it
+    consulted exactly one fold. There are two. ``desk._requests`` folds
+    ``DeskRequested``; ``desk._activity`` folds ``DeskDispatched`` and closes a
+    dispatch on a ``DeskRequestResolved`` naming its ``task_id``
+    (desk.py:781-790). A CTO-born dispatch — no backing request, 24 of them on
+    the live record — exists only in the second, so from the day this guard
+    landed its resolve door returned 404 for every one of them. **Eight
+    chair-born dispatches are open today with no legitimate way to close
+    them**, which is failure #4 in the ticket-highway design's own table: *any
+    dispatch exists that no legitimate event can close*.
+
+    So the implementation now matches the specification, and the widening is
+    bounded three ways rather than blanket:
+
+      1. **Only the RESOLVE door passes it.** ``desk_approve`` is byte-identical
+        to yesterday. Approving a chair-born dispatch is meaningless — there is
+        no request to bless — and it would write a ``DeskRequestApproved``
+        against an aggregate ``_requests`` ignores, which is the exact
+        phantom shape this guard exists to stop. Measured before choosing:
+        of the 7 live ``DeskRequestApproved`` events naming an id outside the
+        requests fold, ZERO name a dispatch task_id, so no historical use is
+        being served by widening the approval door.
+      2. **The admitted set is the record's own, not a pattern.** An id is
+        admitted because a ``DeskDispatched`` event named it, never because it
+        looks like a uuid.
+      3. **True phantoms are still refused.** The 8-character shorthands
+        sitting in Postgres as aggregate ids (``1c53589f`` and friends) are in
+        neither fold and still 404 — there is a test that fails if they stop.
+
+    ``did_you_mean`` draws from whatever set THIS door accepts, so at the
+    resolve door it now also expands a dispatch shorthand. The help mechanism
+    is unchanged; its pool follows the door.
 
     THE PHANTOM AGGREGATE (COO triage #8 J1, 2026-08-24). ``desk_resolve`` and
     ``desk_approve`` appended without ever looking the request up, so a POST
@@ -2570,13 +3789,22 @@ def _refuse_unknown_request(request_id: str) -> None:
     own controls (the allowlist, the echo, the supersession check) are
     untouched either way.
     """
-    from app.fund.desk import _requests
+    from app.fund.desk import _requests, dispatched_task_ids
     try:
         known = {r.get("request_id") for r in _requests(_store)}
     except Exception as e:  # noqa: BLE001
         logger.warning("request existence check unavailable, proceeding "
                        "WITHOUT it for %s: %s", request_id, e)
         return
+    if allow_dispatch:
+        # Its own fold, and it swallows its own read failure by returning an
+        # empty set — so an unreadable dispatch log narrows this door back to
+        # requests-only rather than opening it. The two failure directions are
+        # deliberately opposite: the requests read fails OPEN (refusing every
+        # approval because a read failed would turn a rendering guard into an
+        # outage on the approval path), and the dispatch read fails CLOSED
+        # (it can only ever ADD ids, so losing it can only refuse).
+        known = known | dispatched_task_ids(_store)
     if request_id in known:
         return
     from app.fund.deskengine import MIN_ID_PREFIX
@@ -2588,6 +3816,12 @@ def _refuse_unknown_request(request_id: str) -> None:
         detail={
             "error": "no such desk request",
             "request_id": request_id,
+            # WHICH FOLDS WERE CONSULTED, on the refusal itself. A caller
+            # holding a dispatch id refused by the approve door should be able
+            # to see that the approve door does not read the dispatch fold,
+            # rather than conclude the id does not exist.
+            "folds_consulted": (["requests", "dispatches"] if allow_dispatch
+                                else ["requests"]),
             # THE HELP THE 200 USED TO WITHHOLD. The shorthand is what the
             # desk prints, so the caller is almost always one expansion away;
             # naming the full id costs nothing and is what turns the refusal
@@ -2647,6 +3881,174 @@ def _refuse_if_superseded(ref: str, *, kind: str, target_id: str,
                  "edge_id": refusal.get("edge_id"),
                  "mode": refusal.get("mode"),
                  "superseder_ref": refusal.get("superseder_ref"),
+                 "at": datetime.now(timezone.utc).isoformat()},
+        actor=actor or "unknown"))
+    raise HTTPException(status_code=409, detail=refusal)
+
+
+#: WHY THE GUARD COULD NOT LOOK, when it could not. A bare `readable: False`
+#: says the check did not run and stops there; these say which of three very
+#: different things happened, and only one of them is an outage.
+#:
+#: `store_cannot_answer` is not hypothetical and is the reason this vocabulary
+#: exists. Measured 2026-08-24 by walking the suite's ASTs for classes defining
+#: both `append` and `stream`: **23 event-store-shaped test doubles across 22
+#: files, of which 5 implement `by_aggregate`.** (A first pass wrote "19 and 7"
+#: from `grep -l`, which counts FILES mentioning the name rather than doubles
+#: implementing the method — re-derived rather than retyped.) Reproduce:
+#: `python scripts/instruments/hw4/store_double_census.py`.
+#:
+#: Those counts will move as the suite grows; the INVARIANT that matters and
+#: does not move is that some doubles cannot answer, so the fail-open path is
+#: reachable from inside the suite. Against such a store this guard fails open
+#: — correctly, since a store that could not be asked has not answered "no".
+#: What would be wrong is for that to be INDISTINGUISHABLE from a guard that
+#: ran and allowed, because then a test asserting a decision succeeded would be
+#: blessing an unwired control. `redecision_basis` is what tells them apart.
+REDECISION_BASIS_READ = "decision_events"
+REDECISION_BASIS_NO_METHOD = "store_cannot_answer"
+REDECISION_BASIS_ERROR = "store_error"
+
+
+def _refuse_if_redecided(run_id: str, rec_id: int, *, to: str, actor: str,
+                         note: str = "",
+                         next_actor: Optional[str] = None) -> tuple:
+    """409-and-RECORD a decision that would change nothing the row stores.
+
+    Returns ``(redecision_readable, redecision_basis)`` — True plus
+    ``decision_events`` when the row's history was read and this decision
+    changes something the row stores; False plus a reason when the guard could
+    NOT look. Never None:
+    unlike the supersession brake this guard applies to every status, so "not
+    applicable" is not one of its answers, and writing None would let a reader
+    take an unread guard for an inapplicable one.
+
+    **DIRECTION: A TIGHTENING OF A LIVE, APPROVAL-ADJACENT PATH.** Stated
+    plainly because this is the door the CEO's desk posts to, and because this
+    module abstained from it one dispatch ago on exactly that ground. The CEO
+    decided it on 2026-08-24 with the census in front of him. What it can
+    refuse, measured over the whole log (seq 1-1545) with
+    ``scripts/instruments/hw4/redecision_census.py``:
+
+      ================  ==========================================
+      caller            events this rule would have refused
+      ================  ==========================================
+      ``ceo``           18   (the desk's approve/accept clicks)
+      ``cto``           13   (chair sweeps and closures)
+      ``co-cto``         5
+      ``neelesh-via-cto``1
+      **total**         **37 of 678 in five months**
+      ================  ==========================================
+
+    **THAT TABLE IS THE v1 SCOPE, AND 17 OF ITS 37 WERE WRONG.** Corrected
+    2026-08-26 on an adversary blind review, which replayed the record through
+    the shipped guard and measured what each refused write would have DONE:
+    **17 of the 37 (13 note-only, 4 note + ``next_actor``) carried a real
+    table write.** ``deskstore.decide_recommendation`` writes five fields, not
+    one, and this endpoint is its only caller repo-wide — so a note correction
+    or a re-routing on a row whose status was already right had no door at
+    all. Seven of the 17 came from one chair sweep two days earlier.
+
+    **v1.1 refuses the TRUE NO-OPS ONLY: 20 of the 37.** The comparison now
+    covers ``status``, ``note`` and ``next_actor`` — every field the writer
+    writes except ``decided_by``/``decided_at``, which change on every call by
+    construction and would make the guard refuse nothing if counted. See
+    ``ticketguard.redecision_writes``; reproduce with
+    ``scripts/instruments/hw5/redecision_scope.py``. R39's eight events are
+    untouched by the repair (empty note, unchanged owner, still 7 refused of
+    8), which is the test that it did not throw away what it was built for.
+
+    None of the 136 rows carrying a genuine multi-status progression is
+    touched by either form. ``scripts/desk_sweep.py`` — the chair's
+    bulk-closure instrument, which posts ``done`` — remains the caller most
+    exposed: **236 rows CURRENTLY hold** ``done``, so re-sweeping one with the
+    SAME citation refuses. (237 is the count that have EVER recorded it — a
+    different population, and the figure this sentence carried until
+    2026-08-26. They differ by the one reopened row; both grow, and the
+    invariant is currently-done <= ever-done. Both are emitted side by side by
+    ``scripts/instruments/hw5/redecision_scope.py`` as
+    ``rows_currently_holding`` / ``rows_ever_recording``.) That is the intended
+    behaviour and the script reports it as ALREADY rather than FAIL; a control
+    that makes the chair's own tooling print failures for no-ops is a defect,
+    not a tightening. Re-sweeping with a CORRECTED citation now lands, which
+    is the half v1 silently dropped.
+
+    THE POPULATION BOUND ON THE READER'S SIDE, NAMED (2026-08-26). This guard
+    sees exactly what ``_store.by_aggregate(run_id)`` returns, and the two
+    implementations bound it differently: ``PgStore.by_aggregate``
+    (pgstore.py) is a ``WHERE aggregate_id = %s ORDER BY seq`` with **no
+    LIMIT**, so on the live Postgres path there is no cap; the Firestore-backed
+    ``EventStore.by_aggregate`` (events.py) filters ``self.stream(limit=
+    1_000_000)``, so on that path the guard reads the OLDEST 1,000,000 events
+    and a longer log would hide the newest decisions from it — a guard reading
+    stale lineage, which fails OPEN and silently. **Which side of that we are
+    on today: the fund runs Postgres, and the whole log is 1,569 events
+    (2026-08-26), 0.16% of the other implementation's cap.** Written down
+    because an agreement that holds only inside somebody else's unnamed cap
+    stops holding on the day it binds, with nothing on either surface to point
+    at (builder HW1).
+
+    IT FAILS OPEN AND SAYS SO. If the event log cannot be read, the decision
+    proceeds with ``redecision_readable: False`` on the event and in the
+    response. The alternative — failing closed — would take the CEO's entire
+    decide door dark on an event-store outage, which is a far worse trade than
+    the 37-events-in-five-months this guard prevents. Absence is reported
+    absent; it is not reported as "checked".
+
+    THIS IS THE FOURTH PRODUCER of ``ApprovalRefused`` (channel guard, mark
+    sanity, supersession, and now this), and the knock-on
+    ``_refuse_if_superseded`` discloses applies unchanged:
+    ``mode._controls_have_fired`` is satisfied by the type appearing in the
+    store at all. A re-decision refusal genuinely is an approval refused on the
+    approval path, so nothing false is told — but whoever owns that
+    precondition should know a fourth producer exists.
+    """
+    from app.fund import ticketguard
+    from app.fund.events import Event, EventType
+    reader = getattr(_store, "by_aggregate", None)
+    if not callable(reader):
+        # A WIRING FACT, NOT AN OUTAGE, and told apart from one. Checked before
+        # the call rather than caught as an AttributeError, because a broad
+        # `except` would also swallow an AttributeError raised INSIDE a working
+        # `by_aggregate` and report a genuine defect as a degraded store.
+        return False, REDECISION_BASIS_NO_METHOD
+    try:
+        events = reader(run_id)
+    except Exception:
+        # The store, not the guard, is what failed. Reported as unreadable
+        # rather than swallowed: "the guard did not refuse" and "the guard
+        # could not look" are different facts and only one of them is a pass.
+        return False, REDECISION_BASIS_ERROR
+    refusal = ticketguard.check_redecision(
+        ticketguard.decisions_for(events, run_id, rec_id),
+        to=to, run_id=run_id, rec_id=rec_id, note=note, next_actor=next_actor)
+    if refusal is None:
+        return True, REDECISION_BASIS_READ
+    _store.append(Event(
+        aggregate_id=run_id, aggregate_type="desk_run",
+        type=EventType.APPROVAL_REFUSED,
+        payload={"kind": refusal["kind"], "target_id": run_id,
+                 "approver": actor or "", "guard": refusal["guard"],
+                 "reason": refusal["detail"],
+                 "row_ref": refusal["row_ref"],
+                 # THE LINEAGE ON THE RECORD TOO, not only in the response —
+                 # "who was stopped from re-recording what, and when the row
+                 # first took that status" is the question this event exists to
+                 # answer later, and the response is gone the moment the caller
+                 # closes its terminal.
+                 "attempted": to,
+                 "recorded_status": refusal["recorded_status"],
+                 "recorded_at": refusal["recorded_at"],
+                 "recorded_by": refusal["recorded_by"],
+                 "prior_same_status": refusal["prior_same_status"],
+                 "decision_count": refusal["decision_count"],
+                 # WHICH FIELDS THE GUARD COMPARED, on the record too. An
+                 # auditor reading this event later must be able to tell a
+                 # v1.1 refusal (three fields compared, a true no-op) from a
+                 # v1 one (status alone, and 17 of them wrong) without
+                 # knowing which spine version wrote it.
+                 "unchanged_fields": refusal["unchanged_fields"],
+                 "not_written_fields": refusal["not_written_fields"],
                  "at": datetime.now(timezone.utc).isoformat()},
         actor=actor or "unknown"))
     raise HTTPException(status_code=409, detail=refusal)

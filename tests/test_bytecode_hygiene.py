@@ -219,14 +219,40 @@ def _equal_sets_in_different_order() -> tuple[frozenset, frozenset]:
     Set iteration order is a function of the hash table's LAYOUT, and the layout
     depends on construction history — not only on the contents. Growing a set
     past a resize and then discarding the extras leaves a table sized for the
-    larger population, and the survivors land in different slots. Deterministic,
-    same-process, no hash-seed games.
+    larger population, and the survivors land in different slots.
+
+    **THE PREVIOUS VERSION OF THIS DOCSTRING ENDED "Deterministic, same-process,
+    no hash-seed games" AND THAT SENTENCE WAS FALSE — MEASURED, 2026-08-24
+    (builder HW3).** It hardcoded one construction (5 members, 8 extras) and
+    assumed the two orders would differ. Whether they differ depends on whether
+    any two of those five strings COLLIDE in an 8-slot table, and string hashing
+    is randomised per process: at ``PYTHONHASHSEED=3`` the two sets iterate
+    identically and the test's own precondition fails. Reproduced at **1 seed in
+    12** (0-11, seed 3 the only failure), which is roughly how often a full
+    suite run went red for no reason anybody could see.
+
+    So the construction is now SEARCHED rather than assumed. Every candidate is
+    deterministic within a process; the search is what makes the FUNCTION
+    deterministic across seeds. It raises rather than returning an equal pair —
+    a fixture that silently hands back two identically-ordered sets makes the
+    test that consumes it vacuous, which is the exact defect the mutation pass
+    caught in this test's first version.
     """
-    members = ["FILL", "PTR", "PTC", "ABC", "XYZ"]
-    grown = set(members + [f"Z{i}" for i in range(8)])
-    for i in range(8):
-        grown.discard(f"Z{i}")
-    return frozenset(members), frozenset(grown)
+    for n_members in (5, 7, 11, 17, 29):
+        members = [f"M{i:02d}" for i in range(n_members)]
+        for n_extra in (0, 1, 2, 4, 8, 16, 32):
+            grown = set(members + [f"Z{i}" for i in range(n_extra)])
+            for i in range(n_extra):
+                grown.discard(f"Z{i}")
+            a, b = frozenset(members), frozenset(grown)
+            if a == b and list(a) != list(b):
+                return a, b
+    raise AssertionError(
+        "no construction in this search produced two equal frozensets with "
+        "different iteration orders. That is not a pass — it means this "
+        "fixture can no longer build the difference the test needs, and the "
+        "test consuming it would be vacuous. Widen the search or reconsider "
+        "the premise; do not delete the assertion.")
 
 
 @pytest.mark.parametrize("wrap", ["bare", "in_tuple"])
