@@ -19,6 +19,7 @@ import assert from "node:assert/strict";
 import {
   fateBuckets,
   fateTone,
+  countTone,
   ledgerAbsence,
   ledgerTruncation,
   syncWord,
@@ -396,4 +397,36 @@ test("a non-paper venue is reported as itself rather than as paper", () => {
 
 test("no signals means no venue claim at all", () => {
   assert.equal(venueNote(ledger()), null);
+});
+
+
+// ------------------------------------------------------- the tone of a count
+
+test("a zero is quiet whatever bucket it is in", () => {
+  // MEASURED DEFECT, look-pass 2026-08-26: the strip toned each figure by its
+  // bucket, so 0/0/0/1/0 rendered four coloured zeros around one muted count.
+  for (const fate of FATE_ORDER) {
+    assert.equal(countTone(fate, 0), "quiet", `${fate} at zero must be quiet`);
+  }
+});
+
+test("a real count carries its bucket's meaning", () => {
+  assert.equal(countTone("filled", 3), "good");
+  assert.equal(countTone("failed", 1), "bad");
+  assert.equal(countTone("awaiting", 2), "warn");
+});
+
+test("a refusal is legible, not dimmer than the zeros beside it", () => {
+  assert.notEqual(countTone("refused", 1), "quiet");
+  assert.equal(countTone("refused", 1), fateTone("refused"));
+});
+
+test("the live reading tones exactly one figure and it is the refusal", () => {
+  const b = fateBuckets(ledger({
+    counts: { filled: 0, in_flight: 0, awaiting: 0, refused: 1, failed: 0 },
+    total: 1,
+  }));
+  const loud = b.filter((x) => x.countTone !== "quiet");
+  assert.equal(loud.length, 1);
+  assert.equal(loud[0].fate, "refused");
 });

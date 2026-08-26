@@ -307,7 +307,10 @@ export default function EnginePage() {
                   {buckets.map((b) => (
                     <div key={b.fate} className={`${KT.inset} px-3 py-2`} title={b.help}>
                       <div className={KT.label}>{b.label}</div>
-                      <div className={`mt-0.5 font-mono tabular-nums text-xl font-light ${TONE_TEXT[b.tone]}`}>
+                      {/* countTone, not tone: a zero is quiet whatever bucket
+                          it is in. Measured — the live reading's only real
+                          count was the dimmest figure on the strip. */}
+                      <div className={`mt-0.5 font-mono tabular-nums text-xl font-light ${TONE_TEXT[b.countTone]}`}>
                         {b.n}
                       </div>
                     </div>

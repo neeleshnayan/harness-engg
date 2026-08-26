@@ -179,13 +179,45 @@ export function fateTone(fate: Fate | string): Tone {
     case "filled": return "good";
     case "in_flight": return "neutral";
     case "awaiting": return "warn";
-    case "refused": return "quiet";
+    // A refusal is a DECISION somebody took, not an absence. It was "quiet"
+    // until the look-pass: on the live reading the only non-zero count in the
+    // row was REFUSED, and it rendered as the dimmest thing on the strip while
+    // four zeros shouted in colour.
+    case "refused": return "neutral";
     case "failed": return "bad";
     default: return "quiet";
   }
 }
 
-export interface FateBucket { fate: Fate; label: string; help: string; n: number; tone: Tone }
+/**
+ * The tone for a COUNT, which is not the tone for its bucket.
+ *
+ * MEASURED DEFECT (look-pass, 2026-08-26): the fate strip toned each figure by
+ * its bucket alone, so on the live reading — 0/0/0/1/0 — the four ZEROS
+ * rendered in green, amber and red while the single real count sat in the
+ * muted grey. The eye went to the absences. An amber "awaiting a click" at
+ * zero also asserts a queue that is empty.
+ *
+ * So: a zero is quiet, whatever bucket it is in; a count carries its bucket's
+ * meaning. Nothing is hidden — the label and its sentence are unchanged — but
+ * the emphasis follows the fact rather than the category.
+ */
+export function countTone(fate: Fate | string, n: number): Tone {
+  return n === 0 ? "quiet" : fateTone(fate);
+}
+
+export interface FateBucket {
+  fate: Fate;
+  label: string;
+  help: string;
+  n: number;
+  /** The bucket's own meaning — used for a row's chip, where the fact is the
+   *  fate rather than a count. */
+  tone: Tone;
+  /** The tone for the FIGURE. See countTone: a zero is quiet whatever bucket
+   *  it sits in, or the absences out-shout the facts. */
+  countTone: Tone;
+}
 
 /**
  * All five buckets, always, zero included.
@@ -202,6 +234,7 @@ export function fateBuckets(ledger: SignalLedger | null | undefined): FateBucket
     help: FATE_HELP[fate],
     n: counts ? (counts[fate] ?? 0) : 0,
     tone: fateTone(fate),
+    countTone: countTone(fate, counts ? (counts[fate] ?? 0) : 0),
   }));
 }
 
