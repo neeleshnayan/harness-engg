@@ -429,3 +429,47 @@ the initial/loading state whatever the backend is doing, and D43's first
 "failed-spine" capture was a true loading render misread as a defect for ten
 minutes. The same fact is the instrument: to reproduce a pending state
 deliberately, shoot the first navigation.
+
+## THE VERIFICATION TIERS v2 — TIER THE FAN-OUT, AND THE CHAIR SETS THE TIER (2026-08-26, CEO: "our builders spend a lot of time testing every small feature which burns tokens and slows down so lets tier testing depth")
+
+**v1 tiered the TEST DEPTH and it was classified correctly** — today's ticket
+doors and guard repair really were Tier A, the desk UI really was B. The cost
+leaked somewhere v1 does not reach: **helper fan-out, which v1 licensed without
+bounding.** Measured 2026-08-26 across one day: slice 2 spent **643k tokens on
+three juniors** for a 828-line production diff; slices 3–5 spent 218k on a
+Gauntlet; the desk UI ~350k on two workers. v1's line — *"the Gauntlet and
+juniors exist to make this tier CHEAPER, never thinner"* — is an assertion
+nothing measured.
+
+**TWO CHANGES, both work-layer:**
+
+**1. THE CHAIR DECLARES THE TIER IN THE BRIEF, not the builder at premise-fold.**
+A tier chosen after the work is a tier chosen by whoever did it. Naming it in
+the brief sets the budget before a token is spent, and makes a wrong call the
+chair's to answer for. A builder that believes the tier is wrong says so in
+its FIRST message and proceeds under protest rather than silently upgrading.
+
+**2. FAN-OUT IS CAPPED BY TIER, and a helper must PAY FOR ITSELF IN WRITING.**
+
+| tier | fan-out allowed | mutation |
+|---|---|---|
+| **A** — control/money-adjacent | Gauntlet + juniors as needed; no cap | full, hand-derived survivors |
+| **B** — decision surfaces | **ONE helper total** — the Gauntlet OR one junior, never both | new logic only |
+| **C** — leaf tools | **none** | none |
+
+**Every helper reports what it COST and what it FOUND, in the ledger it already
+keeps.** A helper that returns only confirmations on a Tier-B diff is recorded
+as a loss, and two consecutive losses of the same shape retire that helper for
+that tier. The existing fan-out ledger already carries the columns; what
+changes is that the chair reads it as a P&L rather than as a courtesy.
+
+**WHAT DOES NOT THIN, ever:** the late read-through (fifteen consecutive
+dispatches where it caught what no suite could), the premise fold, baseline-vs-
+final counts, and every Tier-A obligation. **The read-through is the cheapest
+thing a builder does and the highest-yielding — cutting it would be cutting the
+one line item that is pure profit.**
+
+**FALSIFIER, at birth:** if a Tier-B dispatch under the one-helper cap ships a
+defect that the struck second helper would plausibly have caught, the cap
+reverts to v1 for that surface and the incident is recorded. Depth reduction is
+a loosening-shaped change; it gets a falsifier, loudly, like every other one.
