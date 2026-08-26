@@ -786,3 +786,185 @@ class TestEngineStrategyCards:
         c, = _cards([LEAN_HYG])["strategies"]
         assert "claim_type" in c["definition_keys"]
         assert "universe" in c["definition_keys"]
+
+
+# ============================================================== the endpoint
+
+class _Lean:
+    """A runner complete enough to be ASKED the fence's questions.
+
+    The pre-existing fake in ``test_engineledger.py`` has neither
+    ``sessions_known_since`` nor ``get_algorithm``, so the endpoint's guards
+    swallow an AttributeError and the fence proves nothing — which is correct
+    fail-safe behaviour and is exactly why it cannot be the fixture that proves
+    the fence WORKS. A test whose subject is degraded away is a test that
+    cannot fail for the right reason.
+    """
+
+    def __init__(self, sessions=(), known_since=T2, algorithms=None,
+                 raises=None):
+        self._sessions = list(sessions)
+        self._known_since = known_since
+        self._algorithms = algorithms or {}
+        self._raises = raises
+
+    def live_sessions(self):
+        if self._raises:
+            raise self._raises
+        return list(self._sessions)
+
+    def sessions_known_since(self):
+        return self._known_since
+
+    def get_algorithm(self, name):
+        if name not in self._algorithms:
+            raise RuntimeError(f"unknown algorithm {name!r}")
+        return {"name": name, "code": self._algorithms[name]}
+
+
+class _Strategies:
+    def __init__(self, rows=()):
+        self._rows = list(rows)
+
+    def list(self):
+        return [dict(r) for r in self._rows]
+
+    def get(self, sid):
+        for r in self._rows:
+            if r["strategy_id"] == sid:
+                return dict(r)
+        from app.fund.strategies import StrategyError
+        raise StrategyError(f"unknown strategy {sid}")
+
+
+def _client(monkeypatch, events, *, sessions=(), known_since=T2, rows=(),
+            algorithms=None, positions=None, lean_raises=None,
+            strategies_raise=False, drift=None):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app.api.v1 import fund as fundapi
+
+    strategies = _Strategies(rows)
+    if strategies_raise:
+        def _boom():
+            raise RuntimeError("registry down")
+        strategies.list = _boom
+    monkeypatch.setattr(fundapi, "_store", _Store(events))
+    monkeypatch.setattr(fundapi, "_attribution", _Attribution(positions or {}))
+    monkeypatch.setattr(fundapi, "_strategies", strategies)
+    monkeypatch.setattr(fundapi, "_reconciler",
+                        type("R", (), {"drift": staticmethod(
+                            lambda: dict(drift or {"configured": True}))})())
+    monkeypatch.setattr(fundapi, "_lean", lambda: _Lean(
+        sessions, known_since, algorithms, lean_raises))
+    app = FastAPI()
+    app.include_router(fundapi.router, prefix="/api/v1")
+    return TestClient(app)
+
+
+class TestTheEndpoint:
+    def test_the_live_shape_reads_fenced_history_not_diverged(self, monkeypatch):
+        """THE WHOLE POINT, ON THE WIRE. The fund's own record — one declined
+        GLD signal from a dead session on an archived strategy — must not
+        render as a live divergence on the page the CEO opens."""
+        c = _client(monkeypatch, DEAD_HISTORY, rows=[LEAN_GLD],
+                    positions={SID: {}})
+        body = c.get("/api/v1/fund/engine").json()
+        assert body["reconcile"]["verdict"]["state"] == "fenced_history"
+        assert body["reconcile"]["signals_fenced"] == 1
+        assert body["ledger"]["fenced"] == 1
+        row, = body["reconcile"]["implied"]["per_symbol"]
+        assert row["sync_state"] == "fenced_history"
+        assert row["fenced_implied_qty"] == 0.1
+
+    def test_a_live_session_on_the_wire_still_reads_diverged(self, monkeypatch):
+        """The brief's acceptance (ii), end to end and through the real
+        endpoint rather than through the fold alone."""
+        c = _client(monkeypatch, DEAD_HISTORY, rows=[LEAN_GLD],
+                    positions={SID: {}}, sessions=[_session()])
+        body = c.get("/api/v1/fund/engine").json()
+        assert body["reconcile"]["verdict"]["state"] == "diverged"
+        assert body["ledger"]["fenced"] == 0
+
+    def test_an_unreachable_runner_fences_nothing(self, monkeypatch):
+        """Docker down. ``live_sessions`` raises, the context reports the list
+        unreadable, and the divergence stays visible."""
+        c = _client(monkeypatch, DEAD_HISTORY, rows=[LEAN_GLD],
+                    positions={SID: {}}, lean_raises=RuntimeError("docker gone"))
+        body = c.get("/api/v1/fund/engine").json()
+        assert body["reconcile"]["fence"]["sessions_readable"] is False
+        assert body["reconcile"]["verdict"]["state"] == "diverged"
+        assert body["status"]["sessions_error"]
+
+    def test_one_request_reads_the_session_list_once(self, monkeypatch):
+        """MUTANT M29: let ``_engine_context`` read the sessions itself inside
+        ``engine_view``.
+
+        The fence's answer depends on what is running. Two reads inside one
+        response could fence a signal in the ledger and not in the leg — one
+        payload, two truths, which is the defect the single-fold rule already
+        closed for the event stream.
+        """
+        from app.api.v1 import fund as fundapi
+        c = _client(monkeypatch, DEAD_HISTORY, rows=[LEAN_GLD],
+                    positions={SID: {}})
+        calls = []
+        real = fundapi._live_sessions_or_none
+
+        def counting():
+            calls.append(1)
+            return real()
+        monkeypatch.setattr(fundapi, "_live_sessions_or_none", counting)
+        c.get("/api/v1/fund/engine")
+        assert len(calls) == 1
+
+    def test_the_strategy_cards_ride_on_the_same_response(self, monkeypatch):
+        """One call for one page: the cards must not need a second round trip,
+        or the page renders two different moments."""
+        c = _client(monkeypatch, DEAD_HISTORY,
+                    rows=[MANUAL, LEAN_GLD, LEAN_HYG], positions={SID: {}},
+                    algorithms={"gld_sma_filter": TestDeclaredDatasource.ALGO})
+        body = c.get("/api/v1/fund/engine").json()
+        cards = body["strategies"]
+        assert cards["readable"] is True
+        assert cards["total"] == 2                 # the manual sleeve excluded
+        by_id = {c_["strategy_id"]: c_ for c_ in cards["strategies"]}
+        assert by_id[SID]["datasource"]["lookback_days"] == 2000
+        assert by_id[SID]["datasource"]["class_name"] == "SpineBars"
+        assert by_id[OTHER]["datasource"]["readable"] is False
+
+    def test_an_unreadable_registry_does_not_take_the_page_down(self, monkeypatch):
+        """A reporting panel must not be able to break the page the CEO opens
+        to see what LEAN is doing."""
+        c = _client(monkeypatch, DEAD_HISTORY, positions={SID: {}},
+                    strategies_raise=True)
+        r = c.get("/api/v1/fund/engine")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["strategies"]["readable"] is False
+        assert body["strategies"]["total"] is None
+        # ...and with the registry unreadable, ARCHIVED is unknown too, so the
+        # fence loses one ground and must not silently keep using it.
+        assert body["reconcile"]["fence"]["archived_readable"] is False
+
+    def test_the_reconcile_endpoint_gains_the_fence_too(self, monkeypatch):
+        """``/fund/venue/reconcile`` composes the same leg, so it must reach
+        the same verdict — two surfaces disagreeing about one book is the
+        thing this module exists to prevent."""
+        c = _client(monkeypatch, DEAD_HISTORY, rows=[LEAN_GLD],
+                    positions={SID: {}},
+                    drift={"configured": True, "book_nav": 1999.01})
+        body = c.get("/api/v1/fund/venue/reconcile").json()
+        assert body["configured"] is True
+        assert body["engine"]["verdict"]["state"] == "fenced_history"
+
+    def test_the_endpoint_writes_nothing(self, monkeypatch):
+        from app.api.v1 import fund as fundapi
+        store = _Store(DEAD_HISTORY)
+        c = _client(monkeypatch, DEAD_HISTORY, rows=[LEAN_GLD],
+                    positions={SID: {}})
+        monkeypatch.setattr(fundapi, "_store", store)
+        c.get("/api/v1/fund/engine")
+        c.get("/api/v1/fund/venue/reconcile")
+        assert store.appended == []
