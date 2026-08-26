@@ -121,8 +121,22 @@ def replay(events: list[dict]) -> dict:
     freed_shapes = Counter()
     freed_by_actor = Counter()
     still_by_actor = Counter()
+    # THE TWO STATUS POPULATIONS, KEPT SEPARATE, because collapsing them
+    # produced a wrong sentence that read right for two days: "237 rows have
+    # already recorded ``done``" is the EVER count, while the population this
+    # guard can refuse is the rows that CURRENTLY hold it (236). Both are true
+    # and they differ by the reopened rows. Emitted here rather than left to a
+    # hand query, because a claim whose reproduction command does not
+    # reproduce it is a citation to nothing.
+    holding_now: Counter = Counter()
+    ever_held: Counter = Counter()
 
     for (run, rec), evs in by_row.items():
+        statuses = [e["payload"].get("status") for e in evs]
+        if statuses and statuses[-1] is not None:
+            holding_now[statuses[-1]] += 1
+        for s in {x for x in statuses if x is not None}:
+            ever_held[s] += 1
         for i, e in enumerate(evs):
             p = e["payload"]
             to = p.get("status")
@@ -156,6 +170,8 @@ def replay(events: list[dict]) -> dict:
         "v11_refusals": len(both) + len(v11_only),
         "freed_by_the_repair": len(v1_only),
         "newly_refused_by_the_repair": len(v11_only),
+        "rows_currently_holding": dict(holding_now),
+        "rows_ever_recording": dict(ever_held),
         "freed_shapes": dict(freed_shapes),
         "freed_by_actor": dict(freed_by_actor),
         "still_refused_by_actor": dict(still_by_actor),

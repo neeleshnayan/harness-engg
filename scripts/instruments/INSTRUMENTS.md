@@ -34,6 +34,8 @@ constants at the top before running; none of these touch money paths.
 | `adv23/d24_routing.py` | The door-predicate-over-live-traffic instrument: would-422 count for routing enforcement on the day's real filings. | adversary D22/D24 |
 | `d24probe/probeA2.py` / `probeE2.py` / `probeB5_on.py` | The supplements for layers the original probes model by hand: flood-to-endpoint, real add(), flag-on arm via wrapper. | builder D24 |
 | `d27probe_lock2.py` | **The two-armed lock test**: every reader completes under an open blocker (arm 1) AND the schema path raises LockNotAvailable under lock_timeout DSN (arm 2 — without it arm 1 proves nothing). Run on any store's readers. | builder D27 |
+| `hw4/redecision_census.py` | The three same-status-repeat populations over the whole log, kept separate because the phrase collapses them: rows-with-a-repeat, ever-repeat events, consecutive-repeat events. Reads Postgres end to end rather than the 1000-capped feed; refuses an empty population; `--null` states its domain. | builder HW4 |
+| `hw5/redecision_scope.py` | **THE CONTROL-SCOPE INSTRUMENT — run it on any guard whose refusal message asserts what a write would have done.** Replays every decision event through BOTH forms of the re-decision rule and reports what the shipped scope wrongly refused: `freed_by_the_repair` with its shape breakdown, and `newly_refused_by_the_repair`, which makes a DIRECTION claim falsifiable (a repair that only loosens reports zero). Also emits `rows_currently_holding` vs `rows_ever_recording`, the two populations whose collapse put a true-but-wrong number in two docstrings. `--null` replays R39's own eight-event shape, states its domain size, and FAILS if the guard stops refusing. | builder HW5 |
 
 ## Host & process instruments
 

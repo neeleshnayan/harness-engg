@@ -34,8 +34,11 @@ status counts only the third.
   caught it. Measured 2026-08-26 over the whole log (1,569 events, seq
   1..1,569; 678 decision events on 491 rows): ever-done 237, currently-done
   236. THE INVARIANT, since both figures grow: currently-done <= ever-done,
-  and the gap is the number of reopened rows. Reproduce both with
-  `scripts/instruments/hw4/redecision_census.py`.
+  and the gap is the number of reopened rows. Reproduce BOTH with
+  `scripts/instruments/hw5/redecision_scope.py`, which emits
+  `rows_currently_holding` and `rows_ever_recording` side by side - the hw4
+  census emits neither, and citing it here was a reproduction command that
+  did not reproduce the claim.
 
 AND AN `ALREADY` NOW SAYS WHAT BECAME OF ITS CITATION (2026-08-26). The first
 cut of the third outcome dropped it silently: a refused POST records nothing,

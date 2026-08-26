@@ -553,6 +553,37 @@ class TestTheScopeInstrument:
         assert out["newly_refused_by_the_repair"] == 0
         assert out["v11_refusals"] <= out["v1_refusals"]
 
+    def test_it_separates_rows_CURRENTLY_holding_a_status_from_rows_that_EVER_did(
+            self):
+        """THE TWO POPULATIONS THAT PRODUCED A WRONG SENTENCE. "237 rows have
+        already recorded ``done``" and "236 rows currently hold ``done``" are
+        both true of the live record; only the second is the population this
+        guard can refuse, and the difference is the reopened rows.
+
+        The fixture IS a reopen — accepted, done, open — so the two counts must
+        disagree here or the separation proves nothing. Nothing else in the
+        suite distinguishes them, which is exactly how the wrong one shipped.
+        """
+        m = self._mod()
+        out = m.replay([self._ev(1, "accepted", note="a"),
+                        self._ev(2, "done", note="b"),
+                        self._ev(3, "open", note="c")])
+        assert out["rows_currently_holding"] == {"open": 1}
+        assert out["rows_ever_recording"] == {"accepted": 1, "done": 1,
+                                              "open": 1}
+
+    def test_the_currently_holding_counts_sum_to_the_row_count(self):
+        """The invariant that makes the live reading checkable without a
+        second query: every row holds exactly one status, so the buckets
+        partition ``distinct_rows``. On the live log that is 236 + 4 + 154 +
+        37 + 60 = 491."""
+        m = self._mod()
+        out = m.replay([self._ev(1, "done", rec=1), self._ev(2, "done", rec=1),
+                        self._ev(3, "open", rec=2),
+                        self._ev(4, "accepted", rec=3)])
+        assert sum(out["rows_currently_holding"].values()) \
+            == out["distinct_rows"] == 3
+
     def test_two_rows_do_not_see_each_others_history(self):
         m = self._mod()
         out = m.replay([self._ev(1, "done", note="A", rec=1),

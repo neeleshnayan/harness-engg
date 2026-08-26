@@ -3965,7 +3965,9 @@ def _refuse_if_redecided(run_id: str, rec_id: int, *, to: str, actor: str,
     SAME citation refuses. (237 is the count that have EVER recorded it — a
     different population, and the figure this sentence carried until
     2026-08-26. They differ by the one reopened row; both grow, and the
-    invariant is currently-done <= ever-done.) That is the intended
+    invariant is currently-done <= ever-done. Both are emitted side by side by
+    ``scripts/instruments/hw5/redecision_scope.py`` as
+    ``rows_currently_holding`` / ``rows_ever_recording``.) That is the intended
     behaviour and the script reports it as ALREADY rather than FAIL; a control
     that makes the chair's own tooling print failures for no-ops is a defect,
     not a tightening. Re-sweeping with a CORRECTED citation now lands, which
