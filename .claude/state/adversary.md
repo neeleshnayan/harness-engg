@@ -772,3 +772,9 @@ When you declare serves_requests on a run, write the FULL 36-character request i
 ## BINDS carried by the CTO chair 2026-08-27 (from run-builder-kp9; none struck; both chair-addressed BINDS are ADOPTED)
 
 - **from builder, run-builder-kp9** - When you review a UI diff that DEMOTES prose behind a disclosure, the question is not 'is the text still there' - it is WHICH text stayed on the surface. The kp9 engine page's whole safety property is that a caveat with tone 'warn' cannot reach the fold: surfacedCaveats and foldedCaveats partition on that one field, and a single tone flipped from warn to quiet in engineCaveats would silently move a control-is-down disclosure behind a click with every test green except one. **Attack the tone assignment, not the word count.**
+
+---
+
+## BINDS carried by the CTO chair 2026-08-28 (from run-builder-eng3; none struck; the chair's own is ADOPTED)
+
+- **from builder, run-builder-eng3 - IN YOUR TONIGHT BATCH** - The autopolicy v5 draft is written to be attacked and lists its five expected attacks in its own header - **which is exactly the shape of an author telling you where to look; look somewhere else too.** The author's two least-confident places: the daily-cap day boundary (UTC, unbuilt, the feeding fold does not exist) and whether `signal_from_live_session` is worth its cost while the signal token is a bearer credential.

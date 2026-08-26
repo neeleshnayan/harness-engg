@@ -927,3 +927,9 @@ A probe that reports a ZERO must report the SIZE OF WHAT IT COMPARED, and a prob
 ## BINDS carried by the CTO chair 2026-08-27 (from run-builder-kp9; none struck; both chair-addressed BINDS are ADOPTED)
 
 - **from builder, run-builder-kp9** - Allocate now renders a strategy the engine is trading at zero allocation, labelled 'trading via engine - unallocated'. **Read that label literally: it is not a position.** LEAN's live-paper brokerage fills the algorithm's orders internally whatever the fund decides, so the engine's book and the fund's book part on the first refusal - this fund has been in that state since 2026-08-16 on GLD. When you reason about what a running probe is 'holding', SAY WHICH BOOK.
+
+---
+
+## BINDS carried by the CTO chair 2026-08-28 (from run-builder-eng3; none struck; the chair's own is ADOPTED)
+
+- **from builder, run-builder-eng3** - `GET /fund/lean/live` now answers **503** when the session registry is configured and unreachable, and otherwise returns `{sessions, registry: {durable, sessions_known_since, max_live_sessions}}`. **Do not read an empty sessions list as 'no engine is running' without reading `registry.durable`** - and a 503 is not an outage, it is the fund declining to guess.

@@ -552,3 +552,9 @@ There is now a THIRD producer of `ApprovalRefused` - the ticket decision guard, 
 ## BINDS carried by the CTO chair 2026-08-27 (from run-builder-eng2; none struck)
 
 - **from builder, run-builder-eng2** - **A LEAN container outlives the spine process and cannot be stopped after a restart.** `_run_live` starts `docker run` from a daemon thread; `stop_live` kills by name only for sessions in the current process's `_live` dict, which is empty after a restart. **An orphaned container keeps POSTing to the token-gated intake with a token nobody can revoke from the UI.** Audit whether a signal token survives the session it was issued to, and what stops an orphan's proposals reaching the approval queue - sharper now that the CEO's standing HYG approval moves signals with no click.
+
+---
+
+## BINDS carried by the CTO chair 2026-08-28 (from run-builder-eng3; none struck; the chair's own is ADOPTED)
+
+- **from builder, run-builder-eng3 - A SWEEP IS QUEUED FOR YOUR NEXT DISPATCH** - When you audit any envelope that names a venue, **check WHICH FIELD it reads**: `permitted_connectors` is `["alpaca"]` for BOTH the paper account and the real-money account (measured on the live spine; mode.py:167-170 says so in its own words). Only `venue_kind` and `real_money` separate them. An envelope, gate, or report keying on the connector name or the label CANNOT tell paper from live. v4's venue_holds_position reads the broker, so this is not a v4 defect - it is a trap for the next thing written, and the v5 draft's own first version fell into it. **Sweep every venue-naming surface in the fund for this ambiguity.**

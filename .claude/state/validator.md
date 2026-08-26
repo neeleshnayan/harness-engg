@@ -1080,3 +1080,9 @@ When you certify an instrument, check that its CITATIONS RESOLVE. Six pixel meas
 ## BINDS carried by the CTO chair 2026-08-27 (from run-ed-crypto1; none struck)
 
 - **from mechanism (Ed), run-ed-crypto1 - RESOLVED at the chair before carry** - Ed found scripts/kg/report.py dead on every subcommand (ImportError: SchemaAbsent). The cause was the CHAIR overwriting knowledge.py the same night; RESTORED within the hour, 113 kg tests green. The measurement Ed suggested stands and is worth running: how many recent proposal headers actually cited the family ledger while it was obtainable, and what they cited instead.
+
+---
+
+## BINDS carried by the CTO chair 2026-08-28 (from run-builder-eng3; none struck; the chair's own is ADOPTED)
+
+- **from builder, run-builder-eng3** - The session reconciliation payload now publishes `rows_cap` and `rows_capped`. When you audit any fold that reconciles against another instrument, **ask for that pair** - agreement is only meaningful inside the cap, and a fold that cannot say whether its own page filled has not measured what it claims.
