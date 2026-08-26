@@ -382,6 +382,16 @@ class LeanRunner:
         self._jobs: dict[str, dict[str, Any]] = {}
         self._sweeps: dict[str, dict[str, Any]] = {}
         self._live: dict[str, dict[str, Any]] = {}
+        # WHEN THIS RUNNER'S SESSION MEMORY BEGAN. ``_live`` is an in-memory
+        # dict born empty right here, so NO session record can exist from
+        # before this instant — by construction, not by policy. That makes it
+        # the only honest anchor for the question "does the absence of a
+        # session prove the engine that raised an old signal is gone?".
+        # ``engineledger`` fences dead-history signals on exactly this line:
+        # a signal raised BEFORE this instant has no session record and cannot
+        # get one; a signal raised AFTER it with no session on record is an
+        # engine this list could not see, which is the opposite conclusion.
+        self._born = _now()
         self._lock = threading.Lock()
         # Durable mirror, built on first use so a runner with no database (every
         # test) behaves exactly as before.
@@ -661,6 +671,22 @@ class LeanRunner:
                          args=(session_id, signal_token, qty), daemon=True).start()
         return {"session_id": session_id, "state": "starting",
                 "signal_configured": session["signal_configured"]}
+
+    def sessions_known_since(self) -> str:
+        """The instant this runner's session memory began.
+
+        Sessions live in ``_live``, an in-memory dict that dies with the
+        process. So "there is no session for that signal" means two completely
+        different things either side of this timestamp: BEFORE it the record
+        could not exist however alive the engine was; AFTER it a missing
+        session means the engine was never seen by this runner at all.
+
+        Read by the engine ledger to decide whether an old signal testifies
+        about a live engine or a dead one. Not a control and nothing acts on
+        it — it is a fact about the instrument, published so a fold does not
+        have to guess at it.
+        """
+        return self._born
 
     def live_sessions(self) -> list[dict[str, Any]]:
         with self._lock:
@@ -3138,6 +3164,166 @@ def _declared_lookback_days(code: Optional[str]) -> Optional[int]:
     # The endpoint's own bound (fund.py: gt=1, le=2000). A source asking outside
     # it would 422 live, and pinning it would hide that behind a cache hit.
     return n if 1 < n <= 2000 else None
+
+
+def declared_algorithm_class(code: Optional[str]) -> Optional[str]:
+    """The ``class X(QCAlgorithm)`` LEAN will instantiate, read from the source.
+
+    NOT the same thing as ``declared_datasource()["class_name"]``, and the
+    difference is why this is its own function: that one names the custom DATA
+    class (``SpineBars``), this one names the ALGORITHM class
+    (``HygFastFlipProbe``). Both live in one file and a card showing one under
+    the other's label would be quietly wrong.
+
+    Uses the same ``_CLASS_RE`` ``save_algorithm`` validates with and
+    ``_run_live`` passes to ``--algorithm-type-name``, so what this reports is
+    what the container is actually told to run — not a second opinion about it.
+    """
+    if not code:
+        return None
+    m = _CLASS_RE.search(code)
+    return m.group(1) if m else None
+
+
+def declared_datasource(code: Optional[str]) -> dict[str, Any]:
+    """What data an algorithm says it subscribes to, read from its own source.
+
+    THE QUESTION THIS ANSWERS (CEO, 2026-08-26, verbatim): *"I would like to
+    see which datasource; which asset; which strategy which signals etc etc to
+    get a quick sense."* Nothing recorded it. A strategy's ``definition`` names
+    the algorithm and the rule; the FEED is declared only inside the algorithm
+    file, in the URL its custom data class fetches.
+
+    Read statically, for the third time in this module and for the same reason
+    as ``_declared_universe`` and ``_declared_lookback_days``: the engine has
+    exited by the time anyone asks, and re-running it to ask a question about
+    its inputs would double every backtest. A live session cannot be asked
+    either — its record carries state, container and a log tail, nothing else.
+
+    **NARROW, AND NARROW IN THE ABSENT DIRECTION.** Every field is independently
+    optional and an unreadable one comes back ``None`` with the reason on the
+    payload, never a plausible default. A datasource this fund GUESSED at would
+    be worse than no datasource panel at all: the whole point of the panel is
+    that the reader stops having to open the file.
+
+    **FROM THE AST, NOT THE TEXT.** ``_declared_lookback_days`` records what
+    that costs when ignored: a text scan finds the number in COMMENTS as well
+    as in code, and the one algorithm that most needed the cache carried a
+    contradicting figure in a comment above the URL it actually asks for. The
+    same trap applies to every field here, so string literals are read from the
+    tree — comments are not in it.
+
+    CONFIRMED ON THE LIVE RECORD, not only on a fixture (2026-08-27):
+    ``announcement_premium/main.py`` carries ``lookback_days=1200`` in a
+    COMMENT on line 372, above a URL asking for 2000 on line 383, and this
+    returns 2000. A text scan would find two values, call the algorithm
+    ambiguous, and report the window absent for the candidate that most
+    needed it.
+    """
+    absent = {
+        "readable": False,
+        "reason": "the algorithm's source is not available, so its feed cannot be read",
+        "class_name": None, "base": None, "resolution": None,
+        "transport": None, "feed_path": None, "feed_origin": None,
+        "lookback_days": None, "format": None, "symbols": [],
+    }
+    if not code:
+        return absent
+    try:
+        tree = ast.parse(code)
+    except SyntaxError as e:
+        return {**absent,
+                "reason": f"the algorithm's source does not parse ({e.msg}), "
+                          f"so its feed cannot be read"}
+
+    #: A module-level ``NAME = "…"``. The bar URL is an f-string built from one
+    #: of these (``SPINE``), so resolving them is what turns a relative path
+    #: into the origin a reader can recognise.
+    consts: dict[str, str] = {}
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Constant) \
+                and isinstance(node.value.value, str):
+            for t in node.targets:
+                if isinstance(t, ast.Name):
+                    consts[t.id] = node.value.value
+
+    class_name: str | None = None
+    base: str | None = None
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef):
+            continue
+        bases = [b.id for b in node.bases if isinstance(b, ast.Name)]
+        # PythonData is LEAN's custom-data base. A QCAlgorithm subclass is the
+        # algorithm itself, not a feed, and must not be reported as one.
+        if "PythonData" in bases:
+            class_name, base = node.name, "PythonData"
+            break
+
+    resolution: str | None = None
+    subscribed_class: str | None = None
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        fn = node.func
+        if not (isinstance(fn, ast.Attribute) and fn.attr in ("add_data", "AddData")):
+            continue
+        if node.args and isinstance(node.args[0], ast.Name):
+            subscribed_class = node.args[0].id
+        for a in node.args:
+            # ``Resolution.DAILY`` — the attribute name IS the resolution.
+            if isinstance(a, ast.Attribute) and isinstance(a.value, ast.Name) \
+                    and a.value.id == "Resolution":
+                resolution = a.attr.lower()
+        break
+
+    transport: str | None = None
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) \
+                and node.value.id == "SubscriptionTransportMedium":
+            transport = node.attr
+            break
+
+    #: The feed URL. Collected from every string constant in the tree —
+    #: including the literal halves of f-strings, which arrive here as
+    #: ``ast.Constant`` exactly like a plain string does.
+    paths: set[str] = set()
+    lookbacks: set[int] = set()
+    formats: set[str] = set()
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Constant) and isinstance(node.value, str)):
+            continue
+        v = node.value
+        m = re.search(r"(/[A-Za-z0-9_\-/]*marketdata/bars)", v)
+        if m:
+            paths.add(m.group(1))
+        lookbacks.update(int(x) for x in re.findall(r"lookback_days=(\d+)", v))
+        formats.update(re.findall(r"format=([A-Za-z0-9_]+)", v))
+
+    #: Where those paths hang off. Reported ONLY when the module declares
+    #: exactly one such constant; two would make "which one is the feed" a
+    #: guess, and this function does not guess.
+    origins = {v for k, v in consts.items()
+               if v.startswith("http://") or v.startswith("https://")}
+
+    def one(s):
+        return next(iter(s)) if len(s) == 1 else None
+
+    readable = bool(class_name or paths or subscribed_class)
+    return {
+        "readable": readable,
+        "reason": None if readable else (
+            "the algorithm declares no custom data class and no bar URL this "
+            "reader recognises, so its feed is UNKNOWN rather than absent"),
+        "class_name": class_name or subscribed_class,
+        "base": base,
+        "resolution": resolution,
+        "transport": transport,
+        "feed_path": one(paths),
+        "feed_origin": one(origins),
+        "lookback_days": one(lookbacks),
+        "format": one(formats),
+        "symbols": _declared_universe(code),
+    }
 
 
 def _orders(doc: dict) -> list[dict[str, Any]]:

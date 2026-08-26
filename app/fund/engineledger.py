@@ -148,6 +148,246 @@ def _num(v: Any) -> float | None:
         return None
 
 
+#: Bumped when the FENCING RULE changes — separately from the payload shape,
+#: because a stored reading whose verdict was produced under a different rule
+#: about what counts as live is not comparable to a current one.
+FENCE_VERSION = "v1"
+
+#: The three liveness states of a raised signal. Not two: "we cannot tell" is
+#: an answer this fund is required to be able to give.
+LIVE = "live"
+FENCED = "fenced"
+
+#: The bases a liveness verdict can rest on, each one a fact read from the
+#: record rather than a judgement. Published on the payload so a reader can
+#: see WHY a row was or was not counted, and so a test can assert on the
+#: basis rather than on the sentence.
+BASIS_SESSIONS_UNREADABLE = "sessions_unreadable"
+BASIS_CLAIMED_BY_LIVE_SESSION = "claimed_by_live_session"
+BASIS_RAISED_AT_UNREADABLE = "raised_at_unreadable"
+BASIS_KNOWN_SINCE_UNREADABLE = "sessions_known_since_unreadable"
+BASIS_RAISED_DURING_THIS_PROCESS = "raised_during_this_process"
+BASIS_PREDATES_SESSION_MEMORY = "predates_session_memory"
+
+_SESSION_ALIVE = ("starting", "running")
+
+#: Whether anything asks DOCKER what is actually running, as opposed to asking
+#: the runner's in-memory session table. Nothing does, so this is ``False`` and
+#: it is a constant — a flag that can only be one value is still worth shipping
+#: when the payload would otherwise imply the other one.
+ORPHAN_CHECK = False
+
+#: What that costs, in one sentence, on the payload.
+ORPHAN_NOTE = (
+    "Nothing asks Docker what is running. A LEAN container outlives the spine "
+    "process that started it (leanrunner._run_live runs `docker run` from a "
+    "daemon thread) and cannot be stopped after a restart, so a container that "
+    "went quiet before the restart is FENCED and is indistinguishable from a "
+    "dead one. Closing this needs the runner to reconcile its session table "
+    "against `docker ps` on start-up.")
+
+
+class EngineContext:
+    """Everything the fence needs to know about the world OUTSIDE the log.
+
+    ONE OBJECT, BUILT ONCE, BECAUSE THE FIELDS DESCRIBE ONE CONDITION. The
+    predecessor of this class was three separate arguments, and the endpoint
+    that assembled them passed an empty session list and then patched two of
+    the five fields that depend on it — shipping a payload that contradicted
+    itself on the one path no test covered. A caller cannot produce half of
+    this state: it hands over what it read, and every field derived from it is
+    computed here.
+
+    **Each input is THREE-VALUED and the unreadable case is its own value, not
+    the empty one.** ``sessions=None`` is "the list could not be read", which
+    is a different fact from ``sessions=[]`` ("nothing is running") and leads
+    to the OPPOSITE fence decision.
+    """
+
+    __slots__ = ("sessions", "sessions_readable", "known_since",
+                 "archived_strategy_ids", "archived_readable")
+
+    def __init__(self,
+                 sessions: list[dict[str, Any]] | None = None,
+                 known_since: str | None = None,
+                 archived_strategy_ids: Iterable[str] | None = None):
+        self.sessions_readable = sessions is not None
+        self.sessions = list(sessions or [])
+        #: The instant the runner's in-memory session table began
+        #: (``leanrunner.LeanRunner.sessions_known_since``). ``None`` means the
+        #: runner could not be asked, and the fence then proves nothing.
+        self.known_since = (known_since or "").strip() or None
+        self.archived_readable = archived_strategy_ids is not None
+        self.archived_strategy_ids = set(archived_strategy_ids or ())
+
+    @property
+    def live_sessions(self) -> list[dict[str, Any]]:
+        return [s for s in self.sessions if s.get("state") in _SESSION_ALIVE]
+
+    def describe(self) -> dict[str, Any]:
+        """The fence's own domain — what it could and could not read."""
+        return {
+            "version": FENCE_VERSION,
+            "sessions_readable": self.sessions_readable,
+            "sessions": len(self.sessions) if self.sessions_readable else None,
+            "sessions_running": (len(self.live_sessions)
+                                 if self.sessions_readable else None),
+            "sessions_known_since": self.known_since,
+            "archived_readable": self.archived_readable,
+            "archived_strategies": (len(self.archived_strategy_ids)
+                                    if self.archived_readable else None),
+            # THE FENCE'S OWN BLIND SPOT, PUBLISHED RATHER THAN IMPLIED.
+            # Constant because nothing here can currently be true: no code
+            # path asks Docker what is running, so "no session record" is the
+            # strongest claim available and it is weaker than "no container".
+            # A field rather than a comment, because a reader of the payload
+            # must be able to see the limit of what the fence proved.
+            "orphan_containers_checked": ORPHAN_CHECK,
+            "orphan_note": ORPHAN_NOTE,
+        }
+
+
+def _claiming_session(row: dict[str, Any],
+                      ctx: EngineContext) -> dict[str, Any] | None:
+    """The live session this signal could have come from, or ``None``.
+
+    GENEROUS ON PURPOSE, IN THE SAFE DIRECTION. A claimed signal is never
+    fenced, so every ambiguity here must resolve toward "claimed": the cost of
+    a false claim is a divergence reported that a human then dismisses; the
+    cost of a false REFUSAL to claim is a live divergence silently fenced,
+    which is the failure this whole mechanism could otherwise introduce.
+
+    A signal carries no session id — the record has no field for one — so the
+    match is on the identities both sides DO carry: the strategy the session
+    was started for, and the algorithm it is running. Either matching is
+    enough. A session that declares NEITHER claims everything, because a
+    session we cannot identify cannot be ruled out.
+
+    The time test is the other half and it is physical rather than
+    conventional: a LEAN container starts FLAT, so a signal raised before this
+    session began moved a book that no longer exists. An unreadable timestamp
+    on either side cannot establish that, and so does not.
+    """
+    sid = (row.get("strategy_id") or "").strip()
+    algo = (row.get("algo_id") or "").strip()
+    raised = (row.get("raised_at") or "").strip()
+    for s in ctx.live_sessions:
+        s_sid = (s.get("strategy_id") or "").strip()
+        s_algo = (s.get("algorithm") or "").strip()
+        if s_sid or s_algo:
+            if not ((s_sid and sid and s_sid == sid)
+                    or (s_algo and algo and s_algo == algo)):
+                continue
+        started = (s.get("started_at") or "").strip()
+        # Strictly before the session began => a different, dead book. Equal
+        # or after => this session's own. String comparison is correct here
+        # only because both sides are ISO-8601 UTC from ``_now()``; a
+        # timestamp that is not both is treated as unreadable below.
+        if raised and started and _iso_lt(raised, started):
+            continue
+        return s
+    return None
+
+
+def _iso_lt(a: str, b: str) -> bool:
+    """``a`` is strictly earlier than ``b``, or ``False`` if either cannot be
+    parsed. An unparseable instant proves no ordering, and the caller's safe
+    direction is "did not predate"."""
+    from datetime import datetime
+    try:
+        return datetime.fromisoformat(a) < datetime.fromisoformat(b)
+    except (TypeError, ValueError):
+        return False
+
+
+def signal_liveness(row: dict[str, Any], ctx: EngineContext) -> dict[str, Any]:
+    """Does this signal testify about a LIVE engine's book, or a dead one's?
+
+    **WHY THIS EXISTS.** The implied-book model folds every ``external:``
+    signal ever recorded into one verdict. But an engine's paper book lives
+    inside its LEAN container: when the container dies the book dies with it,
+    and the next session starts flat. So a signal from a session that no longer
+    exists is testimony about a book nobody holds — real history, and not a
+    live divergence. On this fund's record that is exactly one signal (GLD,
+    2026-08-16, from a session that has not existed for ten days and a strategy
+    the CEO archived), and it was printing DIVERGED on the CEO's engine page.
+
+    **FENCING IS THE PERMISSIVE DIRECTION AND IS TREATED AS ONE.** A fenced
+    signal stops counting toward the divergence verdict, so a fence is only
+    ever a POSITIVE PROOF read from the record. Everything unproven stays LIVE.
+    The five ways this returns LIVE are each one of those failures to prove,
+    named:
+
+      1. the session list could not be read — absence of evidence;
+      2. a live session claims it — the strongest possible live evidence;
+      3. the signal's own timestamp is unreadable — it cannot be placed;
+      4. the runner could not say when its session memory began — there is no
+         line to place it against;
+      5. **it was raised DURING this runner's session memory and yet no
+         session on record accounts for it.** That is not evidence of death;
+         it is evidence that something raised a signal which the session list
+         cannot see — an orphaned container outliving the spine restart that
+         forgot it. Fencing on "no session" alone would hide precisely that.
+
+    Only when all five fail does the signal fence, on the one thing the record
+    can actually prove: it was raised before any session record could exist.
+    ``archived`` never fences on its own — it enriches the reason, because a
+    strategy the CEO retired is why the reader stopped caring, but an archived
+    strategy whose orphan is still signalling is a fact we must not bury.
+
+    **THE RESIDUAL, NAMED RATHER THAN GLOSSED (found by the Gauntlet, and the
+    first version of this docstring overclaimed it).** What is proven is that
+    NO SESSION RECORD ACCOUNTS FOR THE SIGNAL — not that the container is dead.
+    ``_run_live`` starts ``docker run`` from a daemon thread and the container
+    lives in the docker daemon, so it OUTLIVES a spine restart; ``stop_live``
+    can only kill sessions the current process's ``_live`` dict knows about, so
+    after a restart an orphan cannot even be stopped. Rule 5 catches an orphan
+    that SPEAKS after the restart. **A silent orphan — one that raised its last
+    signal before the restart and has said nothing since, which is the NORMAL
+    state of a daily-bar algorithm — is fenced, and the fund cannot tell it
+    from a dead one.** No fact in the event log separates the two: the only
+    thing that would is asking Docker what is running, which this fold does not
+    do and says so (``ORPHAN_CHECK``). The residual is published on the fence's
+    own domain so the page can name it, because a control that overstates its
+    proof is the defect this module exists to prevent.
+    """
+    if not ctx.sessions_readable:
+        return {"state": LIVE, "basis": BASIS_SESSIONS_UNREADABLE, "reason": None}
+
+    claim = _claiming_session(row, ctx)
+    if claim is not None:
+        return {"state": LIVE, "basis": BASIS_CLAIMED_BY_LIVE_SESSION,
+                "reason": None,
+                "session_id": claim.get("session_id"),
+                "session_algorithm": claim.get("algorithm")}
+
+    raised = (row.get("raised_at") or "").strip()
+    if not raised:
+        return {"state": LIVE, "basis": BASIS_RAISED_AT_UNREADABLE, "reason": None}
+    if not ctx.known_since:
+        return {"state": LIVE, "basis": BASIS_KNOWN_SINCE_UNREADABLE, "reason": None}
+    if not _iso_lt(raised, ctx.known_since):
+        return {"state": LIVE, "basis": BASIS_RAISED_DURING_THIS_PROCESS,
+                "reason": None}
+
+    archived = (ctx.archived_readable
+                and (row.get("strategy_id") or "") in ctx.archived_strategy_ids)
+    # ENDS WITH A PERIOD BECAUSE IT IS A SENTENCE AND EVERY CONSUMER
+    # CONCATENATES IT. Found by looking at the rendered page: the engine
+    # page joins this reason to its own follow-up sentence, and without the
+    # stop it read "...the paper book it moved, are gone The dead session had
+    # asked for 0.1". A fold that emits half-sentences makes punctuation the
+    # caller's problem, and the caller will get it wrong.
+    reason = ("no session record accounts for it — it was raised before the "
+              f"engine runner's session memory began ({ctx.known_since}), so "
+              "the session that raised it cannot be on record however alive it "
+              "was. Its paper book is beyond this fund's reach either way.")
+    if archived:
+        reason = ("the strategy is ARCHIVED and " + reason)
+    return {"state": FENCED, "basis": BASIS_PREDATES_SESSION_MEMORY,
+            "reason": reason, "strategy_archived": archived}
+
+
 def _fold(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
     """One pass over the log; every consumer below reads this fold.
 
@@ -281,7 +521,8 @@ def _row(rec: dict[str, Any]) -> dict[str, Any]:
 
 def signal_ledger(store: EventStore | None = None,
                   limit: int = 200,
-                  events: Iterable[dict[str, Any]] | None = None
+                  events: Iterable[dict[str, Any]] | None = None,
+                  context: EngineContext | None = None
                   ) -> dict[str, Any]:
     """Every signal an engine raised, newest first, with what became of it.
 
@@ -308,11 +549,32 @@ def signal_ledger(store: EventStore | None = None,
         counts[r["outcome"] if r["outcome"] in counts else _UNCLASSIFIED] += 1
     assert sum(counts.values()) == len(rows)   # the invariant the bucket buys
 
+    # THE FENCE IS A SECOND AXIS, NOT A SIXTH BUCKET. ``counts`` partitions by
+    # FATE and carries an invariant that its buckets sum to the total; liveness
+    # is orthogonal (a fenced signal still filled or was still refused), so
+    # folding it in would break the invariant and, worse, make "refused" and
+    # "fenced" look like alternatives to a reader.
+    #
+    # WITHOUT A CONTEXT THE COUNT IS ABSENT, NOT ZERO. A ledger read with no
+    # way to ask what is running has not established that nothing is fenced;
+    # it has not asked. ``None`` says so.
+    if context is not None:
+        for r in rows:
+            r["liveness"] = signal_liveness(r, context)
+            r["fenced"] = r["liveness"]["state"] == FENCED
+        fenced = sum(1 for r in rows if r["fenced"])
+        fence = context.describe()
+    else:
+        fenced, fence = None, None
+
     sources = sorted({r["source"] for r in rows if r.get("source")})
     return {
         "version": ENGINE_LEDGER_VERSION,
         "signals": rows[:limit],
         "counts": counts,
+        "fenced": fenced,
+        "live": None if fenced is None else len(rows) - fenced,
+        "fence": fence,
         "total": len(rows),
         "returned": len(rows[:limit]),
         "sources": sources,
@@ -331,7 +593,7 @@ def signal_ledger(store: EventStore | None = None,
 
 def engine_leg(store: EventStore | None = None,
                attribution: Any = None,
-               sessions: list[dict[str, Any]] | None = None,
+               context: EngineContext | None = None,
                events: Iterable[dict[str, Any]] | None = None
                ) -> dict[str, Any]:
     """The third reconciliation leg: what the ENGINE holds vs what the BOOK folds.
@@ -373,12 +635,14 @@ def engine_leg(store: EventStore | None = None,
     rows = [_row(r) for r in folded["engine"].values()]
 
     # --- the engine's own book: unreadable, and named so -------------------
-    # ``sessions=None`` means the LIST could not be read, which is a third
-    # thing again: not "no session" and not "a session". Counting it as zero
-    # would print "nothing to ask" over an engine nobody managed to ask.
-    sessions_readable = sessions is not None
-    sessions = list(sessions or [])
-    running = [s for s in sessions if s.get("state") in ("starting", "running")]
+    # An ABSENT context is not an empty one. ``EngineContext()`` built with no
+    # arguments says every input was unreadable, which is exactly what a caller
+    # that supplied nothing has told us — and it fences nothing, because a
+    # fence needs proof and this context has none.
+    ctx = context if context is not None else EngineContext()
+    sessions_readable = ctx.sessions_readable
+    sessions = ctx.sessions
+    running = ctx.live_sessions
     if not sessions_readable:
         direct_reason = (
             "a live LEAN session publishes no holdings — and the session "
@@ -407,10 +671,27 @@ def engine_leg(store: EventStore | None = None,
     }
 
     # --- the engine's implied book: computed, and labelled a model ---------
+    # THE FENCE RUNS FIRST, AND IT RUNS PER SIGNAL, NOT PER SYMBOL. A signal's
+    # liveness is a fact about the session that raised it, and one (strategy,
+    # symbol) can carry signals from a dead container and a live one. Netting
+    # them together would let ten-day-old history from a destroyed paper book
+    # move the number a live engine is judged against.
+    for r in rows:
+        r["liveness"] = signal_liveness(r, ctx)
+        r["fenced"] = r["liveness"]["state"] == FENCED
+
+    #: The LIVE implied book — the only one a divergence verdict may rest on.
     implied: dict[tuple[str, str], Decimal] = {}
-    #: Keys carrying at least one signal whose quantity the record does not
+    #: The FENCED implied book, kept beside it. Never deleted and never merged:
+    #: it is the historical fact, and it is what the page shows in the fenced
+    #: row so a reader can still see what the dead engine had asked for.
+    fenced_implied: dict[tuple[str, str], Decimal] = {}
+    #: Keys carrying at least one LIVE signal whose quantity the record does not
     #: state. Their implied position is UNKNOWN, never the partial sum.
     unquantified: set[tuple[str, str]] = set()
+    live_signals: dict[tuple[str, str], int] = {}
+    fenced_signals: dict[tuple[str, str], int] = {}
+    fence_reason: dict[tuple[str, str], str] = {}
     signals_by_key: dict[tuple[str, str], dict[str, int]] = {}
     for r in rows:
         sid = r.get("strategy_id") or ""
@@ -424,6 +705,7 @@ def engine_leg(store: EventStore | None = None,
         if not sym:
             continue
         key = (sid, sym)
+        is_fenced = r["fenced"]
         # AN ABSENT QUANTITY IS NOT A ZERO ONE. ``qty or 0`` netted a malformed
         # signal in as "no position change" — a measured claim about a signal
         # nobody can measure, and indistinguishable from an engine that asked
@@ -431,13 +713,20 @@ def engine_leg(store: EventStore | None = None,
         # symbol) UNDETERMINED: a sum with an unknown term is unknown, not the
         # sum of its known terms.
         raw_qty = r.get("qty")
+        side = fenced_implied if is_fenced else implied
         if raw_qty is None:
-            unquantified.add(key)
+            if not is_fenced:
+                unquantified.add(key)
         else:
             qty = D(str(raw_qty))
             signed = qty if r.get("side") == "buy" else -qty
-            implied[key] = implied.get(key, Decimal("0")) + signed
-        implied.setdefault(key, Decimal("0"))
+            side[key] = side.get(key, Decimal("0")) + signed
+        side.setdefault(key, Decimal("0"))
+        if is_fenced:
+            fenced_signals[key] = fenced_signals.get(key, 0) + 1
+            fence_reason.setdefault(key, r["liveness"].get("reason") or "")
+        else:
+            live_signals[key] = live_signals.get(key, 0) + 1
         bucket = signals_by_key.setdefault(
             key, {"raised": 0, "filled": 0, "awaiting": 0, "refused": 0,
                   "in_flight": 0, "failed": 0})
@@ -457,16 +746,30 @@ def engine_leg(store: EventStore | None = None,
 
     other_fills: dict[tuple[str, str], int] = {}
     engine_order_ids = set(folded["engine"])
+    #: Every key either book carries. A key that exists ONLY in the fenced book
+    #: still gets a row: fencing hides a signal from the VERDICT, never from
+    #: the page. Dropping it would be the deletion this mechanism is one
+    #: mistake away from being.
+    all_keys = set(implied) | set(fenced_implied)
     for fill in folded["fills"]:
         key = (fill.get("strategy_id") or "",
                (fill.get("symbol") or "").strip().upper())
-        if key in implied and fill["order_id"] not in engine_order_ids:
+        if key in all_keys and fill["order_id"] not in engine_order_ids:
             other_fills[key] = other_fills.get(key, 0) + 1
 
     per_symbol = []
-    for key in sorted(implied):
+    for key in sorted(all_keys):
         sid, sym = key
-        eng_qty = None if key in unquantified else implied[key]
+        n_live = live_signals.get(key, 0)
+        n_fenced = fenced_signals.get(key, 0)
+        # A KEY WITH NO LIVE SIGNAL IS FENCED HISTORY, AND ITS LIVE IMPLIED
+        # QUANTITY IS ABSENT RATHER THAN ZERO. Zero would be a measured claim
+        # that a live engine holds nothing here; there is no live engine to
+        # hold anything, which is a different fact and the one the reader
+        # needs. Absence discipline, applied to the number this fence creates.
+        fenced_row = n_live == 0
+        eng_qty = (None if (fenced_row or key in unquantified)
+                   else implied.get(key, Decimal("0")))
         # ABSENCE INSIDE A COMPLETE FOLD IS ZERO; ABSENCE OF THE FOLD IS NOT.
         # StrategyAttribution folds EVERY fill, so a (strategy, symbol) with no
         # entry means the fund never filled anything there — a measured zero,
@@ -479,6 +782,16 @@ def engine_leg(store: EventStore | None = None,
                  if book_readable else None)
         drift = ((eng_qty - b_qty)
                  if (b_qty is not None and eng_qty is not None) else None)
+        in_sync = (abs(drift) <= _TOL) if drift is not None else None
+        # ONE FIELD, FOUR VALUES, COMPUTED HERE. ``in_sync`` alone cannot carry
+        # this: its ``None`` already means "the book could not be read", and a
+        # fenced row would have collapsed into that same null — two different
+        # reasons printing one word, which is the absence-collapse this module
+        # exists to prevent.
+        sync_state = ("fenced_history" if fenced_row
+                      else "diverged" if in_sync is False
+                      else "in_sync" if in_sync is True
+                      else "undetermined")
         per_symbol.append({
             "strategy_id": sid or None,
             "symbol": sym,
@@ -493,15 +806,34 @@ def engine_leg(store: EventStore | None = None,
             "drift": f(drift) if drift is not None else None,
             # THREE-VALUED. ``None`` is "cannot tell", and it is what an
             # unreadable book gives — never ``True``, which would read as
-            # agreement nobody measured.
-            "in_sync": (abs(drift) <= _TOL) if drift is not None else None,
+            # agreement nobody measured. See ``sync_state`` for the four-valued
+            # discriminator a renderer should switch on.
+            "in_sync": in_sync,
+            "sync_state": sync_state,
+            "fenced": fenced_row,
+            "fence_reason": fence_reason.get(key) or None if fenced_row else None,
+            # What the DEAD engine had asked for, preserved beside the live
+            # reading exactly as the clean-field rule requires: annotate the
+            # contaminated figure, never erase it.
+            "fenced_implied_qty": (f(fenced_implied[key])
+                                   if key in fenced_implied else None),
+            "signals_live": n_live,
+            "signals_fenced": n_fenced,
             "signals": signals_by_key.get(key, {}),
             "other_fills": other_fills.get(key, 0),
         })
 
-    out_of_sync = sum(1 for p in per_symbol if p["in_sync"] is False)
-    undetermined = sum(1 for p in per_symbol if p["in_sync"] is None)
+    out_of_sync = sum(1 for p in per_symbol if p["sync_state"] == "diverged")
+    undetermined = sum(1 for p in per_symbol if p["sync_state"] == "undetermined")
+    fenced_symbols = sum(1 for p in per_symbol if p["sync_state"] == "fenced_history")
+    # COUNTED DIRECTLY, ALL FOUR, RATHER THAN ONE AS A REMAINDER. A partition
+    # computed as "everything else" makes its own exhaustiveness test a
+    # tautology that cannot fail however badly the other legs classify (HW1).
+    in_sync_symbols = sum(1 for p in per_symbol if p["sync_state"] == "in_sync")
+    assert (out_of_sync + undetermined + fenced_symbols + in_sync_symbols
+            == len(per_symbol))
     unfilled = sum(1 for r in rows if r["outcome"] != "filled")
+    signals_fenced = sum(1 for r in rows if r["fenced"])
 
     return {
         "version": ENGINE_LEDGER_VERSION,
@@ -513,17 +845,25 @@ def engine_leg(store: EventStore | None = None,
                 "every signal the engine RAISED moves the engine's own paper "
                 "book, because LEAN's live-paper brokerage fills the "
                 "algorithm's order internally whatever the fund decides; only "
-                "an approved and FILLED signal moves the fund's book"
+                "an approved and FILLED signal moves the fund's book. A LEAN "
+                "container starts FLAT, so only signals raised by a session "
+                "that still exists move the book a live engine holds today"
             ),
             "per_symbol": per_symbol,
             "symbols_out_of_sync": out_of_sync,
             "symbols_undetermined": undetermined,
+            "symbols_in_sync": in_sync_symbols,
+            "symbols_fenced": fenced_symbols,
             "book_readable": book_readable,
             "book_unreadable_reason": book_reason,
         },
         "signals_raised": len(rows),
         "signals_not_filled": unfilled,
-        "verdict": _verdict(rows, per_symbol, out_of_sync, undetermined),
+        "signals_fenced": signals_fenced,
+        "signals_live": len(rows) - signals_fenced,
+        "fence": ctx.describe(),
+        "verdict": _verdict(rows, per_symbol, out_of_sync, undetermined,
+                            fenced_symbols),
         "domain": {
             "events_scanned": folded["scanned"],
             "seq_first": folded["seq_first"],
@@ -533,15 +873,22 @@ def engine_leg(store: EventStore | None = None,
         },
     }
 
-
 def _verdict(rows: list[dict[str, Any]], per_symbol: list[dict[str, Any]],
-             out_of_sync: int, undetermined: int) -> dict[str, Any]:
+             out_of_sync: int, undetermined: int,
+             fenced_symbols: int = 0) -> dict[str, Any]:
     """One word and one sentence — the thing a human reads first.
 
-    ``state`` is deliberately four-valued and never collapses "nothing to
-    compare" into "in sync". A fund with no engine signals at all has NOT
-    reconciled its engine against its book; it has nothing to reconcile, and
-    saying so is the honest reading.
+    ``state`` is deliberately FIVE-valued and never collapses any of them into
+    another. A fund with no engine signals at all has NOT reconciled its engine
+    against its book; it has nothing to reconcile. A fund whose only signals
+    came from a session that no longer exists has not reconciled either — it
+    has HISTORY, and calling that "in sync" would be agreement nobody measured,
+    while calling it "diverged" would raise a live alarm about a dead engine.
+
+    THE ORDER IS THE MECHANISM. Live divergence outranks everything below it,
+    so a fenced row can never suppress one: ``fenced_history`` is reachable
+    only when there is no live disagreement and no live undetermined row left
+    to report.
     """
     if not rows:
         return {"state": "no_signals",
@@ -554,23 +901,42 @@ def _verdict(rows: list[dict[str, Any]], per_symbol: list[dict[str, Any]],
                             f"{'was' if len(rows) == 1 else 'were'} raised but "
                             "none names a symbol, so no position comparison is "
                             "possible."}
+    # The fenced count rides on every sentence below rather than only its own,
+    # because a reader who is told "1 symbol diverges" while three sit fenced
+    # has been given a number without its domain.
+    tail = ("" if not fenced_symbols else
+            f" {_plural(fenced_symbols, 'symbol')} "
+            f"{'is' if fenced_symbols == 1 else 'are'} FENCED HISTORY and "
+            f"{'is' if fenced_symbols == 1 else 'are'} not counted here.")
     if undetermined and not out_of_sync:
         return {"state": "unknown",
                 "sentence": f"{_plural(undetermined, 'symbol')} cannot be "
                             "compared — the fund's own per-strategy book could "
-                            "not be read."}
+                            "not be read." + tail}
     if out_of_sync:
         parts = [f"{p['symbol']} engine {p['engine_implied_qty']} vs book "
-                 f"{p['book_qty']}" for p in per_symbol if p["in_sync"] is False]
+                 f"{p['book_qty']}" for p in per_symbol
+                 if p["sync_state"] == "diverged"]
         return {"state": "diverged",
                 "sentence": ("The engine's signals and the fund's book "
                              f"disagree on {_plural(out_of_sync, 'symbol')}: "
-                             + "; ".join(parts) + "."),
+                             + "; ".join(parts) + "." + tail),
                 "symbols": [p["symbol"] for p in per_symbol
-                            if p["in_sync"] is False]}
+                            if p["sync_state"] == "diverged"]}
+    live_rows = [p for p in per_symbol if not p["fenced"]]
+    if fenced_symbols and not live_rows:
+        return {"state": "fenced_history",
+                "sentence": (
+                    f"Nothing live to reconcile. Every symbol the engine has "
+                    f"signalled on — {_plural(fenced_symbols, 'symbol')} — was "
+                    "signalled by a session that no longer exists, so it "
+                    "describes a paper book that is gone rather than a "
+                    "disagreement now. The rows are kept below with their "
+                    "reasons."),
+                "symbols": [p["symbol"] for p in per_symbol if p["fenced"]]}
     return {"state": "in_sync",
-            "sentence": f"All {_plural(len(per_symbol), 'symbol')} the engine "
-                        "has signalled on agree with the fund's book."}
+            "sentence": f"All {_plural(len(live_rows), 'symbol')} the engine "
+                        "has signalled on agree with the fund's book." + tail}
 
 
 def _liveness_provable(readable: bool, running: list[Any],
@@ -704,6 +1070,213 @@ def engine_status(sessions: list[dict[str, Any]] | None,
         # ``True`` is "the session reached a terminal state the record shows".
         "liveness_provable": _liveness_provable(readable, running, sessions),
         "liveness_note": _liveness_note(readable, running, sessions),
+    }
+
+
+#: The definition key that marks a strategy as engine-run, and the reason it is
+#: a key rather than a name convention: ``"LEAN - GLD 100d SMA filter"`` starts
+#: with the engine's name and ``"TEST - Fast Intraday (5m SMA)"`` does not, and
+#: neither fact is a contract. ``definition.engine`` is what the registrar
+#: actually writes.
+ENGINE_DEFINITION_KEY = "engine"
+
+
+def _assets_of(row: dict[str, Any]) -> tuple[list[str], str | None]:
+    """The symbols a strategy trades, and WHICH field said so.
+
+    Three sources exist on the live record and they disagree — measured
+    2026-08-26/27: the HYG probe carries ``assets: ["HYG"]`` on the row AND
+    ``definition.universe: ["HYG"]``; the GLD filter carries ``assets: []`` and
+    only ``definition.symbol: "GLD"``. A reader shown "no assets" for GLD would
+    be shown a falsehood the record contradicts two fields away.
+
+    The basis is returned beside the list because a symbol read out of a
+    strategy's own ``assets`` field is a different quality of fact from one
+    parsed out of a free-form definition, and the page says which it got.
+    """
+    assets = [str(a).strip().upper() for a in (row.get("assets") or [])
+              if str(a).strip()]
+    if assets:
+        return sorted(set(assets)), "strategy.assets"
+    d = row.get("definition") or {}
+    uni = d.get("universe")
+    if isinstance(uni, (list, tuple)):
+        out = [str(a).strip().upper() for a in uni if str(a).strip()]
+        if out:
+            return sorted(set(out)), "definition.universe"
+    sym = d.get("symbol")
+    if isinstance(sym, str) and sym.strip():
+        return [sym.strip().upper()], "definition.symbol"
+    return [], None
+
+
+def engine_strategies(strategies: list[dict[str, Any]] | None,
+                      ledger: dict[str, Any] | None = None,
+                      context: EngineContext | None = None,
+                      algorithm_source: Any = None,
+                      datasource_reader: Any = None) -> dict[str, Any]:
+    """One card per engine-run strategy: what it trades, on what data, saying what.
+
+    **THE QUESTION, VERBATIM (CEO, 2026-08-26):** *"I would like to see the
+    Lean engine's strategy in allocate + in the engine page; I would like to
+    see which datasource; which asset; which strategy which signals etc etc to
+    get a quick sense and imo most of our early work will be algorithmic."*
+
+    Four facts about one strategy lived in four places and no surface joined
+    them: the registry knows its name, state and allocation; the strategy's
+    ``definition`` knows the rule and the algorithm; the ALGORITHM FILE is the
+    only thing that knows the datasource; and the event log knows what it has
+    actually said. This joins them, reads nothing it cannot verify, and names
+    every join it could not make.
+
+    **``strategies=None`` MEANS THE REGISTRY COULD NOT BE READ**, which is not
+    an empty bench. The payload says so and carries no cards, rather than
+    rendering a fund with no algorithms.
+
+    **THE DATASOURCE IS READ FROM THE ALGORITHM, NEVER ASSUMED.** Both engine
+    strategies on the live registry subscribe a custom ``SpineBars`` daily
+    feed, and they ask that feed for DIFFERENT windows. A panel that hardcoded
+    the shared half would have been right about the class and wrong about the
+    window, in a way no reader could catch because the wrong number is
+    plausible.
+
+    Re-derive the pair, and note the second file's status (2026-08-27)::
+
+        grep -o "lookback_days=[0-9]*" lean_workspace/algorithms/*/main.py
+        # gld_sma_filter      700   [tracked]
+        # hyg_fast_flip_probe 2000  [UNTRACKED in the live tree - so this
+        #                            number is NOT reproducible from a clean
+        #                            checkout, and the file the CEO is about
+        #                            to run live is not in git]
+
+    Across all 23 algorithms declaring one the values are 700/900/1200/2000 —
+    so the two-value pairing above is a fact about these two strategies, not
+    about the population.
+
+    ``algorithm_source`` is ``name -> code|None`` and is allowed to fail: an
+    algorithm whose file is missing gets an UNREADABLE datasource with the
+    reason, never a blank that reads as "no data".
+    """
+    if strategies is None:
+        return {"version": ENGINE_LEDGER_VERSION,
+                "readable": False,
+                "reason": "the strategy registry could not be read, so which "
+                          "strategies are engine-run is UNKNOWN — not none",
+                "strategies": [], "total": None, "archived": None,
+                "engines": [], "sessions_unmatched": []}
+
+    ctx = context if context is not None else EngineContext()
+    read_ds = datasource_reader
+    if read_ds is None:
+        from app.fund.leanrunner import declared_datasource as read_ds
+    from app.fund.leanrunner import declared_algorithm_class
+
+    #: Newest-first already (``signal_ledger`` sorts by seq descending), so the
+    #: first hit per strategy IS the last signal. Relying on that rather than
+    #: re-sorting keeps one ordering rule in one place.
+    signals = (ledger or {}).get("signals") or []
+
+    cards = []
+    for row in strategies:
+        definition = row.get("definition") or {}
+        engine = definition.get(ENGINE_DEFINITION_KEY)
+        if not (isinstance(engine, str) and engine.strip()):
+            continue
+        sid = row.get("strategy_id")
+        algorithm = definition.get("algorithm")
+        algorithm = algorithm.strip() if isinstance(algorithm, str) else None
+
+        code = None
+        code_error = None
+        if algorithm and algorithm_source is not None:
+            try:
+                code = algorithm_source(algorithm)
+            except Exception as e:  # noqa: BLE001 — a missing file is not a crash
+                code_error = f"{type(e).__name__}: {e}"
+        datasource = read_ds(code)
+        if code_error:
+            datasource = {**datasource,
+                          "reason": f"the algorithm file could not be read "
+                                    f"({code_error}), so its feed is UNKNOWN"}
+        elif algorithm is None:
+            datasource = {**datasource,
+                          "reason": "this strategy's definition names no "
+                                    "algorithm, so there is no file to read a "
+                                    "feed from"}
+
+        assets, assets_basis = _assets_of(row)
+        mine = [s for s in signals if s.get("strategy_id") == sid]
+        # MATCH ON A NON-EMPTY IDENTITY ONLY. A session started without a
+        # strategy id carries ``""``, and a card whose id were also falsy
+        # would then match it - attaching a running session to whichever
+        # strategy happened to have no id. Both sides must name something.
+        sessions = [s for s in ctx.sessions
+                    if (sid and (s.get("strategy_id") or "") == sid)
+                    or (algorithm and (s.get("algorithm") or "") == algorithm)]
+        running = [s for s in sessions if s.get("state") in _SESSION_ALIVE]
+
+        counts = {"raised": len(mine), "filled": 0, "in_flight": 0,
+                  "awaiting": 0, "refused": 0, "failed": 0,
+                  _UNCLASSIFIED: 0}
+        for s in mine:
+            counts[s["outcome"] if s["outcome"] in counts else _UNCLASSIFIED] += 1
+        assert sum(v for k, v in counts.items() if k != "raised") == len(mine)
+
+        cards.append({
+            "strategy_id": sid,
+            "name": row.get("name"),
+            "engine": engine.strip(),
+            "state": row.get("state"),
+            "archived": bool(row.get("archived")),
+            "allocation_pct": row.get("allocation_pct"),
+            "algorithm": algorithm,
+            # THE CLASS LEAN WILL ACTUALLY INSTANTIATE, read from the file —
+            # ``_run_live`` passes exactly this string to
+            # ``--algorithm-type-name``. ``definition.class`` is a note
+            # somebody typed and is carried separately, unmerged, so that a
+            # definition drifting from its file is visible instead of being
+            # papered over by an ``or``.
+            "class_name": declared_algorithm_class(code),
+            "class_in_definition": definition.get("class"),
+            "rule": definition.get("rule"),
+            "purpose": definition.get("purpose"),
+            "claim_type": definition.get("claim_type"),
+            "signal_only": definition.get("signal_only"),
+            "assets": assets,
+            "assets_basis": assets_basis,
+            "datasource": datasource,
+            # THREE-VALUED, like everything else here: ``None`` is "the session
+            # list could not be read", which is not "no session".
+            "session_state": (None if not ctx.sessions_readable
+                              else "running" if running
+                              else "stopped" if sessions
+                              else "none"),
+            "sessions": sessions,
+            "signals": counts,
+            "signals_fenced": sum(1 for s in mine if s.get("fenced")),
+            "last_signal": mine[0] if mine else None,
+            # Everything else the definition declares, named rather than shown,
+            # so a reader can see that this card is not the whole record.
+            "definition_keys": sorted(str(k) for k in definition),
+        })
+
+    cards.sort(key=lambda c: (c["archived"], (c["name"] or "").lower()))
+    matched = {s.get("session_id") for c in cards for s in c["sessions"]}
+    unmatched = [s for s in ctx.sessions if s.get("session_id") not in matched]
+    return {
+        "version": ENGINE_LEDGER_VERSION,
+        "readable": True,
+        "reason": None,
+        "strategies": cards,
+        "total": len(cards),
+        "archived": sum(1 for c in cards if c["archived"]),
+        "engines": sorted({c["engine"] for c in cards}),
+        # A LIVE SESSION NO CARD ACCOUNTS FOR IS THE LOUDEST THING ON THIS
+        # PAYLOAD. It means something is running that the strategy registry
+        # cannot explain — and it is the same evidence the fence refuses to
+        # treat as death. Empty is the normal case; a non-empty list is a
+        # finding, so it is a named field rather than a silent omission.
+        "sessions_unmatched": unmatched,
     }
 
 
