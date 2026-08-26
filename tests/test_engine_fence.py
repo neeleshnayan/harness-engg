@@ -310,6 +310,18 @@ class TestWhatDoesFence:
                      _ctx(archived=[OTHER]))["implied"]["per_symbol"]
         assert arch["fence_reason"].startswith("the strategy is ARCHIVED")
 
+    def test_the_fence_reason_is_a_whole_sentence(self):
+        """FOUND BY LOOKING AT THE RENDERED PAGE, not by any suite. The engine
+        page joins this reason to a follow-up sentence of its own, and without
+        the full stop it read "...the paper book it moved, are gone The dead
+        session had asked for 0.1". A fold that emits half-sentences makes
+        punctuation the caller's problem, and the caller gets it wrong.
+        """
+        for arch_ids in ([], [SID]):
+            r, = _leg(DEAD_HISTORY, {SID: {}},
+                      _ctx(archived=arch_ids))["implied"]["per_symbol"]
+            assert r["fence_reason"].endswith("."), r["fence_reason"]
+
     def test_archiving_alone_does_not_fence(self):
         """MUTANT M13: return FENCED as soon as the strategy is archived.
 

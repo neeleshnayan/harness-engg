@@ -333,10 +333,16 @@ def signal_liveness(row: dict[str, Any], ctx: EngineContext) -> dict[str, Any]:
 
     archived = (ctx.archived_readable
                 and (row.get("strategy_id") or "") in ctx.archived_strategy_ids)
+    # ENDS WITH A PERIOD BECAUSE IT IS A SENTENCE AND EVERY CONSUMER
+    # CONCATENATES IT. Found by looking at the rendered page: the engine
+    # page joins this reason to its own follow-up sentence, and without the
+    # stop it read "...the paper book it moved, are gone The dead session had
+    # asked for 0.1". A fold that emits half-sentences makes punctuation the
+    # caller's problem, and the caller will get it wrong.
     reason = ("no session on this record has survived to now — it was raised "
               f"before the engine runner's session memory began ({ctx.known_since}), "
               "so the container that raised it, and the paper book it moved, "
-              "are gone")
+              "are gone.")
     if archived:
         reason = ("the strategy is ARCHIVED and " + reason)
     return {"state": FENCED, "basis": BASIS_PREDATES_SESSION_MEMORY,
