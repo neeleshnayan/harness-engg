@@ -559,3 +559,24 @@ class TestTheLookupDoesNotExpireAtTheCap:
         for pattern in ("%", "_" * len(s["session_id"]), s["session_id"][:4] + "%"):
             assert store.session(pattern) is None, pattern
 
+    def test_the_page_really_IS_the_published_cap(self, store, monkeypatch):
+        """MUTATION SURVIVOR M81, and it is the HW1 failure mode exactly: the
+        reconciliation PUBLISHES a cap, and nothing checked that the query
+        obeys the number it publishes. Under the mutant the payload says 7 and
+        the query fetches 200 - a published bound that is not the bound.
+
+        MOVED, not compared: an assertion that the page returns 200 rows cannot
+        tell a read of the constant from a literal that happens to agree.
+        """
+        from app.fund.leanstore import LeanStore
+        for _ in range(9):
+            store.claim_session(_session(f"strategy:{uuid.uuid4()}",
+                                         state="ended"))
+        monkeypatch.setattr(LeanStore, "SESSION_PAGE", 3)
+        assert len(store.session_rows()) == 3
+        monkeypatch.setattr(LeanStore, "SESSION_PAGE", 5)
+        assert len(store.session_rows()) == 5
+        # An explicit limit still wins, because the reconciler is not the only
+        # caller this method will ever have.
+        assert len(store.session_rows(limit=2)) == 2
+
