@@ -26,7 +26,7 @@ import test from "node:test";
 import type { Ticket, TicketState, TicketTransition } from "@/lib/fund_api";
 
 import {
-  allTrays, chairQueue, lastTransitionAt, seatOf, trayFor,
+  allTrays, chairQueue, lastTransitionAt, seatOf, trayFor, trayPopulationNote,
 } from "./ticketTrays.ts";
 
 /* ------------------------------------------------------------ the maker --- */
@@ -253,11 +253,48 @@ test("oldestWaitingHours is the MAX across awaitingDispatch and unconsumedLesson
 // (D) — none of the four substrings appears in any of the other three
 // branches' note text, so a mismatched branch cannot satisfy the wrong test.
 
-test("note branch A: no ticket anywhere is returned -> says the door is unused", () => {
+test("branch A: the UNUSED-DOOR caveat is a fact about the RECORD, said once", () => {
+  // MOVED OUT OF THE PER-SEAT NOTE at the look-pass: rendering it per row put
+  // the same 200 characters on all thirteen seat cards, and a caveat said
+  // thirteen times is a caveat nobody reads. The FACT is unchanged and still
+  // guarded — an empty out-tray from an unused door and one from a cleared
+  // queue are different things, and only the second is good news.
   const rows = [tk({ state: "filed", dispatched_to: "builder" })];
   const tray = trayFor("builder", rows)!;
   assert.equal(tray.outTray.length, 0);
-  assert.match(tray.note, /NO ticket anywhere is in `returned`/);
+  assert.match(trayPopulationNote(rows)!, /NO ticket anywhere is in `returned`/);
+  assert.doesNotMatch(tray.note, /NO ticket anywhere is in `returned`/,
+    "the seat's own note must not repeat a population-level fact");
+});
+
+test("branch A': the caveat DISAPPEARS the moment one door has been used", () => {
+  // The other half of the same branch, and the half that proves the sentence
+  // is measured rather than permanent.
+  const rows = [
+    tk({ state: "returned", dispatched_to: "pm" }),
+    tk({ state: "filed", dispatched_to: "builder" }),
+  ];
+  const note = trayPopulationNote(rows);
+  assert.doesNotMatch(note ?? "", /NO ticket anywhere is in `returned`/);
+});
+
+test("trayPopulationNote(null) is null, and a full record produces NO caveat", () => {
+  assert.equal(trayPopulationNote(null), null);
+  assert.equal(trayPopulationNote(undefined), null);
+  const healthy = [
+    tk({ state: "returned", dispatched_to: "pm" }),
+    tk({ type: "lesson", state: "filed", dispatched_to: "builder" }),
+  ];
+  assert.equal(trayPopulationNote(healthy), null,
+    "with both doors used there is nothing to caveat, and the page shows "
+    + "nothing rather than an empty banner");
+});
+
+test("a TERMINAL returned ticket does not count as the door having been used", () => {
+  // `live` excludes terminals before the check. A closed row cannot be
+  // awaiting the chair, so it is not evidence the returned door works.
+  const rows = [tk({ state: "returned", terminal: true, dispatched_to: "pm" })];
+  assert.match(trayPopulationNote(rows)!, /NO ticket anywhere is in `returned`/);
 });
 
 test("note branch B: another seat has a returned ticket, this seat does not -> says this seat's queue is clear", () => {
@@ -271,11 +308,12 @@ test("note branch B: another seat has a returned ticket, this seat does not -> s
   assert.doesNotMatch(tray.note, /NO ticket anywhere is in `returned`/);
 });
 
-test("note branch C: no lesson ticket exists anywhere -> says BINDS are carried by hand", () => {
+test("branch C: the NO-LESSON caveat is also a record-level fact, said once", () => {
   const rows = [tk({ type: "recommendation", state: "filed", dispatched_to: "builder" })];
   const tray = trayFor("builder", rows)!;
   assert.equal(tray.unconsumedLessons.length, 0);
-  assert.match(tray.note, /`lesson` ticket exists in the record at all/);
+  assert.match(trayPopulationNote(rows)!, /`lesson` ticket exists in the record at all/);
+  assert.doesNotMatch(tray.note, /exists in the record at all/);
 });
 
 test("note branch D: a lesson exists but not for this seat -> says none is addressed to this seat", () => {
@@ -289,7 +327,7 @@ test("note branch D: a lesson exists but not for this seat -> says none is addre
   assert.doesNotMatch(tray.note, /`lesson` ticket exists in the record at all/);
 });
 
-test("both trays holding work collapses the note to the plain sentence", () => {
+test("a seat with nothing seat-specific to say gets an EMPTY note", () => {
   const rows = [
     tk({ state: "returned", dispatched_to: "builder" }),
     tk({ type: "lesson", state: "filed", dispatched_to: "builder" }),
@@ -297,7 +335,28 @@ test("both trays holding work collapses the note to the plain sentence", () => {
   const tray = trayFor("builder", rows)!;
   assert.equal(tray.outTray.length, 1);
   assert.equal(tray.unconsumedLessons.length, 1);
-  assert.equal(tray.note, "both trays hold work");
+  assert.equal(tray.note, "");
+});
+
+test("THE NOTE NEVER CLAIMS WORK A TRAY DOES NOT HOLD", () => {
+  // THE DEFECT THIS PINS, found on the rendered page in code fifteen minutes
+  // old: the note used to fall back to "both trays hold work" whenever it had
+  // nothing else to say — which, once the record-level caveats moved out,
+  // fired on a seat whose out-tray was EMPTY. A fallback that asserts a state
+  // it has not checked is a claim, not a default.
+  const rows = [
+    tk({ state: "returned", dispatched_to: "pm" }),
+    tk({ type: "lesson", state: "filed", dispatched_to: "pm" }),
+    tk({ state: "approved", dispatched_to: "builder" }),
+  ];
+  const tray = trayFor("builder", rows)!;
+  assert.equal(tray.outTray.length, 0, "builder's out-tray is empty");
+  assert.equal(tray.unconsumedLessons.length, 0);
+  assert.doesNotMatch(tray.note, /hold work/,
+    "an empty tray must never be described as holding work");
+  // And what it DOES say is the honest seat-specific pair.
+  assert.match(tray.note, /nothing of this seat's is awaiting the chair's review/);
+  assert.match(tray.note, /no unconsumed lesson is addressed to this seat/);
 });
 
 /* ------------------------------------------------------------- allTrays --- */

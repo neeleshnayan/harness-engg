@@ -9,7 +9,9 @@ import { SeatFace } from "../SeatFace";
 import {
   STATE_LABEL, WORKING_STATES, isTerminal, listCap,
 } from "../ticketCard.ts";
-import { allTrays, chairQueue, type SeatTray } from "../ticketTrays.ts";
+import {
+  allTrays, chairQueue, trayPopulationNote, type SeatTray,
+} from "../ticketTrays.ts";
 import { lineageCoverage } from "../ticketLineage.ts";
 import {
   LifecycleLegend, LineageForId, TicketCard, TicketLamp, useTicketFold,
@@ -217,9 +219,17 @@ export default function TicketBoardPage() {
 
             {/* ------------------------ the seat trays --------------------- */}
             <section className="mb-6">
-              <p className={`${KT.label} mb-3`}>
+              <p className={KT.label}>
                 Per-desk trays ({trays?.length ?? 0} seat(s) in the record)
               </p>
+              {/* SAID ONCE, NOT THIRTEEN TIMES. These are facts about the
+                  record; repeating them per seat put the same 200 characters
+                  on every card. */}
+              {trayPopulationNote(tickets) && (
+                <p className={`mb-3 mt-1 text-xs ${KT.sev.warn}`}>
+                  {trayPopulationNote(tickets)}
+                </p>
+              )}
               <div className="space-y-3">
                 {(trays ?? []).map((tr) => (
                   <TrayCard
@@ -326,7 +336,9 @@ function TrayCard({ tray, open, onToggle, onOpenLineage, tickets, openLineage }:
                   : "nothing waiting")
                 : `oldest wait ${tray.oldestWaitingHours.toFixed(0)}h`}
             </p>
-            <p className={`mt-0.5 text-xs ${KT.muted}`}>{tray.note}</p>
+            {tray.note && (
+              <p className={`mt-0.5 text-xs ${KT.muted}`}>{tray.note}</p>
+            )}
           </div>
         </div>
       </button>
@@ -343,7 +355,7 @@ function TrayCard({ tray, open, onToggle, onOpenLineage, tickets, openLineage }:
           ))}
           {waiting + tray.inFlight.length + tray.outTray.length === 0 && (
             <p className={`text-xs ${KT.muted}`}>
-              Nothing in either tray. {tray.note}
+              Nothing in either tray.{tray.note ? ` ${tray.note}` : ""}
             </p>
           )}
         </div>

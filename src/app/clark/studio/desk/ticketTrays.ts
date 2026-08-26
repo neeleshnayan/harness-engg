@@ -71,8 +71,9 @@ export interface SeatTray {
    *  could not read the ages. NEVER 0 for "nothing waiting" — the caller
    *  distinguishes an empty tray from an unreadable one by the array length. */
   oldestWaitingHours: number | null;
-  /** True when this seat's trays are empty because the STATES themselves are
-   *  unused across the whole population, not because its queue is clear. */
+  /** What is true of THIS SEAT specifically, or the EMPTY STRING when there is
+   *  nothing seat-specific to say. Record-level caveats live in
+   *  `trayPopulationNote` and are said once for a whole board. */
   note: string;
 }
 
@@ -107,24 +108,21 @@ export function trayFor(
   const unconsumedLessons = mine.filter(
     (t) => t.type === "lesson" && t.state !== "in_flight");
 
-  // WHY AN EMPTY TRAY IS EMPTY. Measured across the WHOLE population, not this
-  // seat's slice: "nobody has ever used this state" and "this seat's queue is
-  // clear" are different facts and only the second is good news.
-  const anyReturned = live.some((t) => t.state === "returned");
-  const anyLesson = tickets.some((t) => t.type === "lesson");
+  // WHY AN EMPTY TRAY IS EMPTY — THE PART THAT IS ABOUT THIS SEAT.
+  //
+  // THE POPULATION-LEVEL HALF MOVED OUT (`populationNote`), and the reason is
+  // the rendered page: the two "no door has ever been used" sentences are
+  // facts about the RECORD, not about a seat, and repeating them per row put
+  // the same ~200 characters on all thirteen seat cards — 2,400 characters of
+  // identical prose in one screen. A caveat said thirteen times is a caveat
+  // nobody reads. It is now said ONCE, above the list, where it qualifies
+  // every row below it.
   const notes: string[] = [];
-  if (!outTray.length) {
-    notes.push(anyReturned
-      ? "nothing of this seat's is awaiting the chair's review"
-      : "NO ticket anywhere is in `returned` — the state exists and no door "
-        + "has been used yet, so an empty out-tray here says nothing about "
-        + "this seat");
+  if (!outTray.length && anyReturnedIn(live)) {
+    notes.push("nothing of this seat's is awaiting the chair's review");
   }
-  if (!unconsumedLessons.length) {
-    notes.push(anyLesson
-      ? "no unconsumed lesson is addressed to this seat"
-      : "NO `lesson` ticket exists in the record at all — BINDS are still "
-        + "carried by hand, so this tray cannot yet be a measurement");
+  if (!unconsumedLessons.length && tickets.some((t) => t.type === "lesson")) {
+    notes.push("no unconsumed lesson is addressed to this seat");
   }
 
   return {
@@ -134,8 +132,48 @@ export function trayFor(
     outTray,
     inFlight,
     oldestWaitingHours: oldest([...awaitingDispatch, ...unconsumedLessons]),
-    note: notes.join("; ") || "both trays hold work",
+    // EMPTY WHEN THERE IS NOTHING SEAT-SPECIFIC TO SAY, and the caller renders
+    // nothing rather than a sentence. The previous fallback read "both trays
+    // hold work" — which became FALSE the moment the population caveats moved
+    // out, because it then fired on a seat whose out-tray was empty for a
+    // record-level reason. A fallback that asserts a state it has not checked
+    // is a claim, not a default. Found on the rendered page, in code written
+    // fifteen minutes earlier.
+    note: notes.join("; "),
   };
+}
+
+function anyReturnedIn(rows: readonly Ticket[]): boolean {
+  return rows.some((t) => t.state === "returned");
+}
+
+/**
+ * The caveats that are about the RECORD rather than about any seat — said once
+ * for a whole board, or null when neither applies.
+ *
+ * AN EMPTY TRAY FROM AN UNUSED DOOR AND AN EMPTY TRAY FROM A CLEARED QUEUE ARE
+ * DIFFERENT FACTS, and only the second is good news. That distinction is the
+ * whole reason these sentences exist; what changed is only WHERE they are
+ * said, because thirteen identical copies of a caveat is the shape the CEO
+ * named as this desk's failure mode.
+ */
+export function trayPopulationNote(
+  tickets: readonly Ticket[] | null | undefined,
+): string | null {
+  if (!tickets) return null;
+  const live = tickets.filter((t) => !isTerminal(t));
+  const parts: string[] = [];
+  if (!anyReturnedIn(live)) {
+    parts.push("NO ticket anywhere is in `returned` — the state exists and no "
+      + "door has been used yet, so every empty out-tray below says nothing "
+      + "about its seat");
+  }
+  if (!tickets.some((t) => t.type === "lesson")) {
+    parts.push("NO `lesson` ticket exists in the record at all — BINDS are "
+      + "still carried by hand, so no lesson tray below can yet be a "
+      + "measurement");
+  }
+  return parts.length ? parts.join(". ") + "." : null;
 }
 
 /**
