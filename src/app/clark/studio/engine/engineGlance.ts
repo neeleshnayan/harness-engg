@@ -226,10 +226,22 @@ export function glanceTiles(
   } else if ((undetermined ?? 0) > 0) {
     booksSub = `${plural(undetermined ?? 0, "symbol")} could not be determined either way`;
   } else {
-    booksSub = recon.sentence.split(".")[0] + ".";
+    // `firstSentence`, NOT `split(".")[0]`. Found at the read-through: the
+    // verdict sentences carry quantities ("GLD 0.1 vs 0.0"), and splitting on
+    // a bare full stop clips one mid-number. It is the same defect G27
+    // mutates in `firstSentence` — written correctly there and then not USED
+    // here, which is this seat's most-repeated shape: the fix applied to one
+    // member of a family and not its sibling.
+    booksSub = firstSentence(recon.sentence);
   }
 
   // ---- 5. does anything need the CEO
+  // THREE-VALUED, and this is the tile where it matters most. `counts` is
+  // typed as a loose record precisely so a bucket the spine adds later is
+  // carried rather than dropped at the type boundary — which means a MISSING
+  // `awaiting` key is a real shape, and reading it as zero would print
+  // "NOTHING" on the one tile that answers "does anything need the CEO".
+  // Found at the read-through, in code written this dispatch.
   const awaiting = ledger?.counts?.awaiting ?? null;
   const unclassified = ledger?.counts?.unclassified ?? 0;
   let needsValue: string;
@@ -241,10 +253,15 @@ export function glanceTiles(
     needsTone = "warn";
     needsSub = "the approval queue could not be read from here";
     needsUnknown = true;
-  } else if ((awaiting ?? 0) > 0) {
+  } else if (awaiting == null) {
+    needsValue = "UNKNOWN";
+    needsTone = "warn";
+    needsSub = "the ledger reported no awaiting count — not the same as nothing waiting";
+    needsUnknown = true;
+  } else if (awaiting > 0) {
     needsValue = String(awaiting);
     needsTone = "warn";
-    needsSub = `${(awaiting ?? 0) === 1 ? "one signal is" : "signals are"} waiting on your click`;
+    needsSub = `${awaiting === 1 ? "one signal is" : "signals are"} waiting on your click`;
     needsUnknown = false;
   } else {
     needsValue = "NOTHING";

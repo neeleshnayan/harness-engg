@@ -644,3 +644,39 @@ test("an undated row already FIRST in the payload still sorts last", () => {
   const out = sortedSignals(ledger({ signals: rows, total: 3, returned: 3 }));
   assert.deepEqual(out.map((s) => s.order_id), ["new", "old", "none"]);
 });
+
+// -------------------------------------------- found at the late read-through
+
+test("a MISSING awaiting count is UNKNOWN on the tile that asks for the CEO", () => {
+  // `counts` is a loose record by design, so a bucket the spine renames or
+  // drops is a real shape — and reading its absence as zero prints "NOTHING"
+  // on the one tile whose whole job is "does anything need you". This is the
+  // absence-as-zero defect on the most consequential four words on the page.
+  const v = view({
+    ledger: ledger({ counts: { filled: 1, refused: 0 } }),   // no `awaiting` key
+  });
+  const t = glanceTiles(v, NOW).find((x) => x.key === "needs")!;
+  assert.equal(t.value, "UNKNOWN");
+  assert.equal(t.unknown, true);
+  assert.equal(t.tone, "warn");
+  assert.match(t.sub, /not the same as nothing waiting/);
+  // A genuine zero still reads as a fact — without this the fix is a new defect.
+  const zero = glanceTiles(view(), NOW).find((x) => x.key === "needs")!;
+  assert.equal(zero.value, "NOTHING");
+  assert.equal(zero.unknown, false);
+});
+
+test("the books tile clips the verdict at a SENTENCE, not at any full stop", () => {
+  // The reconciliation verdicts carry quantities — "GLD 0.1 vs 0.0" — and the
+  // first version of this read `sentence.split(".")[0]`, which clips one
+  // mid-number. `firstSentence` exists three functions away and was not being
+  // used here: the fix applied to one member of a family and not its sibling.
+  const v = view({
+    reconcile: {
+      ...view().reconcile,
+      verdict: { state: "diverged", sentence: "1 symbol disagrees: GLD 0.1 vs 0.0. Open the ledger." },
+    },
+  });
+  const t = glanceTiles(v, NOW).find((x) => x.key === "books")!;
+  assert.equal(t.sub, "1 symbol disagrees: GLD 0.1 vs 0.0.");
+});
