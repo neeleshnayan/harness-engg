@@ -22,11 +22,24 @@
  * by itself — his desk was ALREADY exceptions-only under rule 1, and rules
  * 2–5 can only ADD. The reduction comes from somewhere the spec did not name:
  *
- *   **21 of those 54 are `accepted` — he already decided them and owes the
- *   EXECUTION. 33 are undecided and owe a DECISION.** Two different acts wearing
- *   one list. Splitting them is what takes his decision list from 57 to 33,
- *   and it is a split the fold can make because `decided` survives the move
- *   out of `filed` (`tickets.py` §1.5, "one decision, one row").
+ *   **22 of those 57 he has ALREADY DECIDED and owes only the EXECUTION on;
+ *   35 are undecided and owe a DECISION.** Two different acts wearing one
+ *   list. Splitting them is what takes his decision list from 57 to 35, and it
+ *   is a split the fold can make because `decided` survives the move out of
+ *   `filed` (`tickets.py` §1.5, "one decision, one row").
+ *
+ * **AND THE SPLIT READS `decided`, NOT THE STATE NAME, EVEN THOUGH THE TWO
+ * AGREE ON EVERY ROW TODAY.** Measured: of his 57, exactly 22 are `accepted`
+ * and exactly 22 are `decided`, with ZERO rows where the two disagree. A
+ * state-based split would therefore pass every check the live record can
+ * offer — which is exactly why the distinction is pinned on constructed rows
+ * instead (`the execution split reads 'decided', NOT the state name`). A
+ * legacy status can map a row to `accepted` that nobody decided, and a decided
+ * row can move on; the day either happens, the state-based split is wrong and
+ * nothing on this record would have warned.
+ *
+ * Reproduce every figure above:
+ * `node --experimental-strip-types scripts/instruments/kp6/verify_exceptions.mts --url http://127.0.0.1:8090`
  *
  * So rules 2–5 are built, wired and counted — but they land in an ESCALATIONS
  * block at the foot, not among his decisions: nobody is asking him to act on

@@ -302,7 +302,11 @@ test("a challenge against a CLOSED ticket reaches him", () => {
   ], NOW)!;
   assert.equal(x.totals.escalated, 1);
   assert.equal(x.escalated[0].primary, "challenge");
-  assert.match(x.escalated[0].why, /closed/);
+  // SHARED-WORD AUDIT: the bare word "closed" appears in three runtime
+  // strings in this module (the rule label, this sentence, and the desk
+  // note's "N are closed"). Matching on it alone would pass on any of them,
+  // so the assertion carries the whole phrase.
+  assert.match(x.escalated[0].why, /a challenge filed against a closed ticket/);
 });
 
 test("a challenge against a LIVE ticket is not this rule's business", () => {
