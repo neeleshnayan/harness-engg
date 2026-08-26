@@ -5422,22 +5422,21 @@ def engine_view(limit: int = 200):
         ledger, lambda sid: (_strategies.get(sid) or {}).get("name"))
     try:
         sessions = _lean().live_sessions()
-        sessions_readable = True
         sessions_error = None
     except Exception as e:  # noqa: BLE001 — unreachable is not empty
-        sessions, sessions_readable = [], False
+        # None, NOT []. An engine we cannot ASK about is not an engine that is
+        # not running, and ``engine_status`` owns that distinction end to end.
+        # The endpoint used to hand it [] and then patch `state` and `note`
+        # afterwards — which left `liveness_note` still saying "nothing has
+        # ever run", the exact confusion this whole module exists to remove.
+        sessions = None
         sessions_error = f"{type(e).__name__}: {e}"
-    status = engineledger.engine_status(sessions if sessions_readable else None,
-                                        ledger)
-    if not sessions_readable:
-        # An engine we cannot ASK about is not an engine that is not running.
-        status["state"] = "unknown"
-        status["note"] = (f"The live-session list could not be read "
-                          f"({sessions_error}) — this is not the same as no "
-                          f"session running.")
-        status["sessions_readable"] = False
-    else:
-        status["sessions_readable"] = True
+    status = engineledger.engine_status(sessions, ledger)
+    if sessions_error:
+        # The CAUSE is the endpoint's to add — it is the only layer that saw
+        # the exception. The STATE is not.
+        status["note"] = f"{status['note']} ({sessions_error})"
+        status["sessions_error"] = sessions_error
     return {"status": status, "ledger": ledger,
             "reconcile": _engine_leg_payload()}
 

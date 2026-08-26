@@ -32,6 +32,7 @@ written to remove comes back:
 
 from __future__ import annotations
 
+import textwrap
 from decimal import Decimal
 
 import pytest
@@ -321,7 +322,12 @@ class TestEngineLeg:
         assert leg["direct"]["qty_basis"] == "UNKNOWN"
         assert all(r["engine_qty"] is None
                    for r in leg["implied"]["per_symbol"])
+        # DISCRIMINATING, not merely true: "publishes no holdings" is literal
+        # in BOTH branches of the reason string, so asserting it alone cannot
+        # tell a running engine from a stopped one. The Gauntlet's shared-word
+        # audit caught that; this pins the branch.
         assert "publishes no holdings" in leg["direct"]["reason"]
+        assert "nothing to ask" in leg["direct"]["reason"]
 
     def test_the_live_divergence_is_reproduced(self):
         """The record's own case: one declined signal, and the books part.
@@ -867,3 +873,155 @@ class TestASignalWithoutASymbol:
         led = EL.signal_ledger(_Store([ev]))
         assert led["total"] == 1
         assert led["signals"][0]["symbol"] is None
+
+
+class TestTheGauntletsFindings:
+    """Every one of these guards a defect the Gauntlet found on this diff, or
+    a gap it named, before the bundle was cut."""
+
+    # --- G1: the unreadable session list ---------------------------------
+    def test_an_unreadable_session_list_is_not_a_quiet_fund(self):
+        """CONFIRMED DEFECT. The endpoint used to hand engine_status an empty
+        list and patch ``state``/``note`` afterwards — and it did not patch
+        ``liveness_note``, so one payload said "the session list could not be
+        read" and "there is no liveness question to answer" at the same time.
+        The absence-collapse this module exists to prevent, inside it."""
+        st = EL.engine_status(None, {"last_signal_at": None})
+        assert st["state"] == "unknown"
+        assert st["sessions_readable"] is False
+        assert st["liveness_provable"] is None
+        assert "could not be read" in st["liveness_note"]
+        assert "no liveness question" not in st["liveness_note"]
+        assert "Nothing has ever run" not in st["liveness_note"]
+
+    def test_an_empty_list_and_an_unreadable_one_share_no_sentence(self):
+        empty = EL.engine_status([], {})
+        unread = EL.engine_status(None, {})
+        assert empty["state"] != unread["state"]
+        assert empty["note"] != unread["note"]
+        assert empty["liveness_note"] != unread["liveness_note"]
+        assert empty["sessions_readable"] is True
+
+    def test_the_endpoint_adds_the_CAUSE_and_not_the_state(self, monkeypatch):
+        c = _client(monkeypatch, _DECLINED_EVENTS, drift={"configured": True},
+                    lean_raises=RuntimeError("docker is down"))
+        st = c.get("/api/v1/fund/engine").json()["status"]
+        assert st["state"] == "unknown"           # owned by the module
+        assert st["sessions_readable"] is False   # owned by the module
+        assert "docker is down" in st["sessions_error"]
+        assert "could not be read" in st["liveness_note"]
+
+    # --- G2: an absent quantity ------------------------------------------
+    def test_a_signal_without_a_quantity_makes_the_symbol_UNDETERMINED(self):
+        """``qty or 0`` netted a signal nobody can size in as "no position
+        change" — a measured claim about an unmeasurable thing, and identical
+        on screen to an engine that asked for nothing."""
+        ev = _proposed(1)
+        ev["payload"]["qty"] = None
+        leg = _leg([ev], positions={"s1": {"GLD": 5}})
+        (row,) = leg["implied"]["per_symbol"]
+        assert row["engine_implied_qty"] is None
+        assert row["implied_unquantified"] is True
+        assert row["drift"] is None
+        assert row["in_sync"] is None
+        assert leg["implied"]["symbols_undetermined"] == 1
+        assert leg["verdict"]["state"] == "unknown"
+
+    def test_one_unquantified_signal_poisons_the_whole_key(self):
+        """A sum with an unknown term is unknown, not the sum of its known
+        terms — so a good signal beside a bad one does not rescue the row."""
+        good = _proposed(1, oid="a", qty=0.4)
+        bad = _proposed(3, oid="b")
+        bad["payload"]["qty"] = None
+        leg = _leg([good, bad], positions={"s1": {}})
+        (row,) = leg["implied"]["per_symbol"]
+        assert row["engine_implied_qty"] is None
+        assert row["signals"]["raised"] == 2
+
+    def test_a_quantified_row_is_not_marked_unquantified(self):
+        leg = _leg(_DECLINED_EVENTS, positions={"s1": {}})
+        (row,) = leg["implied"]["per_symbol"]
+        assert row["implied_unquantified"] is False
+        assert row["engine_implied_qty"] == 0.1
+
+    def test_a_fill_missing_its_numbers_reports_them_ABSENT(self):
+        """``float(x or 0)`` printed "filled 0 @ 0" — a real, measured,
+        zero-size fill at a zero price."""
+        led = EL.signal_ledger(_Store([
+            _proposed(1),
+            _ev(2, "OrderApproved", payload={"approver": "neelesh"}),
+            _ev(3, "OrderSubmitted", payload={"venue": "alpaca"}),
+            _ev(4, "OrderFilled", payload={"symbol": "GLD",
+                                           "strategy_id": "s1"}),
+        ]))
+        (row,) = led["signals"]
+        assert row["status"] == "filled"          # it DID fill
+        assert row["filled_qty"] is None          # by how much is UNKNOWN
+        assert row["avg_price"] is None
+        assert row["filled_at"] is not None       # when, we do know
+
+    def test_a_genuine_zero_fill_is_still_a_zero(self):
+        """The other side of the same rule — _num must not turn 0 into None."""
+        led = EL.signal_ledger(_Store([
+            _proposed(1),
+            _ev(2, "OrderFilled", payload={"filled_qty": 0, "avg_price": 0,
+                                           "symbol": "GLD",
+                                           "strategy_id": "s1"}),
+        ]))
+        assert led["signals"][0]["filled_qty"] == 0.0
+        assert led["signals"][0]["avg_price"] == 0.0
+
+    def test_an_unparseable_quantity_is_absent_rather_than_raising(self):
+        led = EL.signal_ledger(_Store([
+            _proposed(1),
+            _ev(2, "OrderFilled", payload={"filled_qty": "not a number",
+                                           "symbol": "GLD",
+                                           "strategy_id": "s1"}),
+        ]))
+        assert led["signals"][0]["filled_qty"] is None
+
+    # --- G5: the boundary the Gauntlet found unpinned ---------------------
+    def test_the_sync_tolerance_is_inclusive_AT_the_boundary(self):
+        """The tests reached 1e-15 and 0.1 and never touched _TOL itself, so
+        strict-vs-non-strict was unpinned. A drift of exactly the tolerance is
+        IN sync; an order of magnitude more is not."""
+        tol = EL._TOL
+        assert tol == Decimal("1e-9")
+        at = _leg([_proposed(1, qty=float(tol))], positions={"s1": {}})
+        assert at["implied"]["per_symbol"][0]["in_sync"] is True
+        over = _leg([_proposed(1, qty=1e-8)], positions={"s1": {}})
+        assert over["implied"]["per_symbol"][0]["in_sync"] is False
+
+    # --- G3: the fakes, pinned to the real collaborators -------------------
+    def test_the_session_fake_matches_the_REAL_session_record(self):
+        """Every fixture above hands engine_status a hand-built session dict.
+        If LeanRunner renamed a field, nothing in this suite would fail — so
+        the key set is read out of leanrunner's own source and compared."""
+        import ast
+        import inspect
+
+        from app.fund import leanrunner
+
+        src = inspect.getsource(leanrunner.LeanRunner.start_live)
+        keys: set[str] = set()
+        for node in ast.walk(ast.parse(textwrap.dedent(src))):
+            if isinstance(node, ast.Dict):
+                got = {k.value for k in node.keys
+                       if isinstance(k, ast.Constant) and isinstance(k.value, str)}
+                if "session_id" in got:
+                    keys |= got
+        # POSITIVE CONTROL: an empty key set would make the check below vacuous.
+        assert keys, "the session literal must be found in start_live"
+        read = {"session_id", "algorithm", "strategy_id", "state", "started_at",
+                "stopped_at", "signal_configured", "error", "log_tail"}
+        missing = read - keys
+        assert not missing, f"engine_status reads keys LeanRunner never sets: {missing}"
+
+    def test_the_strategy_fake_matches_the_REAL_registry_contract(self):
+        """attach_strategy_names swallows the resolver's exception because the
+        real StrategyService RAISES on an unknown id. If it ever returned None
+        instead, the swallow would be dead code — so pin the contract."""
+        from app.fund.strategies import StrategyError, StrategyService
+
+        with pytest.raises(StrategyError):
+            StrategyService(store=_Store([])).get("no-such-strategy")

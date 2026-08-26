@@ -127,6 +127,18 @@ def _split_rationale(rationale: str | None) -> tuple[str | None, str | None]:
     return (algo or None), reason
 
 
+def _num(v: Any) -> float | None:
+    """A number, or ``None`` — never a substituted zero. ``float(x or 0)``
+    turns an absent field into a measured value, which is the one thing this
+    fund's non-negotiables forbid outright."""
+    if v is None:
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
 def _fold(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
     """One pass over the log; every consumer below reads this fold.
 
@@ -227,10 +239,13 @@ def _fold(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
             rec["decided_by"] = "risk gate"
             rec["failure_reason"] = payload.get("reason")
         elif etype == EventType.ORDER_PARTIALLY_FILLED.value:
-            rec["filled_qty"] = float(payload.get("cumulative_qty", 0) or 0)
+            rec["filled_qty"] = _num(payload.get("cumulative_qty"))
         elif etype == EventType.ORDER_FILLED.value:
-            rec["filled_qty"] = float(payload.get("filled_qty", 0) or 0)
-            rec["avg_price"] = float(payload.get("avg_price", 0) or 0)
+            # A fill event missing its numbers is a fill nobody can quantify.
+            # ``or 0`` turned that into "filled 0 @ 0", which reads on the page
+            # as a real, measured, zero-size fill at a zero price.
+            rec["filled_qty"] = _num(payload.get("filled_qty"))
+            rec["avg_price"] = _num(payload.get("avg_price"))
             rec["filled_at"] = e.get("ts")
         elif etype == EventType.ORDER_FAILED.value:
             rec["failure_reason"] = payload.get("reason") or payload.get("error")
@@ -371,6 +386,9 @@ def engine_leg(store: EventStore | None = None,
 
     # --- the engine's implied book: computed, and labelled a model ---------
     implied: dict[tuple[str, str], Decimal] = {}
+    #: Keys carrying at least one signal whose quantity the record does not
+    #: state. Their implied position is UNKNOWN, never the partial sum.
+    unquantified: set[tuple[str, str]] = set()
     signals_by_key: dict[tuple[str, str], dict[str, int]] = {}
     for r in rows:
         sid = r.get("strategy_id") or ""
@@ -384,9 +402,20 @@ def engine_leg(store: EventStore | None = None,
         if not sym:
             continue
         key = (sid, sym)
-        qty = D(str(r.get("qty") or 0))
-        signed = qty if r.get("side") == "buy" else -qty
-        implied[key] = implied.get(key, Decimal("0")) + signed
+        # AN ABSENT QUANTITY IS NOT A ZERO ONE. ``qty or 0`` netted a malformed
+        # signal in as "no position change" — a measured claim about a signal
+        # nobody can measure, and indistinguishable from an engine that asked
+        # for nothing. One unquantified signal makes the whole (strategy,
+        # symbol) UNDETERMINED: a sum with an unknown term is unknown, not the
+        # sum of its known terms.
+        raw_qty = r.get("qty")
+        if raw_qty is None:
+            unquantified.add(key)
+        else:
+            qty = D(str(raw_qty))
+            signed = qty if r.get("side") == "buy" else -qty
+            implied[key] = implied.get(key, Decimal("0")) + signed
+        implied.setdefault(key, Decimal("0"))
         bucket = signals_by_key.setdefault(
             key, {"raised": 0, "filled": 0, "awaiting": 0, "refused": 0,
                   "in_flight": 0, "failed": 0})
@@ -415,7 +444,7 @@ def engine_leg(store: EventStore | None = None,
     per_symbol = []
     for key in sorted(implied):
         sid, sym = key
-        eng_qty = implied[key]
+        eng_qty = None if key in unquantified else implied[key]
         # ABSENCE INSIDE A COMPLETE FOLD IS ZERO; ABSENCE OF THE FOLD IS NOT.
         # StrategyAttribution folds EVERY fill, so a (strategy, symbol) with no
         # entry means the fund never filled anything there — a measured zero,
@@ -426,7 +455,8 @@ def engine_leg(store: EventStore | None = None,
         # book could not be read" over a book it had just read.
         b_qty = (book.get(sid, {}).get(sym, Decimal("0"))
                  if book_readable else None)
-        drift = (eng_qty - b_qty) if b_qty is not None else None
+        drift = ((eng_qty - b_qty)
+                 if (b_qty is not None and eng_qty is not None) else None)
         per_symbol.append({
             "strategy_id": sid or None,
             "symbol": sym,
@@ -434,7 +464,10 @@ def engine_leg(store: EventStore | None = None,
             "book_qty": f(b_qty) if b_qty is not None else None,
             # UNKNOWN, always, until the engine can be asked.
             "engine_qty": None,
-            "engine_implied_qty": f(eng_qty),
+            "engine_implied_qty": f(eng_qty) if eng_qty is not None else None,
+            # Named, so a null implied quantity is never read as "the engine
+            # has not signalled on this symbol" — it has, and we cannot size it.
+            "implied_unquantified": key in unquantified,
             "drift": f(drift) if drift is not None else None,
             # THREE-VALUED. ``None`` is "cannot tell", and it is what an
             # unreadable book gives — never ``True``, which would read as
@@ -518,6 +551,36 @@ def _verdict(rows: list[dict[str, Any]], per_symbol: list[dict[str, Any]],
                         "has signalled on agree with the fund's book."}
 
 
+def _liveness_provable(readable: bool, running: list[Any],
+                       sessions: list[Any]) -> bool | None:
+    """FOUR inputs, three answers, and ``None`` carries TWO different reasons
+    that are both honestly "no answer": the question does not arise (nothing
+    has ever run) and the question cannot be reached (the list is unreadable).
+    ``_liveness_note`` is what tells them apart — never this flag alone."""
+    if not readable:
+        return None       # cannot even ask
+    if running:
+        return False      # something runs and we cannot tell if it is alive
+    if not sessions:
+        return None       # the question does not arise
+    return True           # a terminal state the record shows
+
+
+def _liveness_note(readable: bool, running: list[Any],
+                   sessions: list[Any]) -> str:
+    if not readable:
+        return ("Whether anything is alive cannot be answered: the session "
+                "list itself could not be read.")
+    if running:
+        return ("A running session's health is not observable from the spine: "
+                "silence is the normal state of a daily-bar algorithm, so a "
+                "quiet engine and a dead one cannot be told apart from here.")
+    if not sessions:
+        return "Nothing has ever run, so there is no liveness question to answer."
+    return ("Nothing is running; the sessions on record reached a state the "
+            "record shows.")
+
+
 def engine_status(sessions: list[dict[str, Any]] | None,
                   ledger: dict[str, Any] | None = None) -> dict[str, Any]:
     """Is a LEAN session running, and when did it last say anything?
@@ -541,12 +604,28 @@ def engine_status(sessions: list[dict[str, Any]] | None,
     once the session has ENDED. An empty tail on a running session means the
     tail has not been captured yet, not that nothing has happened, and the flag
     below says so rather than leaving a reader to conclude the engine is idle.
+
+    **``sessions=None`` MEANS UNREADABLE AND IS ITS OWN STATE.** It used to
+    mean "treat as empty", with the caller patching ``state`` and ``note``
+    afterwards — and the caller did not patch ``liveness_provable`` or
+    ``liveness_note``, so the payload said "the session list could not be read"
+    in one field and "nothing has ever run, so there is no liveness question to
+    answer" in another. That is exactly the absence-collapsing defect this
+    module exists to prevent, reproduced inside the module. The state is
+    computed HERE, in one place, from one input, so no caller can produce half
+    of it.
     """
-    sessions = list(sessions if sessions is not None else [])
+    readable = sessions is not None
+    sessions = list(sessions or [])
     running = [s for s in sessions if s.get("state") in ("starting", "running")]
     failed = [s for s in sessions if s.get("state") == "failed"]
 
-    if not sessions:
+    if not readable:
+        state, note = "unknown", (
+            "The live-session list could not be read. This is NOT the same as "
+            "no session running — an engine we cannot ask about may be doing "
+            "anything.")
+    elif not sessions:
         state, note = "no_session", (
             "No LEAN session has ever been started on this fund. This is a "
             "fact about the fund, not a fault in the engine.")
@@ -568,6 +647,7 @@ def engine_status(sessions: list[dict[str, Any]] | None,
         "version": ENGINE_LEDGER_VERSION,
         "state": state,
         "note": note,
+        "sessions_readable": readable,
         "sessions": [
             {
                 "session_id": s.get("session_id"),
@@ -600,16 +680,8 @@ def engine_status(sessions: list[dict[str, Any]] | None,
         # THREE-VALUED. ``None`` is "the question does not arise" (nothing is
         # running); ``False`` is "something is running and we cannot tell";
         # ``True`` is "the session reached a terminal state the record shows".
-        "liveness_provable": (False if running else (None if not sessions else True)),
-        "liveness_note": (
-            "A running session's health is not observable from the spine: "
-            "silence is the normal state of a daily-bar algorithm, so a quiet "
-            "engine and a dead one cannot be told apart from here."
-            if running else
-            ("Nothing has ever run, so there is no liveness question to answer."
-             if not sessions else
-             "Nothing is running; the sessions on record reached a state the "
-             "record shows.")),
+        "liveness_provable": _liveness_provable(readable, running, sessions),
+        "liveness_note": _liveness_note(readable, running, sessions),
     }
 
 
