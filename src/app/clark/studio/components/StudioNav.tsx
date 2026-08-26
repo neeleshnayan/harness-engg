@@ -3,11 +3,13 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, BookOpen, FlaskConical, ShieldAlert, Sliders, Swords } from "lucide-react";
+import { Activity, BookOpen, Cpu, FlaskConical, ShieldAlert, Sliders, Swords } from "lucide-react";
 
 /**
- * Workflow-first navigation — FIVE tabs, down from seven (CEO direction,
- * request c91d5c07, 2026-08-20).
+ * Workflow-first navigation — SEVEN tabs. Five by CEO direction (request
+ * c91d5c07, 2026-08-20, down from seven), plus Risk restored the same day by
+ * CEO veto, plus Engine on the CEO's 2026-08-26 ask. The count is not the
+ * point; every entry below carries the decision that put it there.
  *
  * **Monitor is the landing page.** The Studio used to open on Decide — the
  * approval queue and nothing else — which made the fund's rarest event the first
@@ -33,6 +35,15 @@ import { Activity, BookOpen, FlaskConical, ShieldAlert, Sliders, Swords } from "
  *     the belt); its story and ladder render on the Desk. The rule: a chart
  *     stays only if it informs a specific click or dispatch, and Mechanics was
  *     a tab you read rather than acted on. /clark/studio/mechanics redirects.
+ * ENGINE — added 2026-08-26 (CEO, verbatim: "can you also add some UI element
+ * that helps me see whats hppening on Lean"). It is a TAB rather than a panel
+ * on Lab for the reason the Risk restoration below established in this very
+ * comment: a page only reachable through a strip nobody thinks of as a door IS
+ * gone to its reader, and the CEO asked to be able to SEE this. Lab is where an
+ * idea is written; Engine is where the thing that runs is watched, and the
+ * question it answers ("did that signal fill, and do our two books still
+ * agree") is an operating question, not a research one.
+ *
  *   * RISK — the builder removed it from the bar (2026-08-20); the CEO vetoed
  *     the removal the same morning ("risk page is entirely gone"). A page only
  *     reachable through a strip nobody thinks of as a door IS gone to its
@@ -47,6 +58,8 @@ const TABS = [
     hint: "Strategies, weights, composition and per-strategy attribution" },
   { href: "/clark/studio/lab", label: "Lab", icon: FlaskConical,
     hint: "Research an idea: write a strategy, run it on the engine of record" },
+  { href: "/clark/studio/engine", label: "Engine", icon: Cpu,
+    hint: "Is LEAN running, what did it raise, and do the engine's book and the fund's agree" },
   { href: "/clark/studio/risk", label: "Risk", icon: ShieldAlert,
     hint: "Diversification, tail risk, market regime and survivability" },
   { href: "/clark/studio/thesis", label: "Thesis", icon: BookOpen,

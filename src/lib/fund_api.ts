@@ -2373,6 +2373,16 @@ export interface DeskInTrayItem {
   reason: string | null; ack_at: string | null; posted_at: string | null;
 }
 
+// The engine page's wire shapes are declared beside the logic that reads them
+// (studio/engine/engineView.ts) and imported here TYPE-ONLY, the same pattern
+// CandidateRow uses at the top of this file. Two declarations of one wire shape
+// drift, and only one of them has tests.
+import type {
+  EngineLeg,
+  EngineView,
+  SignalLedger,
+} from '@/app/clark/studio/engine/engineView';
+
 export const fundApiClient = {
   getNav: async (): Promise<NavResponse> => (await fundApi.get(`${P}/nav`)).data,
 
@@ -2684,7 +2694,13 @@ export const fundApiClient = {
   getMarketQuotes: async (): Promise<MarketQuotesResponse> =>
     (await fundApi.get(`${P}/market/quotes`)).data,
 
-  /** Broker-vs-book drift. Read-only — writes no events. */
+  /** Broker-vs-book drift, plus the ENGINE leg. Read-only — writes no events.
+   *
+   *  `engine` was added 2026-08-26 and is present even when `configured` is
+   *  false: the engine leg folds from the event log and owes the broker
+   *  nothing, so a broker outage must not take it off the payload. Typed
+   *  optional anyway, because a spine older than that date will not send it
+   *  and an undefined leg must render as UNREAD rather than as agreement. */
   getVenueReconcile: async (): Promise<{
     configured: boolean;
     book_nav?: number | null;
@@ -2695,7 +2711,19 @@ export const fundApiClient = {
     per_symbol?: { symbol: string; book_qty: number; broker_qty: number; drift: number; in_sync: boolean }[];
     as_of?: string;
     reason?: string;
+    engine?: EngineLeg;
   }> => (await fundApi.get(`${P}/venue/reconcile`)).data,
+
+  /** Every signal an external engine raised, and what became of each one. */
+  getSignalLedger: async (limit = 200): Promise<SignalLedger> =>
+    (await fundApi.get(`${P}/signals/ledger`, { params: { limit } })).data,
+
+  /** What the engine is doing, what it raised, and whether the books agree.
+   *
+   *  ONE call for one page: the three answers are read together, and a surface
+   *  that needs three round trips renders three different moments. */
+  getEngine: async (limit = 200): Promise<EngineView> =>
+    (await fundApi.get(`${P}/engine`, { params: { limit } })).data,
 
   /** Stateless backtest — registers nothing, touches no event log. */
   researchBacktest: async (body: BacktestBySymbolBody): Promise<ResearchBacktestResponse> =>
