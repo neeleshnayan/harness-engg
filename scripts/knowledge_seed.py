@@ -7,7 +7,7 @@ FROM these rows from here on.
 import sys
 sys.path.insert(0, r"C:\Users\user\Documents\Krypton Fund\ClarkHarness")
 
-from app.fund.knowledge import KnowledgeStore, KnowledgeError
+from app.fund.guide import KnowledgeStore, KnowledgeError
 
 ks = KnowledgeStore()
 A = "cto"

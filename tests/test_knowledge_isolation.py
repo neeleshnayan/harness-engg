@@ -96,7 +96,11 @@ def test_the_derived_forbidden_set_is_exactly_the_stores_we_know_about():
     a literal alone goes stale. When a third work-layer store ships, this line
     is the one that makes somebody type its name.
     """
-    assert set(FORBIDDEN_MODULES) == {"app.fund.knowledge", "app.fund.episodes"}, (
+    # app.fund.guide joined 2026-08-27: the operator-guide claims store (the
+    # CEO's charter), split out of knowledge.py after the chair briefly
+    # overwrote the hypothesis graph with it. Same layer, same isolation.
+    assert set(FORBIDDEN_MODULES) == {"app.fund.knowledge", "app.fund.episodes",
+                                      "app.fund.guide"}, (
         f"the WORK_LAYER_STORE declarations in app/fund do not match the "
         f"stores this guard was written for: {FORBIDDEN_MODULES}")
 
