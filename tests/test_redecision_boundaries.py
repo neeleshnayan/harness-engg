@@ -559,6 +559,28 @@ class TestClassify:
         the classifier must catch both, not just the JSON-decode error."""
         assert self.m.classify(409, None) == "fail"
 
+    @pytest.mark.parametrize("body", [
+        pytest.param(b"[1,2]", id="json-array"),
+        pytest.param(b'"a string"', id="json-string"),
+        pytest.param(b"123", id="json-number"),
+        pytest.param(b"true", id="json-bool"),
+        pytest.param(b"null", id="json-null"),
+    ])
+    def test_a_VALID_json_body_that_is_not_an_object_fails_rather_than_crashes(
+            self, body):
+        """FOUND BY READING THE PATH, 2026-08-26, not by a test — and the
+        cost is a whole batch, not a row. The old line
+        ``(json.loads(body) or {}).get("detail")`` survives ``null`` and
+        raises ``AttributeError`` on the other four. That exception is not in
+        the ``except (ValueError, TypeError)`` clause and nothing above
+        ``_post`` catches it, so one gateway response shaped like a JSON array
+        aborted a 40-row sweep and lost the rows behind it.
+
+        ``null`` is in the table as the CONTROL: it was the one shape the old
+        line already handled, so a fix that only special-cased it would pass
+        a one-row test and change nothing."""
+        assert self.m.classify(409, body) == "fail"
+
 
 # ============================================================================
 # THE SWEEP'S EXIT CODE — the part a caller reads, run as a real process

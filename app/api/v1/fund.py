@@ -2428,10 +2428,12 @@ def decide_recommendation(run_id: str, rec_id: int, req: RecDecision):
     # `note` AND `next_actor` GO IN TOO, and that is the 2026-08-26 repair. A
     # duplicate is only a duplicate if the whole write is one: v1 passed the
     # status alone and refused 17 real note corrections in the record with a
-    # 409 saying the write "changes nothing". The other three fields the
-    # writer touches are `decided_by`/`decided_at` (stamped every call — see
-    # `ticketguard.REDECISION_ALWAYS_REWRITTEN`) and nothing else; an AST test
-    # holds that list to the writer's own source.
+    # 409 saying the write "changes nothing". The writer touches FIVE fields;
+    # these are three of them and the other TWO are `decided_by`/`decided_at`,
+    # stamped on every call and therefore excluded (see
+    # `ticketguard.REDECISION_ALWAYS_REWRITTEN` for why counting them would
+    # make the guard refuse nothing at all). An AST test holds that split to
+    # the writer's own source, so a sixth field cannot appear unnoticed.
     redecision_readable, redecision_basis = _refuse_if_redecided(
         run_id, rec_id, to=req.status, actor=req.actor, note=req.note,
         next_actor=req.next_actor)
@@ -2461,10 +2463,11 @@ def decide_recommendation(run_id: str, rec_id: int, req: RecDecision):
                                  # unreadable and the brake was not consulted.
                                  "supersession_readable": readable,
                                  # True = the row's decision history was read
-                                 # and this status is a change; False = the
-                                 # guard could not look, and `redecision_basis`
-                                 # says which of the two reasons. Never None —
-                                 # this guard applies to every status.
+                                 # and this decision changes something the row
+                                 # stores; False = the guard could not look,
+                                 # and `redecision_basis` says which of the two
+                                 # reasons. Never None — this guard applies to
+                                 # every status.
                                  "redecision_readable": redecision_readable,
                                  "redecision_basis": redecision_basis,
                                  "at": datetime.now(timezone.utc).isoformat()},
@@ -3913,8 +3916,9 @@ def _refuse_if_redecided(run_id: str, rec_id: int, *, to: str, actor: str,
     """409-and-RECORD a decision that would change nothing the row stores.
 
     Returns ``(redecision_readable, redecision_basis)`` — True plus
-    ``decision_events`` when the row's history was read and this status is a
-    change; False plus a reason when the guard could NOT look. Never None:
+    ``decision_events`` when the row's history was read and this decision
+    changes something the row stores; False plus a reason when the guard could
+    NOT look. Never None:
     unlike the supersession brake this guard applies to every status, so "not
     applicable" is not one of its answers, and writing None would let a reader
     take an unread guard for an inapplicable one.

@@ -71,9 +71,20 @@ def classify(code, body):
     if code != 409:
         return "fail"
     try:
-        detail = (json.loads(body) or {}).get("detail")
+        parsed = json.loads(body)
     except (ValueError, TypeError):
         return "fail"
+    # A NON-DICT BODY IS A FAILURE, NOT A CRASH (found 2026-08-26 by reading
+    # this path rather than by any test). `(json.loads(body) or {}).get(...)`
+    # survives `null` and dies on `[1,2]`, `"text"` or `123` with an
+    # AttributeError that `except (ValueError, TypeError)` does not catch —
+    # and nothing above `_post` catches it either, so a proxy or a gateway
+    # returning a JSON array for one row of a 40-row sweep aborted the whole
+    # batch and lost the 37 rows behind it. The direction is strict: an
+    # unrecognisable body classifies as `fail`, never as `already`.
+    if not isinstance(parsed, dict):
+        return "fail"
+    detail = parsed.get("detail")
     if isinstance(detail, dict) and detail.get("hint") == ALREADY_HINT:
         return "already"
     return "fail"

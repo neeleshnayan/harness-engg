@@ -666,18 +666,24 @@ def check_redecision(decisions: list[dict[str, Any]], *, to: Any,
         # closure") is only satisfiable if somebody can tell.
         "unchanged_fields": writes["unchanged"],
         "not_written_fields": writes["not_written"],
-        # `prior` COUNTS THE EVENTS ALREADY ON THE RECORD, so it is 1 the first
-        # time this refusal fires and 8 on R39's ninth attempt. An earlier
-        # draft said "N time(s) since", which read as "N MORE times after the
-        # first" and was wrong by one at every value — the kind of sentence a
-        # suite cannot see and a reader trusts.
-        # THE SENTENCE THIS GUARD SHIPPED WITH WAS FALSE FOR 17 OF ITS 37
-        # REFUSALS. It said the write "changes nothing" while the write
-        # carried a corrected note. It is now true by construction — the
-        # refusal only exists when `changes` is empty — and it NAMES the
-        # fields it compared, so a caller who disagrees can check rather than
-        # trust. A message that asserts something the code does not check is
-        # how a control gets believed past its scope.
+        # THE SENTENCE, AND IT HAS BEEN WRONG TWICE — the two corrections are
+        # kept together because they are the same mistake at different sizes.
+        #
+        # (1) THE CLAIM. It said the write "changes nothing", and that was
+        #     FALSE for 17 of the guard's 37 refusals: the write carried a
+        #     corrected note. It is now true by construction — this refusal
+        #     only exists when `changes` is empty — and it NAMES the fields it
+        #     compared, so a caller who disagrees can check rather than trust.
+        #     A message asserting something the code does not check is how a
+        #     control gets believed past its scope. Note that
+        #     `writes['unchanged']` can never be empty here: `status` is
+        #     always written, so when `changes` is empty it is in `unchanged`.
+        # (2) THE ARITHMETIC. `prior` counts the events ALREADY ON THE RECORD,
+        #     so it is 1 the first time this fires and 8 on R39's ninth
+        #     attempt. An earlier draft said "N time(s) since", which read as
+        #     "N MORE times after the first" and was wrong by one at every
+        #     value — the kind of sentence a suite cannot see and a reader
+        #     trusts.
         "detail": (
             f"ONE DECISION, ONE ROW. {run_id}#{rec_id} already records "
             f"{to!r} — recorded {prior} time(s), first at "
