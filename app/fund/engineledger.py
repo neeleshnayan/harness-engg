@@ -402,7 +402,16 @@ def engine_leg(store: EventStore | None = None,
     for key in sorted(implied):
         sid, sym = key
         eng_qty = implied[key]
-        b_qty = book.get(sid, {}).get(sym) if book_readable else None
+        # ABSENCE INSIDE A COMPLETE FOLD IS ZERO; ABSENCE OF THE FOLD IS NOT.
+        # StrategyAttribution folds EVERY fill, so a (strategy, symbol) with no
+        # entry means the fund never filled anything there — a measured zero,
+        # and the whole finding when the engine thinks it holds something. The
+        # unreadable case above is the other fact and stays None. Getting these
+        # two the same way round is what makes this leg worth reading: the
+        # first version of this line returned None for both and printed "the
+        # book could not be read" over a book it had just read.
+        b_qty = (book.get(sid, {}).get(sym, Decimal("0"))
+                 if book_readable else None)
         drift = (eng_qty - b_qty) if b_qty is not None else None
         per_symbol.append({
             "strategy_id": sid or None,
@@ -585,3 +594,34 @@ def engine_status(sessions: list[dict[str, Any]] | None,
              "Nothing is running; the sessions on record reached a state the "
              "record shows.")),
     }
+
+
+def attach_strategy_names(payload: dict[str, Any],
+                          resolver: Any) -> dict[str, Any]:
+    """Add ``strategy_name`` beside every ``strategy_id`` this payload carries.
+
+    A uuid is not a name, and the page this feeds is read by a human deciding
+    whether to care. ``resolver`` is called once per distinct id and is allowed
+    to fail: an id whose strategy cannot be looked up gets ``None``, which the
+    surface renders as the raw id — never as a blank, which would read as a
+    signal belonging to nothing.
+
+    Mutates and returns ``payload`` so it can be used inline at the endpoint.
+    """
+    seen: dict[str, str | None] = {}
+
+    def name(sid: str | None) -> str | None:
+        if not sid:
+            return None
+        if sid not in seen:
+            try:
+                seen[sid] = resolver(sid)
+            except Exception:  # noqa: BLE001 — an unresolvable id is not an error
+                seen[sid] = None
+        return seen[sid]
+
+    for row in payload.get("signals") or []:
+        row["strategy_name"] = name(row.get("strategy_id"))
+    for row in (payload.get("implied") or {}).get("per_symbol") or []:
+        row["strategy_name"] = name(row.get("strategy_id"))
+    return payload
