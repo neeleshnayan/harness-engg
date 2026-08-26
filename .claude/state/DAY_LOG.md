@@ -307,6 +307,22 @@ active and directing throughout.*
 
 ---
 
+### v0 SETTLED (CEO, verbatim): "we only have to beat human traders for v0; nothing too fancy
+but what will be impressive is if can spot what others dont and quickly turn it into our moat"
+
+- **Two-tier bar adopted** (Ed amended mid-flight): v0 = positive risk-adjusted expectancy after
+  real costs, out-of-sample, drawdown-bounded - the bar the documented majority of retail crypto
+  traders fail. v1/deploy-grade = the gate's bar (beat buy-and-hold BTC after costs), unchanged;
+  v0 is a milestone label, never a gate change.
+- **The moat defined as the LOOP, not the edge**: (a) spot-to-live latency, measured per
+  candidate from first sighting to paper deployment through the full chain - a first-class
+  number from candidate one; (b) accumulated calibration that outlives any edge (measured venue
+  costs, data-quality maps, decay measurements, kill records). Ed's menu now grades each edge
+  partly on "what spotting this early would compound into."
+
+
+---
+
 ## 2026-08-24 (UTC)
 
 The Monday of the click sheet (~12:30Z) and the first real-venue fills
