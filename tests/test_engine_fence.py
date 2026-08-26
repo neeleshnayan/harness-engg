@@ -171,6 +171,13 @@ class TestNothingLiveIsEverFenced:
         leg = _leg([ev], {SID: {}}, _ctx(archived=[SID]))
         assert leg["signals_fenced"] == 0
         assert leg["verdict"]["state"] == "diverged"
+        # AND THE BASIS, not only the state. Removing the guard leaves the
+        # signal LIVE anyway (the comparison fails on an unparseable instant),
+        # so a test asserting only "not fenced" cannot see the mutant - it
+        # would report basis ``raised_during_this_process``, a claim about
+        # WHEN a signal with no when was raised. Mutation survivor M5.
+        led = EL.signal_ledger(_Store([ev]), context=_ctx(archived=[SID]))
+        assert led["signals"][0]["liveness"]["basis"] == EL.BASIS_RAISED_AT_UNREADABLE
 
     def test_an_unaskable_runner_never_fences(self):
         """MUTANT M6: default ``known_since`` to now instead of ``None``.
@@ -183,6 +190,12 @@ class TestNothingLiveIsEverFenced:
         assert leg["fence"]["sessions_known_since"] is None
         assert leg["signals_fenced"] == 0
         assert leg["verdict"]["state"] == "diverged"
+        # The basis again, for the same reason as M5: without the guard this
+        # still reads LIVE, but it would claim the signal was raised during a
+        # session memory that has no beginning. Mutation survivor M6.
+        led = EL.signal_ledger(_Store(DEAD_HISTORY),
+                               context=_ctx(known_since=None, archived=[SID]))
+        assert led["signals"][0]["liveness"]["basis"] == EL.BASIS_KNOWN_SINCE_UNREADABLE
 
     def test_an_orphan_raised_during_this_process_never_fences(self):
         """MUTANT M7: fence on "no live session" rather than on "predates
@@ -339,6 +352,33 @@ class TestMixedHistory:
         # The row is LIVE — one live signal is enough to make it judgeable.
         assert row["sync_state"] == "diverged"
         assert row["drift"] == 2.0
+
+    def test_a_fenced_signals_absent_quantity_does_not_poison_the_live_row(self):
+        """MUTANT M35: ``unquantified.add(key)`` regardless of the fence.
+
+        An unsized signal from a DEAD session makes the dead engine's book
+        unknown; it says nothing about the live one. Marking the live row
+        undetermined would take a divergence a live engine is genuinely
+        showing and print "cannot be compared" over it - a fence silencing a
+        live disagreement by the back door, which is the one thing this
+        mechanism must never do.
+        """
+        old = _proposed(10, qty=None, ts=T1, oid="old")
+        old["payload"]["qty"] = None
+        new_ = _proposed(20, qty=4, oid="new")
+        new_["ts"] = "2026-08-21T00:00:00+00:00"
+        ctx = _ctx(sessions=[_session(started="2026-08-20T00:00:00+00:00")],
+                   known_since=T2)
+        row, = _leg([old, new_], {SID: {}}, ctx)["implied"]["per_symbol"]
+        assert row["implied_unquantified"] is False
+        assert row["engine_implied_qty"] == 4.0
+        assert row["sync_state"] == "diverged"
+        # ...and the same signal, LIVE, does make the row undetermined - so
+        # the assertion above is about the FENCE, not about qty=None.
+        live_ctx = _ctx(sessions=[_session(started=T0)], known_since=T0)
+        row2, = _leg([old, new_], {SID: {}}, live_ctx)["implied"]["per_symbol"]
+        assert row2["implied_unquantified"] is True
+        assert row2["engine_implied_qty"] is None
 
     def test_the_signal_counts_still_cover_every_signal(self):
         """A fenced signal is still a signal. MUTANT M15: count only live
@@ -564,12 +604,29 @@ class HygFastFlipProbe(QCAlgorithm):
         """
         assert declared_datasource(self.ALGO)["lookback_days"] == 2000
 
+    #: A SECOND, CONTRADICTING bar URL - and it must be VALID PYTHON. The
+    #: first version of this fixture spliced a line inside an open
+    #: parenthesis, so the module did not parse and the assertion below passed
+    #: on the SYNTAX-ERROR path instead of the two-URL path. It survived
+    #: mutation M21 and looked green the whole time it was testing nothing.
+    TWO_URLS = ALGO + (
+        '\nALT = "http://elsewhere/marketdata/bars'
+        '?lookback_days=700&format=json"\n')
+
+    def test_the_two_url_fixture_actually_parses(self):
+        """THE FIXTURE'S OWN NULL TEST, and it is not ceremony: the check below
+        is worthless if the source does not parse, and that is exactly how it
+        failed once. A fixture that cannot reach the branch it targets is a
+        green test with no subject."""
+        import ast
+        ast.parse(self.TWO_URLS)
+        assert declared_datasource(self.TWO_URLS)["readable"] is True
+
     def test_two_contradicting_urls_report_absent_rather_than_a_guess(self):
         """MUTANT M21: return the first match instead of requiring exactly one.
-        A datasource this fund guessed at is worse than no panel at all."""
-        two = self.ALGO.replace('&lookback_days=2000&format=csv"',
-                                '&lookback_days=2000&format=csv"\n        alt = "x/marketdata/bars?lookback_days=700&format=json"')
-        d = declared_datasource(two)
+        A datasource this fund guessed at is worse than no panel at all - and
+        the wrong number here is PLAUSIBLE, which is what makes it dangerous."""
+        d = declared_datasource(self.TWO_URLS)
         assert d["lookback_days"] is None
         assert d["format"] is None
 
