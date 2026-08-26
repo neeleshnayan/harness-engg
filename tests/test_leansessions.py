@@ -1,0 +1,583 @@
+"""The live-session decisions, and the three defects they close.
+
+THE INCIDENTS THESE TESTS GUARD, NAMED:
+
+  * **The TOCTOU double-start (ticket dc12903f, 2026-08-26, chair-verified on
+    the live spine).** ``start_live`` read the session table under a lock,
+    RELEASED it, and then inserted under the lock again. Two identical POSTs two
+    milliseconds apart both got 200. Guarded here by the atomicity pin and the
+    barrier race, and at the database by the partial unique index.
+  * **The unstoppable orphan (builder ENG2, published as
+    ``engineledger.ORPHAN_CHECK=False``).** A LEAN container is started with
+    ``docker run`` from a daemon thread, so it lives in the docker daemon and
+    outlives the spine; after a restart the session table was empty and
+    ``stop_live`` could not reach it. Guarded by the reconciliation tests.
+  * **The absence collapse (builder ENG1, the ``engine_status`` payload that
+    contradicted itself).** Every input here is three-valued and its unreadable
+    case is its own value; the tests below assert on the ACTION, so a reconciler
+    that reads ``None`` as "nothing running" cannot pass.
+"""
+
+import ast
+import inspect
+import textwrap
+import threading
+
+import pytest
+
+from app.fund import leansessions as LS
+
+
+# ================================================================ the scope key
+
+class TestScopeKey:
+    def test_a_strategy_is_the_scope_when_there_is_one(self):
+        assert LS.scope_key("s1", "algo") == "strategy:s1"
+
+    def test_the_algorithm_is_the_scope_when_the_session_is_unscoped(self):
+        """The Lab starts sessions with no strategy_id, and two of those
+        running one algorithm is the same hazard with no name:
+        ``engineledger._claiming_session`` matches a signal on strategy id OR
+        algorithm, so either duplicate makes one signal claimable twice."""
+        assert LS.scope_key("", "algo") == "algorithm:algo"
+        assert LS.scope_key(None, "algo") == "algorithm:algo"
+
+    def test_whitespace_is_not_a_strategy(self):
+        """``"   ".upper()`` is truthy and this fund has already been bitten by
+        that once. A blank strategy id must fall through to the algorithm, not
+        create a scope named after three spaces."""
+        assert LS.scope_key("   ", "algo") == "algorithm:algo"
+
+    def test_two_strategies_never_share_a_scope(self):
+        assert LS.scope_key("s1", "a") != LS.scope_key("s2", "a")
+
+    def test_a_strategy_scope_and_an_algorithm_scope_cannot_collide(self):
+        """MUTANT: return the bare id instead of a prefixed key. A strategy
+        literally named ``algo`` would then share a scope with the algorithm
+        ``algo`` and one would refuse the other."""
+        assert LS.scope_key("x", "y") != LS.scope_key("", "x")
+
+    def test_nothing_identifiable_does_not_collapse_to_an_empty_key(self):
+        """An empty key would make every unidentifiable session collide with
+        every other one — a refusal dressed as a uniqueness rule."""
+        assert LS.scope_key("", "") == "unidentified:"
+
+
+# ================================================================== the name
+
+class TestSessionIdOfContainer:
+    def test_the_id_comes_back_out_of_the_name(self):
+        assert LS.session_id_of("lean-live-abc123") == "abc123"
+
+    def test_a_substring_match_is_not_ours(self):
+        """``docker ps --filter name=`` is a SUBSTRING match, verified against
+        the real daemon, so a container called ``mine-lean-live-x`` arrives
+        from the same query. Prefix, never ``in``."""
+        assert LS.session_id_of("mine-lean-live-x") is None
+
+    def test_the_bare_prefix_names_no_session(self):
+        assert LS.session_id_of("lean-live-") is None
+        assert LS.session_id_of("lean-live-   ") is None
+
+    def test_absence_is_not_a_name(self):
+        assert LS.session_id_of(None) is None
+        assert LS.session_id_of("") is None
+
+
+# =============================================================== ownership
+
+class TestOwnership:
+    def test_an_unlabelled_container_is_ours_by_name(self):
+        """Containers started before the label existed — including the one
+        running while this was written — carry no label and are ours."""
+        assert LS.ownership(None, "dev") == LS.OWN_LEGACY
+        assert LS.ownership("", "dev") == LS.OWN_LEGACY
+
+    def test_our_own_label_is_ours(self):
+        assert LS.ownership("dev", "dev") == LS.OWN_OURS
+
+    def test_another_mode_is_never_ours(self):
+        assert LS.ownership("prod", "dev") == LS.OWN_FOREIGN
+
+    def test_an_unreadable_own_mode_cannot_judge_a_labelled_container(self):
+        """MUTANT: fall back to OURS when our mode is unknown. That makes the
+        destructive branch run on an unproven claim — a dev spine with an
+        unresolvable mode would stop production's session."""
+        assert LS.ownership("prod", None) == LS.OWN_UNJUDGEABLE
+        assert LS.ownership("prod", "") == LS.OWN_UNJUDGEABLE
+
+    @pytest.mark.parametrize("own", [LS.OWN_FOREIGN, LS.OWN_UNJUDGEABLE])
+    def test_what_is_not_ours_is_never_touched(self, own):
+        assert LS._touchable(own) is False
+
+    @pytest.mark.parametrize("own", [LS.OWN_OURS, LS.OWN_LEGACY])
+    def test_what_is_ours_is_actionable(self, own):
+        assert LS._touchable(own) is True
+
+
+# ================================================================= is_alive
+
+class TestIsAlive:
+    @pytest.mark.parametrize("state", list(LS.ALIVE))
+    def test_the_alive_states_are_alive(self, state):
+        assert LS.is_alive({"state": state}) is True
+
+    @pytest.mark.parametrize("state",
+                             ["stopped", "ended", "failed", LS.VANISHED, "", None])
+    def test_everything_else_is_not(self, state):
+        assert LS.is_alive({"state": state}) is False
+
+    def test_a_row_that_is_not_a_row_is_not_alive(self):
+        assert LS.is_alive(None) is False
+        assert LS.is_alive("running") is False
+
+    def test_the_alive_set_matches_the_fence_s_own(self):
+        """PROVE IT IS THE SAME RULE, not two that agree today. The engine
+        fence decides whether a signal is claimed by a LIVE session using its
+        own ``_SESSION_ALIVE``; two ideas of "alive" is the second-opinion
+        defect the fence was written to keep out of this area."""
+        from app.fund import engineledger
+        assert tuple(LS.ALIVE) == tuple(engineledger._SESSION_ALIVE)
+
+    def test_vanished_is_not_one_of_the_alive_states(self):
+        """A vanished row must release its scope, or one dead container locks
+        a strategy out of the engine forever."""
+        assert LS.VANISHED not in LS.ALIVE
+
+
+# ============================================================== reconcile
+
+def _row(sid, state="running", **kw):
+    return {"session_id": sid, "state": state,
+            "container": f"{LS.CONTAINER_PREFIX}{sid}", **kw}
+
+
+def _con(sid, mode=None):
+    return {"name": f"{LS.CONTAINER_PREFIX}{sid}", "mode": mode}
+
+
+def _actions(plan):
+    return {a["session_id"]: a["action"] for a in plan["actions"]}
+
+
+class TestReconcileTheHappyPaths:
+    def test_a_known_running_container_is_reattached(self):
+        plan = LS.reconcile([_row("a")], [_con("a")], our_mode="dev")
+        assert _actions(plan) == {"a": LS.REATTACH}
+        assert plan["checked"] is True
+
+    def test_a_container_with_no_row_is_stopped(self):
+        """THE ORPHAN. A container the registry has never known is holding a
+        signal token and can POST proposals into the approval queue."""
+        plan = LS.reconcile([], [_con("ghost")], our_mode="dev")
+        assert _actions(plan) == {"ghost": LS.STOP}
+
+    def test_a_row_the_registry_calls_dead_beside_a_running_container_is_adopted(self):
+        """The container is the fact. A row saying ``stopped`` while the
+        process is up means the kill failed or raced, and recording it as
+        running is the truth — which is also what makes it stoppable again."""
+        plan = LS.reconcile([_row("a", "stopped")], [_con("a")], our_mode="dev")
+        assert _actions(plan) == {"a": LS.ADOPT}
+
+    def test_a_live_row_with_no_container_vanished(self):
+        plan = LS.reconcile([_row("a")], [], our_mode="dev")
+        assert _actions(plan) == {"a": LS.VANISHED}
+
+    def test_a_dead_row_with_no_container_is_left_entirely_alone(self):
+        """Nothing to do and nothing to say: the ordinary end of every
+        session. MUTANT: report it as vanished and every finished session
+        would be re-written on every start-up."""
+        plan = LS.reconcile([_row("a", "ended")], [], our_mode="dev")
+        assert plan["actions"] == []
+
+    def test_another_mode_s_container_is_recorded_and_never_stopped(self):
+        """Two spines share one docker daemon and one ``lean-live-``
+        namespace. Without the label the second would call the first's session
+        an unaccounted orphan and kill it."""
+        plan = LS.reconcile([], [_con("theirs", mode="prod")], our_mode="dev")
+        assert _actions(plan) == {"theirs": LS.LEAVE}
+        assert plan["counts"][LS.STOP] == 0
+
+    def test_a_foreign_container_is_left_even_when_a_row_exists(self):
+        """MUTANT: check ownership only on the orphan branch. A row plus a
+        foreign label must not re-attach someone else's container into our
+        session table."""
+        plan = LS.reconcile([_row("x")], [_con("x", mode="prod")],
+                            our_mode="dev")
+        assert _actions(plan) == {"x": LS.LEAVE}
+
+    def test_everything_at_once_is_counted_separately(self):
+        plan = LS.reconcile(
+            [_row("keep"), _row("gone"), _row("zombie", "ended")],
+            [_con("keep"), _con("ghost"), _con("zombie"),
+             _con("alien", mode="prod")],
+            our_mode="dev")
+        assert plan["counts"] == {LS.REATTACH: 1, LS.ADOPT: 1, LS.STOP: 1,
+                                  LS.LEAVE: 1, LS.VANISHED: 1}
+
+
+class TestReconcileCannotRead:
+    """THE HALF THAT MATTERS. Every one of these asserts that an UNREADABLE
+    input produces NO ACTION and says so — never an empty action list that
+    reads like agreement."""
+
+    def test_an_unreadable_docker_stops_nothing_and_vanishes_nothing(self):
+        plan = LS.reconcile([_row("a")], None, our_mode="dev")
+        assert plan["actions"] == []
+        assert plan["checked"] is False
+        assert plan["containers_readable"] is False
+        assert plan["containers_seen"] is None
+        assert plan["rows_alive"] == 1
+        assert "UNKNOWN rather than no" in plan["note"]
+
+    def test_an_unreadable_registry_stops_no_container(self):
+        """MUTANT: treat ``rows=None`` as ``[]``. Every running container would
+        then be an orphan and every one of them would be killed at start-up —
+        a whole fund's engines stopped by one unreachable database."""
+        plan = LS.reconcile(None, [_con("a"), _con("b")], our_mode="dev")
+        assert plan["actions"] == []
+        assert plan["counts"][LS.STOP] == 0
+        assert plan["registry_readable"] is False
+        assert plan["rows_seen"] is None
+        assert plan["rows_alive"] is None
+        assert plan["containers_seen"] == 2
+
+    def test_neither_readable_says_so_in_one_sentence(self):
+        plan = LS.reconcile(None, None)
+        assert plan["checked"] is False
+        assert "Neither" in plan["note"]
+
+    def test_docker_answering_EMPTY_is_a_claim_and_is_acted_on(self):
+        """The other side of the same coin, and the reason ``None`` and ``[]``
+        must stay different values: ``[]`` means the daemon answered and
+        nothing is running, which is exactly when a live row IS vanished."""
+        plan = LS.reconcile([_row("a")], [], our_mode="dev")
+        assert plan["checked"] is True
+        assert _actions(plan) == {"a": LS.VANISHED}
+
+
+class TestReconcileReportsItsDomain:
+    def test_a_zero_carries_what_it_compared(self):
+        """A null result with no domain is not a result. ``0 orphans`` over 4
+        containers and 4 rows is a measurement; ``0 orphans`` over nothing is
+        a sentence."""
+        plan = LS.reconcile([_row(str(i)) for i in range(4)],
+                            [_con(str(i)) for i in range(4)], our_mode="dev")
+        assert plan["counts"][LS.STOP] == 0
+        assert plan["rows_seen"] == 4
+        assert plan["rows_alive"] == 4
+        assert plan["containers_seen"] == 4
+        assert "4 running LEAN container(s) against 4 session(s)" in plan["note"]
+
+    def test_a_container_that_is_not_ours_by_name_is_not_in_the_domain(self):
+        plan = LS.reconcile([], [{"name": "postgres", "mode": None},
+                                 _con("a")], our_mode="dev")
+        assert plan["containers_seen"] == 1
+
+    def test_the_note_is_a_whole_sentence(self):
+        """Every consumer concatenates it. A fold that emits half-sentences
+        makes punctuation the caller's problem and the caller gets it wrong —
+        the engine page printed "...are gone The dead session had asked" for
+        exactly this reason."""
+        for plan in (LS.reconcile([], [], our_mode="dev"),
+                     LS.reconcile(None, None),
+                     LS.reconcile([_row("a")], None),
+                     LS.reconcile(None, [_con("a")])):
+            assert plan["note"].endswith("."), plan["note"]
+
+    def test_our_mode_is_published_so_a_reader_can_see_what_judged_ownership(self):
+        assert LS.reconcile([], [], our_mode="dev")["our_mode"] == "dev"
+        assert LS.reconcile([], [], our_mode=None)["our_mode"] is None
+
+
+# ============================================================== the anchor
+
+class TestKnownSince:
+    """The fence's anchor, and why the direction of every fallback is the safe
+    one. ``engineledger.signal_liveness`` fences a signal only when it was
+    raised STRICTLY BEFORE this instant, and a fenced signal stops counting
+    toward the divergence verdict — so EARLIER fences fewer and is safer."""
+
+    def test_without_a_registry_the_anchor_is_the_process_birth(self):
+        assert LS.known_since(False, None, "2026-01-01T00:00:00+00:00") == \
+            "2026-01-01T00:00:00+00:00"
+
+    def test_a_registry_epoch_replaces_the_process_birth(self):
+        assert LS.known_since(True, "2026-01-01T00:00:00+00:00",
+                              "2026-06-01T00:00:00+00:00") == \
+            "2026-01-01T00:00:00+00:00"
+
+    def test_an_unreadable_epoch_is_ABSENT_and_not_the_process_birth(self):
+        """THE ONE THAT MATTERS. MUTANT: fall back to ``process_born``. That is
+        the LATER value, so it would fence MORE signals — the permissive
+        direction — on the exact path where the registry might well have
+        accounted for them. ``None`` makes the fence prove nothing, which is
+        what an unreadable input is required to do."""
+        assert LS.known_since(True, None, "2026-06-01T00:00:00+00:00") is None
+        assert LS.known_since(True, "   ", "2026-06-01T00:00:00+00:00") is None
+
+    def test_the_registry_epoch_is_earlier_and_that_is_the_safety_argument(self):
+        """Not a tautology: it states the property the direction argument
+        rests on, so a later reader can check it rather than trust it."""
+        epoch, born = "2026-01-01T00:00:00+00:00", "2026-06-01T00:00:00+00:00"
+        assert LS.known_since(True, epoch, born) < LS.known_since(False, None, born)
+
+    def test_a_blank_process_birth_is_absent_too(self):
+        assert LS.known_since(False, None, "") is None
+        assert LS.known_since(False, None, None) is None
+
+
+# ===================================================== the rule, spelled once
+
+class TestTheUniquenessRuleIsSpelledOnce:
+    def test_the_sql_predicate_is_DERIVED_from_ALIVE_not_retyped(self, monkeypatch):
+        """PROVE IT IS READ, NOT COPIED — BY MOVING IT.
+
+        An assertion that the DDL merely CONTAINS ``'running'`` cannot tell a
+        real read from a hardcoded duplicate that happens to agree today. So
+        the constant is MOVED and the SQL must move with it.
+        """
+        from app.fund import leanstore
+        before = leanstore.session_schema_sql()
+        assert "'starting', 'running'" in before
+
+        monkeypatch.setattr(LS, "ALIVE", ("warming", "spinning"))
+        after = leanstore.session_schema_sql()
+        assert "'warming', 'spinning'" in after
+        assert "'running'" not in after
+
+    def test_the_registry_query_reads_the_same_constant(self, monkeypatch):
+        """``live_session_rows`` binds ``ALIVE`` as parameters. Pinned at the
+        source, because the query needs a database to run and this property
+        does not."""
+        from app.fund import leanstore
+        src = inspect.getsource(leanstore.LeanStore.live_session_rows)
+        assert "leansessions.ALIVE" in src
+        assert "'running'" not in src and '"running"' not in src
+
+
+# ================================== the atomicity the race depends on
+
+class TestTheGuardIsAtomic:
+    def test_the_scope_check_and_the_insert_are_under_ONE_lock(self):
+        """THE TOCTOU, PINNED STRUCTURALLY (ticket dc12903f).
+
+        The behavioural race below is probabilistic — it can only ever say
+        "these 50 attempts did not collide". This says the WINDOW DOES NOT
+        EXIST: the read that decides and the write that claims are inside the
+        same ``with self._lock`` block. Reverting to the two-lock shape that
+        shipped the double-200 fails here, deterministically, every time.
+        """
+        from app.fund import leanrunner
+        src = inspect.getsource(leanrunner.LeanRunner.start_live)
+        tree = ast.parse(textwrap.dedent(src))
+        blocks = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.With):
+                body = "\n".join(ast.unparse(s) for s in node.body)
+                head = "".join(ast.unparse(i.context_expr) for i in node.items)
+                if "self._lock" in head:
+                    blocks.append(body)
+        assert blocks, "start_live must claim under a lock at all"
+        holding = [b for b in blocks
+                   if "self._live[session_id] = session" in b]
+        assert len(holding) == 1, "exactly one block may make the claim"
+        assert "scope_key" in holding[0], (
+            "the scope check must be INSIDE the block that claims — reading it "
+            "in an earlier block is the window that let two identical POSTs "
+            "both return 200 on 2026-08-26")
+        assert "MAX_LIVE_SESSIONS" in holding[0], (
+            "the ceiling is decided on the same snapshot as the scope, or two "
+            "starts can jointly exceed it")
+
+
+# ================================== the race, end to end, through the runner
+
+LIVE_ALGO = """
+from AlgorithmImports import *
+class LiveAlgo(QCAlgorithm):
+    def initialize(self):
+        self.sym = self.add_data(SpineBars, "GLD", Resolution.DAILY).symbol
+        self.set_benchmark(self.sym)
+"""
+
+FAKE_LIVE = r"""
+import sys, time
+if "kill" in sys.argv[:2]:
+    sys.exit(0)
+time.sleep(60)
+"""
+
+
+def _runner(tmp_path):
+    import sys
+    from app.fund.leanrunner import LeanRunner
+    script = tmp_path / "fake_docker.py"
+    script.write_text(FAKE_LIVE, encoding="utf-8")
+    r = LeanRunner(workspace=tmp_path / "ws",
+                   docker_cmd=[sys.executable, str(script)])
+    r.save_algorithm("live", LIVE_ALGO)
+    return r
+
+
+class TestTheRace:
+    def test_two_simultaneous_starts_give_exactly_one_winner(self, tmp_path):
+        """THE INCIDENT, REPRODUCED AS A TEST (ticket dc12903f, 2026-08-26):
+        two identical POSTs two milliseconds apart BOTH returned 200 and both
+        ran a container for one strategy.
+
+        A barrier makes both threads arrive together, and the assertion is on
+        the INVARIANT rather than on which one wins: exactly one session, and
+        exactly one refusal that says it lost.
+        """
+        from app.fund.leanrunner import LeanConflict
+        r = _runner(tmp_path)
+        gate = threading.Barrier(2)
+        out, err = [], []
+
+        def go():
+            gate.wait()
+            try:
+                out.append(r.start_live("live", strategy_id="s1"))
+            except LeanConflict as e:
+                err.append(str(e))
+
+        ts = [threading.Thread(target=go) for _ in range(2)]
+        for t in ts:
+            t.start()
+        for t in ts:
+            t.join(20)
+
+        assert len(out) == 1, f"expected one winner, got {len(out)}"
+        assert len(err) == 1, f"expected one refusal, got {err}"
+        assert "already holds strategy:s1" in err[0]
+        alive = [s for s in r.live_sessions() if LS.is_alive(s)]
+        assert len(alive) == 1
+
+    def test_the_refusal_is_a_CONFLICT_and_not_a_bad_request(self, tmp_path):
+        """A 409 and a 400 are different answers: the caller that lost a race
+        may retry, the caller that asked for something impossible may not.
+        ``LeanConflict`` subclasses ``LeanError`` so every existing handler
+        still catches it."""
+        from app.fund.leanrunner import LeanConflict, LeanError
+        assert issubclass(LeanConflict, LeanError)
+        r = _runner(tmp_path)
+        r.start_live("live", strategy_id="s1")
+        with pytest.raises(LeanConflict):
+            r.start_live("live", strategy_id="s1")
+
+    def test_two_DIFFERENT_strategies_both_start(self, tmp_path):
+        """The widening the CEO's autopilot decision asked for: N strategies,
+        N sessions. The old refusal was global and would have failed this."""
+        r = _runner(tmp_path)
+        a = r.start_live("live", strategy_id="s1")
+        b = r.start_live("live", strategy_id="s2")
+        assert a["session_id"] != b["session_id"]
+        assert a["scope_key"] == "strategy:s1"
+        assert b["scope_key"] == "strategy:s2"
+        assert len([s for s in r.live_sessions() if LS.is_alive(s)]) == 2
+
+    def test_a_stopped_session_releases_its_scope(self, tmp_path):
+        """MUTANT: keep the scope claimed after a stop. A strategy would be
+        locked out of the engine for the life of the process after one stop."""
+        r = _runner(tmp_path)
+        first = r.start_live("live", strategy_id="s1")["session_id"]
+        r.stop_live(first)
+        again = r.start_live("live", strategy_id="s1")
+        assert again["session_id"] != first
+
+    def test_the_ceiling_refuses_and_names_itself(self, tmp_path, monkeypatch):
+        from app.fund import leanrunner
+        monkeypatch.setattr(leanrunner, "MAX_LIVE_SESSIONS", 2)
+        r = _runner(tmp_path)
+        r.start_live("live", strategy_id="s1")
+        r.start_live("live", strategy_id="s2")
+        with pytest.raises(leanrunner.LeanError) as e:
+            r.start_live("live", strategy_id="s3")
+        assert "LEAN_MAX_LIVE_SESSIONS" in str(e.value)
+
+    def test_the_ceiling_counts_only_LIVE_sessions(self, tmp_path, monkeypatch):
+        """MUTANT: count every row ever. A day of finished sessions would then
+        refuse every new one."""
+        from app.fund import leanrunner
+        monkeypatch.setattr(leanrunner, "MAX_LIVE_SESSIONS", 1)
+        r = _runner(tmp_path)
+        sid = r.start_live("live", strategy_id="s1")["session_id"]
+        r.stop_live(sid)
+        assert r.start_live("live", strategy_id="s2")["session_id"]
+
+    def test_the_uniqueness_basis_says_which_guarantee_this_is(self, tmp_path):
+        """A deployment with no registry has the in-process lock only, which
+        cannot see a second spine. Two different guarantees; the response says
+        which one it gave rather than letting the caller assume the stronger."""
+        r = _runner(tmp_path)
+        assert r.start_live("live")["uniqueness_basis"] == "process_memory"
+
+
+# ============================== the runner's reconciliation, with a fake docker
+
+class _FakeDocker:
+    """A runner whose docker answers exactly what a test says it answers.
+
+    Replaces the two subprocess calls the reconciler makes rather than the
+    whole runner, so the classification, the ordering and the state writes are
+    the REAL ones — a fixture that stubbed ``reconcile_containers`` itself
+    would exercise nothing.
+    """
+
+    def __init__(self, runner, containers, kill_ok=True):
+        self.runner, self.containers, self.kill_ok = runner, containers, kill_ok
+        self.killed = []
+        runner.docker_live_containers = lambda: self.containers
+        runner._kill_container = self._kill
+
+    def _kill(self, container):
+        self.killed.append(container)
+        return (self.kill_ok, f"docker killed {container}."
+                if self.kill_ok else f"docker refused to kill {container}.")
+
+
+class TestRunnerReconciliation:
+    def test_an_unaccounted_container_is_stopped(self, tmp_path):
+        """THE ORPHAN, CLOSED. Before this, a container that outlived the spine
+        was invisible AND unstoppable: ``_live`` was empty after a restart and
+        ``stop_live`` could only reach what that dict knew."""
+        r = _runner(tmp_path)
+        d = _FakeDocker(r, [_con("ghost")])
+        report = r.reconcile_containers()
+        assert d.killed == [f"{LS.CONTAINER_PREFIX}ghost"]
+        assert report["counts"][LS.STOP] == 1
+
+    def test_an_unreadable_docker_kills_nothing(self, tmp_path):
+        """MUTANT: treat ``None`` as ``[]``. Nothing would be killed either —
+        but every live row would be marked vanished, which releases scopes for
+        containers that are still running. Both halves are asserted."""
+        r = _runner(tmp_path)
+        d = _FakeDocker(r, None)
+        report = r.reconcile_containers()
+        assert d.killed == []
+        assert report["actions"] == []
+        assert report["checked"] is False
+
+    def test_reconciliation_never_raises_into_start_up(self, tmp_path):
+        """It runs inside ``app.main.lifespan``. A reconciliation that cannot
+        run must not stop the spine from starting."""
+        r = _runner(tmp_path)
+
+        def boom():
+            raise RuntimeError("docker is on fire")
+        r.docker_live_containers = boom
+        with pytest.raises(RuntimeError):
+            r.reconcile_containers()   # the runner does raise ...
+
+    def test_the_spine_start_up_swallows_that_and_says_so(self):
+        """... and ``lifespan`` is where it is caught. Pinned at the source
+        because starting the whole app in a unit test would prove less: what
+        matters is that the call is inside a try that logs and continues."""
+        import app.main as main
+        src = inspect.getsource(main.lifespan)
+        i = src.index("reconcile_containers")
+        window = src[max(0, i - 400):i + 600]
+        assert "try:" in window
+        assert "except Exception" in window
+        assert "_log.warning" in window

@@ -674,12 +674,27 @@ def test_live_requires_a_benchmark_on_the_custom_symbol(tmp_path):
         r.start_live("nobench")
 
 
-def test_only_one_live_session_at_a_time(tmp_path):
+def test_only_one_live_session_PER_SCOPE(tmp_path):
+    """CHANGED 2026-08-27, and the direction of each half is stated because
+    they point opposite ways.
+
+    The old rule was GLOBAL — one live session at a time, whatever it ran — and
+    the CEO's autopilot decision needs several deployed strategies live
+    together. So the concurrency bound WIDENS from 1 to MAX_LIVE_SESSIONS, and
+    the uniqueness rule NARROWS onto a scope and moves into the database, where
+    it is atomic. Two identical starts still cannot both win; two different
+    strategies now both can.
+
+    The scope tests live in tests/test_leansessions.py with the incident that
+    earned them (ticket dc12903f). This one stays here because it is the
+    refusal this file has always asserted, in its new shape.
+    """
+    from app.fund.leanrunner import LeanConflict
     r = _runner(tmp_path, FAKE_LIVE)
     r.save_algorithm("live", LIVE_ALGO)
     r.start_live("live")
     time.sleep(0.3)
-    with pytest.raises(LeanError, match="already running"):
+    with pytest.raises(LeanConflict, match="already holds algorithm:live"):
         r.start_live("live")
 
 

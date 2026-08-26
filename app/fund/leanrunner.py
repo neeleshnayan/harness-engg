@@ -133,6 +133,31 @@ CONTAINER_MEMORY = os.getenv("LEAN_CONTAINER_MEMORY", "768m")
 #: from the same pool would starve research for the rest of the day.
 _ENGINE_SLOTS = threading.BoundedSemaphore(MAX_CONCURRENT_CONTAINERS)
 
+#: How many live sessions may hold a container at once.
+#:
+#: **THIS BOUND USED TO BE 1 AND IT WAS NOT WRITTEN DOWN — it was the shape of a
+#: refusal ("a live session is already running") in ``start_live``. Multi-session
+#: support removes that refusal, which MOVES AN IMPLICIT LIMIT IN THE PERMISSIVE
+#: DIRECTION, so it gets a name, a number and this note rather than silence.**
+#:
+#: The number is a RATIO of the one limit here with a measured basis, not a new
+#: measurement: half of ``MAX_CONCURRENT_CONTAINERS``, floored at 1. The ratio is
+#: a choice and is stated as one.
+#:
+#: THE RESIDUAL, NAMED RATHER THAN GLOSSED. The sizing rule written at
+#: MAX_CONCURRENT_CONTAINERS is `slots x cap <= free RAM`, and live sessions
+#: deliberately do NOT draw from the research pool (a session holds its container
+#: all day and would starve the belt). So the joint worst case is
+#: `(MAX_CONCURRENT_CONTAINERS + MAX_LIVE_SESSIONS) x CONTAINER_MEMORY` =
+#: 9 x 768 MiB = 6.75 GiB, against the ~5 GB free the benchmark was sized in.
+#: That product does not satisfy the rule, and it did not satisfy it at 1 live
+#: session either (7 x 768 MiB = 5.25 GiB) — this change makes an existing
+#: overdraft larger, it does not create one. Closing it means deciding which
+#: pool live sessions draw from, which is a human's call about starving research
+#: versus bounding memory, and is left to one.
+MAX_LIVE_SESSIONS = int(os.getenv("LEAN_MAX_LIVE_SESSIONS",
+                                  str(max(1, MAX_CONCURRENT_CONTAINERS // 2))))
+
 _PARAM_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_\-]{0,31}$")
 
 #: The parameter an algorithm reads to fill FRACTIONAL shares.
@@ -193,6 +218,16 @@ def honours_fractional(code: Optional[str]) -> bool:
 
 class LeanError(Exception):
     pass
+
+
+class LeanConflict(LeanError):
+    """This request lost a race for a resource another one holds.
+
+    A SUBCLASS so every existing ``except LeanError`` still catches it, and its
+    own class so the API can answer 409 rather than 400: "you asked for
+    something impossible" and "someone else got there first" are different
+    facts, and a caller retrying is right about exactly one of them.
+    """
 
 
 def _param_value(v: Any) -> str:
@@ -370,6 +405,12 @@ class LeanRunner:
 
     Jobs are in-memory by design: a backtest is a computation, not fund
     state. Losing the job table on restart costs a re-run, never a fact.
+
+    LIVE SESSIONS ARE NOT, and the difference is why they got a registry. A
+    session is a RUNNING PROCESS holding a signal token — losing its record does
+    not cost a re-run, it costs a container nobody can stop and nobody can
+    account for. ``_live`` is now a cache of ``fund_lean_sessions``; the rows are
+    the record.
     """
 
     def __init__(self, workspace: Path | None = None,
@@ -382,21 +423,29 @@ class LeanRunner:
         self._jobs: dict[str, dict[str, Any]] = {}
         self._sweeps: dict[str, dict[str, Any]] = {}
         self._live: dict[str, dict[str, Any]] = {}
-        # WHEN THIS RUNNER'S SESSION MEMORY BEGAN. ``_live`` is an in-memory
-        # dict born empty right here, so NO session record can exist from
-        # before this instant — by construction, not by policy. That makes it
-        # the only honest anchor for the question "does the absence of a
-        # session prove the engine that raised an old signal is gone?".
-        # ``engineledger`` fences dead-history signals on exactly this line:
-        # a signal raised BEFORE this instant has no session record and cannot
-        # get one; a signal raised AFTER it with no session on record is an
-        # engine this list could not see, which is the opposite conclusion.
+        # WHEN THIS PROCESS'S SESSION MEMORY BEGAN — the fence's anchor ONLY
+        # when there is no registry.
+        #
+        # CORRECTED 2026-08-27, and the correction is the point of the change.
+        # This used to be the anchor unconditionally, on the argument that
+        # ``_live`` is born empty right here so no session record can exist
+        # from before this instant. That argument was sound and it is now
+        # false: sessions are rows in ``fund_lean_sessions`` and they survive
+        # restarts, so a record CAN exist from before this process. The line
+        # that matters became the REGISTRY's epoch, which is earlier — and
+        # earlier fences strictly fewer signals, which is the safe direction.
+        # ``leansessions.known_since`` holds the three-case decision and the
+        # direction argument; this value is now one of its three inputs.
         self._born = _now()
         self._lock = threading.Lock()
         # Durable mirror, built on first use so a runner with no database (every
         # test) behaves exactly as before.
         self._store: Any = None
         self._store_tried = False
+        # The session registry, built on first use. Separate from ``_store``
+        # because its failure semantics are the opposite: the job mirror
+        # degrades silently, the session registry refuses.
+        self._registry_store: Any = None
 
     # --- durable mirror ------------------------------------------------------
 
@@ -615,6 +664,51 @@ class LeanRunner:
         return live + older
 
     # --- live sessions -------------------------------------------------------
+    #
+    # DURABLE SINCE 2026-08-27. Sessions used to live only in ``_live``, an
+    # in-memory dict, and three measured consequences followed from that one
+    # fact: a session died with every spine restart; a container OUTLIVED the
+    # spine (``_run_live`` starts ``docker run`` from a daemon thread, so the
+    # container lives in the docker daemon) and became an orphan nothing could
+    # stop; and the single-session guard read the dict, released its lock and
+    # then inserted, so two identical POSTs two milliseconds apart both got 200
+    # (ticket dc12903f, verified live). The registry closes all three: rows
+    # survive restarts, start-up reconciles them against ``docker ps``, and the
+    # database's own partial unique index decides who wins a race.
+
+    def _registry(self):
+        """The session registry, or ``None`` when this deployment has none.
+
+        DIFFERENT FAILURE SEMANTICS FROM ``_durable()`` AND DELIBERATELY SO. The
+        job mirror is best-effort because losing a copy of a finished backtest
+        costs a re-run. Losing a SESSION row costs a container the fund cannot
+        stop and cannot account for. So when Postgres is configured and the
+        registry cannot be built, this RAISES rather than degrading to memory —
+        and ``start_live`` refuses. An unregistrable session is an orphan we
+        have not created yet.
+        """
+        if not self._registry_required:
+            return None
+        if self._registry_store is not None:
+            return self._registry_store
+        from app.fund.leanstore import LeanStore
+        self._registry_store = LeanStore()
+        return self._registry_store
+
+    @property
+    def _registry_required(self) -> bool:
+        from app.fund.leanstore import enabled
+        return enabled()
+
+    def _our_mode(self) -> Optional[str]:
+        """This process's fund mode, for the container label. ``None`` when it
+        cannot be read — which ``leansessions.ownership`` treats as "cannot
+        judge another container's ownership", never as "it is mine"."""
+        try:
+            from app.fund import mode
+            return mode.current_label()
+        except Exception:  # noqa: BLE001 — an unreadable mode is not a mode
+            return None
 
     def start_live(self, algorithm: str, strategy_id: str = "",
                    signal_token: str = "", qty: float = 0.1) -> dict[str, Any]:
@@ -624,8 +718,7 @@ class LeanRunner:
         container gets a signal token and a strategy id and nothing else: no
         venue credentials, no broker keys. Its entire reach is a POST to the
         spine's token-gated intake, where the proposal joins the approval queue
-        behind the risk and compliance gates. The human click stays the only
-        path to the venue.
+        behind the risk and compliance gates.
 
         Two things worth knowing before relying on this:
 
@@ -636,7 +729,16 @@ class LeanRunner:
           the fund's own data arrives.
         * On daily bars this is a once-a-day event, not a ticking feed. Live
           mode buys supervision and state that survives the day, not latency.
+
+        **N STRATEGIES, N SESSIONS, ONE PER SCOPE.** The old refusal was global
+        — one live session at a time, whatever it was running — and the CEO's
+        autopilot decision needs several deployed strategies live together. What
+        replaces it is NARROWER where it matters and wider only where it was
+        never the point: a scope (a strategy, or an algorithm when the session
+        is unscoped) may hold exactly ONE live session, enforced by the
+        database, and a bounded number of scopes may be live at once.
         """
+        from app.fund import leansessions
         algo = self.get_algorithm(algorithm)
         m = _CLASS_RE.search(algo["code"])
         if not m:
@@ -647,70 +749,324 @@ class LeanRunner:
                 "without it LEAN subscribes to SPY minute bars, which the "
                 "live-paper data queue cannot serve, and the session dies at "
                 "startup")
-        with self._lock:
-            running = [s for s in self._live.values() if s["state"] == "running"]
-        if running:
-            raise LeanError(
-                f"a live session is already running ({running[0]['algorithm']}); "
-                f"stop it before starting another")
 
+        # Resolved BEFORE the claim: if the registry is configured and cannot be
+        # reached, nothing is started. Refusing costs a retry; starting an
+        # unregistered session costs an orphan.
+        try:
+            registry = self._registry()
+        except Exception as e:  # noqa: BLE001
+            raise LeanError(
+                f"the session registry is configured and unreachable ({e}) — "
+                f"refusing to start a session nothing would remember, because "
+                f"an unregistered container cannot be stopped after a restart"
+            ) from e
+
+        key = leansessions.scope_key(strategy_id, algorithm)
         session_id = uuid.uuid4().hex[:12]
         session = {
             "session_id": session_id, "algorithm": algorithm,
             "class_name": m.group(1), "state": "starting",
             "started_at": _now(), "stopped_at": None,
-            "container": f"lean-live-{session_id}",
+            "container": f"{leansessions.CONTAINER_PREFIX}{session_id}",
             "strategy_id": strategy_id,
             # Never the token itself: this dict is returned over the API.
             "signal_configured": bool(strategy_id and signal_token),
             "error": None, "log_tail": [],
+            "scope_key": key,
+            "mode": self._our_mode(),
         }
+
+        # THE IN-PROCESS HALF OF THE GUARD: check and insert under ONE lock.
+        # v1 released the lock between the two and that window is the race. This
+        # closes it for a single process; the database closes it across
+        # processes, and both are needed — a deployment with no Postgres has
+        # only this one.
         with self._lock:
+            alive = [s for s in self._live.values()
+                     if leansessions.is_alive(s)]
+            if any(s.get("scope_key") == key for s in alive):
+                raise LeanConflict(
+                    f"a live session already holds {key} — one live session per "
+                    f"strategy; stop that one before starting another")
+            if len(alive) >= MAX_LIVE_SESSIONS:
+                raise LeanError(
+                    f"{len(alive)} live sessions is already the ceiling of "
+                    f"{MAX_LIVE_SESSIONS} (LEAN_MAX_LIVE_SESSIONS); each holds a "
+                    f"container for its whole life, and the host's RAM is what "
+                    f"bounds them")
             self._live[session_id] = session
+
+        if registry is not None:
+            from app.fund.leanstore import SessionConflict
+            try:
+                registry.claim_session(session)
+            except SessionConflict as e:
+                with self._lock:
+                    self._live.pop(session_id, None)
+                raise LeanConflict(
+                    f"a live session already holds {key} — the registry refused "
+                    f"the claim, which is how two simultaneous starts are "
+                    f"decided") from e
+            except Exception as e:  # noqa: BLE001 — unwritable is not written
+                with self._lock:
+                    self._live.pop(session_id, None)
+                raise LeanError(
+                    f"the session could not be registered ({e}) — refusing to "
+                    f"start a container nothing would remember") from e
+
         threading.Thread(target=self._run_live,
                          args=(session_id, signal_token, qty), daemon=True).start()
         return {"session_id": session_id, "state": "starting",
-                "signal_configured": session["signal_configured"]}
+                "signal_configured": session["signal_configured"],
+                "scope_key": key,
+                # Which mechanism decided this session was unique. A deployment
+                # with no registry has only the in-process lock, which cannot
+                # see a second spine — stated on the response rather than
+                # assumed, because the two guarantees are not the same one.
+                "uniqueness_basis": ("registry" if registry is not None
+                                     else "process_memory")}
 
-    def sessions_known_since(self) -> str:
-        """The instant this runner's session memory began.
+    def sessions_known_since(self) -> Optional[str]:
+        """The instant a session record COULD first have existed.
 
-        Sessions live in ``_live``, an in-memory dict that dies with the
-        process. So "there is no session for that signal" means two completely
-        different things either side of this timestamp: BEFORE it the record
-        could not exist however alive the engine was; AFTER it a missing
-        session means the engine was never seen by this runner at all.
+        Read by the engine fence to decide whether an old signal testifies about
+        a live engine or a dead one. The decision itself lives in
+        ``leansessions.known_since`` — with the direction argument for why an
+        unreadable registry returns ``None`` here and NOT this process's birth,
+        which would be the more permissive value.
 
-        Read by the engine ledger to decide whether an old signal testifies
-        about a live engine or a dead one. Not a control and nothing acts on
-        it — it is a fact about the instrument, published so a fold does not
-        have to guess at it.
+        Not a control and nothing acts on it; it is a fact about the instrument,
+        published so a fold does not have to guess at it.
         """
-        return self._born
+        from app.fund import leansessions
+        epoch = None
+        required = self._registry_required
+        if required:
+            try:
+                registry = self._registry()
+                epoch = registry.registry_epoch() if registry else None
+            except Exception as e:  # noqa: BLE001 — unreadable is not absent
+                logger.warning("session registry epoch unreadable: %s", e)
+                epoch = None
+        return leansessions.known_since(required, epoch, self._born)
 
     def live_sessions(self) -> list[dict[str, Any]]:
+        """Every session this fund knows about, newest first.
+
+        Merged the way ``jobs()`` and ``sweeps()`` are: this process's sessions
+        are live and complete, the registry knows about sessions from before the
+        last restart, and serving only one of the two either loses what is in
+        flight or forgets everything after a restart.
+
+        **RAISES WHEN THE REGISTRY IS CONFIGURED AND UNREADABLE, AND THAT IS THE
+        POINT.** ``fund._live_sessions_or_none`` turns an exception into
+        ``None`` ("could not be read") and an empty list into ``[]`` ("nothing
+        is running"), and the fence takes OPPOSITE decisions on the two. After a
+        restart, ``_live`` is empty; returning it as ``[]`` while the registry
+        was unreachable would claim nothing is running on the exact path where
+        we cannot know.
+        """
         with self._lock:
-            return [dict(s) for s in sorted(self._live.values(),
-                                            key=lambda x: x["started_at"],
-                                            reverse=True)]
+            live = [dict(s) for s in self._live.values()]
+        if not self._registry_required:
+            return sorted(live, key=lambda x: x["started_at"] or "", reverse=True)
+        registry = self._registry()
+        known = {s["session_id"] for s in live}
+        rows = [r for r in registry.session_rows() if r["session_id"] not in known]
+        return sorted(live + rows,
+                      key=lambda x: x.get("started_at") or "", reverse=True)
 
     def live_session(self, session_id: str) -> dict[str, Any]:
         with self._lock:
             s = self._live.get(session_id)
-        if s is None:
-            raise LeanError(f"unknown live session {session_id!r}")
-        return dict(s)
+        if s is not None:
+            return dict(s)
+        if self._registry_required:
+            for r in self._registry().session_rows():
+                if r["session_id"] == session_id:
+                    return r
+        raise LeanError(f"unknown live session {session_id!r}")
 
     def stop_live(self, session_id: str) -> dict[str, Any]:
+        """Kill the container and record the stop, in that order.
+
+        **WHAT DOCKER SAID IS RECORDED RATHER THAN DISCARDED.** The previous
+        version ran ``docker kill`` with ``capture_output=True`` and threw the
+        output away, so a session whose container was already gone — the normal
+        case for a restored row after a restart — was marked ``stopped`` with
+        exactly the same confidence as one we really killed. The state is the
+        same either way (it is not running now), but the REASON is not, and the
+        reason is what tells a reader whether the orphan problem just bit them.
+        """
         s = self.live_session(session_id)
-        subprocess.run(self._docker + ["kill", s["container"]],
-                       capture_output=True, timeout=60)
+        killed, detail = self._kill_container(s.get("container") or "")
+        stopped_at = _now()
         with self._lock:
-            self._live[session_id]["state"] = "stopped"
-            self._live[session_id]["stopped_at"] = _now()
-        return {"session_id": session_id, "state": "stopped"}
+            row = self._live.get(session_id)
+            if row is not None:
+                row["state"] = "stopped"
+                row["stopped_at"] = stopped_at
+                row["stop_detail"] = detail
+                s = dict(row)
+            else:
+                s = {**s, "state": "stopped", "stopped_at": stopped_at,
+                     "stop_detail": detail}
+        self._register_state(s)
+        return {"session_id": session_id, "state": "stopped",
+                "container_killed": killed, "detail": detail}
+
+    def _kill_container(self, container: str) -> tuple[bool, str]:
+        """``(killed, one sentence)``. Never raises — a stop that cannot reach
+        docker still has to record what it could not do."""
+        if not container:
+            return False, ("the session carries no container name, so nothing "
+                           "could be killed.")
+        try:
+            proc = subprocess.run(self._docker + ["kill", container],
+                                  capture_output=True, text=True, timeout=60)
+        except Exception as e:  # noqa: BLE001
+            return False, (f"docker could not be reached to kill {container} "
+                           f"({type(e).__name__}: {e}), so whether it is still "
+                           f"running is UNKNOWN.")
+        if proc.returncode == 0:
+            return True, f"docker killed {container}."
+        return False, (f"docker refused to kill {container} "
+                       f"({(proc.stderr or '').strip()[:200] or 'no detail'}) — "
+                       f"most often because it was already gone.")
+
+    def _register_state(self, session: dict[str, Any]) -> None:
+        """Write a session's state back to the registry. Best-effort AFTER the
+        claim, unlike the claim itself.
+
+        The claim must succeed or nothing starts; an UPDATE that fails leaves a
+        stale row, and a stale row is self-healing — start-up reconciliation
+        finds a live row with no container and marks it ``vanished``, which
+        releases the scope. So this logs loudly and does not raise into a worker
+        thread, where an exception would kill the only thread that could ever
+        correct the row.
+        """
+        if not self._registry_required:
+            return
+        try:
+            self._registry().update_session(session)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("session %s state %r not written to the registry: "
+                           "%s — start-up reconciliation will correct it",
+                           session.get("session_id"), session.get("state"), e)
+
+    def registry_durable(self) -> bool:
+        """Do sessions survive a restart here? A fact about the instrument, so
+        a reader of an empty session list can tell "nothing is running" from
+        "this process forgot"."""
+        return self._registry_required
+
+    def registry_rows_or_none(self) -> Optional[list[dict[str, Any]]]:
+        """Every registry row, or ``None`` when the registry could not be read —
+        never ``[]``. Written once here because BOTH the reconciler and the
+        read-only endpoint need the distinction, and reading it twice is how one
+        of the two ends up half-right."""
+        if not self._registry_required:
+            return []
+        try:
+            return self._registry().session_rows()
+        except Exception as e:  # noqa: BLE001 — unreadable proves no orphan
+            logger.warning("session registry unreadable: %s", e)
+            return None
+
+    def docker_live_containers(self) -> Optional[list[dict[str, Any]]]:
+        """Running LEAN live containers, or ``None`` when docker cannot be asked.
+
+        ``None`` and ``[]`` are different facts and this fund has paid for
+        collapsing them: ``[]`` says the daemon answered and nothing is running;
+        ``None`` says we do not know. The reconciler stops nothing on ``None``.
+        """
+        from app.fund import leansessions
+        fmt = '{{.Names}}\t{{.Label "' + leansessions.MODE_LABEL + '"}}'
+        try:
+            proc = subprocess.run(
+                self._docker + ["ps", "--filter",
+                                f"name={leansessions.CONTAINER_PREFIX}",
+                                "--format", fmt],
+                capture_output=True, text=True, timeout=30)
+        except Exception as e:  # noqa: BLE001 — unreachable is not empty
+            logger.warning("docker could not be asked what is running: %s", e)
+            return None
+        if proc.returncode != 0:
+            logger.warning("docker ps failed: %s",
+                           (proc.stderr or "").strip()[:200])
+            return None
+        out: list[dict[str, Any]] = []
+        for line in (proc.stdout or "").splitlines():
+            if not line.strip():
+                continue
+            name, _, label = line.partition("\t")
+            out.append({"name": name.strip(), "mode": label.strip() or None})
+        return out
+
+    def reconcile_containers(self) -> dict[str, Any]:
+        """Match the registry against ``docker ps`` and act on the difference.
+
+        **THIS IS THE HALF OF THE FIX THAT MAKES THE OTHER HALF TRUE.** A
+        durable registry alone would still leave a container running that no
+        process remembers; ``engineledger.ORPHAN_NOTE`` names that exact gap and
+        says closing it needs the runner to reconcile against ``docker ps`` at
+        start-up. This is that reconciliation.
+
+        Called at spine start-up (``app.main.lifespan``). Never raises: a
+        reconciliation that cannot run must not stop the spine from starting —
+        it reports what it could not do, and every action it did not take is
+        visible in the counts beside the domain it compared.
+        """
+        from app.fund import leansessions
+        rows = self.registry_rows_or_none()
+        containers = self.docker_live_containers()
+        plan = leansessions.reconcile(rows, containers,
+                                      our_mode=self._our_mode())
+
+        performed: list[dict[str, Any]] = []
+        for act in plan["actions"]:
+            what, sid = act["action"], act["session_id"]
+            row = next((r for r in (rows or ()) if r.get("session_id") == sid),
+                       None)
+            if what in (leansessions.REATTACH, leansessions.ADOPT):
+                taken = dict(row or {})
+                taken.update({"session_id": sid, "state": "running",
+                              "container": act.get("container"),
+                              "restored": True})
+                if what == leansessions.ADOPT:
+                    taken["error"] = (
+                        f"the registry recorded this session as "
+                        f"{act.get('row_state')!r} and its container was still "
+                        f"running at start-up; the container is the fact, so "
+                        f"the row was corrected.")
+                with self._lock:
+                    self._live[sid] = taken
+                self._register_state(taken)
+                performed.append({**act, "done": True})
+            elif what == leansessions.STOP:
+                killed, detail = self._kill_container(act.get("container") or "")
+                logger.warning("stopped an unaccounted LEAN container %s: %s",
+                               act.get("container"), detail)
+                performed.append({**act, "done": killed, "detail": detail})
+            elif what == leansessions.VANISHED:
+                gone = dict(row or {})
+                gone.update({"session_id": sid,
+                             "state": leansessions.VANISHED,
+                             "stopped_at": _now(),
+                             "error": ("no container backed this session at "
+                                       "start-up, so how it ended is UNKNOWN; "
+                                       "it is recorded vanished rather than "
+                                       "ended, which would claim we read an "
+                                       "exit code.")})
+                self._register_state(gone)
+                performed.append({**act, "done": True})
+            else:  # LEAVE — recorded, never touched
+                performed.append({**act, "done": False})
+        return {**plan, "actions": performed}
 
     def _run_live(self, session_id: str, signal_token: str, qty: float) -> None:
+        from app.fund import leansessions
         session = self._live[session_id]
         algo_dir = (self._ws / "algorithms" / session["algorithm"]).resolve()
         res_dir = (self._ws / "results" / f"live-{session_id}").resolve()
@@ -718,6 +1074,11 @@ class LeanRunner:
 
         cmd = self._docker + [
             "run", "--rm", "--name", session["container"],
+            # WHOSE CONTAINER THIS IS, on the container itself. Two spines in
+            # different modes share one docker daemon and one `lean-live-`
+            # namespace; without this the reconciler would call the other's
+            # session an unaccounted orphan and stop it.
+            "--label", f"{leansessions.MODE_LABEL}={session.get('mode') or ''}",
             "--add-host=host.docker.internal:host-gateway",
             "-v", f"{algo_dir}:/Algorithm:ro",
             "-v", f"{res_dir}:/Results",
@@ -732,6 +1093,7 @@ class LeanRunner:
             "--results-destination-folder", "/Results",
         ]
         session["state"] = "running"
+        self._register_state(session)
         try:
             # No timeout: a live session runs until it is stopped. That is the
             # difference between this and a backtest, and the reason the job
@@ -751,6 +1113,12 @@ class LeanRunner:
         finally:
             if session["stopped_at"] is None:
                 session["stopped_at"] = _now()
+            # THE ROW MUST BE RELEASED OR THE SCOPE STAYS CLAIMED FOREVER. The
+            # unique index is partial on the alive states, so a session that
+            # ends without writing its terminal state would block every future
+            # session for that strategy until start-up reconciliation cleared
+            # it. In the `finally` for exactly that reason.
+            self._register_state(session)
 
     # --- sweeps --------------------------------------------------------------
 
