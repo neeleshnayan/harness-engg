@@ -2080,6 +2080,149 @@ export interface DeskSupersessionPage {
   unapprovable_modes: string[];
 }
 
+/* --- the ticket highway (design: docs/design/TICKET_HIGHWAY_V1_2026-08-24.md) --
+ *
+ * WIRE SHAPES READ FROM A RUNNING SPINE, NEVER GUESSED. Every field below was
+ * taken from `GET /api/v1/fund/tickets?limit=5000` against the highway build
+ * on 2026-08-26 (713 tickets: 123 ask, 25 dispatch, 565 recommendation) and
+ * the optional markers are the MEASURED population, not a preference:
+ * `run_id`/`rec_id`/`money_at_stake`/`due_date`/`reversibility` rode 565 rows,
+ * `request_id` 123, `task_id` 37, `citation` 73, `reason` 2. Three bugs at
+ * this firm came from reading a key an endpoint never returned; this comment
+ * is the receipt that these ones are returned.
+ *
+ * THE ENDPOINT MAY BE ABSENT. It ships on a branch the chair has not merged,
+ * so a spine without it answers 404 — which is a different fact from an
+ * unreadable record and the desk says so (`ticketRead.ts`). */
+
+/** Working states first, then the five terminals. The order is the lifecycle's
+ *  own and the fold publishes it as `states`; a client that sorted this list
+ *  would lose the only ordering the spine gives it. */
+export type TicketState =
+  | "filed" | "approved" | "in_flight" | "returned" | "accepted"
+  | "done" | "declined" | "superseded" | "merged" | "expired";
+
+export type TicketType =
+  | "ask" | "dispatch" | "recommendation" | "challenge" | "lesson";
+
+/** One applied state change. `basis` is the spine's word for WHY, e.g.
+ *  `birth` / `decision` / `dispatch` / `review-close` / `sweep:<policy>`. */
+export interface TicketTransition {
+  from: TicketState | null;
+  to: TicketState;
+  at: string | null;
+  actor: string | null;
+  basis: string | null;
+}
+
+/** A transition the fold REFUSED under terminal precedence. Kept, not dropped:
+ *  "this never happened" and "this was attempted and correctly refused" are
+ *  different facts and only the second says a guard did its job. */
+export interface TicketRefusedTransition extends TicketTransition {
+  why?: string | null;
+}
+
+export interface Ticket {
+  ticket_id: string;
+  type: TicketType;
+  state: TicketState;
+  subject: unknown;
+  filed_for: string | null;
+  filed_by: string | null;
+  filed_at: string | null;
+  trace_id: string | null;
+  parent_id: string | null;
+  /** Which adapter produced the row: `DeskRequested` / `DeskDispatched` /
+   *  `deskstore.recommendations` / `TicketOpened`. */
+  source: string;
+  transitions: TicketTransition[];
+  refused_transitions: TicketRefusedTransition[];
+  /** `run_trace_id` when the parent is real, `unlinkable_pre_highway` when the
+   *  record cannot support one. THE SECOND IS NOT "NO PARENT" — it is the
+   *  fenced cohort, and rendering it as absent would be the absence-as-zero
+   *  defect on the surface built to end it. */
+  parent_basis?: string | null;
+  terminal: boolean;
+  next_actor: string;
+  next_actor_basis: string;
+  next_actor_why: string;
+  /** Hours since `filed_at`. Null when the fold could not read the instants,
+   *  and then `age_basis` is `"unknown"` — never zero. */
+  age_hours: number | null;
+  age_basis: "event_timestamps" | "unknown" | string;
+  age_in_state_hours: number | null;
+  age_in_state_basis: "event_timestamps" | "unknown" | string;
+  /** Has this ticket EVER received a decision. Survives the move to `done`. */
+  decided: boolean;
+  decision_count: number;
+  decided_state: TicketState | null;
+  decided_at: string | null;
+  decided_by: string | null;
+  canonical_ticket_id: string | null;
+  decision_basis: string | null;
+  kind?: string | null;
+  legacy_status?: string | null;
+  money_at_stake?: number | null;
+  due_date?: string | null;
+  reversibility?: string | null;
+  run_id?: string | null;
+  rec_id?: number | null;
+  request_id?: string | null;
+  task_id?: string | null;
+  dispatched_at?: string | null;
+  dispatched_to?: string | null;
+  approved_by?: string | null;
+  approved_at?: string | null;
+  citation?: string | null;
+  reason?: string | null;
+  resolved_at?: string | null;
+  returned_at?: string | null;
+  returned_basis?: string | null;
+}
+
+export interface TicketCounts {
+  total: number;
+  working: number;
+  terminal: number;
+  by_state: Record<string, number>;
+  by_type: Record<string, number>;
+  by_next_actor: Record<string, number>;
+  unlinked_children: number;
+  /** FALSE means the recommendation leg is UNKNOWN, not empty. A spine
+   *  without Postgres still reads the event log, so asks and dispatches are
+   *  real while recommendations are unread. */
+  recommendations_read: boolean;
+  recommendations_complete: boolean;
+  recommendations_unreadable_runs: number;
+  runs_seen: number | null;
+  runs_limit: number | null;
+  runs_truncated: boolean | null;
+  /** The OTHER instrument's population bound, published so a reconciliation
+   *  says which side of the cap it holds on (HW1). */
+  desk_load_runs_cap?: number | null;
+  reconciles_with_desk_load?: boolean | null;
+}
+
+export interface TicketPage {
+  readable: boolean;
+  tickets: Ticket[] | null;
+  counts: TicketCounts;
+  reconciliation: Record<string, unknown>;
+  phantom_events: unknown[];
+  fold_version: string;
+  dispatch_routing_version?: string;
+  note: string;
+  /** After filtering, BEFORE the page cap. `shown` is after both. */
+  total: number | null;
+  shown: number | null;
+  truncated: boolean | null;
+  limit: number;
+  filters: { type: string | null; state: string | null };
+  /** The vocabulary, served even on the degraded branch. */
+  types: TicketType[];
+  states: TicketState[];
+}
+
 export interface DeskMatrixCell {
   count: number;
   /** How many rows the payload actually carries. A CAP, never a count — the
@@ -2929,6 +3072,30 @@ export const fundApiClient = {
     seat: string; items: DeskInTrayItem[]; count: number;
     returned_to_me: DeskInTrayItem[]; note: string;
   }> => (await fundApi.get(`${P}/desk/intray/${encodeURIComponent(seat)}`)).data,
+
+  /* --- the ticket highway ----------------------------------------------- */
+
+  /** Every desk request, dispatch and recommendation as ONE ticket population.
+   *
+   *  `limit` is the page cap; the payload's `total` is the count after
+   *  filtering and before the cap, so a caller can tell a filter from a
+   *  truncation. Asking for the wire's own maximum (5000) is deliberate here:
+   *  the CEO's exceptions view must not be computed over a truncated page —
+   *  a filter applied to a page is a filter that lies about its denominator.
+   *
+   *  THIS CAN 404. The endpoint lands with the ticket highway; a spine without
+   *  it rejects, and `ticketRead.ts` renders that as its own sentence rather
+   *  than as an unreadable record. */
+  getTickets: async (opts?: {
+    type?: TicketType; state?: TicketState; limit?: number;
+  }): Promise<TicketPage> =>
+    (await fundApi.get(`${P}/tickets`, {
+      params: {
+        ...(opts?.type ? { type: opts.type } : {}),
+        ...(opts?.state ? { state: opts.state } : {}),
+        limit: opts?.limit ?? 5000,
+      },
+    })).data,
 
   /** Live supersession edges. `unapprovable_modes` comes from the spine so the
    *  UI's disabled state and the server's refusal read one list. */
