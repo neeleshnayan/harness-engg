@@ -251,7 +251,14 @@ def test_chair_backlog_is_reported_and_NOT_summed_into_the_CEO_total():
                "upper_bound": True}
     plain = desk.desk_load([], [], [{}] * 5)
     with_backlog = desk.desk_load([], [], [{}] * 5, chair_backlog=backlog)
-    assert with_backlog["total"] == plain["total"] == 5
+    # ROUTING v2 (2026-08-27, CEO decision): the five open requests are the
+    # CHAIR's move now, so the CEO total reads 0 where v1 read 5. The property
+    # this test defends is UNCHANGED and still asserted: folding in the chair
+    # backlog adds NOTHING to the CEO's figure — a threshold counts what its
+    # version says it counts, and the backlog is reported beside it, never
+    # summed in.
+    assert with_backlog["total"] == plain["total"] == 0
+    assert with_backlog["requests_by_actor"]["chair"] == 5
     assert with_backlog["coo_triage_due"] == plain["coo_triage_due"]
     assert with_backlog["requests_approved_undispatched"] == 30
     assert with_backlog["chair_backlog"] == backlog
