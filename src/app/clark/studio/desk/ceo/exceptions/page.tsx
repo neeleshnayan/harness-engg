@@ -77,8 +77,13 @@ export default function CeoExceptionsPage() {
             <h1 className="text-2xl font-medium tracking-tight">
               Neelesh · exceptions
             </h1>
+            {/* THE FAILURE SENTENCE IS SAID ONCE PER SURFACE. The
+                absent-endpoint arm rendered it VERBATIM TWICE — here and in
+                the block below — and it was visible only on the rendered
+                page, because both halves were individually correct. The
+                block owns the failure; this line owns the count. */}
             <p className={`mt-1 text-sm ${KT.muted}`}>
-              {note ?? exceptionsNote(x) ?? "…"}
+              {countable ? (exceptionsNote(x) ?? "…") : "…"}
             </p>
             <p className={`mt-1 text-xs ${KT.muted}`}>
               <Link href="/clark/studio/desk/ceo" className="underline">

@@ -69,8 +69,13 @@ export default function TicketBoardPage() {
         <header className="mb-6">
           <p className={KT.label}>Krypton Fund · the ticket highway</p>
           <h1 className="text-2xl font-medium tracking-tight">The board</h1>
+          {/* THE FAILURE SENTENCE IS SAID ONCE PER SURFACE. The
+              absent-endpoint arm rendered it VERBATIM TWICE — here and in
+              the block below — and it was visible only on the rendered
+              page, because both halves were individually correct. The
+              block owns the failure; this line owns the count. */}
           <p className={`mt-1 text-sm ${KT.muted}`}>
-            {note ?? page?.note ?? "…"}
+            {countable ? (page?.note ?? "…") : "…"}
           </p>
           <p className={`mt-1 text-xs ${KT.muted}`}>
             <Link href="/clark/studio/desk/ceo/exceptions" className="underline">

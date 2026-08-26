@@ -86,7 +86,7 @@ import type { Ticket, TicketState } from "@/lib/fund_api";
  */
 export const CEO_EXCEPTIONS_VERSION =
   "ceo exceptions v1 (2026-08-26) — the five rules of TICKET_HIGHWAY_V1 Part 3; " +
-  "levels below are the BUILDER'S PROPOSAL and await the CEO's ratification";
+  "its levels are the BUILDER'S PROPOSAL and await the CEO's ratification";
 
 /**
  * How long a ticket may sit in each state before it escalates, in hours.

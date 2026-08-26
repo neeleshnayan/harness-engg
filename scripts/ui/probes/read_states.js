@@ -17,6 +17,14 @@
    (src/lib/fund_api.ts) — after that the read has genuinely failed and the
    failure language is CORRECT.
 
+   THE PENDING VOCABULARY IS A LIST AND A LIST GOES STALE. Measured 2026-08-26
+   on the ticket pages' in-flight arm: `pendingWords: 0` while `leaves` plainly
+   showed "Reading the ticket fold…" — the sentence was new and the regex had
+   never heard of it, so the count said nothing was pending on a page that was
+   entirely pending. A vocabulary-driven counter must gain the sentence when
+   the sentence is written, or its zero is vacuous. Read `leaves` first; the
+   counts are a summary of it, never a substitute.
+
    NOTE: this counts words across the whole body, so a page that legitimately
    QUOTES the failure language (the ticket's own text on a desk card) counts
    too. Read `leaves` before concluding — a count without its sentences cannot
@@ -33,7 +41,7 @@
   }
   const all = (document.body.textContent || "").replace(/\s+/g, " ");
   const failureWords = (all.match(/could not be read|is unreadable|unreachable/gi) || []).length;
-  const pendingWords = (all.match(/Reading the desk|reading the event log|reading the flight recorder|Not counted yet|has not been counted yet|not worked out yet|Not read yet|still being read|not read yet/gi) || []).length;
+  const pendingWords = (all.match(/Reading the desk|Reading the ticket fold|reading the event log|reading the flight recorder|Not counted yet|has not been counted yet|not worked out yet|Not read yet|still being read|not read yet/gi) || []).length;
   return JSON.stringify({
     url: location.pathname,
     bodyChars: all.length,
