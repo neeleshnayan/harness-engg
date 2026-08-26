@@ -7,6 +7,11 @@ import axios from 'axios';
 // has tests.
 import type { CandidateRow } from '@/app/clark/studio/lab/candidateAnalytics';
 
+// Same pattern, same reason: the engine page's wire shapes are declared beside
+// the logic that reads them and imported TYPE-ONLY. Two declarations of one
+// wire shape drift, and only one of them has tests.
+import type { EngineLeg, EngineView } from '@/app/clark/studio/engine/engineView';
+
 // ClarkHarness (fund spine). In the dev browser go through the Next rewrite
 // (/proxy/harness) to avoid CORS; otherwise use the configured harness URL.
 // Mirror of the /proxy/{main,hedge,web3} pattern in next.config.ts.
@@ -2373,16 +2378,6 @@ export interface DeskInTrayItem {
   reason: string | null; ack_at: string | null; posted_at: string | null;
 }
 
-// The engine page's wire shapes are declared beside the logic that reads them
-// (studio/engine/engineView.ts) and imported here TYPE-ONLY, the same pattern
-// CandidateRow uses at the top of this file. Two declarations of one wire shape
-// drift, and only one of them has tests.
-import type {
-  EngineLeg,
-  EngineView,
-  SignalLedger,
-} from '@/app/clark/studio/engine/engineView';
-
 export const fundApiClient = {
   getNav: async (): Promise<NavResponse> => (await fundApi.get(`${P}/nav`)).data,
 
@@ -2713,10 +2708,6 @@ export const fundApiClient = {
     reason?: string;
     engine?: EngineLeg;
   }> => (await fundApi.get(`${P}/venue/reconcile`)).data,
-
-  /** Every signal an external engine raised, and what became of each one. */
-  getSignalLedger: async (limit = 200): Promise<SignalLedger> =>
-    (await fundApi.get(`${P}/signals/ledger`, { params: { limit } })).data,
 
   /** What the engine is doing, what it raised, and whether the books agree.
    *

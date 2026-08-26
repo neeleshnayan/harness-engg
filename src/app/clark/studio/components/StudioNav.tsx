@@ -29,21 +29,20 @@ import { Activity, BookOpen, Cpu, FlaskConical, ShieldAlert, Sliders, Swords } f
  * Thesis owns automatic theme discovery, multi-source research intelligence,
  * and deterministic bull/bear thesis generation.
  *
+ * ENGINE — added 2026-08-26 (CEO, verbatim: "can you also add some UI element
+ * that helps me see whats hppening on Lean"). A TAB rather than a panel on Lab,
+ * for the reason the RISK restoration below established: a page only reachable
+ * through a strip nobody thinks of as a door IS gone to its reader, and the CEO
+ * asked to be able to SEE this. Lab is where an idea is written; Engine is
+ * where the thing that runs is watched — "did that signal fill, and do our two
+ * books still agree" is an operating question, not a research one.
+ *
  * What left the bar, and why it did not leave the product:
  *   * MECHANICS — retired as a tab. Its funnel, causes of death, gate lineage
  *     and cohort now render on the quant's seat page (the lane that submits to
  *     the belt); its story and ladder render on the Desk. The rule: a chart
  *     stays only if it informs a specific click or dispatch, and Mechanics was
  *     a tab you read rather than acted on. /clark/studio/mechanics redirects.
- * ENGINE — added 2026-08-26 (CEO, verbatim: "can you also add some UI element
- * that helps me see whats hppening on Lean"). It is a TAB rather than a panel
- * on Lab for the reason the Risk restoration below established in this very
- * comment: a page only reachable through a strip nobody thinks of as a door IS
- * gone to its reader, and the CEO asked to be able to SEE this. Lab is where an
- * idea is written; Engine is where the thing that runs is watched, and the
- * question it answers ("did that signal fill, and do our two books still
- * agree") is an operating question, not a research one.
- *
  *   * RISK — the builder removed it from the bar (2026-08-20); the CEO vetoed
  *     the removal the same morning ("risk page is entirely gone"). A page only
  *     reachable through a strip nobody thinks of as a door IS gone to its
