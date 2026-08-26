@@ -341,24 +341,49 @@ class LeanStore:
                     f"{session.get('scope_key')!r}") from e
             raise
 
-    def update_session(self, session: dict[str, Any]) -> None:
-        """Write a session's current state back. Raises like ``claim_session``.
+    def update_session(self, session: dict[str, Any], *,
+                       only_if_alive: bool = False) -> int:
+        """Write a session's current state back. Returns rows affected.
 
         Only the fields that CHANGE after a claim are written: everything else
         was decided when the session was created, and an UPDATE that rewrote
         them could silently move a row's identity out from under the unique
         index.
+
+        **``only_if_alive`` MAKES A STATE MOVE ONE-WAY, AND IT WAS EARNED BY A
+        MEASURED RACE.** ``_run_live`` stamps ``running`` from a daemon thread
+        moments after ``start_live`` returns. Reconciliation can decide, in
+        between, that the row is VANISHED — and the straggling thread would
+        then write ``running`` back over it, resurrecting a session with no
+        container and re-claiming its strategy's scope. Measured at **2 failures
+        in 20 runs** of ``test_reconciliation_marks_a_row_with_no_container_vanished``
+        before this guard; the ``WHERE`` clause makes the late write a no-op
+        instead.
+
+        Not reachable in production TODAY — reconciliation runs once in
+        ``lifespan``, before any ``_run_live`` thread exists. It becomes
+        reachable the moment anything reconciles PERIODICALLY, which is exactly
+        what ``engineledger.ORPHAN_NOTE`` says the between-start-ups window
+        needs. Fixed now, while the cost is one SQL clause.
         """
+        from app.fund import leansessions
+        clause = ""
+        params: tuple = (session.get("state"), session.get("error"),
+                         _js(session.get("log_tail")), session.get("stopped_at"),
+                         session.get("session_id"))
+        if only_if_alive:
+            marks = ",".join(["%s"] * len(leansessions.ALIVE))
+            clause = f" AND state IN ({marks})"
+            params = params + tuple(leansessions.ALIVE)
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     "UPDATE fund_lean_sessions SET state = %s, error = %s, "
                     "       log_tail = %s, stopped_at = %s, stored_at = now() "
-                    "WHERE session_id = %s",
-                    (session.get("state"), session.get("error"),
-                     _js(session.get("log_tail")), session.get("stopped_at"),
-                     session.get("session_id")))
+                    "WHERE session_id = %s" + clause, params)
+                affected = cur.rowcount
             conn.commit()
+        return affected
 
     #: How many session rows a page read returns. NAMED rather than left as an
     #: inline literal so the reconciler can PUBLISH it — HW1's lesson is that

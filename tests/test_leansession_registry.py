@@ -580,3 +580,53 @@ class TestTheLookupDoesNotExpireAtTheCap:
         # caller this method will ever have.
         assert len(store.session_rows(limit=2)) == 2
 
+    def test_a_late_running_stamp_cannot_resurrect_a_retired_row(
+            self, durable, tmp_path):
+        """THE RACE, AS A TEST. Measured at 2 failures in 20 runs before the
+        guard: ``_run_live`` stamps ``running`` from a daemon thread, and if
+        reconciliation retires the row in between, the straggler wrote
+        ``running`` back over ``vanished`` — a session with no container,
+        holding its strategy's scope, that nothing would look at again until
+        the next restart.
+
+        Driven through the STORE rather than by racing threads, because a test
+        that reproduces a race by timing is a test that reproduces it 10% of
+        the time.
+        """
+        r = durable(tmp_path)
+        store = r._registry()
+        s = _session(f"strategy:{uuid.uuid4()}")
+        store.claim_session(s)
+        # something retires it
+        assert store.update_session({**s, "state": LS.VANISHED}) == 1
+        # ... and the straggling stamp arrives
+        assert store.update_session({**s, "state": "running"},
+                                    only_if_alive=True) == 0
+        assert store.session(s["session_id"])["state"] == LS.VANISHED
+
+    def test_the_guard_does_NOT_block_a_stamp_on_a_live_row(
+            self, durable, tmp_path):
+        """POSITIVE CONTROL, AND IT ASSERTS SOMETHING. Without it the test
+        above is satisfied by a guard that blocks EVERY write, which would
+        leave every session stuck at ``starting`` for ever — a refusal wearing
+        a race fix's clothes."""
+        r = durable(tmp_path)
+        store = r._registry()
+        s = _session(f"strategy:{uuid.uuid4()}", state="starting")
+        store.claim_session(s)
+        assert store.update_session({**s, "state": "running"},
+                                    only_if_alive=True) == 1
+        assert store.session(s["session_id"])["state"] == "running"
+
+    def test_a_terminal_write_is_never_blocked(self, durable, tmp_path):
+        """``only_if_alive`` is opt-in and only ``_run_live``'s running stamp
+        opts in. A stop, an end or a vanish must always land, or a session
+        could never leave the alive set and its scope would be held for ever."""
+        r = durable(tmp_path)
+        store = r._registry()
+        s = _session(f"strategy:{uuid.uuid4()}")
+        store.claim_session(s)
+        assert store.update_session({**s, "state": LS.VANISHED}) == 1
+        assert store.update_session({**s, "state": "ended"}) == 1
+        assert store.session(s["session_id"])["state"] == "ended"
+

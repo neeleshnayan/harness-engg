@@ -989,9 +989,15 @@ class LeanRunner:
                        f"({(proc.stderr or '').strip()[:200] or 'no detail'}) — "
                        f"most often because it was already gone.")
 
-    def _register_state(self, session: dict[str, Any]) -> None:
+    def _register_state(self, session: dict[str, Any], *,
+                        only_if_alive: bool = False) -> None:
         """Write a session's state back to the registry. Best-effort AFTER the
         claim, unlike the claim itself.
+
+        ``only_if_alive`` is for a write that must LOSE a race rather than win
+        one — see ``LeanStore.update_session``. The one caller is the
+        ``running`` stamp in ``_run_live``, which arrives from a daemon thread
+        and must never resurrect a row something else has already retired.
 
         The claim must succeed or nothing starts; an UPDATE that fails leaves a
         stale row, and a stale row is self-healing — start-up reconciliation
@@ -1003,7 +1009,18 @@ class LeanRunner:
         if not self._registry_required:
             return
         try:
-            self._registry().update_session(session)
+            affected = self._registry().update_session(
+                session, only_if_alive=only_if_alive)
+            if only_if_alive and not affected:
+                # NOT AN ERROR — it is the guard doing its job, and it is worth
+                # a line because a session whose `running` stamp lost to a
+                # retirement is a session whose container may still be alive.
+                logger.warning(
+                    "session %s was already retired when its running stamp "
+                    "arrived; the stamp was dropped rather than resurrecting "
+                    "the row — if its container is still up, the next "
+                    "reconciliation will find and stop it",
+                    session.get("session_id"))
         except Exception as e:  # noqa: BLE001
             logger.warning("session %s state %r not written to the registry: "
                            "%s — start-up reconciliation will correct it",
@@ -1173,7 +1190,11 @@ class LeanRunner:
             "--results-destination-folder", "/Results",
         ]
         session["state"] = "running"
-        self._register_state(session)
+        # ONLY IF THE ROW IS STILL ALIVE. This stamp arrives from a daemon
+        # thread and can land after something else has retired the row; writing
+        # it unconditionally resurrects a session with no container and
+        # re-claims its strategy's scope.
+        self._register_state(session, only_if_alive=True)
         try:
             # No timeout: a live session runs until it is stopped. That is the
             # difference between this and a backtest, and the reason the job
