@@ -263,6 +263,26 @@ active and directing throughout.*
 
 ---
 
+### OVERNIGHT PROGRAM (CEO instructions, ~21:15 UTC)
+
+- **Two builders away**: kp9 (trade-ready UI - allocate gains the inclusion rule for engine
+  strategies [the HYG probe TRADES while invisible on Allocate, chair-verified live]; engine
+  page rebuilt as tiles/timeline/sparklines per CEO: "too much text; analytics and graphs and
+  meaningful and minimal"; PDT tiles retired) and eng3 (durable session registry in Postgres,
+  docker-ps reconciliation, atomic per-strategy uniqueness [race dc12903f], multi-session,
+  autopolicy v5 DESIGN as unwired draft for the chain). Disjoint repos; suites serialized.
+- **The seat-page spec, CEO-ratified**: one ticket component everywhere (capsule chips +
+  lineage stepper + decide-later); eight sections per seat page (greeting, now, scoreboard,
+  artifacts, tickets, lessons/growth, BINDS traffic, charter+meter); windows never doors.
+  **CEO design mandate, verbatim: "I really appreciate well done UIs; so we need these
+  sections be custom built to serve that purpose well"** - encoded as the standing
+  acceptance question (does this section's FORM serve THIS content) in
+  docs/design/SEAT_PAGES_DESIGN_2026-08-27.md. Absorbs D40 (708aa38f). Fires as slice 3
+  after tonight's crews land.
+
+
+---
+
 ## 2026-08-24 (UTC)
 
 The Monday of the click sheet (~12:30Z) and the first real-venue fills
