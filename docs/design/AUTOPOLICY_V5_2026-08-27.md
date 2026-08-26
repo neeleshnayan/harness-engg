@@ -68,10 +68,12 @@ audit possible from the event log alone.
 | # | check | what it reads | fails when | evidence the reader works |
 |---|---|---|---|---|
 | 1 | `engine_entries_armed` | the arming flag, from config | anything but `True` | **UNMEASURED** — the flag does not exist yet; §6 |
-| 2 | `venue_is_permitted` | the **resolved** execution venue (connector/mode), never `order["venue"]` | venue ≠ `alpaca` | `mode.resolve()`/`ModeSpec` are exercised by `tests/test_mode_endpoint.py`; the *resolution helper* v5 needs is **UNBUILT** |
+| 2a | `venue_kind_is_permitted` | the resolved `mode.VenueKind` **value**, never `order["venue"]` and never the connector name | kind ≠ `alpaca_paper` | `mode.py:161` (`ModeSpec.venue_kind`); the *resolution helper* v5 needs is **UNBUILT** |
+| 2b | `venue_is_not_real_money` | `ModeSpec.real_money` | anything but an explicit `False` | `mode.py:181`; measured live 2026-08-27 — see §4(d) |
+| 2c | `strategy_matches_the_order` | the strategy row's id vs `order["strategy_id"]` | either absent, or they differ | new; bounds a gatherer that fetches the wrong row |
 | 3 | `strategy_deployed` | `StrategyRegistry.get()` → `state`, `archived` | not `deployed`, or archived, or absent | `strategies.py:235-305` (`StrategyRegistry._build`), folded from `STRATEGY_STATE_CHANGED`; read live 2026-08-27 |
 | 4 | `symbol_in_scoped_assets` | `strategy["assets"]` (`STRATEGY_ASSETS_SET`) | symbol outside the scope, **or the scope is empty** | `strategies.py:275-276`. **MEASURED HAZARD**: live registry holds GLD with `assets: []` and HYG with `assets: ["HYG"]` (ENG2) — an empty scope must refuse, not permit |
-| 5 | `signal_from_live_session` | `fund_lean_sessions` via `LeanRunner.live_sessions()` | no live session for this strategy was running when the signal was raised | new this dispatch; `tests/test_leansession_registry.py` (25 tests, real Postgres) |
+| 5 | `signal_from_live_session` | `fund_lean_sessions` via `LeanRunner.live_sessions()` | no live session for this strategy was running when the signal was raised | new this dispatch; `tests/test_leansession_registry.py` (33 tests, real Postgres) |
 | 6 | `signal_fresh` | the proposal's age | > 5 min, or unknown | `pipeline` already computes `age_minutes` for v4 |
 | 7 | `side_is_readable` | `order.side`/`order.qty` | side ∉ {buy, sell}, or qty unreadable | `order_delta`, pinned against v4's by a shared table |
 | 8 | `order_notional_within_cap` | notional, last struck NAV | > 15% of NAV, or NAV unreadable | `NavStruck` fold; v4 already uses it for `notional_pct_of_nav` |
@@ -86,6 +88,11 @@ audit possible from the event log alone.
 | 17 | `liveness_*` ×4 | `heartbeat.status(job)` | `ok` is not exactly `True` | `heartbeat.py:90-115`; `ok: None` = unobserved and does **not** pass |
 | 18 | `risk_monitor_fresh` | the risk monitor's heartbeat age | > 300s, or unreadable | as above |
 
+**Twenty checks plus four `liveness_*` rows** — the count is asserted in
+`tests/test_autopolicy_v5_draft.py::test_the_check_list_is_complete_and_not_short_circuited`
+rather than stated here, because a number in a memo goes stale and an assertion
+does not.
+
 ### Failure direction, in one line
 Every check above answers **False on absence**. There is no branch in the draft
 where an unreadable input produces an approval, and the tests assert the
@@ -93,7 +100,7 @@ unreadable case separately from the over-limit case for the five that matter
 most — because *"we could not measure it"* and *"it was too big"* have different
 fixes and the riskofficer reads the detail string, not the boolean.
 
-## 4. The three places this is easiest to get backwards
+## 4. The four places this is easiest to get backwards
 
 **(a) The unmeasurable regime points the permissive way.**
 `throttle.target_gross` returns `gross_multiplier: 1.0` when NEITHER signal is
@@ -114,6 +121,25 @@ registry today.
 **(c) An unreadable day is not an empty day.** A failed history query read as
 "nothing approved yet today" lands on the single number that bounds worst-case
 daily damage.
+
+**(d) THE VENUE HAS THREE SPELLINGS AND ONE OF THEM DOES NOT DISCRIMINATE.**
+Measured against the live spine (`GET /fund/mode`, 2026-08-27):
+
+| mode | `venue_kind` | `venue_label` | `permitted_connectors` | `real_money` |
+|---|---|---|---|---|
+| `alpaca-paper` | `alpaca_paper` | `alpaca` | `["alpaca"]` | `false` |
+| `alpaca-prod` | `alpaca_live` | `alpaca-live` | `["alpaca"]` | **`true`** |
+
+**The paper account and the real-money account permit the SAME CONNECTOR**, and
+`mode.py:167-170` already says so in its own words: *"`connector.name` is
+'alpaca' for both"*. The first draft of this design used the string `"alpaca"` —
+the connector name, and the paper mode's label — so a gatherer supplying either
+one from `alpaca-prod` would have passed the venue check **with real money
+behind it**. That is why check 2 is now two checks reading two different fields
+of the mode spec: a gatherer that gets one wrong has to get the other wrong the
+same way. It is the only place in this envelope with a deliberate second
+opinion, and the reason is that it is the only boundary where being wrong costs
+the CEO's money rather than a wasted click.
 
 ## 5. The numbers, and who owns them
 
@@ -146,8 +172,11 @@ and none of them is in this diff:
    is not a kill switch. It must be readable per-order (so flipping reverts the
    book on the next tick, not the next deploy), and flipping it in either
    direction is a control-layer act with a recorded actor.
-4. **The resolved-execution-venue helper.** `order["venue"]` is a client string
-   and v4 measured exactly what happens when you trust it.
+4. **The resolved-execution-venue helper.** It must return the `VenueKind`
+   VALUE and the `real_money` flag from the ACTIVE `ModeSpec` — not
+   `order["venue"]` (a client string; v4 measured exactly what happens when you
+   trust it), not `connector.name` (identical for paper and live), and not the
+   label. Two fields, from one read of one spec.
 
 Two more that are policy rather than code:
 

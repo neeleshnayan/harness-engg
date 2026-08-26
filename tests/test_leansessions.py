@@ -1042,3 +1042,55 @@ class TestTheOtherSideSCap:
         finally:
             mp.undo()
 
+
+class TestTheOneWayGuardIsWiredAtTheRIGHTCallSite:
+    """MUTATION SURVIVOR M84. The store's guard was proved behaviourally
+    (``test_a_late_running_stamp_cannot_resurrect_a_retired_row``), and the
+    CALL SITE was not — so dropping ``only_if_alive=True`` from ``_run_live``
+    left every test green while the race came straight back.
+
+    Pinned structurally because the alternative is a timing test: the stamp
+    arrives from a daemon thread microseconds after ``start_live`` returns, and
+    a test that reproduces that ordering reproduces it about one time in ten.
+    A structural pin fails every time.
+    """
+
+    def _calls(self):
+        from app.fund import leanrunner
+        src = textwrap.dedent(inspect.getsource(leanrunner.LeanRunner))
+        tree = ast.parse(src)
+        out = []
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "_register_state"):
+                guarded = any(k.arg == "only_if_alive"
+                              and isinstance(k.value, ast.Constant)
+                              and k.value.value is True
+                              for k in node.keywords)
+                out.append((ast.unparse(node), guarded))
+        return out
+
+    def test_exactly_ONE_call_site_opts_into_the_guard(self):
+        calls = self._calls()
+        assert calls, "no _register_state call sites found at all"
+        guarded = [c for c, g in calls if g]
+        assert len(guarded) == 1, guarded
+
+    def test_and_it_is_the_RUNNING_stamp(self):
+        """The guard on the wrong call site would be worse than none: a stop
+        or a vanish that could be dropped leaves a session in the alive set
+        for ever, holding its strategy's scope."""
+        from app.fund import leanrunner
+        src = textwrap.dedent(inspect.getsource(leanrunner.LeanRunner._run_live))
+        i = src.index('session["state"] = "running"')
+        window = src[i:i + 500]
+        assert "_register_state(session, only_if_alive=True)" in window
+
+    def test_the_TERMINAL_writes_do_NOT_opt_in(self):
+        """Every other call must be unconditional. MUTANT: add the guard to
+        the ``finally`` block and a session that ended could never be recorded
+        as ended once anything else had retired it."""
+        calls = self._calls()
+        assert sum(1 for _, g in calls if not g) >= 3, calls
+
