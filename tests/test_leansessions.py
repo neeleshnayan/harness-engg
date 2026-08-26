@@ -987,3 +987,58 @@ open(os.environ["LIVE_ARGV_OUT"], "w").write(json.dumps(sys.argv))
         record, and it keeps that container reconcilable."""
         assert LS.ownership(None, "alpaca-paper") == LS.OWN_LEGACY
 
+
+class TestTheOtherSideSCap:
+    """HW1's rule, applied to this reconciliation: a fold that agrees with
+    another instrument agrees only INSIDE that instrument's cap, so name the
+    cap, read it, and ship a boolean that says whether the agreement currently
+    holds.
+
+    Found by the late read-through, from the other end: the store's own comment
+    CLAIMED the limit was 'returned on the payload by the caller' and no caller
+    returned it anywhere. A comment asserting a property nothing implements is
+    the same defect as a control nothing calls.
+    """
+
+    def test_the_cap_is_published_and_says_it_is_not_binding(self):
+        plan = LS.reconcile([_row("a")], [_con("a")], our_mode="dev",
+                            rows_cap=200)
+        assert plan["rows_cap"] == 200
+        assert plan["rows_capped"] is False
+
+    def test_a_FULL_page_says_the_cap_is_binding(self):
+        rows = [_row(str(i)) for i in range(5)]
+        plan = LS.reconcile(rows, [], our_mode="dev", rows_cap=5)
+        assert plan["rows_capped"] is True
+
+    def test_an_unreadable_registry_cannot_say_whether_the_cap_bound(self):
+        """ABSENT, not False. 'The page did not fill' is a claim about a page
+        we never read."""
+        plan = LS.reconcile(None, [], our_mode="dev", rows_cap=5)
+        assert plan["rows_capped"] is None
+        assert plan["rows_cap"] == 5
+
+    def test_no_cap_declared_reports_ABSENT_rather_than_not_binding(self):
+        plan = LS.reconcile([_row("a")], [], our_mode="dev")
+        assert plan["rows_cap"] is None
+        assert plan["rows_capped"] is None
+
+    def test_the_runner_publishes_the_STORE_S_OWN_number_not_a_copy(self):
+        """PROVE IT IS READ, NOT COPIED — BY MOVING IT. An assertion that the
+        published cap equals 200 cannot tell a real read from a duplicate that
+        happens to agree today."""
+        import pytest as _pytest
+        from app.fund import leanstore
+        from app.fund.leanrunner import LeanRunner
+
+        r = LeanRunner.__new__(LeanRunner)
+        assert r.registry_page_size() is None      # no registry configured
+
+        mp = _pytest.MonkeyPatch()
+        try:
+            mp.setenv("FUND_STORE", "postgres")
+            mp.setattr(leanstore.LeanStore, "SESSION_PAGE", 7)
+            assert r.registry_page_size() == 7
+        finally:
+            mp.undo()
+

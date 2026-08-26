@@ -1028,6 +1028,15 @@ class LeanRunner:
             logger.warning("session registry unreadable: %s", e)
             return None
 
+    def registry_page_size(self) -> Optional[int]:
+        """The cap on ``registry_rows_or_none``, or ``None`` when there is no
+        registry to cap. Published so a reconciliation can say whether its own
+        page bound."""
+        if not self._registry_required:
+            return None
+        from app.fund.leanstore import LeanStore
+        return LeanStore.SESSION_PAGE
+
     def docker_live_containers(self) -> Optional[list[dict[str, Any]]]:
         """Running LEAN live containers, or ``None`` when docker cannot be asked.
 
@@ -1076,7 +1085,8 @@ class LeanRunner:
         rows = self.registry_rows_or_none()
         containers = self.docker_live_containers()
         plan = leansessions.reconcile(rows, containers,
-                                      our_mode=self._our_mode())
+                                      our_mode=self._our_mode(),
+                                      rows_cap=self.registry_page_size())
 
         performed: list[dict[str, Any]] = []
         for act in plan["actions"]:

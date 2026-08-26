@@ -146,10 +146,12 @@ def _touchable(own: str) -> bool:
 
 def reconcile(rows: Optional[list[dict[str, Any]]],
               containers: Optional[Iterable[dict[str, Any]]],
-              *, our_mode: Optional[str] = None) -> dict[str, Any]:
+              *, our_mode: Optional[str] = None,
+              rows_cap: Optional[int] = None) -> dict[str, Any]:
     """What the registry and the docker daemon say, reconciled into actions.
 
-    ``rows`` are session rows from the registry (``None`` = unreadable);
+    ``rows`` are session rows from the registry (``None`` = unreadable), read
+    through a page whose size is ``rows_cap``;
     ``containers`` are ``{"name": str, "mode": str|None}`` from ``docker ps``
     (``None`` = docker unreadable). The result carries its OWN DOMAIN — how many
     rows and how many containers it compared — because a reconciliation that
@@ -215,6 +217,15 @@ def reconcile(rows: Optional[list[dict[str, Any]]],
         # never mistaken for a comparison that found nothing.
         "rows_seen": len(rows or ()) if rows_readable else None,
         "rows_alive": len(live_rows) if rows_readable else None,
+        # THE OTHER SIDE'S CAP, NAMED, AND A BOOLEAN THAT SAYS WHETHER IT
+        # CURRENTLY BINDS. A reconciliation over a capped page agrees with the
+        # daemon right up until the page fills, and then it starts calling
+        # older sessions orphans with nothing on either surface to point at.
+        # ``rows_capped`` is that pointer, and it is a field rather than a
+        # comment because the day it matters nobody will be reading comments.
+        "rows_cap": rows_cap,
+        "rows_capped": (None if not rows_readable or rows_cap is None
+                        else len(rows or ()) >= rows_cap),
         "containers_seen": len(parsed) if containers_readable else None,
         "our_mode": our_mode,
         "actions": actions,

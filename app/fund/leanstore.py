@@ -360,14 +360,22 @@ class LeanStore:
                      session.get("session_id")))
             conn.commit()
 
-    def session_rows(self, limit: int = 200) -> list[dict[str, Any]]:
-        """Every session the registry knows, newest first.
+    #: How many session rows a page read returns. NAMED rather than left as an
+    #: inline literal so the reconciler can PUBLISH it — HW1's lesson is that
+    #: two folds over "the same rows" agree right up until one of them is
+    #: capped, and the day the cap binds there is nothing on either surface to
+    #: point at. ``reconcile`` ships ``rows_cap`` and ``rows_capped`` beside its
+    #: domain for exactly that day.
+    SESSION_PAGE = 200
 
-        ``limit`` is NAMED and returned on the payload by the caller rather than
-        left inline: HW1's lesson is that two folds over "the same rows" agree
-        until one of them is capped, and the day the cap binds nothing on either
-        surface points at it.
+    def session_rows(self, limit: Optional[int] = None) -> list[dict[str, Any]]:
+        """A PAGE of sessions, newest first — not every session.
+
+        The by-id read (``session``) and the live read (``live_session_rows``)
+        are both uncapped; this one is the only capped path and its callers say
+        so on their payloads.
         """
+        limit = self.SESSION_PAGE if limit is None else limit
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(
