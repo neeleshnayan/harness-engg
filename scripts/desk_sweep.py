@@ -17,12 +17,25 @@ Every row needs a citation. No citation, no closure - Donna's rule.
 ALREADY IS NOT A FAILURE (2026-08-24). The decide door refuses a decision that
 would change nothing the row stores - the narrow decision guard, on the CEO's
 decision, and this script is the caller most exposed to it because it posts
-`done` in bulk. 237 rows in the record have already recorded `done`, so
-re-sweeping one of them with the SAME citation refuses. That refusal means
+`done` in bulk. **236 rows CURRENTLY hold `done`**, so re-sweeping one of them
+with the SAME citation refuses. That refusal means
 "there was nothing to do here", which is a different outcome from "this
 closure did not happen", and printing both as FAIL would train the chair to
 ignore the word. The sweep therefore reports three outcomes, and its exit
 status counts only the third.
+
+  THE 236 IS TWO NUMBERS AND THIS SENTENCE HAD THE WRONG ONE (corrected
+  2026-08-26). The earlier text said 237, which is the count of rows that have
+  EVER recorded `done`; the count that this guard actually refuses is the rows
+  that CURRENTLY hold it, and those differ by exactly the reopen
+  (`run-pm-sleeve-v2#15` went accepted -> done -> open -> accepted -> staged,
+  so it has recorded `done` and re-sweeping it would legitimately move it).
+  Both are true statements about different populations, which is why nobody
+  caught it. Measured 2026-08-26 over the whole log (1,569 events, seq
+  1..1,569; 678 decision events on 491 rows): ever-done 237, currently-done
+  236. THE INVARIANT, since both figures grow: currently-done <= ever-done,
+  and the gap is the number of reopened rows. Reproduce both with
+  `scripts/instruments/hw4/redecision_census.py`.
 
 AND AN `ALREADY` NOW SAYS WHAT BECAME OF ITS CITATION (2026-08-26). The first
 cut of the third outcome dropped it silently: a refused POST records nothing,

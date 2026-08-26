@@ -3961,12 +3961,30 @@ def _refuse_if_redecided(run_id: str, rec_id: int, *, to: str, actor: str,
     None of the 136 rows carrying a genuine multi-status progression is
     touched by either form. ``scripts/desk_sweep.py`` — the chair's
     bulk-closure instrument, which posts ``done`` — remains the caller most
-    exposed: 237 rows in the record have already recorded ``done``, so
-    re-sweeping one with the SAME citation refuses. That is the intended
+    exposed: **236 rows CURRENTLY hold** ``done``, so re-sweeping one with the
+    SAME citation refuses. (237 is the count that have EVER recorded it — a
+    different population, and the figure this sentence carried until
+    2026-08-26. They differ by the one reopened row; both grow, and the
+    invariant is currently-done <= ever-done.) That is the intended
     behaviour and the script reports it as ALREADY rather than FAIL; a control
     that makes the chair's own tooling print failures for no-ops is a defect,
     not a tightening. Re-sweeping with a CORRECTED citation now lands, which
     is the half v1 silently dropped.
+
+    THE POPULATION BOUND ON THE READER'S SIDE, NAMED (2026-08-26). This guard
+    sees exactly what ``_store.by_aggregate(run_id)`` returns, and the two
+    implementations bound it differently: ``PgStore.by_aggregate``
+    (pgstore.py) is a ``WHERE aggregate_id = %s ORDER BY seq`` with **no
+    LIMIT**, so on the live Postgres path there is no cap; the Firestore-backed
+    ``EventStore.by_aggregate`` (events.py) filters ``self.stream(limit=
+    1_000_000)``, so on that path the guard reads the OLDEST 1,000,000 events
+    and a longer log would hide the newest decisions from it — a guard reading
+    stale lineage, which fails OPEN and silently. **Which side of that we are
+    on today: the fund runs Postgres, and the whole log is 1,569 events
+    (2026-08-26), 0.16% of the other implementation's cap.** Written down
+    because an agreement that holds only inside somebody else's unnamed cap
+    stops holding on the day it binds, with nothing on either surface to point
+    at (builder HW1).
 
     IT FAILS OPEN AND SAYS SO. If the event log cannot be read, the decision
     proceeds with ``redecision_readable: False`` on the event and in the
