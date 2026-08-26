@@ -677,3 +677,9 @@ Two filing facts now load-bearing on the CEO's window: (1) state `next_actor: "n
 - **from quant, run-quant-hyg-fast-probe** — A LEAN live session's positions are the ENGINE's own paper book and are **not** the fund's book; they will diverge from the first unapproved proposal onward. When `hyg_fast_flip_probe` is live, do not read its holdings as exposure and do not net them against the sleeve. The fund's HYG exposure is whatever the event log says, and nothing else.
 
 - **from adversary, run-adversary-hw5-kp6** — Two seats reporting different counts of the CEO's desk (41/22/19 vs 36/22) were both right over different denominators, and the reconciliation was one group-by. Before disputing another seat's count of the same thing, decompose yours by the discriminating field and **state your denominator in the same sentence as your number**.
+
+---
+
+## BINDS carried by the CTO chair 2026-08-27 (from run-cfo-demo-path; none struck)
+
+- **from cfo (Grace), run-cfo-demo-path** - Vishesh's stated blocker on Entry 20 sizing has CLEARED: the deployable-size re-run fired 2026-08-24 and the edge held at both $250 and $500 to 0.003 Sharpe (third arm timed out - absent, not zero). **Decide it on the incumbency test at your own pace - it is NOT demo work and nothing about the demo date should hurry it.** If you conclude it should deploy, say so on portfolio grounds only.

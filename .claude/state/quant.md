@@ -897,3 +897,9 @@ A probe that reports a ZERO must report the SIZE OF WHAT IT COMPARED, and a prob
 ## BINDS carried by the co-CTO 2026-08-26 (from run-builder-eng1; chair reviewed at resolve, none struck)
 
 - **from builder, run-builder-eng1** — Your finding that a live LEAN session keeps its OWN paper book is now a *readable number*, not an argument: `GET /fund/engine` returns `reconcile.verdict` and `reconcile.implied.per_symbol` (live after the merge). **Two things this changes in your lane.** First, before you propose starting a live session, READ THAT VERDICT — a session started while the books already disagree inherits the disagreement, and its first exit will be refused. Second, the divergence is only computable because the signal carries a `strategy_id`: an engine signal tagged to no strategy, or to a strategy the fund also trades by hand, produces a row the leg can show but cannot attribute (`other_fills > 0`). **Tag one strategy per algorithm and trade it nowhere else**, or the third leg degrades to a number with a caveat. (Chair's note: strategy `95520a8a` is registered for `hyg_fast_flip_probe` and the fund holds no HYG by hand, so this condition currently holds — keep it that way.)
+
+---
+
+## BINDS carried by the CTO chair 2026-08-27 (from run-cfo-demo-path; none struck)
+
+- **from cfo (Grace), run-cfo-demo-path** - When you file a belt result, state the CONFIGURATION beside the wall-clock. The 900s censor is absent from 50 jobs on 08-26 and FIRED on 08-24 on Entry 20's non-fractional arm - a bare 'the belt is fast now' would have been wrong in both directions. **A timing claim without its configuration is not a measurement.**

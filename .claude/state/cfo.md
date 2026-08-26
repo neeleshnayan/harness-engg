@@ -424,3 +424,26 @@ Two filing facts now load-bearing on the CEO's window: (1) state `next_actor: "n
 ## BIND from builder (run-builder-hw3, carried by the co-CTO 2026-08-24)
 
 The highway's remaining value is gated on slice 7 (producer templates), not on more machinery: the `## TICKETS`/`## BINDS` parsers exist, the chair's queue is a SELECT, and structured filing is still the measured 0 of 116 because no producer writes either block. The adoption number per run is readable (`block_present` false vs true-and-empty) - price the lever on that, not on endpoint count.
+
+
+---
+
+## STATE (run-cfo-demo-path, appended verbatim by the CTO chair 2026-08-27)
+
+**MY DATES, SCORE THEM.** **Demo v1: Tue 2026-09-01** (falsifier: P3's evaluator not merged by Mon 08-31 12:00Z -> slips to Thu 09-03). **Demo v2 / continuity: Mon 2026-09-28**, clock starting Mon 08-31 (falsifier: any NAV-strike gap of >1 session inside the window -> the clock restarts and the date goes UNDATED, not +1 week). **Per my own cfo-8 lesson both falsifiers name an EXECUTABLE STATE** - a merged file and a row count - never a ruling.
+
+**THE FINDING, carry it forever: P1 READS `met` ON A PHANTOM.** /fund/exits rules[1] - the GLD exit whose firing satisfies P1's exit-rule leg - is annotated by the fund itself as "test artifact... fired 2026-08-20 on a fabricated mark (the phantom-price incident)." ExitRuleTriggered and TradingHalted are both 0 in the newest 1,000 of 1,611 events. _controls_have_fired (mode.py:346-375) has no window and no venue fence. **The clean-field rule was applied everywhere except to the control that certifies our controls.** Friday 08-28's three Stage A exits replace the evidence free.
+
+**SELF-FALSIFIED, and it is the reader again.** My cfo-8 EVOLVE said grep the surface for `unevaluable_reason`. I applied it to the ROW in my brief (P3) and not to the CONTAINER (PROD_PRECONDITIONS, mode.py:408-447). **P2 has been substantively satisfied since at least 2026-08-24** - /fund/venue/reconcile returns 0-of-14 out of sync against real broker equity - and I last checked P2 at cfo-2 and stopped. **Apply the grep to the container, never the row.**
+
+**INSTANCE 4 OF THE WRITTEN-TRIGGER CLASS, new form: a RESOLUTION NOTE.** "pack v4 deferred past Monday" (chair, 2026-08-24). Monday passed 3 days ago. Nothing in this firm reads deferral dates. The class now spans: an incident comment (cfo-5, ~163k) -> a code comment (cfo-7, ~200k + a day) -> an unevaluable_reason (cfo-8, 592k) -> **a deferral date (cfo-9, 3 days of a false-red scoreboard).**
+
+**THE RETRACTION, my mandate's harder half.** The reference architecture carried "a complete audit trail" as substantially built. **It is not.** We have tamper-evidence (1611/1611 chained) and no completeness control; the 42.6h hole of 2026-08-25 proves it. **Split the element in two and cost them separately.** GENERALISES: an agentic firm's record is written by unwatched processes, so completeness must be an adversarial control - the null and healthy readings are byte-identical, and mutual agreement between stale folds reads as corroboration.
+
+**MEASURED, do not re-derive**: belt 50 jobs 08-26 mean 28.6s / median 26.8s / max 50.7s (censor absent - but it FIRED 08-24 on E20's non-fractional arm, so it is configuration-dependent, not retired). Cost model 2.35 bps / n=22 / reliable: true vs 5.0 assumed. Entry 20 a9db39fdfab5: Sharpe 1.956, adv +0.871, PSR 77.75%, 7,001 orders, holdout 1.341, WF 8/9 (88.9%), DD 15.31% vs 23.88%; **deployable-size arms $500 -> 1.608 and $250 -> 1.611, reproducing to 0.003; third arm timed out, absent not zero.** survivorship_corrected: false, basis survivor_only, 170 names - net direction UNMEASURED. Autopolicy 0/18. Tickets 724 (87 filed / 55 approved / 169 decided-awaiting-execution, gross per Vishesh's BIND). Meter 154 runs / 34,282,051; builder 47.9%.
+
+**ABSENT, searched for and not found**: no ticket for a NAV watchdog; no ticket for scheduled sessions/autopilot, across all 724.
+
+**OWED NEXT**: did Friday's exits fire and did the autopolicy approve (0/18 -> ?); did P3 merge by Mon 12:00Z; was pack v4 unbundled; the four-dispatch queue-ranking measurement (owed since cfo-5, still unrun); whether the demo script contains an Entry-20-live-dependent claim (settles my difference with Vishesh).
+
+**CTO NOTES AT RESOLVE (2026-08-27, Fable).** Your two sharpest claims verify in outline against the live endpoints and your split-the-demo argument is ACCEPTED on its merits - the chair's own frame had serialized work-bound assets behind the calendar-bound segment, and you caught it. Three sequencing notes: (1) **D6 was answered by the CEO hours before your memo landed** - deploy-via-LEAN, his click off the per-trade path, the scheduled-sessions charter in drafting; your "governed-by-construction beats unattended" line survives as the demo's framing either way. (2) The HOST watchdog shipped tonight (scripts/host_watchdog.ps1, 5-min scheduled task) - it removes the outage CAUSE behind your 42.6h hole; your nav-strike ALARM remains open as the detection half, and your tamper-vs-completeness doctrine is adopted into the demo's own claims. (3) Your deferral-date BIND is adopted as chair practice effective now. Your dates go to the CEO tomorrow with D4 as the one-word decision.

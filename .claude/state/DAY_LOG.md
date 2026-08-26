@@ -151,6 +151,75 @@ active and directing throughout.*
 
 ---
 
+### LATE ADDITIONS (Fable, after the CEO's evening sweep — UTC 2026-08-26 ~19:35)
+
+- **CEO word "agree"**: five repair tickets approved `neelesh-via-cto` → chair
+  backlog; vault pushed, all three branches (firm `0f4dfe3b`, clarkharness
+  `a21b8dcd`, kryptonpay `d7c22e23`). Desk 63 → **54**.
+- **The three MONDAY R39 cards closed with citations** (recs 1-3,
+  `run-triage7-decisions`): rec 1 was decided EIGHT times with execution never
+  recorded — the redecision guard's own motivating incident, and the repaired
+  guard is what let the correcting closes through. Recs 5-6 of the same run
+  left open: no execution evidence checked, and the sweep rule is no citation,
+  no close.
+- **Ticket `14a796d8` (snapshot NameError) resolved**: fix was already live via
+  the merge (81a32336); the missing flag-off tests now exist
+  (tests/test_snapshot_offswitch.py, kill proven against the pre-fix state).
+- **LEAN cleanup executed on the CEO's decision**: intake venue `paper` →
+  `alpaca` (second-look flagged); dead GLD strategy archived; HYG session
+  auto-starts 20:20 UTC via detached waiter; builder eng2 in flight (fencing
+  dead-history signals + the engine strategy card + allocate ENGINE badge).
+- **CEO UX asks logged for the capsule slice**: ticket context capsules
+  (plain-language what-broke / where / blast / proven-vs-suspected chips) AND
+  the lineage panel compacted to a visual stepper — his words: "couldnt we
+  have wrapped this long ass message in a nice UI?"
+
+
+---
+
+### THE AUTOPILOT DECISIONS (CEO, 2026-08-27 evening — recorded verbatim, design chartered, nothing loosened yet)
+
+- CEO: **"I think we deploy strategies via lean and let it handle it"** — deploy-via-LEAN
+  adopted as target architecture; staged migration (HYG probe → Entry 20 via
+  LEAN → sleeves one at a time); doctrine split: engine owns strategy signals,
+  spine exit rules stay the pre-committed risk backstop.
+- CEO: **"funds dont manually approve each trade; we have to tune our system to be
+  that smart. So I cant genuinely be in the critical path"** — mandate to design
+  the envelope that takes his click off the per-trade path for DEPLOYED
+  strategies. This is a LOOSENING of the highest order and takes the full
+  chain: builder designs autopolicy v5 (deterministic, fail-closed), adversary
+  blind on design + diff, riskofficer on the envelope, **the CEO's click on the
+  VERSION** — his authority moves from orders to policy, exactly as the
+  2026-08-20 amendment anticipated ("the human belongs at the policy level").
+  Deploys and allocation changes KEEP his click. Nothing auto-approves until
+  the version lands through that chain.
+
+
+---
+
+### LATE EVENING (Fable, ~20:10 UTC)
+
+- **CEO standing instruction, verbatim: "As we discussed it has to move automatically, no longer my
+  click, HYG strategy has already been approved by me :)"** - his approval attaches to the STRATEGY.
+  Bridge until autopolicy v5 lands: the chair approves HYG-probe signals as `neelesh-via-cto` citing
+  this instruction, each approval evented and riskofficer-audited; zero clicks from him. The
+  DESTINATION stays v5 through the full chain (deterministic code, adversary blind, riskofficer, his
+  one click on the version) - per-order approval by an LLM remains permanently out; the bridge is the
+  human channel executing a standing instruction, not a policy operating.
+- **CEO: overridden/no-longer-relevant items must be MARKED as such; "clearer desks for both you and
+  me"** - the supersession sweep + slice-8 lineage backfill become one hygiene program; Vishesh
+  measured ~a quarter of the queue already dead.
+- **Grace returned (run-cfo-demo-path)**: SPLIT THE DEMO - v1 Tue 2026-09-01 (process/governance/
+  audit), v2 Mon 2026-09-28 (20-day continuity, clock from Mon 08-31). Headline defect: **P1 reads
+  `met` on the phantom GLD exit** (test artifact, fabricated mark) - fence after Friday's real exits
+  replace the evidence free. The 42.6h NAV hole (all of Tue 08-25) proves the record is tamper-
+  evident but not provably COMPLETE - doctrine split adopted. Host watchdog (shipped tonight) removes
+  the cause; her nav-strike alarm is the open detection half. Her D6 (autopilot is a decision, not a
+  build) was answered by the CEO hours before the memo landed.
+
+
+---
+
 ## 2026-08-24 (UTC)
 
 The Monday of the click sheet (~12:30Z) and the first real-venue fills
