@@ -700,7 +700,7 @@ export function signalDensity(tl: Timeline, binCount = 24): Density {
  * them would make the list disagree with its own header.
  */
 export function sortedSignals(ledger: SignalLedger | null | undefined): SignalRow[] {
-  const rows = [...(ledger?.signals ?? [])];
+  const rows = ledger?.signals ?? [];
   // PARTITIONED, NOT SORTED WITH A NULL-AWARE COMPARATOR — and the difference
   // is measured, not stylistic. The first version returned `1` for an undated
   // LEFT operand and `-1` for an undated right one; mutating either branch to
@@ -709,6 +709,10 @@ export function sortedSignals(ledger: SignalLedger | null | undefined): SignalRo
   // The mutant survived the suite twice. A sort whose correctness depends on
   // which engine runs it is not a sort; the partition is total, obvious, and
   // has a mutant that dies.
+  // `filter` RETURNS A NEW ARRAY, which is what keeps the `sort` below off the
+  // payload the timeline also reads. The defensive `[...rows]` this replaced
+  // was provably redundant once the partition landed, and a defence that
+  // cannot fail is a line that cannot be reviewed.
   const dated = rows.filter((s) => instant(s.raised_at) != null);
   const undated = rows.filter((s) => instant(s.raised_at) == null);
   dated.sort((a, b) => (instant(b.raised_at) as number) - (instant(a.raised_at) as number));
