@@ -47,7 +47,12 @@ test("Qty renders a word, not a number, when the value is absent", () => {
 test("the page reads its verdict words from the module, never inline", () => {
   // A second copy of "in sync" in JSX is how the page and its tested module
   // start disagreeing. The page must call syncWord/reconcileHeadline.
-  assert.ok(PAGE.includes("syncWord(r.in_sync)"));
+  // Switched from `syncWord(r.in_sync)` to `syncLabel(r.sync_state)` when the
+  // fence made `in_sync`'s null mean two things. A page still reading
+  // `in_sync` would render a fenced history row in the amber "cannot tell"
+  // alarm reserved for a book the spine could not read.
+  assert.ok(PAGE.includes("syncLabel(r.sync_state)"));
+  assert.doesNotMatch(PAGE, /syncWord|syncTone/);
   assert.ok(PAGE.includes("reconcileHeadline(leg)"));
   assert.ok(PAGE.includes("engineHeadline(status)"));
   assert.doesNotMatch(PAGE, /"in sync"/);
@@ -77,4 +82,61 @@ test("the page has no control that acts — it is a reading", () => {
 
 test("a failed read clears the payload rather than showing a stale one", () => {
   assert.match(PAGE, /catch \(e\) \{[\s\S]{0,400}setView\(null\)/);
+});
+
+// ------------------------------------------------- the fence and the cards (2026-08-27)
+
+test("the fenced row's dead quantity is shown BESIDE the live absence, not instead of it", () => {
+  // The clean-field rule's guard rail 2 at the pixel level: annotate, never
+  // erase. Without this the fenced row renders UNKNOWN in the engine column
+  // and the reader loses the only number the history contains.
+  assert.match(PAGE, /r\.fenced && r\.fenced_implied_qty != null/);
+  assert.match(PAGE, /was \{r\.fenced_implied_qty\} \(dead session\)/);
+});
+
+test("the fence explains itself ON THE PANEL, and names what it could not read", () => {
+  // KILLS the page-side half of the loosening: the fence removes rows from a
+  // verdict the CEO reads, so a page that computed fenceNote and never
+  // rendered it would ship a number without its domain.
+  assert.ok(PAGE.includes("fenceNote(leg)"));
+  assert.ok(PAGE.includes("fenceBlindSpots(leg)"));
+  assert.match(PAGE, /\{fence &&/);
+  assert.match(PAGE, /fenceBlind\.map\(/);
+});
+
+test("every strategy-card sentence comes from the module, never inline in JSX", () => {
+  // The same rule the verdict words follow: a second copy of a sentence in JSX
+  // is how the page and its tested module start disagreeing.
+  for (const fn of ["datasourceLine(c.datasource)", "assetsLine(c)", "classLine(c)",
+                    "sessionLabel(c)", "cardBuckets(c)", "sortedCards(view?.strategies)",
+                    "strategiesAbsence(view?.strategies)",
+                    "unmatchedSessionNote(view?.strategies)"]) {
+    assert.ok(PAGE.includes(fn), `${fn} must be called, not re-implemented in JSX`);
+  }
+  // The datasource facts must not be spelled into the page: they are read
+  // from the algorithm and they differ per algorithm.
+  assert.doesNotMatch(PAGE, /SpineBars|lookback_days|2000-day/);
+});
+
+test("an unreadable strategy registry does not render as an engine count of zero", () => {
+  // Absence discipline on the panel's own header. `readable === false` is
+  // UNKNOWN algorithms; `cards.length` would print 0 and read as "none".
+  assert.match(PAGE, /view\?\.strategies\?\.readable === false[\s\S]{0,60}"UNKNOWN"/);
+});
+
+test("the archived label and the unmatched-session warning both render", () => {
+  // Archived stays VISIBLE — it is the record of what ran, and the fenced row
+  // on the panel above has nothing to point at without it.
+  assert.match(PAGE, /\{c\.archived &&/);
+  assert.match(PAGE, /\{unmatched &&/);
+});
+
+test("the page still has no control that acts, after gaining two panels", () => {
+  // Re-asserted rather than trusted: the strategy panel is the first thing on
+  // this page that renders a per-strategy row, which is exactly the shape a
+  // start/stop button would arrive in.
+  const handlers = [...PAGE.matchAll(/onClick=\{([^}]*)\}/g)].map((m) => m[1].trim());
+  assert.deepEqual(handlers, ["() => void load()"]);
+  const calls = [...PAGE.matchAll(/fundApiClient\.(\w+)/g)].map((m) => m[1]);
+  assert.deepEqual([...new Set(calls)], ["getEngine"]);
 });
