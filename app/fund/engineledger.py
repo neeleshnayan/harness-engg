@@ -374,7 +374,13 @@ def engine_leg(store: EventStore | None = None,
     signals_by_key: dict[tuple[str, str], dict[str, int]] = {}
     for r in rows:
         sid = r.get("strategy_id") or ""
-        sym = (r.get("symbol") or "").upper()
+        # STRIP BEFORE THE TRUTHINESS TEST. `"   ".upper()` is truthy, so a
+        # whitespace-only symbol was becoming a per-symbol row named "   " that
+        # nothing holds and nothing can hold — a phantom divergence. The intake
+        # strips at propose time, but this fold reads HISTORY, and history
+        # contains whatever was written then. Found by the test written to
+        # close mutation survivor M16.
+        sym = (r.get("symbol") or "").strip().upper()
         if not sym:
             continue
         key = (sid, sym)
@@ -401,7 +407,8 @@ def engine_leg(store: EventStore | None = None,
     other_fills: dict[tuple[str, str], int] = {}
     engine_order_ids = set(folded["engine"])
     for fill in folded["fills"]:
-        key = (fill.get("strategy_id") or "", (fill.get("symbol") or "").upper())
+        key = (fill.get("strategy_id") or "",
+               (fill.get("symbol") or "").strip().upper())
         if key in implied and fill["order_id"] not in engine_order_ids:
             other_fills[key] = other_fills.get(key, 0) + 1
 

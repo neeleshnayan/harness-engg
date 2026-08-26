@@ -775,3 +775,95 @@ class TestSentencesReadLikeEnglish:
     def test_an_undetermined_symbol_is_singular(self):
         leg = _leg(_DECLINED_EVENTS, raises=RuntimeError("down"))
         assert leg["verdict"]["sentence"].startswith("1 symbol cannot be compared")
+
+
+class TestTheRealFold:
+    """MUTATION SURVIVOR M34, closed. Every test above hands the leg a FAKE
+    attribution, so the accessor the leg actually calls in production was
+    never exercised — and its entire reason to exist is that it must NOT drop
+    a flat position the way ``with_values`` does. A fixture that models the
+    collaborator cannot fail when the collaborator changes."""
+
+    @staticmethod
+    def _filled(seq, symbol, qty, strategy, side="buy", price=100.0):
+        return _ev(seq, "OrderFilled", f"o{seq}", actor="neelesh",
+                   payload={"filled_qty": qty, "avg_price": price, "side": side,
+                            "symbol": symbol, "strategy_id": strategy,
+                            "fees": 0})
+
+    def _attribution(self, events):
+        from app.fund.projections.strategy import StrategyAttribution
+        return StrategyAttribution(_Store(events))
+
+    def test_the_accessor_KEEPS_a_position_that_has_gone_flat(self):
+        """with_values drops |qty| < 1e-9 because a zero row is noise on a
+        strategy card. Here the zero IS the finding."""
+        events = [self._filled(1, "GLD", 0.1, "s1"),
+                  self._filled(2, "GLD", 0.1, "s1", side="sell", price=110.0)]
+        attr = self._attribution(events)
+        positions = attr.positions_by_strategy()
+        assert "GLD" in positions["s1"], "the flat row must survive"
+        assert abs(positions["s1"]["GLD"]) < Decimal("1e-9")
+        # And the display path still drops it — this is the DIFFERENCE, stated.
+        assert positions["s1"]["GLD"] is not None
+        shown = attr.with_values(lambda s: 100.0)
+        assert "GLD" not in shown[0]["positions"]
+
+    def test_the_leg_reads_the_real_fold_end_to_end(self):
+        """No fake anywhere: real events in, real attribution, real leg out —
+        and the live record's own divergence comes back out."""
+        events = [_proposed(1), _ev(2, "OrderDeclined",
+                                    payload={"approver": "claude:loop-test"})]
+        store = _Store(events)
+        leg = EL.engine_leg(store, attribution=self._attribution(events),
+                            sessions=[])
+        (row,) = leg["implied"]["per_symbol"]
+        assert row["book_qty"] == 0.0
+        assert row["engine_implied_qty"] == 0.1
+        assert leg["verdict"]["state"] == "diverged"
+
+    def test_a_filled_engine_signal_agrees_through_the_real_fold(self):
+        events = [
+            _proposed(1),
+            _ev(2, "OrderApproved", payload={"approver": "neelesh"}),
+            _ev(3, "OrderSubmitted", payload={"venue": "alpaca"}),
+            _ev(4, "OrderFilled", payload={"filled_qty": 0.1, "avg_price": 401.45,
+                                           "side": "buy", "symbol": "GLD",
+                                           "strategy_id": "s1", "fees": 0}),
+        ]
+        leg = EL.engine_leg(_Store(events), attribution=self._attribution(events),
+                            sessions=[])
+        (row,) = leg["implied"]["per_symbol"]
+        assert row["in_sync"] is True
+        assert leg["verdict"]["state"] == "in_sync"
+
+
+class TestASignalWithoutASymbol:
+    """MUTATION SURVIVOR M16, closed. A signal whose payload names no symbol
+    cannot be compared to anything — and the fall-through said "All 0 symbols
+    agree", which is the no-signals defect in a second costume: a claim of
+    agreement over an empty comparison."""
+
+    def test_a_symbol_less_signal_is_not_agreement(self):
+        ev = _proposed(1)
+        ev["payload"]["symbol"] = None
+        leg = _leg([ev], positions={"s1": {}})
+        assert leg["implied"]["per_symbol"] == []
+        assert leg["verdict"]["state"] == "unknown"
+        assert "none names a symbol" in leg["verdict"]["sentence"]
+        assert "1 signal was raised" in leg["verdict"]["sentence"]
+
+    def test_an_empty_string_symbol_is_treated_the_same(self):
+        ev = _proposed(1)
+        ev["payload"]["symbol"] = "   "
+        leg = _leg([ev], positions={"s1": {}})
+        assert leg["verdict"]["state"] == "unknown"
+
+    def test_the_row_still_appears_in_the_LEDGER(self):
+        """It cannot be reconciled; it was still raised. Dropping it from the
+        ledger too would hide the signal entirely."""
+        ev = _proposed(1)
+        ev["payload"]["symbol"] = None
+        led = EL.signal_ledger(_Store([ev]))
+        assert led["total"] == 1
+        assert led["signals"][0]["symbol"] is None
