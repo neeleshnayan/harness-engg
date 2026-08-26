@@ -81,11 +81,13 @@ TICKET_FOLD_VERSION = ("ticket fold v3 (2026-08-24) — v1's legacy adapters, "
 #: nobody can prove was carried is worse than an honest absence.
 TICKET_TYPES = ("ask", "dispatch", "recommendation", "challenge", "lesson")
 
-#: The types a door may MINT. Identical to ``TICKET_TYPES`` today, and a
-#: separate name rather than an alias because the two answer different
-#: questions: one is "what can this fold hold", the other is "what may a caller
-#: create". Slice 5 widens the first by one and the second by one, and they
-#: could legitimately diverge (a species with a legacy adapter and no door).
+#: The types a door may MINT. **Bound to the same tuple as ``TICKET_TYPES``
+#: today** — this is an alias, not a copy, so the two cannot silently drift.
+#: It carries its own NAME because it answers a different question: one is
+#: "what can this fold hold", the other is "what may a caller create". The day
+#: they must differ (a species with a legacy adapter and no door, or the
+#: reverse) the split is one line here instead of a search for every validator
+#: that guessed which of the two it meant.
 OPENABLE_TYPES = TICKET_TYPES
 
 #: The reversibility vocabulary, from the builder's D9 finding carried into the
@@ -163,13 +165,24 @@ ALLOWED_FROM: dict[str, tuple[str, ...]] = {
 #: no reopen transition, so on this machine a decline is not the reversible act
 #: it is over there. Direction is a TIGHTENING and the legacy door is
 #: byte-identical, so nothing that worked yesterday works less well today.
-DECISION_TRANSITIONS = ("approved", "accepted", "declined") + TERMINAL_STATES
+#:
+#: MEMO §2.3 SPELLS ``declined`` OUT AND THIS TUPLE DOES NOT, because it is
+#: already a member of ``TERMINAL_STATES`` — naming it twice made the set
+#: identical either way, which a mutation pass proved by removing the explicit
+#: mention and killing no test (M19). The redundancy is deleted rather than
+#: retired: a constant that lists a value twice invites a future edit to
+#: remove one copy and believe it changed something.
+DECISION_TRANSITIONS = ("approved", "accepted") + TERMINAL_STATES
 
 #: TRANSITIONS THAT MOVE THE WORK FORWARD, which therefore take the
 #: supersession refusal — the generalisation of ``ADVANCING_REC_STATUSES``
 #: (fund.py:2552-2555, ``accepted``/``staged``/``done``).
 #:
-#: The three exclusions each have a reason and none of them is an oversight:
+#: FIVE STATES ARE EXCLUDED, in two groups, and neither group is an oversight.
+#: (An earlier version of this comment said "the three exclusions" and then
+#: listed five across two bullets — the number was written before the second
+#: bullet was.) ``TICKET_STATES`` is ten; four advance; ``filed`` is a birth
+#: state no transition targets from outside a door, so it is neither.
 #:
 #:   * ``declined`` / ``superseded`` / ``merged`` / ``expired`` — CLOSING a
 #:     superseded row must stay easy. This is exactly why the legacy constant

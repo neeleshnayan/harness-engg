@@ -468,6 +468,31 @@ class TestTheApprovalGuard:
         r = _transition(client, tid, "in_flight", actor="cto", confirm=None)
         assert r.status_code == 403
 
+    @pytest.mark.parametrize("to,missing", [
+        ("done", "citation"), ("declined", "reason"),
+        ("superseded", "superseder_ref"), ("merged", "decision_ref"),
+    ])
+    def test_a_refused_actor_never_learns_the_required_field(self, client, to,
+                                                             missing):
+        """FOUND BY A QA PASS, AND IT WAS A DOCSTRING LYING ABOUT ITS CODE.
+
+        The terminal-record check ran BEFORE the approval guard, so an actor
+        off the allowlist asking to close a ticket without a citation got
+        ``422 "a 'done' transition must carry 'citation'"`` — the required
+        field name handed to a caller the next line was going to refuse. The
+        function's own docstring asserted the safe order while the code had the
+        other one, which is how the leak survived a read.
+
+        The pair is what makes this test work: a bad actor AND a missing
+        record together. Every other guard test supplies the record, so none of
+        them could see which check ran first.
+        """
+        tid = _opened_id(client)
+        r = _transition(client, tid, to, actor="builder")
+        assert r.status_code == 403, \
+            f"a refused caller was told about {missing!r} before being refused"
+        assert missing not in str(r.json()["detail"])
+
     def test_the_guard_runs_BEFORE_the_lineage_is_handed_out(self, client):
         """``desk_approve`` moved this order for a reason: v1 handed the
         supersession lineage to ANY caller, including one the allowlist was
@@ -491,6 +516,26 @@ class TestLegality:
         r = _transition(client, tid, "dine")
         assert r.status_code == 422
         assert set(r.json()["detail"]["allowed"]) == set(tk.TICKET_STATES)
+
+    @pytest.mark.parametrize("intermediate", ["in_flight", "returned"])
+    def test_approval_cannot_run_BACKWARDS_up_the_lifecycle(self, client,
+                                                            intermediate):
+        """``ALLOWED_FROM["approved"]`` is the single-source tuple ``("filed",)``
+        and nothing probed that specific edge — the structural tests check
+        terminals-as-source and that the door reads the dict, neither of which
+        pins this one. Blessing work that is already IN FLIGHT is not a
+        harmless no-op: it would make ``approved`` reachable after a dispatch
+        and turn the approved-undispatched age series (failure #7's number)
+        into a clock that can be reset."""
+        tid = _opened_id(client)
+        assert _transition(client, tid, "in_flight", actor="cto",
+                           confirm=None).status_code == 200
+        if intermediate == "returned":
+            assert _transition(client, tid, "returned", actor="cto",
+                               confirm=None).status_code == 200
+        r = _transition(client, tid, "approved")
+        assert r.status_code == 409
+        assert r.json()["detail"]["allowed_from"] == ["filed"]
 
     def test_filed_does_not_jump_to_returned(self, client, store):
         tid = _opened_id(client)
@@ -755,12 +800,24 @@ class TestTheLinkDoor:
                            json={"link_kind": "parent",
                                  "target_id": b}).status_code == 422
 
-    def test_a_ticket_cannot_link_to_itself(self, client, store):
+    @pytest.mark.parametrize("kind", list(tk.LINK_KINDS))
+    def test_a_ticket_cannot_link_to_itself(self, client, store, kind):
+        """EVERY KIND, and the assertion is on the SPECIFIC refusal.
+
+        Mutation survivor M47 is why both halves of that sentence are here. A
+        self-``parent`` link is ALSO caught by the cycle check one branch
+        further down, so a test that only used ``parent`` and only asserted
+        ``422`` passed with the self-link check deleted — two different guards
+        producing one status code, and the test could not tell them apart.
+        ``serves`` and ``decision_ref`` run no cycle check at all, so they are
+        the arms that actually pin this guard.
+        """
         a = _opened_id(client)
         before = len(store.events)
         r = client.post(f"/api/v1/fund/tickets/{a}/link",
-                        json={"link_kind": "parent", "target_id": a})
+                        json={"link_kind": kind, "target_id": a})
         assert r.status_code == 422
+        assert r.json()["detail"]["error"] == "a ticket cannot link to itself"
         assert len(store.events) == before
 
     def test_a_parent_cycle_is_refused(self, client, store):
@@ -779,6 +836,29 @@ class TestTheLinkDoor:
         assert "cycle" in r.json()["detail"]["error"]
         assert len(store.events) == before
 
+    @pytest.mark.parametrize("kind,expected", [
+        ("parent", True),          # the walk ran
+        ("serves", None),          # no cycle is possible; nothing was checked
+        ("decision_ref", None),
+    ])
+    def test_cycle_checked_HAS_THREE_ANSWERS(self, client, kind, expected):
+        """FOUND ON THE READ-THROUGH, NOT BY THE SUITE, and the mutation pass
+        could not have found it either: ``cycle_checked`` read
+        ``index is not None`` for EVERY kind, so a ``serves`` link reported
+        ``True`` with no walk behind it. The fail-open test uses ``parent``,
+        where ``True`` is the right answer, so the mutant that hardcodes this
+        field died against a case that could not tell the difference.
+
+        An unrun check reading as a passed one is the same defect
+        ``supersession_checked`` was given a third answer to avoid — one field
+        in this diff had learned the lesson and its sibling had not.
+        """
+        a, b = _opened_id(client), _opened_id(client)
+        r = client.post(f"/api/v1/fund/tickets/{a}/link",
+                        json={"link_kind": kind, "target_id": b})
+        assert r.status_code == 200, r.text
+        assert r.json()["cycle_checked"] is expected
+
     def test_a_NON_parent_link_may_point_back_up_the_tree(self, client):
         """Only ``parent`` is a tree. ``serves`` and ``decision_ref`` are
         allowed to point anywhere, and refusing them on the parent chain would
@@ -789,6 +869,305 @@ class TestTheLinkDoor:
         assert client.post(f"/api/v1/fund/tickets/{b}/link",
                            json={"link_kind": "serves",
                                  "target_id": a}).status_code == 200
+
+
+# ============================================================================
+# THE MUTATION SURVIVORS — every test below exists because a mutant lived
+#
+# The first pass over this slice killed 42 of 54 and 12 lived. NONE of them
+# was equivalent or no-op: each named a branch the suite could not see. They
+# are gathered here rather than scattered so the reason survives the diff —
+# a test written to kill a specific mutant is worth more when the mutant is
+# named beside it.
+# ============================================================================
+
+class TestTheApprovalGuardCoversEveryDecision:
+    """M19 and M20 — THE TWO THAT MATTERED, both on the approval path.
+
+    The guard was exercised for ``accepted`` alone. Removing ``declined`` from
+    ``DECISION_TRANSITIONS`` (M19) and removing the whole ``+ TERMINAL_STATES``
+    half (M20) both left the suite GREEN — which is to say the tests asserted
+    "one decision transition is guarded" while the docstring claimed "every
+    decision transition is guarded". Parametrizing over the constant is what
+    makes the two sentences the same sentence.
+    """
+
+    #: THE LIST IS THE DESIGN'S, TRANSCRIBED, NOT THE CODE'S — and the second
+    #: mutation pass is why. Parametrizing over ``tk.DECISION_TRANSITIONS``
+    #: killed neither M19 nor M20, because the mutant SHRINKS that constant and
+    #: the test's own domain shrank with it: the states the mutant removed were
+    #: never asked about. A test whose parameter list is read from the value
+    #: under test has asserted self-consistency and can prove nothing.
+    #:
+    #: So this is memo §2.3 in longhand — *"decision transitions (``approved``,
+    #: ``accepted``, ``declined``, all terminals)"* — expanded against §1.2's
+    #: five terminals, and ``test_the_constant_matches_the_design`` below is
+    #: what stops the transcription and the constant from drifting apart.
+    #:
+    #: ``expired`` is absent, and that is not a hole: it is refused outright
+    #: while ``AGING_POLICY_VERSION`` is None, by a check that runs BEFORE the
+    #: guard, so there is no admitted path through the guard to test.
+    #: ``TestTerminalRequirements`` pins that refusal instead.
+    _GUARDED = ("approved", "accepted", "declined", "done", "superseded",
+                "merged")
+
+    #: The record each terminal must carry, so the door reaches the guard
+    #: rather than stopping at the 422 in front of it. Transitions with no
+    #: requirement pass an empty dict.
+    _RECORD = {"done": {"citation": "an artifact"},
+               "declined": {"reason": "not this quarter"},
+               "superseded": {"superseder_ref": "req:the-newer-one"},
+               "merged": {"decision_ref": "the-canonical-row"}}
+
+    def test_the_constant_matches_the_design(self):
+        """The transcription above against the code, in one place. If §2.3's
+        list and ``DECISION_TRANSITIONS`` ever diverge, this says so — and it
+        is the only test here that may read the constant, precisely because
+        checking the constant is its whole job."""
+        assert set(tk.DECISION_TRANSITIONS) == set(self._GUARDED) | {"expired"}
+
+    @pytest.mark.parametrize("to", _GUARDED)
+    def test_EVERY_decision_transition_refuses_an_actor_off_the_allowlist(
+            self, client, store, to):
+        tid = _opened_id(client)
+        r = _transition(client, tid, to, actor="builder",
+                        **self._RECORD.get(to, {}))
+        assert r.status_code == 403, \
+            f"a {to!r} transition reached the record without the guard"
+        assert "allowlist" in r.json()["detail"]
+        assert _by_id(store)[tid]["state"] == "filed"
+
+    @pytest.mark.parametrize("to", _GUARDED)
+    def test_EVERY_decision_transition_demands_the_echo(self, client, to):
+        tid = _opened_id(client)
+        r = _transition(client, tid, to, confirm=None, **self._RECORD.get(to, {}))
+        assert r.status_code == 403
+        assert "confirm echo" in r.json()["detail"]
+
+
+class TestSupersessionOnATicketWithNoKey:
+    """M45 and M53 — an UNRUN check reading as a passed one.
+
+    The existing coverage used ``returned``, which is not an advancing
+    transition, so the supersession block was skipped whatever
+    ``_ticket_supersession_ref`` returned. Both mutants lived in that shadow:
+    one dropped the ``and ref`` condition, the other fabricated a ``req:`` key
+    for a ticket type the edge store has never held. Only an ADVANCING
+    transition on a ticket with no key can see either.
+    """
+
+    def test_an_advancing_transition_with_no_key_reports_the_check_UNRUN(
+            self, client, monkeypatch):
+        from app.api.v1 import fund as fundapi
+        monkeypatch.setattr(fundapi, "_edges_by_target", lambda: {})
+        assert _transition(client, D_CHAIR_BORN, "returned", actor="cto",
+                           confirm=None).status_code == 200
+        r = _transition(client, D_CHAIR_BORN, "done", citation="an artifact")
+        assert r.status_code == 200, r.text
+        assert r.json()["supersession_checked"] is False
+        assert r.json()["supersession_readable"] is None, \
+            "a dispatch has no req:/rec: key, so the check did not run — " \
+            "reporting it as readable would let an unrun check read as passed"
+
+    def test_a_door_born_ticket_has_no_key_either(self, client, monkeypatch):
+        from app.api.v1 import fund as fundapi
+        monkeypatch.setattr(fundapi, "_edges_by_target", lambda: {})
+        tid = _opened_id(client)
+        r = _transition(client, tid, "approved")
+        assert r.status_code == 200, r.text
+        assert r.json()["supersession_checked"] is False
+
+
+class TestTheFoldItselfIsUnreadable:
+    """M54 — the fail-open tests monkeypatched the very function under test.
+
+    ``test_it_FAILS_OPEN_when_the_fold_is_unreadable`` replaced
+    ``_ticket_index`` wholesale, so ``_ticket_index``'s OWN guard (``rows is
+    None`` -> None) was never executed by anything. Deleting it left the suite
+    green and the real path raising ``TypeError`` on a None row list — a 500
+    where the design promises a disclosed fail-open. This drives the REAL path
+    by breaking the store underneath it.
+    """
+
+    @pytest.fixture()
+    def blind_client(self, monkeypatch, store):
+        class _Blind:
+            def append(self, e):
+                store.append(e)
+                return e
+
+            def stream(self, since_seq=0, limit=100_000):
+                raise OSError("the event stream is unreadable")
+
+        from app.api.v1 import fund as fundapi
+        monkeypatch.setattr(fundapi, "_store", _Blind())
+        monkeypatch.setattr(fundapi, "_deskstore", lambda: None)
+        app = FastAPI()
+        app.include_router(fundapi.router, prefix="/api/v1")
+        return TestClient(app)
+
+    def test_the_link_door_fails_OPEN_through_the_real_index(self, blind_client):
+        """``parent``, deliberately: it is the one kind where a cycle IS
+        possible, so ``cycle_checked: False`` means "the walk was owed and
+        could not run". On any other kind the honest answer is None, and this
+        arm would then be asserting the wrong fact about the right status."""
+        r = blind_client.post("/api/v1/fund/tickets/any-id/link",
+                              json={"link_kind": "parent",
+                                    "target_id": "another-id"})
+        assert r.status_code == 200, \
+            "an unreadable fold must not turn a rendering guard into an outage"
+        assert r.json()["cycle_checked"] is False
+
+    def test_the_open_doors_parent_guard_fails_OPEN_too(self, blind_client):
+        r = blind_client.post("/api/v1/fund/tickets",
+                              json={"type": "ask", "subject": "filed blind",
+                                    "parent_id": "a-parent-nobody-can-check"})
+        assert r.status_code == 200, r.text
+
+    def test_the_transition_door_503s_through_the_real_index(self, blind_client):
+        r = blind_client.post("/api/v1/fund/tickets/any-id/transition",
+                              json={"to": "in_flight", "actor": "cto"})
+        assert r.status_code == 503
+
+    def test_a_deskstore_that_RAISES_ON_CONSTRUCTION_is_one_policy_not_two(
+            self, client, monkeypatch):
+        """ONE OUTAGE, ONE POLICY. ``_deskstore()`` BUILDS a ``DeskStore`` on
+        first call, and its construction sat outside the try — so with Postgres
+        down the first request after a restart raised a 500 while every later
+        one degraded quietly. A control whose behaviour depends on whether an
+        unrelated request warmed a cache has two policies and no way to tell
+        which one ran (the D22 finding, in a second place).
+
+        The recommendation leg must read UNKNOWN, never zero, however the read
+        failed — so this drives the CONSTRUCTION failure specifically, which is
+        the arm the old code got wrong.
+        """
+        from app.api.v1 import fund as fundapi
+
+        def _explode():
+            raise OSError("Postgres is down and the store cannot be built")
+
+        monkeypatch.setattr(fundapi, "_deskstore", _explode)
+        assert _open(client, subject="filed during the outage").status_code == 200
+        b = client.get("/api/v1/fund/tickets").json()
+        assert b["readable"] is True, "the event log is still readable"
+        assert b["counts"]["recommendations_read"] is False, \
+            "an unreadable recorder reports the leg UNKNOWN, never zero"
+
+
+class TestDidYouMeanIsAPrefixNotASubstring:
+    """M27 — ``startswith`` swapped for ``in`` and every test still passed,
+    because every test asked with a prefix.
+
+    A ``did_you_mean`` that matches a substring ANYWHERE is a wrong
+    suggestion, not a loose one: it would answer a mistyped middle-of-the-id
+    fragment with a confident expansion to an unrelated ticket, and the whole
+    point of the help is that the caller is one expansion away from the right
+    row.
+    """
+
+    def test_a_middle_fragment_gets_no_expansion(self, client):
+        tid = _opened_id(client)
+        middle = tid[4:4 + MIN_ID_PREFIX + 4]
+        assert middle in tid and not tid.startswith(middle)
+        r = _transition(client, middle, "in_flight")
+        assert r.status_code == 404
+        assert r.json()["detail"]["did_you_mean"] == []
+
+
+class TestTheFoldDefendsItselfAgainstABadProducer:
+    """M2, M3, M5, M6, M10 — the fold's own guards, which no door can reach.
+
+    The doors validate, so a malformed ticket event cannot arrive through
+    them TODAY. Slice 4's staging pipeline and slice 5's resolve pipeline will
+    be new producers, and the fold's guards are what stands between a producer
+    bug and a corrupted population. Every one of these was invisible until an
+    event was hand-crafted, which is the only way to test them.
+    """
+
+    def _append(self, store, etype, payload):
+        from app.fund.events import Event
+        store.append(Event(aggregate_id=str(payload.get("ticket_id") or "?"),
+                           aggregate_type="ticket", type=etype,
+                           payload=payload, actor="a-producer"))
+
+    def test_an_opened_event_with_no_ticket_id_mints_nothing(self, client,
+                                                             store):
+        """M2. Without the guard this mints a ticket keyed on the empty
+        string — a row with no identity, which every later event would then
+        resolve against by accident."""
+        from app.fund.events import EventType
+        before = {t["ticket_id"] for t in _fold(store)["tickets"]}
+        self._append(store, EventType.TICKET_OPENED,
+                     {"ticket_id": "", "type": "ask", "subject": "no id",
+                      "at": "2026-08-25T00:00:00Z", "actor": "cto"})
+        assert {t["ticket_id"] for t in _fold(store)["tickets"]} == before
+
+    @pytest.mark.parametrize("etype_name,extra", [
+        ("TICKET_TRANSITIONED", {"to": "approved"}),
+        ("TICKET_LINKED", {"link_kind": "parent", "target_id": "x"}),
+    ])
+    def test_an_event_against_an_unknown_id_is_counted_as_a_PHANTOM(
+            self, store, etype_name, extra):
+        """M3. Silently skipping it and recording it as a phantom look
+        identical from the outside and are opposite facts: one says nothing
+        happened, the other says something was attempted against an id no
+        adapter has ever seen. The phantom cohort is failure #5's meter."""
+        from app.fund.events import EventType
+        self._append(store, getattr(EventType, etype_name),
+                     {"ticket_id": "an-id-no-fold-has-seen",
+                      "at": "2026-08-25T00:00:00Z", **extra})
+        folded = _fold(store)
+        assert [p["id"] for p in folded["phantom_events"]] == \
+            ["an-id-no-fold-has-seen"]
+        assert "an-id-no-fold-has-seen" not in \
+            {t["ticket_id"] for t in folded["tickets"]}
+
+    def test_a_REFUSED_returned_transition_does_not_stamp_returned_at(
+            self, client, store):
+        """M5. ``filed -> returned`` is illegal, so ``_advance`` refuses it.
+        Stamping ``returned_at`` anyway would report a seat as having come
+        back from work it was never sent on — a fabricated timestamp, which is
+        this fund's oldest forbidden move."""
+        from app.fund.events import EventType
+        tid = _opened_id(client)
+        self._append(store, EventType.TICKET_TRANSITIONED,
+                     {"ticket_id": tid, "to": "returned", "actor": "cto",
+                      "at": "2026-08-25T00:00:00Z"})
+        row = _by_id(store)[tid]
+        assert row["state"] == "filed"
+        assert row.get("returned_at") is None
+        assert [r["to"] for r in row["refused_transitions"]] == ["returned"]
+
+    def test_a_link_event_with_an_unrecognised_kind_is_IGNORED(self, client,
+                                                               store):
+        """M6. The door refuses an unknown ``link_kind``; the fold must too,
+        or a future producer's typo becomes a ``serves`` edge by falling
+        through the else."""
+        from app.fund.events import EventType
+        a, b = _opened_id(client), _opened_id(client)
+        self._append(store, EventType.TICKET_LINKED,
+                     {"ticket_id": a, "link_kind": "blocks", "target_id": b,
+                      "at": "2026-08-25T00:00:00Z"})
+        row = _by_id(store)[a]
+        assert row["parent_id"] is None
+        assert "serves" not in row
+        assert "links" not in row
+
+    def test_a_TERMINAL_door_born_ticket_routes_to_NOBODY(self, client, store):
+        """M10, and it is failure #3 wearing a new costume. A ticket that
+        DECLARED ``next_actor: ceo`` and has since been declined must stop
+        being the CEO's move — "executed, shown open" is the 16-row regression
+        the CEO called out by name, and a terminal row still routing to him is
+        exactly how it renders a decision control on a closed decision."""
+        tid = _opened_id(client, next_actor="ceo")
+        assert _by_id(store)[tid]["next_actor"] == "ceo"
+        assert _transition(client, tid, "declined",
+                           reason="not this quarter").status_code == 200
+        row = _by_id(store)[tid]
+        assert row["terminal"] is True
+        assert row["next_actor"] == "nobody"
+        assert row["next_actor_basis"] == "lifecycle"
 
 
 # ============================================================================
@@ -850,6 +1229,25 @@ class TestTheLegacyFoldsAreUntouched:
         client.post(f"/api/v1/fund/tickets/{tid}/link",
                     json={"link_kind": "serves", "target_id": D_CHAIR_BORN})
         return store
+
+    def test_THE_NULL_ARM_no_legitimate_traffic_produces_a_phantom(self, busy):
+        """THE ZERO, WITH ITS DOMAIN STATED — and the domain is the half that
+        makes it a result.
+
+        Three tests pin the POSITIVE phantom cases (an id no adapter has seen,
+        for each of the three event types). None pinned the negative: that a
+        store worked hard through every door produces NO phantoms. A phantom
+        detector that fired on legitimate traffic would be exactly as useless
+        as one that never fired, and only this arm can tell the difference.
+        """
+        folded = tk.fold(busy, runs=None, now="2026-08-25T00:00:00Z")
+        assert folded["phantom_events"] == []
+        # THE DOMAIN. Seven events compared — two legacy rows and the five
+        # ticket events the `busy` fixture drives through the three doors —
+        # against three tickets. A zero over an empty store would be this
+        # assertion passing while comparing nothing at all.
+        assert len(busy.events) == 7
+        assert len(folded["tickets"]) == 3
 
     def test_the_desk_view_is_byte_identical(self, busy):
         from app.fund.events import EventType
