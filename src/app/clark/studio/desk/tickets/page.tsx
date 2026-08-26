@@ -13,7 +13,7 @@ import {
   ticketFailureKind, ticketReadNote, ticketsCountable,
   type TicketReadFailure,
 } from "../ticketRead.ts";
-import { STATE_LABEL, isTerminal } from "../ticketCard.ts";
+import { STATE_LABEL, isTerminal, listCap } from "../ticketCard.ts";
 import { allTrays, chairQueue, type SeatTray } from "../ticketTrays.ts";
 import { lineageCoverage } from "../ticketLineage.ts";
 import {
@@ -80,11 +80,16 @@ export default function TicketBoardPage() {
   const queue = useMemo(() => chairQueue(tickets), [tickets]);
   const coverage = useMemo(() => lineageCoverage(tickets), [tickets]);
 
-  const shown = useMemo(() => {
+  // THE CAP IS COMPUTED ONCE AND THE LIST IS SLICED WITH IT, so the sentence
+  // and the rows cannot disagree. The rendered page said "showing 369 of 713"
+  // over a list of 200 before this existed.
+  const shownList = useMemo(() => {
     if (!tickets) return null;
     if (stateFilter === "all") return tickets.filter((t) => !isTerminal(t));
     return tickets.filter((t) => t.state === stateFilter);
   }, [tickets, stateFilter]);
+  const shown = shownList;
+  const cap = listCap(shown?.length ?? 0, page?.counts.total ?? 0);
 
   return (
     <div className="min-h-screen bg-[var(--kt-bg)] text-[var(--kt-text)]">
@@ -144,8 +149,11 @@ export default function TicketBoardPage() {
                   <>
                     {" · "}the other instrument caps at{" "}
                     {page.counts.desk_load_runs_cap} runs and this fold read{" "}
-                    {page.counts.runs_seen ?? "?"}, so the two agree{" "}
-                    {page.counts.reconciles_with_desk_load ? "and do" : "but do not"}
+                    {page.counts.runs_seen ?? "?"}, so the two are still
+                    comparable — and they{" "}
+                    {page.counts.reconciles_with_desk_load
+                      ? "reconcile"
+                      : <span className={KT.sev.warn}>do NOT reconcile</span>}
                   </>
                 )}
               </p>
@@ -156,18 +164,44 @@ export default function TicketBoardPage() {
             {coverage && (
               <section className={`${KT.card} mb-6`}>
                 <p className={KT.label}>Lineage coverage</p>
-                <p className="mt-2 text-sm">
-                  <span className={coverage.linkablePct === null
-                    ? KT.heroDim : KT.hero}>
-                    {coverage.linkablePct === null
-                      ? "—"
-                      : `${coverage.linkablePct.toFixed(0)}%`}
-                  </span>
-                  <span className={`ml-3 text-xs ${KT.muted}`}>
-                    of the {coverage.linkable} ticket(s) that could carry a
-                    parent
-                  </span>
-                </p>
+                {/* TWO HERO FIGURES, NOT ONE, AND THE FENCE IS THE SECOND.
+                    `linkablePct` alone renders 100% on today's record — true,
+                    and the most misleading true thing on this page, because
+                    62% of the same population is fenced and unreadable. The
+                    eye must meet both or it meets neither. */}
+                <div className="mt-2 flex flex-wrap items-baseline gap-x-8 gap-y-2">
+                  <p>
+                    <span className={coverage.linkablePct === null
+                      ? KT.heroDim : KT.hero}>
+                      {coverage.linkablePct === null
+                        ? "—"
+                        : `${coverage.linkablePct.toFixed(0)}%`}
+                    </span>
+                    <span className={`ml-3 text-xs ${KT.muted}`}>
+                      of the {coverage.linkable} ticket(s) that could carry a
+                      parent are linked
+                    </span>
+                  </p>
+                  <p>
+                    <span className={coverage.fenced
+                      ? `${KT.hero} ${KT.sev.warn}` : KT.heroDim}>
+                      {coverage.fencedPct === null
+                        ? "—"
+                        : `${coverage.fencedPct.toFixed(0)}%`}
+                    </span>
+                    <span className={`ml-3 text-xs ${KT.muted}`}>
+                      of all {coverage.total} are FENCED — their lineage is
+                      UNKNOWN, not absent
+                    </span>
+                  </p>
+                </div>
+                {coverage.leads === "fenced" && (
+                  <p className={`mt-2 text-xs ${KT.sev.warn}`}>
+                    The fenced cohort is LARGER than the linked one, so the
+                    first figure describes a minority of the record. Read them
+                    together or not at all.
+                  </p>
+                )}
                 <p className={`mt-2 text-xs ${KT.muted}`}>{coverage.note}</p>
                 <div className={`mt-3 grid grid-cols-2 gap-3 text-xs sm:grid-cols-5`}>
                   <Fig n={coverage.found} label="linked" />
@@ -242,16 +276,16 @@ export default function TicketBoardPage() {
                     </option>
                   ))}
                 </select>
-                <span className={`text-xs ${KT.muted}`}>
-                  showing {shown?.length ?? 0} of {page.counts.total}
+                <span className={`text-xs ${cap.capped ? KT.sev.warn : KT.muted}`}>
+                  {cap.note}
                   {stateFilter === "all"
-                    ? " — terminal rows are excluded here and reachable by "
-                      + "picking their state above"
+                    ? " Terminal rows are excluded from this view and reachable "
+                      + "by picking their state above."
                     : ""}
                 </span>
               </div>
               <div className="space-y-3">
-                {(shown ?? []).slice(0, 200).map((t) => (
+                {(shown ?? []).slice(0, cap.shown).map((t) => (
                   <React.Fragment key={t.ticket_id}>
                     <TicketCard ticket={t} onOpenLineage={setOpenLineage} />
                     {openLineage === t.ticket_id && (
@@ -260,13 +294,14 @@ export default function TicketBoardPage() {
                   </React.Fragment>
                 ))}
               </div>
-              {(shown?.length ?? 0) > 200 && (
-                /* THE CAP IS ON SCREEN. The desk this replaces truncated seven
-                   rows away with no sentence and the CEO lost an item to it. */
+              {cap.capped && (
+                /* THE CAP IS ON SCREEN TWICE — above the list and below it —
+                   because a reader who scrolls to the bottom of a capped list
+                   is exactly the reader who will otherwise conclude it ended.
+                   The desk this replaces truncated seven rows away with no
+                   sentence at all and the CEO lost a $915 item to it. */
                 <p className={`mt-3 text-xs ${KT.sev.warn}`}>
-                  This list is capped at 200 rows and {shown!.length} match the
-                  filter — {shown!.length - 200} are NOT shown. Narrow the state
-                  filter to reach them.
+                  {cap.note} Narrow the state filter to reach the rest.
                 </p>
               )}
             </section>

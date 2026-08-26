@@ -159,6 +159,7 @@ export default function CeoExceptionsPage() {
                   <React.Fragment key={r.ticket.ticket_id}>
                     <TicketCard
                       ticket={r.ticket} rule={r.primary} why={r.why}
+                        overdue={r.overdue}
                       onOpenLineage={setOpenLineage}
                     />
                     {openLineage === r.ticket.ticket_id && tickets && (
@@ -191,6 +192,7 @@ export default function CeoExceptionsPage() {
                     <React.Fragment key={r.ticket.ticket_id}>
                       <TicketCard
                         ticket={r.ticket} rule={r.primary} why={r.why}
+                        overdue={r.overdue}
                         onOpenLineage={setOpenLineage}
                       />
                       {openLineage === r.ticket.ticket_id && tickets && (
@@ -227,6 +229,7 @@ export default function CeoExceptionsPage() {
                     <React.Fragment key={r.ticket.ticket_id}>
                       <TicketCard
                         ticket={r.ticket} rule={r.primary} why={r.why}
+                        overdue={r.overdue}
                         onOpenLineage={setOpenLineage}
                       />
                       {openLineage === r.ticket.ticket_id && tickets && (

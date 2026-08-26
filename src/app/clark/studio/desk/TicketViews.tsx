@@ -67,10 +67,11 @@ export function TicketLamp({ lamp }: { lamp: TicketCardState["lamp"] }) {
  * that is owed and links to where it lives. The highway's transition door is
  * on the approval channel and a read-only board is not the place to open it.
  */
-export function TicketCard({ ticket, rule, why, onOpenLineage }: {
+export function TicketCard({ ticket, rule, why, overdue, onOpenLineage }: {
   ticket: Ticket;
   rule?: ExceptionRow["primary"];
   why?: string;
+  overdue?: boolean;
   onOpenLineage?: (id: string) => void;
 }) {
   const c = ticketCardState(ticket);
@@ -103,7 +104,17 @@ export function TicketCard({ ticket, rule, why, onOpenLineage }: {
               && Number.isFinite(ticket.money_at_stake)
               && ticket.money_at_stake > 0
               ? ` · ${money(ticket.money_at_stake)} at stake` : ""}
-            {ticket.due_date ? ` · due ${ticket.due_date}` : ""}
+            {ticket.due_date
+              ? (overdue
+                /* THE ONE CONDITION THAT IS TRUE WHETHER OR NOT ANYBODY
+                   CLICKS, and the only thing on this card that spends a
+                   colour. The look-pass caught its absence: the first three
+                   rendered rows were all due 2026-08-24, read on 2026-08-26,
+                   and the card said "due 2026-08-24" in the same muted tone as
+                   everything else. */
+                ? <span className={KT.sev.warn}> · OVERDUE — due {ticket.due_date}</span>
+                : ` · due ${ticket.due_date}`)
+              : ""}
           </p>
 
           {rule && (
@@ -125,7 +136,15 @@ export function TicketCard({ ticket, rule, why, onOpenLineage }: {
                   {c.controls === "decide"
                     ? "A decision is owed" : "An execution is owed"}
                 </span>
-                <span className={`ml-1 ${KT.muted}`}>— {c.controlsWhy}</span>
+                {/* THE SAME SENTENCE, ONCE. The rule chip above already prints
+                    the row's reason, and on a `your_move` row the two are the
+                    SAME STRING — the rendered page carried "the row states its
+                    next actor is the ceo" twice on every one of 57 cards.
+                    Found by looking; no test could see it, because both halves
+                    were individually correct. */}
+                {c.controlsWhy !== why && (
+                  <span className={`ml-1 ${KT.muted}`}>— {c.controlsWhy}</span>
+                )}
                 {" "}
                 <Link href="/clark/studio/desk/ceo" className="underline">
                   open it on your desk

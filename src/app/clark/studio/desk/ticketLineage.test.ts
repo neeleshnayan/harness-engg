@@ -419,3 +419,45 @@ test("lineageCoverage([]) is a real answer, not null — total 0, linkablePct nu
   assert.equal(cov.linkable, 0);
   assert.equal(cov.linkablePct, null);
 });
+
+/* ------------------------------------------- the two figures, together --- */
+
+test("fencedPct is published beside linkablePct — the 100% trap", () => {
+  // THE RENDERED PAGE CAUGHT THIS. With every linkable row linked and most of
+  // the population fenced, `linkablePct` is a true 100% and the most
+  // misleading true thing on the board. `fencedPct` and `leads` exist so a
+  // surface cannot render the first figure alone, and this test fails if
+  // either is dropped.
+  const rows = [
+    tk({ ticket_id: "a", parent_id: "b" }),
+    tk({ ticket_id: "b", type: "ask" }),
+    ...Array.from({ length: 8 }, (_, i) =>
+      tk({ ticket_id: `f${i}`, parent_basis: FENCE })),
+  ];
+  const cov = lineageCoverage(rows)!;
+  assert.equal(cov.linkablePct, 100, "every linkable row is linked");
+  assert.equal(cov.fenced, 8);
+  assert.equal(cov.fencedPct, 80, "and 80% of the population is unreadable");
+  assert.equal(cov.leads, "fenced",
+    "the larger fact must lead, or the page renders 100% and nothing else");
+});
+
+test("`leads` says `linked` only when the linked cohort is the larger one", () => {
+  const rows = [
+    tk({ ticket_id: "a", parent_id: "b" }),
+    tk({ ticket_id: "b", parent_id: "c" }),
+    tk({ ticket_id: "c", type: "ask" }),
+    tk({ ticket_id: "f", parent_basis: FENCE }),
+  ];
+  const cov = lineageCoverage(rows)!;
+  assert.equal(cov.found, 2);
+  assert.equal(cov.fenced, 1);
+  assert.equal(cov.leads, "linked");
+});
+
+test("both percentages are null on an empty population, never 0 and never NaN", () => {
+  const cov = lineageCoverage([])!;
+  assert.equal(cov.linkablePct, null);
+  assert.equal(cov.fencedPct, null);
+  assert.equal(cov.leads, "linked", "no fence can lead when there is none");
+});

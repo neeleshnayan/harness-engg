@@ -26,6 +26,7 @@ import {
   TERMINAL_STATES, WORKING_STATES, STATE_LABEL,
   isTerminal, ticketLamp, ticketTitle, ticketAdjudication, ticketCardState,
   awaitingCount, recordCount,
+  BOARD_ROW_CAP, listCap,
 } from "./ticketCard.ts";
 
 /* ------------------------------------------------------------ the maker --- */
@@ -571,4 +572,51 @@ test("ticketCardState's stateLabel matches STATE_LABEL for every state", () => {
 test("ticketCardState's lamp field agrees with the standalone ticketLamp function", () => {
   const t = tk({ state: "returned", terminal: false });
   assert.equal(ticketCardState(t).lamp, ticketLamp(t));
+});
+
+/* --------------------------------------------------------- the list cap --- */
+
+test("a capped list says how many are NOT on screen", () => {
+  // THE DEFECT, FOUND ON THE RENDERED BOARD: the header read "showing 369 of
+  // 713" over a list that drew 200. Both numbers were true about something and
+  // neither was true about what was on screen — the exact shape of the
+  // truncation that lost the CEO a $915 item on his own desk.
+  const c = listCap(369, 713, 200);
+  assert.equal(c.shown, 200);
+  assert.equal(c.matched, 369);
+  assert.equal(c.hidden, 169);
+  assert.equal(c.capped, true);
+  assert.match(c.note, /showing 200 of 369 matching rows — 169 are NOT on screen/);
+  assert.match(c.note, /713 ticket\(s\) in the fold/);
+});
+
+test("an uncapped list says it is showing everything, and does not warn", () => {
+  const c = listCap(12, 713, 200);
+  assert.equal(c.shown, 12);
+  assert.equal(c.hidden, 0);
+  assert.equal(c.capped, false);
+  assert.match(c.note, /showing all 12 matching row\(s\)/);
+  assert.doesNotMatch(c.note, /NOT on screen/);
+});
+
+test("the cap boundary is exact — at the cap nothing is hidden", () => {
+  const at = listCap(200, 713, 200);
+  const over = listCap(201, 713, 200);
+  assert.equal(at.capped, false, "exactly the cap is not a truncation");
+  assert.equal(at.hidden, 0);
+  assert.equal(over.capped, true);
+  assert.equal(over.hidden, 1, "one row over is one row hidden, and it is said");
+});
+
+test("an empty list is a real answer, never a truncation", () => {
+  const c = listCap(0, 713, 200);
+  assert.equal(c.shown, 0);
+  assert.equal(c.capped, false);
+  assert.match(c.note, /showing all 0 matching row\(s\) of 713/);
+});
+
+test("the cap has a named default, so a page cannot invent one inline", () => {
+  assert.equal(typeof BOARD_ROW_CAP, "number");
+  assert.equal(listCap(1000, 1000).shown, BOARD_ROW_CAP);
+  assert.equal(listCap(1000, 1000).hidden, 1000 - BOARD_ROW_CAP);
 });

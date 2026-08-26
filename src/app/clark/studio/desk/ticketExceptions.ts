@@ -225,6 +225,19 @@ export interface ExceptionRow {
    *  `your_move` because a decision owed and an execution owed are different
    *  acts and putting them in one list is what made the list 57 long. */
   executionOwed: boolean;
+  /**
+   * The stated due date has passed.
+   *
+   * THE ONE CONDITION ON THIS DESK THAT IS TRUE WHETHER OR NOT ANYBODY CLICKS,
+   * which is why `ceo_desk` already spends its single colour on it and why the
+   * look-pass caught its absence here: the first three rows on the rendered
+   * page were all due 2026-08-24, read on 2026-08-26, and nothing said so.
+   *
+   * Compared as DATE STRINGS in the fold's own `YYYY-MM-DD` shape against the
+   * caller's `nowIso`, matching `desk._overdue` exactly. Parsing either side
+   * into a Date would introduce a timezone the record does not carry.
+   */
+  overdue: boolean;
 }
 
 /* ------------------------------------------------------- the rule checks --- */
@@ -390,6 +403,9 @@ export function ceoExceptions(
   nowIso: string,
 ): CeoExceptions | null {
   if (!tickets) return null;
+  // The date half of the caller's instant, compared as a string against the
+  // fold's own `YYYY-MM-DD` due dates — `desk._overdue`'s comparison exactly.
+  const today = nowIso.slice(0, 10);
 
   const working = tickets.filter((t) => !t.terminal);
   const record = tickets.filter((t) => t.terminal);
@@ -472,6 +488,10 @@ export function ceoExceptions(
       primary,
       why: ruleWhy(primary, t, nowIso),
       rankedOn: rankedOnOf(t),
+      overdue: (() => {
+        const d = dueOf(t);
+        return d !== null && d <= today;
+      })(),
       // `decided` survives the move out of `filed`, so this is "he has said
       // yes and the doing is his", not "the row's state happens to be
       // accepted". A row he decided and the CHAIR must execute is not here at
@@ -591,6 +611,16 @@ export function exceptionsNote(x: CeoExceptions | null): string | null {
   parts.push(`${x.totals.decisionOwed} decision(s) await you`);
   if (x.totals.executionOwed) {
     parts.push(`${x.totals.executionOwed} you decided and owe the execution on`);
+  }
+  const overdue = x.decisionOwed.filter((r) => r.overdue).length
+    + x.executionOwed.filter((r) => r.overdue).length;
+  if (overdue) {
+    // "17 of them is past its stated date" is what the first draft rendered,
+    // and the rendered page is where it was caught. A count-driven sentence
+    // needs its verb and its possessive to agree with the count.
+    parts.push(overdue === 1
+      ? "1 of them is past its stated date"
+      : `${overdue} of them are past their stated dates`);
   }
   if (x.rankedOnNothing) {
     parts.push(`${x.rankedOnNothing} of the decisions state neither a date nor `

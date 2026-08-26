@@ -306,3 +306,56 @@ export function awaitingCount(tickets: readonly Ticket[]): number {
 export function recordCount(tickets: readonly Ticket[]): number {
   return tickets.filter((t) => isTerminal(t)).length;
 }
+
+/* ---------------------------------------------------------- the list cap --- */
+
+/**
+ * How many rows a board list draws before it stops.
+ *
+ * A CAP, NEVER A COUNT. The last cap this desk shipped without a sentence took
+ * the CEO's own desk from 57 rows to 50 with nothing on screen saying so, and
+ * he lost a $915 item behind it.
+ */
+export const BOARD_ROW_CAP = 200;
+
+export interface ListCap {
+  /** How many rows the caller will actually draw. */
+  shown: number;
+  /** How many matched the filter. */
+  matched: number;
+  hidden: number;
+  capped: boolean;
+  /** The sentence beside the list. Always non-empty — a list with no sentence
+   *  about its own bounds is the truncation defect waiting to happen again. */
+  note: string;
+}
+
+/**
+ * What a capped list must say about itself.
+ *
+ * THE DEFECT THIS CLOSES WAS FOUND ON THE RENDERED PAGE, not by a test: the
+ * board's header read *"showing 369 of 713"* while the list drew 200. Both
+ * numbers were true about something and neither was true about what was on
+ * screen — which is precisely the shape of the truncation that started this
+ * dispatch. Extracted from JSX because a ternary inside a `<span>` cannot be
+ * reached by the test runner.
+ *
+ * @param matched rows passing the current filter.
+ * @param total   the whole population behind the filter.
+ */
+export function listCap(
+  matched: number, total: number, cap = BOARD_ROW_CAP,
+): ListCap {
+  const shown = Math.min(matched, cap);
+  const hidden = Math.max(0, matched - cap);
+  return {
+    shown,
+    matched,
+    hidden,
+    capped: hidden > 0,
+    note: hidden > 0
+      ? `showing ${shown} of ${matched} matching rows — ${hidden} are NOT on `
+        + `screen. ${total} ticket(s) in the fold.`
+      : `showing all ${shown} matching row(s) of ${total} in the fold.`,
+  };
+}

@@ -241,6 +241,22 @@ export interface LineageCoverage {
    *  well the highway links. */
   linkable: number;
   linkablePct: number | null;
+  /**
+   * The FENCED share of the WHOLE population — the number that must be read
+   * beside `linkablePct` and never after it.
+   *
+   * THE RENDERED PAGE IS WHY THIS FIELD EXISTS. The first cut put
+   * `linkablePct` alone at hero scale and it read **100%** — true, and the
+   * most misleading true thing on the board, because 443 of the same 713 rows
+   * (62%) are fenced and their lineage is UNKNOWN. A summary figure a reader
+   * can take as "our lineage is clean" while most of the population is
+   * unreadable is absence-as-zero one level up, on the surface built to end
+   * it. Null only when the population is empty.
+   */
+  fencedPct: number | null;
+  /** Which of the two figures leads. `fenced` when the unreadable cohort is
+   *  the larger fact, which is what the record says today. */
+  leads: "linked" | "fenced";
   note: string;
 }
 
@@ -273,6 +289,8 @@ export function lineageCoverage(
     found, fenced, notApplicable, absent, dangling,
     linkable,
     linkablePct: linkable > 0 ? (found / linkable) * 100 : null,
+    fencedPct: tickets.length > 0 ? (fenced / tickets.length) * 100 : null,
+    leads: fenced > found ? "fenced" : "linked",
     note: linkable > 0
       ? `${found} of ${linkable} linkable ticket(s) carry a parent the record `
         + `supports. ${fenced} more are FENCED as pre-highway — the record `

@@ -493,6 +493,39 @@ test("the note states the arrival-order caveat only when it is true", () => {
   assert.doesNotMatch(exceptionsNote(dated)!, /arrival order/);
 });
 
+test("the overdue sentence agrees with its own count, singular and plural", () => {
+  // A COUNT-DRIVEN SENTENCE IS A BRANCH. The first draft rendered "17 of them
+  // is past its stated date" on the live page and no test could see it,
+  // because the count was right. Both arms are pinned here so the singular
+  // cannot be lost the next time someone edits the plural.
+  const one = ceoExceptions(
+    [tk({ next_actor: "ceo", due_date: "2026-08-01" })], NOW)!;
+  const two = ceoExceptions([
+    tk({ next_actor: "ceo", due_date: "2026-08-01" }),
+    tk({ next_actor: "ceo", due_date: "2026-08-02" }),
+  ], NOW)!;
+  assert.match(exceptionsNote(one)!, /1 of them is past its stated date/);
+  assert.match(exceptionsNote(two)!, /2 of them are past their stated dates/);
+});
+
+test("a date in the future is not overdue, and the boundary is TODAY", () => {
+  // `desk._overdue` treats a due date equal to today as overdue — the day it
+  // is due is the last day it is not late, and this desk has always read it
+  // the other way. Pinned against the spine's own comparison.
+  const today = ceoExceptions(
+    [tk({ next_actor: "ceo", due_date: NOW.slice(0, 10) })], NOW)!;
+  const tomorrow = ceoExceptions(
+    [tk({ next_actor: "ceo", due_date: "2026-08-27" })], NOW)!;
+  assert.equal(today.decisionOwed[0].overdue, true);
+  assert.equal(tomorrow.decisionOwed[0].overdue, false);
+});
+
+test("a row with no date is never overdue", () => {
+  const x = ceoExceptions([tk({ next_actor: "ceo" })], NOW)!;
+  assert.equal(x.decisionOwed[0].overdue, false);
+  assert.doesNotMatch(exceptionsNote(x)!, /past its stated date/);
+});
+
 test("the note counts the board and the record so nothing is hidden", () => {
   const x = ceoExceptions([
     tk({ next_actor: "ceo" }), tk({}), tk({ terminal: true, state: "done" }),
