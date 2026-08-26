@@ -701,12 +701,16 @@ export function signalDensity(tl: Timeline, binCount = 24): Density {
  */
 export function sortedSignals(ledger: SignalLedger | null | undefined): SignalRow[] {
   const rows = [...(ledger?.signals ?? [])];
-  return rows.sort((a, b) => {
-    const ta = instant(a.raised_at);
-    const tb = instant(b.raised_at);
-    if (ta == null && tb == null) return 0;
-    if (ta == null) return 1;      // undated last, both directions
-    if (tb == null) return -1;
-    return tb - ta;                // newest first
-  });
+  // PARTITIONED, NOT SORTED WITH A NULL-AWARE COMPARATOR — and the difference
+  // is measured, not stylistic. The first version returned `1` for an undated
+  // LEFT operand and `-1` for an undated right one; mutating either branch to
+  // `0` makes the comparator INCONSISTENT, whose result is implementation-
+  // defined, and V8's TimSort happened to produce the correct order anyway.
+  // The mutant survived the suite twice. A sort whose correctness depends on
+  // which engine runs it is not a sort; the partition is total, obvious, and
+  // has a mutant that dies.
+  const dated = rows.filter((s) => instant(s.raised_at) != null);
+  const undated = rows.filter((s) => instant(s.raised_at) == null);
+  dated.sort((a, b) => (instant(b.raised_at) as number) - (instant(a.raised_at) as number));
+  return [...dated, ...undated];   // newest first, then the unplaceable
 }
