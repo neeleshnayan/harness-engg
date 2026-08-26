@@ -251,9 +251,24 @@ test("the headline names the number that matters, or says there is none", () => 
   assert.match(quiet.text, /none running unallocated/);
 });
 
-test("the headline is a warn when either source is unreadable", () => {
-  assert.equal(engineBookHeadline(engineBook(null, enginePayload()))!.tone, "warn");
-  assert.equal(engineBookHeadline(engineBook(LIVE, null))!.tone, "warn");
+test("an unreadable STRATEGY list gets no headline — the panel says it once", () => {
+  // FOUND ON THE DEAD-SPINE PASS. The headline used to return `b.absence` and
+  // the panel rendered `b.absence` beneath it, so a dead spine printed the same
+  // paragraph twice on the Allocate page. Two copies of one fact is how a
+  // reader learns a surface is generated rather than written — and it is the
+  // third instance of this class this seat shipped in one dispatch.
+  const dead = engineBook(null, enginePayload());
+  assert.equal(engineBookHeadline(dead), null);
+  assert.ok(dead.absence, "the panel still says it, exactly once");
+});
+
+test("an unreadable ENGINE endpoint DOES get a headline, because the rows render", () => {
+  // The other absence, and it is the opposite case: the rows come from the
+  // strategy list, so there ARE rows and nothing else on the panel would say
+  // that their session state is unknown.
+  const h = engineBookHeadline(engineBook(LIVE, null))!;
+  assert.equal(h.tone, "warn");
+  assert.match(h.text, /not the same as no session/);
 });
 
 test("an empty panel gets no headline at all", () => {

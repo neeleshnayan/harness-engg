@@ -267,7 +267,13 @@ export function engineBook(
  * empty panel does not get a sentence about a state it is not in.
  */
 export function engineBookHeadline(b: EngineBook): { text: string; tone: EngineRowTone } | null {
-  if (!b.readable) return { text: b.absence ?? "The strategy list could not be read.", tone: "warn" };
+  // NULL WHEN THE PANEL IS ABOUT TO SAY IT ITSELF. An unreadable strategy list
+  // has no rows, so the panel renders `absence`; a headline that ALSO returned
+  // that sentence printed the same paragraph twice, one directly above the
+  // other — found on the DEAD-SPINE pass, in code written this dispatch, and
+  // the third instance of that exact class in one day. The headline heads
+  // ROWS; it does not narrate their absence.
+  if (!b.readable) return null;
   if (!b.sessionsReadable && b.rows.length > 0) {
     return { text: SESSION_UNREADABLE_NOTE, tone: "warn" };
   }
