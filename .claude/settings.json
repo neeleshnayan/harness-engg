@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:\\Users\\user\\Documents\\Krypton Fund\\.claude\\hooks\\lamp_on.py\""
+          }
+        ]
+      }
+    ]
+  }
+}
