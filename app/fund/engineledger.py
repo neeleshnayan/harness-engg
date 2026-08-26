@@ -178,13 +178,23 @@ _SESSION_ALIVE = ("starting", "running")
 ORPHAN_CHECK = False
 
 #: What that costs, in one sentence, on the payload.
+#:
+#: REWRITTEN 2026-08-27, because half of what it described was fixed and a note
+#: that still claims a closed gap is a stale claim on a page the CEO reads. The
+#: previous version ended "Closing this needs the runner to reconcile its
+#: session table against `docker ps` on start-up" — which the runner now does.
+#: What is left is the narrower, true residual: the reconciliation is a START-UP
+#: event, and this fold is not one.
 ORPHAN_NOTE = (
-    "Nothing asks Docker what is running. A LEAN container outlives the spine "
-    "process that started it (leanrunner._run_live runs `docker run` from a "
-    "daemon thread) and cannot be stopped after a restart, so a container that "
-    "went quiet before the restart is FENCED and is indistinguishable from a "
-    "dead one. Closing this needs the runner to reconcile its session table "
-    "against `docker ps` on start-up.")
+    "Nothing in this fold asks Docker what is running — it reads the runner's "
+    "session list. A LEAN container outlives the spine process that started it "
+    "(leanrunner._run_live runs `docker run` from a daemon thread); since "
+    "2026-08-27 that list is durable and the runner reconciles it against "
+    "`docker ps` at spine START-UP, so such a container is re-attached or "
+    "stopped then. What remains is the window BETWEEN start-ups: a container "
+    "that goes quiet mid-session leaves a row until the next start-up or a "
+    "call to GET /fund/lean/live/reconciliation, and no fact in the event log "
+    "separates a silent orphan from a dead engine.")
 
 
 class EngineContext:
@@ -339,13 +349,16 @@ def signal_liveness(row: dict[str, Any], ctx: EngineContext) -> dict[str, Any]:
     first version of this docstring overclaimed it).** What is proven is that
     NO SESSION RECORD ACCOUNTS FOR THE SIGNAL — not that the container is dead.
     ``_run_live`` starts ``docker run`` from a daemon thread and the container
-    lives in the docker daemon, so it OUTLIVES a spine restart; ``stop_live``
-    can only kill sessions the current process's ``_live`` dict knows about, so
-    after a restart an orphan cannot even be stopped. Rule 5 catches an orphan
+    lives in the docker daemon, so it OUTLIVES a spine restart. Since
+    2026-08-27 the session table is durable and the runner reconciles it
+    against ``docker ps`` at start-up, so an orphan is re-attached (and
+    stoppable) or stopped and recorded AT THAT MOMENT — which is when this
+    residual is at its smallest, not when it is gone. Rule 5 catches an orphan
     that SPEAKS after the restart. **A silent orphan — one that raised its last
     signal before the restart and has said nothing since, which is the NORMAL
-    state of a daily-bar algorithm — is fenced, and the fund cannot tell it
-    from a dead one.** No fact in the event log separates the two: the only
+    state of a daily-bar algorithm — is fenced, and THIS FOLD cannot tell it
+    from a dead one**, because this fold reads the log and the session list and
+    never the daemon. No fact in the event log separates the two: the only
     thing that would is asking Docker what is running, which this fold does not
     do and says so (``ORPHAN_CHECK``). The residual is published on the fence's
     own domain so the page can name it, because a control that overstates its

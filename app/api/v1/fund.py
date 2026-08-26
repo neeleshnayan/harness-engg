@@ -1506,18 +1506,72 @@ def lean_start_live(req: LeanLiveRequest):
     The signal token is read from the environment here and never crosses this
     API in either direction — the caller names a strategy, not a credential.
     """
-    from app.fund.leanrunner import LeanError
+    from app.fund.leanrunner import LeanConflict, LeanError
     token = os.getenv("EXTERNAL_SIGNAL_TOKEN", "")
     try:
         return _lean().start_live(req.algorithm, req.strategy_id or "",
                                   token, req.qty)
+    # BEFORE LeanError, which it subclasses. 409 rather than 400 because losing
+    # a race is not the same answer as asking for something impossible: two
+    # identical starts two milliseconds apart both returned 200 on 2026-08-26,
+    # and the caller that lost has to be able to tell it lost.
+    except LeanConflict as e:
+        raise HTTPException(status_code=409, detail=str(e))
     except LeanError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/fund/lean/live")
 def lean_list_live():
-    return {"sessions": _lean().live_sessions()}
+    """Every live session, plus the registry's own domain.
+
+    ``sessions`` is unchanged in shape and meaning. ``registry`` is additive and
+    says what the list is worth: whether sessions are durable at all, and when a
+    session record could FIRST have existed — the line the engine fence reads.
+    A reader that cannot see those two facts cannot tell an empty list that
+    means "nothing is running" from one that means "this process forgot".
+    """
+    from app.fund import leanrunner as _lr
+    runner = _lean()
+    try:
+        sessions = runner.live_sessions()
+    except Exception as e:  # noqa: BLE001 — unreadable is not empty
+        # 503, NOT an empty list, and not the unstructured 500 this fell
+        # through to before. ``live_sessions`` RAISES by design when the
+        # registry is configured and unreachable, because after a restart the
+        # in-memory table is empty and serving it as ``{"sessions": []}`` would
+        # tell the reader that nothing is running on the exact path where
+        # nothing can be known. Found by the Gauntlet: the sibling
+        # reconciliation endpoint handled this and the list endpoint did not.
+        logger.warning("live sessions unreadable: %s", e)
+        raise HTTPException(
+            status_code=503,
+            detail=(f"the live-session registry could not be read ({e}), so "
+                    f"what is running is UNKNOWN — this is not a claim that "
+                    f"nothing is running"))
+    return {"sessions": sessions,
+            "registry": {
+                "durable": runner.registry_durable(),
+                "sessions_known_since": runner.sessions_known_since(),
+                "max_live_sessions": _lr.MAX_LIVE_SESSIONS,
+            }}
+
+
+@router.get("/fund/lean/live/reconciliation")
+def lean_live_reconciliation():
+    """What the registry and ``docker ps`` say, compared — WITHOUT acting.
+
+    The acting version runs once at spine start-up. This is the read-only twin,
+    so a human can ask "is there an orphan right now?" without restarting the
+    spine to find out. It reports its own domain (rows compared, containers
+    seen) because a reconciliation that says "0 orphans" while docker was
+    unreachable has compared nothing.
+    """
+    from app.fund import leansessions
+    runner = _lean()
+    return leansessions.reconcile(runner.registry_rows_or_none(),
+                                  runner.docker_live_containers(),
+                                  our_mode=runner._our_mode())
 
 
 @router.delete("/fund/lean/live/{session_id}")

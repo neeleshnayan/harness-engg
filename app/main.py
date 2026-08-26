@@ -315,6 +315,27 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             _log.warning("Auto-seed error (%s) — proceeding with existing state.", e)
 
+    # RECONCILE LIVE LEAN SESSIONS AGAINST DOCKER, BEFORE ANYTHING ELSE RUNS.
+    #
+    # A LEAN live container is started with `docker run` from a daemon thread,
+    # so it lives in the docker daemon and OUTLIVES this process. Until
+    # 2026-08-27 the session table was in memory, so after a restart the fund
+    # could neither see such a container nor stop it, and
+    # `engineledger.ORPHAN_NOTE` published that as an unclosed limit on what the
+    # engine fence proves. Sessions are rows now, and this is the other half:
+    # a container the registry knows is re-attached (stoppable again), one it
+    # does not know is stopped and recorded, and a row with no container is
+    # marked vanished so its strategy is not locked out forever.
+    #
+    # NEVER FATAL. A reconciliation that cannot run must not stop the spine from
+    # starting — it reports what it could not compare and the counts say so.
+    try:
+        report = fund_router._lean().reconcile_containers()
+        _log.info("LEAN session reconciliation: %s", report.get("note"))
+    except Exception as e:  # noqa: BLE001
+        _log.warning("LEAN session reconciliation did not run (%s) — any "
+                     "orphaned live container is still unaccounted for", e)
+
     task = None
     if os.getenv("ENABLE_SCHEDULER", "true").lower() != "false":
         task = asyncio.create_task(_scheduler())
