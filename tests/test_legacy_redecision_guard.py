@@ -96,14 +96,27 @@ class _AngryStore(_AggStore):
 
 
 class _Deskstore:
-    """Records what was written, so a refused decision can be proven silent."""
+    """Records what was written, so a refused decision can be proven silent.
+
+    IT RECORDS THE ARGUMENTS AND MODELS NOTHING. An earlier version kept only
+    ``(run_id, rec_id, status)``, which made "the write reached the writer"
+    assertable and "the NOTE reached the writer" not — and that gap is exactly
+    why the suite could not see the 2026-08-26 defect. ``writes`` carries the
+    note and the routing owner too. It deliberately does NOT reproduce the
+    real writer's ``if note:`` / pop-on-terminal branches: a double that
+    re-implements the code under test can agree with a bug.
+    """
 
     def __init__(self):
         self.decided = []
+        self.writes = []
 
     def decide_recommendation(self, run_id, rec_id, status, actor, note="",
                               next_actor=None):
         self.decided.append((run_id, rec_id, status))
+        self.writes.append({"run_id": run_id, "rec_id": rec_id,
+                            "status": status, "actor": actor, "note": note,
+                            "next_actor": next_actor})
         return {"rec_id": rec_id, "status": status, "text": "R39",
                 "seat": "coo", "trace_id": None, "next_actor": next_actor}
 
@@ -135,10 +148,13 @@ R39_SEQS = (1122, 1123, 1195, 1201, 1202, 1203, 1253, 1281)
 
 
 def _decide(client, status="accepted", run_id=R39_RUN, rec_id=R39_REC,
-            actor="ceo", note="triage 7"):
+            actor="ceo", note="triage 7", next_actor=None):
+    body = {"status": status, "actor": actor, "note": note}
+    if next_actor is not None:
+        body["next_actor"] = next_actor
     return client.post(
         f"/api/v1/fund/desk/runs/{run_id}/recommendations/{rec_id}",
-        json={"status": status, "actor": actor, "note": note})
+        json=body)
 
 
 # ============================================================================
@@ -252,6 +268,176 @@ class TestTheR39Replay:
         # Four refusals later, the row still holds exactly ONE decision.
         assert last["decision_count"] == 1
         assert last["prior_same_status"] == 1
+
+
+# ============================================================================
+# THE SCOPE REPAIR — a CORRECTION is not a DUPLICATE (2026-08-26)
+#
+# THE DEFECT, MEASURED. The v1 guard compared `status` alone while
+# `deskstore.decide_recommendation` wrote five fields, and its 409 told the
+# caller the write "changes nothing". Replayed over the whole record
+# (`scripts/instruments/hw5/redecision_scope.py`), **17 of v1's 37 refusals
+# carried a real table write** — 13 note-only, 4 note + `next_actor`, 7 of
+# them from one chair sweep. `note` is parsed into the supersession marker on
+# the CEO's desk card (`deskcard.superseded_by`), and this endpoint is the
+# writer's only caller repo-wide, so those corrections had no door at all.
+#
+# NO TEST ASSERTED THE LOSS, which is why the repair fought nothing: every
+# test above drives the door with the SAME note on every call, so a
+# status-only comparison and a whole-write-set comparison give identical
+# answers to all of them. These are the tests that fail if v1 returns.
+# ============================================================================
+
+class TestACorrectionIsNotADuplicate:
+
+    def test_a_note_differing_re_record_PASSES_and_the_note_LANDS(
+            self, monkeypatch):
+        """13 of the 17. The row is already ``done``; only the citation
+        changed. Both halves are asserted — a 200 alone would pass if the
+        door accepted the request and dropped the note on the way through."""
+        ds = _Deskstore()
+        c = _client(monkeypatch, _AggStore(), ds)
+
+        assert _decide(c, "done", note="closed, cited X").status_code == 200
+        second = _decide(c, "done", note="closed, cited Y — X was wrong")
+        assert second.status_code == 200, second.text
+        assert second.json()["redecision_basis"] == "decision_events"
+        assert ds.writes[-1]["note"] == "closed, cited Y — X was wrong"
+        assert c.store.of_type("ApprovalRefused") == []
+
+    def test_the_corrected_note_is_on_the_EVENT_too(self, monkeypatch):
+        """The table is current state; the log is the record. A correction
+        that reached only one of them is unrecoverable the moment the row
+        moves again — and the log is what this guard itself reads."""
+        c = _client(monkeypatch, _AggStore(), _Deskstore())
+        _decide(c, "done", note="first")
+        _decide(c, "done", note="second")
+        notes = [e.payload["note"]
+                 for e in c.store.of_type("DeskRecommendationDecided")]
+        assert notes == ["first", "second"]
+
+    def test_a_next_actor_differing_re_record_PASSES_and_ROUTING_LANDS(
+            self, monkeypatch):
+        """4 of the 17. The status was already right; what changed is whose
+        move it is. A non-terminal status throughout, because the writer
+        refuses ``next_actor`` on a terminal one with a 422 by design."""
+        ds = _Deskstore()
+        c = _client(monkeypatch, _AggStore(), ds)
+
+        assert _decide(c, "accepted", note="n").status_code == 200
+        routed = _decide(c, "accepted", note="n", next_actor="ceo")
+        assert routed.status_code == 200, routed.text
+        assert ds.writes[-1]["next_actor"] == "ceo"
+        assert routed.json()["next_actor"] == "ceo"
+        assert c.store.of_type("ApprovalRefused") == []
+
+    def test_an_all_fields_identical_re_record_is_STILL_REFUSED(
+            self, monkeypatch):
+        """THE CONTROL POSITIVE, and the reason the repair is a scope fix
+        rather than a removal. Same status, same note, same owner: nothing
+        to write, so the door refuses exactly as it did before."""
+        ds = _Deskstore()
+        c = _client(monkeypatch, _AggStore(), ds)
+
+        assert _decide(c, "accepted", note="n", next_actor="ceo").status_code \
+            == 200
+        again = _decide(c, "accepted", note="n", next_actor="ceo")
+        assert again.status_code == 409, again.text
+        assert len(ds.writes) == 1
+        assert [e.payload["kind"]
+                for e in c.store.of_type("ApprovalRefused")] == [
+                    "desk_recommendation"]
+
+    def test_the_refusal_NAMES_the_fields_it_compared(self, monkeypatch):
+        """A 409 that asserts "changes nothing" without saying what it
+        compared is how a control gets believed past its scope — which is
+        the whole v1 story. The list is published on the response AND on the
+        event, so an auditor reading the log later can tell a v1.1 refusal
+        (three fields) from a v1 one (status alone)."""
+        c = _client(monkeypatch, _AggStore(), _Deskstore())
+        _decide(c, "done", note="n")
+        refused = _decide(c, "done", note="n")
+        detail = refused.json()["detail"]
+        assert detail["unchanged_fields"] == ["status", "note", "next_actor"]
+        assert detail["not_written_fields"] == []
+        event = c.store.of_type("ApprovalRefused")[0]
+        assert event.payload["unchanged_fields"] == detail["unchanged_fields"]
+        assert event.payload["not_written_fields"] == []
+
+    def test_the_refusal_no_longer_claims_the_write_changes_NOTHING_blindly(
+            self, monkeypatch):
+        """The v1 sentence was FALSE for 17 refusals. The replacement names
+        what it actually rewrote, so the claim is checkable.
+
+        ASSERTED AS A CONTRAST, not as a substring hit. "writes no note"
+        appears in one refusal and must be ABSENT from the other — a bare
+        ``in`` check on a sentence this guard emits on every 409 would be
+        satisfied by the wrong branch and would pin nothing at all."""
+        c = _client(monkeypatch, _AggStore(), _Deskstore())
+        _decide(c, "done", note="")
+        no_note = _decide(c, "done", note="")
+        assert "writes no note" in no_note.json()["detail"]["detail"]
+
+        c2 = _client(monkeypatch, _AggStore(), _Deskstore())
+        _decide(c2, "done", note="cited")
+        with_note = _decide(c2, "done", note="cited")
+        text = with_note.json()["detail"]["detail"]
+        assert "writes no note" not in text
+        assert "status, note, next_actor with the value(s) already stored" \
+            in text
+
+    def test_a_row_walks_correct_note_wrong_note_correct_note(
+            self, monkeypatch):
+        """THE PIVOT AS ONE WALK. Each 409 sits between two 200s that differ
+        from it in exactly one field, so a reader can see that the guard is
+        refusing the repeat and nothing else. Under v1 this walk is four
+        200s and three 409s in the wrong places."""
+        ds = _Deskstore()
+        c = _client(monkeypatch, _AggStore(), ds)
+        codes = [
+            _decide(c, "done", note="A").status_code,   # first closure
+            _decide(c, "done", note="A").status_code,   # true duplicate
+            _decide(c, "done", note="B").status_code,   # correction
+            _decide(c, "done", note="B").status_code,   # duplicate again
+            _decide(c, "open", note="B").status_code,   # reopen
+        ]
+        assert codes == [200, 409, 200, 409, 200]
+        assert [w["note"] for w in ds.writes] == ["A", "B", "B"]
+
+
+class TestR39IsUNTOUCHEDByTheRepair:
+    """THE SAFETY ARGUMENT, and it is the only one that matters: a repair
+    that loosened the guard past its motivating incident would have thrown
+    away what it was built for.
+
+    R39's eight real events at seqs 1122, 1123, 1195, 1201, 1202, 1203, 1253
+    and 1281 all carry ``status="accepted"``, an EMPTY note and the same
+    ``next_actor`` — verified against ``fund_events`` 2026-08-26. So every one
+    of the seven repeats is a true no-op under the repaired scope too, and the
+    whole-record replay reports ``freed_by_the_repair`` for this row as zero.
+    """
+
+    def test_eight_presentations_with_EMPTY_notes_still_refuse_seven(
+            self, monkeypatch):
+        ds = _Deskstore()
+        c = _client(monkeypatch, _AggStore(), ds)
+        codes = [_decide(c, "accepted", note="", next_actor="ceo").status_code
+                 for _ in R39_SEQS]
+        assert codes == [200] + [409] * 7
+        assert len(ds.writes) == 1
+        assert len(c.store.of_type("ApprovalRefused")) == 7
+
+    def test_the_seven_refusals_name_an_UNWRITTEN_note(self, monkeypatch):
+        """The distinction the repair rests on: R39's repeats did not carry a
+        correction that was being dropped — they carried no note at all. That
+        is visible in the refusal, so nobody has to take it on trust."""
+        c = _client(monkeypatch, _AggStore(), _Deskstore())
+        _decide(c, "accepted", note="", next_actor="ceo")
+        refused = _decide(c, "accepted", note="", next_actor="ceo")
+        assert refused.status_code == 409
+        detail = refused.json()["detail"]
+        assert detail["not_written_fields"] == ["note"]
+        assert detail["unchanged_fields"] == ["status", "next_actor"]
 
 
 # ============================================================================

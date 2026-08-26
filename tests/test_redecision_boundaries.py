@@ -564,6 +564,91 @@ class TestClassify:
 # THE SWEEP'S EXIT CODE — the part a caller reads, run as a real process
 # ============================================================================
 
+class TestTheSweepsCitationReport:
+    """DONNA'S RULE, ENFORCED ON THE THIRD OUTCOME (2026-08-26).
+
+    ``desk_sweep.py``'s own header says "Every row needs a citation. No
+    citation, no closure". Its ``already`` outcome then dropped the citation
+    silently — a refused POST records nothing — so a sweep carrying a BETTER
+    citation than the one on the record printed ALREADY and lost it.
+
+    Half the fix is in the door (a differing note now lands, so those rows
+    print OK). This is the other half: when the door still refuses, the line
+    says which of four things happened to the citation. Four and not two,
+    because "the door did not tell me" is a different fact from "the door told
+    me it recorded nothing", and only one of them is this sweep's problem.
+    """
+
+    @pytest.mark.parametrize("detail,expected", [
+        # the guard compared the note and found it identical — the citation
+        # this sweep carried IS on the record, which is why refusing is honest
+        pytest.param({"unchanged_fields": ["status", "note", "next_actor"]},
+                     "on_record", id="note-compared-and-identical"),
+        # the guard did not write a note at all
+        pytest.param({"unchanged_fields": ["status", "next_actor"],
+                      "not_written_fields": ["note"]},
+                     "not_recorded", id="note-not-written"),
+        pytest.param({"unchanged_fields": []}, "not_recorded",
+                     id="empty-list-is-a-list"),
+        # a spine older than the scope repair: the field does not exist, and
+        # its guard could refuse while dropping a DIFFERENT citation
+        pytest.param({"recorded_status": "done"}, "unknown",
+                     id="field-absent-pre-repair-spine"),
+        pytest.param({"unchanged_fields": "note"}, "unknown",
+                     id="field-present-but-not-a-list"),
+        pytest.param({"unchanged_fields": None}, "unknown",
+                     id="field-present-but-None"),
+        pytest.param(None, "unreadable", id="detail-is-None"),
+        pytest.param("already done", "unreadable", id="detail-is-a-string"),
+    ])
+    def test_the_four_outcomes(self, detail, expected):
+        assert _sweep().citation_outcome(detail) == expected
+
+    def test_every_outcome_has_its_own_sentence(self):
+        """A message table missing a key would raise KeyError inside the
+        error path — the one place a crash is least visible."""
+        m = _sweep()
+        keys = {m.CITATION_ON_RECORD, m.CITATION_NOT_RECORDED,
+                m.CITATION_UNKNOWN, m.CITATION_UNREADABLE}
+        assert set(m.CITATION_SAYS) == keys
+        assert len(set(m.CITATION_SAYS.values())) == 4
+
+    def test_only_the_on_record_sentence_reads_as_settled(self):
+        """THE ANTI-REASSURANCE CHECK. Three of the four outcomes mean a
+        human should look; exactly one means the record is complete. If the
+        wording ever softened the other three, the chair would read a dropped
+        citation as a clean skip — which is the defect this class exists for.
+        """
+        m = _sweep()
+        assert "already on the record" in m.CITATION_SAYS[m.CITATION_ON_RECORD]
+        for key in (m.CITATION_NOT_RECORDED, m.CITATION_UNKNOWN,
+                    m.CITATION_UNREADABLE):
+            sentence = m.CITATION_SAYS[key]
+            assert sentence.upper() != sentence.lower()
+            assert any(w in sentence for w in ("NO CITATION", "UNKNOWN"))
+
+    def test_the_already_line_carries_the_status_and_the_citation_fate(self):
+        m = _sweep()
+        line = m.already_message({
+            "recorded_status": "done", "recorded_at": "2026-08-23T14:06:30Z",
+            "unchanged_fields": ["status", "note", "next_actor"]})
+        assert "'done'" in line
+        assert "2026-08-23T14:06:30Z" in line
+        assert "already on the record" in line
+
+    def test_a_pre_repair_body_is_reported_UNKNOWN_in_the_line_itself(self):
+        """Not only in the classifier. The chair reads the LINE."""
+        m = _sweep()
+        line = m.already_message({"recorded_status": "done",
+                                  "recorded_at": "t"})
+        assert "UNKNOWN" in line
+
+    def test_a_garbage_detail_produces_a_line_rather_than_an_exception(self):
+        """The sweep must survive a body it cannot parse. A crash here would
+        abort a 40-row batch on row 3 and lose the 37 after it."""
+        assert "UNKNOWN" in _sweep().already_message(None)
+
+
 class TestTheSweepExitCode:
     """THE SIGNAL A CALLER ACTUALLY SEES, and until 2026-08-24 there was none.
 
