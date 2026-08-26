@@ -140,7 +140,8 @@ class TestSignalFates:
         ]))
         assert led["signals"] == []
         assert led["counts"] == {"filled": 0, "in_flight": 0, "awaiting": 0,
-                                 "refused": 0, "failed": 0}
+                                 "refused": 0, "failed": 0,
+                                 "unclassified": 0}
         assert led["total"] == 0
         assert led["domain"]["events_scanned"] == 2      # it LOOKED
         assert led["last_signal_at"] is None
@@ -1096,3 +1097,39 @@ class TestTheReadThrough:
         eng = c.get("/api/v1/fund/venue/reconcile").json()["engine"]
         assert eng["signals_raised"] == 1
         assert store.streams == 1
+
+
+class TestOurOwnVocabularyCanRunOut:
+    """READ-THROUGH R4. A lifecycle event this fold has no word for used to
+    classify as "unknown", which is in no bucket — so the header counted the
+    signal and the strip did not show it anywhere. The fold now says when it
+    does not have a word, and the invariant sum(counts) == total is asserted
+    in the fold itself so it cannot drift silently again."""
+
+    def test_the_buckets_always_sum_to_the_total(self):
+        led = EL.signal_ledger(_Store([
+            _proposed(1, oid="a"), _ev(2, "OrderDeclined", "a"),
+            _proposed(3, oid="b"),
+            _proposed(4, oid="c"),
+            _ev(5, "OrderFilled", "c", payload={"filled_qty": 0.1,
+                                                "symbol": "GLD",
+                                                "strategy_id": "s1"}),
+        ]))
+        assert sum(led["counts"].values()) == led["total"] == 3
+
+    def test_an_order_event_with_no_word_is_COUNTED_not_dropped(self):
+        led = EL.signal_ledger(_Store([
+            _proposed(1),
+            _ev(2, "OrderSomethingNobodyTaughtUs", payload={}),
+        ]))
+        assert led["total"] == 1
+        assert led["counts"]["unclassified"] == 1
+        assert sum(led["counts"].values()) == 1
+        (row,) = led["signals"]
+        assert row["outcome"] == "unclassified"
+        assert row["status"] == "OrderSomethingNobodyTaughtUs"
+        assert row["terminal"] is False       # we do not know that it is
+
+    def test_the_unclassified_bucket_is_present_even_at_zero(self):
+        led = EL.signal_ledger(_Store([_proposed(1)]))
+        assert led["counts"]["unclassified"] == 0

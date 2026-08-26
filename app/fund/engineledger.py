@@ -95,6 +95,15 @@ _OUTCOME = {
 #: Outcomes nobody will change without a new event.
 _TERMINAL = {"filled", "declined", "rejected", "failed"}
 
+#: The bucket for a lifecycle event this fold has no word for. It exists so
+#: that ``sum(counts.values()) == total`` HOLDS: without it a new order
+#: EventType would land, classify as neither of the five, and disappear from
+#: the strip while still being counted in the header — a signal the page shows
+#: a total for and no row about. Absence discipline applied to our own
+#: vocabulary: the fold says when it does not have a word, rather than
+#: quietly dropping what it cannot name.
+_UNCLASSIFIED = "unclassified"
+
 
 def _plural(n: int, word: str, plural: str | None = None) -> str:
     """``1 symbol`` / ``2 symbols``. Not cosmetic: these sentences are the
@@ -147,9 +156,10 @@ def _fold(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
     start disagreeing about one book.
     """
     engine: dict[str, dict[str, Any]] = {}
-    #: order_id → (strategy_id, symbol, signed filled qty) for EVERY filled
-    #: order, engine-born or not. The engine leg needs to say whether a drift
-    #: it is showing could have come from somewhere else.
+    #: One ``{order_id, strategy_id, symbol}`` per ORDER_FILLED event, engine-
+    #: born or not — no quantity, because the only question asked of it is
+    #: "did a fill on this (strategy, symbol) come from somewhere other than
+    #: the engine". A list, not a mapping: one order can fill more than once.
     fills: list[dict[str, Any]] = []
     seq_first: int | None = None
     seq_last: int | None = None
@@ -259,7 +269,7 @@ def _fold(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
 
 def _row(rec: dict[str, Any]) -> dict[str, Any]:
     status = _STATUS.get(rec["_last"], rec["_last"])
-    outcome = _OUTCOME.get(status, "unknown")
+    outcome = _OUTCOME.get(status, _UNCLASSIFIED)
     row = {k: v for k, v in rec.items() if not k.startswith("_")}
     row["status"] = status
     row["outcome"] = outcome
@@ -293,10 +303,10 @@ def signal_ledger(store: EventStore | None = None,
     rows.sort(key=lambda r: (r.get("seq") is None, -(r.get("seq") or 0)))
 
     counts = {"filled": 0, "in_flight": 0, "awaiting": 0, "refused": 0,
-              "failed": 0}
+              "failed": 0, _UNCLASSIFIED: 0}
     for r in rows:
-        if r["outcome"] in counts:
-            counts[r["outcome"]] += 1
+        counts[r["outcome"] if r["outcome"] in counts else _UNCLASSIFIED] += 1
+    assert sum(counts.values()) == len(rows)   # the invariant the bucket buys
 
     sources = sorted({r["source"] for r in rows if r.get("source")})
     return {
