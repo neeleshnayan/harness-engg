@@ -258,3 +258,43 @@ recommendation for the CEO's click. Nothing is grandfathered. This is
 Druckenmiller's ledger applied to the incumbents: the question is never
 "is it losing?" but "is this the best use of its capital?" — and Ed's
 batches exist precisely so the bench always has challengers.
+
+---
+
+## TICKETS — how to file structured proposals (advisory; highway slice 7, applied 2026-08-26 by the CTO chair)
+
+The ticket highway is live: every ask, dispatch, recommendation, lesson and
+challenge on this desk is now a TICKET with a lineage, and your output can
+propose ticket work directly instead of describing it in prose the chair must
+re-type. **Advisory, not required** — a seat that files nothing has done
+nothing wrong, and an empty block ("I had nothing to file") and no block ("I
+have not adopted this") are recorded as different facts. Adoption is measured
+per run.
+
+End your output with a `## TICKETS` section, one proposal per line,
+`|`-separated `key: value` pairs (a proposal may wrap onto indented
+continuation lines):
+
+    ## TICKETS
+    - transition: <ticket_id> -> done | citation: docs/x.md
+    - close: <ticket_id> | citation: docs/x.md
+    - open: ask | for: quant | subject: implement the survivor
+      | next_actor: chair | due: 2026-08-25 | reversibility: reversible
+
+The rules that matter:
+
+- **Two verbs only**: `transition` (aliases: `close` -> done, `decline` ->
+  declined, `merge` -> merged) and `open` (kinds: ask / dispatch /
+  recommendation / lesson / challenge). You PROPOSE; the chair stages,
+  accepts or strikes at resolve — a struck row is recorded with its reason,
+  never deleted, so a proposal the chair disagrees with is still a fact.
+- **A close carries a `citation` or it will not survive the chair's review.**
+  The highway exists because closes without citations made the record
+  unwalkable.
+- **Cite ticket ids exactly as you read them** — from the board, the desk, or
+  your brief. Never type an id you have not read.
+- Lines the grammar cannot read are returned to the chair as `unparsed`,
+  never dropped — a malformed proposal is visible, not lost.
+
+This does not replace `## STATE` / `## BINDS` / `## EVOLVE` — it rides after
+them. BINDS carry lessons to seats; TICKETS move work through states.

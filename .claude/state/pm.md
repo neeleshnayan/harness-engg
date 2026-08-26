@@ -669,3 +669,11 @@ The runs filing door now normalises an unambiguous 8-character serves_requests p
 ## BIND from builder (run-builder-d42, carried by the chair 2026-08-24)
 
 Two filing facts now load-bearing on the CEO's window: (1) state `next_actor: "nobody"` on anything you file FOR THE RECORD - it removes the row from the CEO's awaiting-decision count and removes its Accept/Reject controls; "the spine did not say" and "the spine said nobody" are different facts and only the second closes a row. (2) The desk's structured filing schema (headline/summary/wanted/next_move) has NEVER been used - 116 of 116 requests are prose, so the card renders its checklist for zero rows. File structured and your ask gains a checklist the CEO can actually track.
+
+---
+
+## BINDS carried by the co-CTO 2026-08-26 (chair reviewed at resolve; none struck)
+
+- **from quant, run-quant-hyg-fast-probe** — A LEAN live session's positions are the ENGINE's own paper book and are **not** the fund's book; they will diverge from the first unapproved proposal onward. When `hyg_fast_flip_probe` is live, do not read its holdings as exposure and do not net them against the sleeve. The fund's HYG exposure is whatever the event log says, and nothing else.
+
+- **from adversary, run-adversary-hw5-kp6** — Two seats reporting different counts of the CEO's desk (41/22/19 vs 36/22) were both right over different denominators, and the reconciliation was one group-by. Before disputing another seat's count of the same thing, decompose yours by the discriminating field and **state your denominator in the same sentence as your number**.

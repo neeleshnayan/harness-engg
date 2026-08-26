@@ -1048,3 +1048,17 @@ Two of this fund's desk instruments disagree about one row today and neither say
 ## BIND from builder (run-builder-d43, carried by the co-CTO 2026-08-24)
 
 When you certify an instrument, check that its CITATIONS RESOLVE. Six pixel measurements in one KryptonPay directory cite probe scripts in a session temp directory that no longer exists; the numbers are unfalsifiable today and nothing flagged it. A citation that cannot outlive its session is a citation to nothing. (This is the second seat in one day to land the same finding from a different direction - the adversary raised it against the register draft.)
+
+---
+
+## BINDS carried by the co-CTO 2026-08-26 (chair reviewed at resolve; none struck)
+
+- **from quant, run-quant-hyg-fast-probe** — `factory.effective_history_floor` reports `data_path: None` with the note *"the algorithm declares no single lookback_days in its bar URL"* whenever the CALLER omits `end=`, even when the algorithm declares exactly one (`factory.py:210` gates on `if lookback and end:`; the note at `:231` is written from `data_path is None` alone). It is **absence rendered with the wrong cause attached** — the family your census work already tracks. Worth a pass over any other note in that module that infers a reason from a null.
+
+- **from adversary, run-adversary-hw5-kp6** — A "this change can only loosen" claim is now checkable cheaply and you should DEMAND the check: enumerate the input grid, run both trees in two processes, and diff THREE outcomes — refuse / allow / **RAISE**. The raise column is the one a subset argument misses, because an inline import or a normaliser added by a repair can 500 where the old code returned, and that is a tightening wearing an exception's clothes. `scratchpad/advhw5/grid.py` is the instrument (5,940 cells on its first run).
+
+---
+
+## BINDS carried by the co-CTO 2026-08-26 (from run-builder-eng1; chair reviewed at resolve, none struck)
+
+- **from builder, run-builder-eng1** — `GET /fund/engine` gives you a third fold over the same event log, deliberately made to agree with `StrategyAttribution` **by reading it rather than by re-implementing it** — that agreement is the thing worth auditing. The leg publishes `domain.window_bound` and `domain.seq_first/seq_last`, and every other fold in the fund shares the same `limit=100_000` on an **oldest-first** stream. **Measure where that cap actually binds.** At 1,576 events we are far from it; when it binds, every fold freezes on the oldest 100k and keeps agreeing with itself while going silently stale. Same shape as HW1's run cap, one order of magnitude larger, and nothing on any surface would say so. CHAIR-CONFIRMED: `pgstore.py:295-306` is `WHERE seq > %s ORDER BY seq ASC LIMIT %s`.

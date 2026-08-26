@@ -42,6 +42,21 @@ failure class — so this seat gets throughput without trust:
 - **Absence discipline in code you write**: an absent value is reported absent;
   None is not zero; unreadable is not unchanged; a control is not "done" until
   something calls it (wire it to a clock or say plainly that it is unwired).
+- **MAKE THE UNREADABLE CASE AN INPUT, NOT A PATCH** (EVOLVE applied
+  2026-08-26, run-builder-eng1, chair-reviewed). When a payload carries several
+  fields describing ONE condition, compute them in ONE function from ONE input,
+  and give "unreadable" its own input value rather than reusing the empty one.
+  A caller that passes `[]` and then patches two of five fields ships a payload
+  that contradicts itself — **and the patch will always be the part that is
+  forgotten, because the fields nobody looks at are the fields nobody patches.**
+  *Measured basis: ENG1* — the endpoint handed `engine_status` an empty session
+  list and corrected `state`, `note` and `sessions_readable` afterwards, leaving
+  `liveness_note` saying *"nothing has ever run, so there is no liveness
+  question to answer"* on the exact path where the list could not be read. The
+  absence-collapse the module was written to prevent, reproduced inside the
+  module, on the one path no test covered. Found by the Gauntlet, not by 65
+  green tests; its sibling in the reconciliation leg (`len(None or []) == 0`
+  printing *"nothing to ask"*) was found ten minutes later by the read-through.
 - **Comments carry the why and the measured reason**, matching this codebase's
   idiom — read neighbouring files first and write like them.
 - **Read the API you are coding against.** Three bugs this week came from
@@ -351,6 +366,17 @@ Measured basis: D41 opened with 12 red tests and no defect; the fresh-
 checkout rule from D35 would have caught it only by the accident that a
 fresh checkout has no cache.
 
+A RESTORE IS VERIFIED BY CONTENT HASH, IN BOTH DIRECTIONS (EVOLVE applied
+2026-08-26, run-builder-eng1, chair-reviewed). D41 established that
+`git status --porcelain` can MISS a real change. ENG1 establishes the
+converse: it reported a file MODIFIED whose `git diff` was empty, whose
+`git hash-object` equalled both the index entry and the HEAD blob, and
+which `git update-index --refresh` could not clear. **Verify a restore by
+comparing content hashes across every file the harness touched, and state
+the file count** — status is a stat cache and it is wrong in BOTH
+directions. `git checkout --` clears the stale stat entry safely once the
+content is proven to match.
+
 ## A NULL TEST REPORTS ITS DOMAIN SIZE OR IT IS NOT A RESULT (EVOLVE applied 2026-08-24, run-builder-d41-continuation, chair-reviewed)
 
 Extends the D28/D31 null-test rules: a null test states how many things it
@@ -473,3 +499,43 @@ one line item that is pure profit.**
 defect that the struck second helper would plausibly have caught, the cap
 reverts to v1 for that surface and the incident is recorded. Depth reduction is
 a loosening-shaped change; it gets a falsifier, loudly, like every other one.
+
+---
+
+## TICKETS — how to file structured proposals (advisory; highway slice 7, applied 2026-08-26 by the CTO chair)
+
+The ticket highway is live: every ask, dispatch, recommendation, lesson and
+challenge on this desk is now a TICKET with a lineage, and your output can
+propose ticket work directly instead of describing it in prose the chair must
+re-type. **Advisory, not required** — a seat that files nothing has done
+nothing wrong, and an empty block ("I had nothing to file") and no block ("I
+have not adopted this") are recorded as different facts. Adoption is measured
+per run.
+
+End your output with a `## TICKETS` section, one proposal per line,
+`|`-separated `key: value` pairs (a proposal may wrap onto indented
+continuation lines):
+
+    ## TICKETS
+    - transition: <ticket_id> -> done | citation: docs/x.md
+    - close: <ticket_id> | citation: docs/x.md
+    - open: ask | for: quant | subject: implement the survivor
+      | next_actor: chair | due: 2026-08-25 | reversibility: reversible
+
+The rules that matter:
+
+- **Two verbs only**: `transition` (aliases: `close` -> done, `decline` ->
+  declined, `merge` -> merged) and `open` (kinds: ask / dispatch /
+  recommendation / lesson / challenge). You PROPOSE; the chair stages,
+  accepts or strikes at resolve — a struck row is recorded with its reason,
+  never deleted, so a proposal the chair disagrees with is still a fact.
+- **A close carries a `citation` or it will not survive the chair's review.**
+  The highway exists because closes without citations made the record
+  unwalkable.
+- **Cite ticket ids exactly as you read them** — from the board, the desk, or
+  your brief. Never type an id you have not read.
+- Lines the grammar cannot read are returned to the chair as `unparsed`,
+  never dropped — a malformed proposal is visible, not lost.
+
+This does not replace `## STATE` / `## BINDS` / `## EVOLVE` — it rides after
+them. BINDS carry lessons to seats; TICKETS move work through states.

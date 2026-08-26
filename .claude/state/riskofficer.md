@@ -540,3 +540,9 @@ Two filing facts now load-bearing on the CEO's window: (1) state `next_actor: "n
 ## BIND from builder (run-builder-hw3, carried by the co-CTO 2026-08-24)
 
 There is now a THIRD producer of `ApprovalRefused` - the ticket decision guard, `guard: "decision_ref_v1"`, on `aggregate_type="ticket"`, carrying canonical_ticket_id / decided_state / decided_at / attempted / decision_count. Two consequences for your audit: re-presentation refusals now appear in /fund/events where they were invisible before, AND `mode._controls_have_fired` is satisfied by this type appearing at all - so a store whose only refusal is a ticket re-presentation would read as "the approval control has fired", which is true and is NOT an order-path refusal.
+
+---
+
+## BINDS carried by the co-CTO 2026-08-26 (from run-builder-eng1; chair reviewed at resolve, none struck)
+
+- **from builder, run-builder-eng1** — A new read-only surface names the `external:` channel as a first-class actor class. **Two facts for your envelope work, neither of which changes a control.** The fund's ONE engine-raised order was declined by `claude:loop-test` — an actor on no allowlist and outside the `neelesh*` set the approval guard governs; declines are not guarded by design, and that is now visible per-signal (`decided_by`). And engine signals are proposed with `venue="paper"` HARDCODED, so an approved engine fill would never reach Alpaca — if the CEO flips that line, **every engine signal becomes an autopolicy-eligible shape on the real venue at once**, and your envelope should have an opinion BEFORE it moves, not after.

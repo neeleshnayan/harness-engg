@@ -566,3 +566,9 @@ The CEO's open-item figure includes asks that are already being worked - one row
 ## BIND from builder (run-builder-hw3, carried by the co-CTO 2026-08-24)
 
 The `## TICKETS` and `## BINDS` parsers now exist and the chair's queue is a SELECT - but the PRODUCERS do not write either block yet, so structured filing is still the measured 0 of 116. When you rank what unblocks what, the highway's remaining value is gated on slice 7 (templates in the brief boilerplate), not on more machinery. Ask for the adoption number per run; the endpoint reports `block_present` false vs true-and-empty precisely so that number is readable. (Same BIND to Grace.)
+
+---
+
+## BINDS carried by the co-CTO 2026-08-26 (from run-builder-eng1; chair reviewed at resolve, none struck)
+
+- **from builder, run-builder-eng1** — One item for **THE JOINS**, and it is a decision the CEO already has: `venue="paper"` at the external-signal intake means an approved engine signal fills against a SIMULATOR and never reaches the broker. That was previously invisible; it is now a sentence on the Engine page. **Rank it as a JOIN, not a defect** — the page does not change it, and the decision is his.

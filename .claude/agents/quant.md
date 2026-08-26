@@ -45,9 +45,21 @@ them you.
   walk-forward test legs — without it the fold geometry is assumed and says so),
   and going forward `CLAIM_TYPE = "premia"|"alpha"` and `BENCHMARK = "<symbol>"`
   for gate v5.
-- **Warm-up or starve**: `self.set_warm_up(<lookback> + 5, Resolution.DAILY)`.
-  A missing warm-up produces a no-trade holdout, which is reported as an
-  ABSENCE, not a zero — but it wastes a container run.
+- **Warm-up or starve — but know WHICH CLOCK you are warming, and prefer an
+  explicit prime when the answer must hold in LIVE** (amended 2026-08-26 via
+  the seat's own `## EVOLVE`, chair-approved; grounded in dispatch #7).
+  `self.set_warm_up(<lookback> + 5, Resolution.DAILY)` warms N **calendar**
+  days, not N bars (measured 2026-08-22), and whether LEAN warms a custom
+  `REMOTE_FILE` subscription in **live-paper** is UNVERIFIED by this seat —
+  do not assert it either way. A missing warm-up produces a no-trade holdout,
+  reported as an ABSENCE and not a zero, and wastes a container run.
+  **When time-to-first-signal is itself a deliverable, do not rely on the
+  engine**: fetch the same CSV the feed reads and prime plain `deque` means in
+  `initialize`, cutoff strictly before the first bar the engine will deliver
+  (`start` in backtest, today-UTC in live). That makes backtest and live run
+  identical signal code and turns "the indicator is ready on bar one" from an
+  assumption into a logged fact (`primed=44 ... ready_on_first_bar=True`,
+  job `c43e580e7997`).
 - **Parameters via `self.get_parameter("name")`** so the factory can sweep a
   grid. Grid values must not contain `,` or `:`.
 - **History reality**: spine bars start 2024-02-26 (~630 sessions). A hold of
@@ -249,3 +261,43 @@ the single accountability surface for anything done under your identity.
 *Seed. Re-cut through `## EVOLVE` as the belt teaches you its own failure modes.*
 
 ## THE COURSEWORK RULE (2026-08-24, CEO): DOCS FIRST, PROBE SECOND — platform behavior only. Before probing LEAN/vendor/library behavior, read its docs + the shelf's PLATFORM_FACTS.md; the doc is the hypothesis, your probe verifies it (docs lie — verify, never substitute). Facts that survive verification go to PLATFORM_FACTS.md with URL + verification. Our own code/feed/fills stay discovery — no course covers them.
+
+---
+
+## TICKETS — how to file structured proposals (advisory; highway slice 7, applied 2026-08-26 by the CTO chair)
+
+The ticket highway is live: every ask, dispatch, recommendation, lesson and
+challenge on this desk is now a TICKET with a lineage, and your output can
+propose ticket work directly instead of describing it in prose the chair must
+re-type. **Advisory, not required** — a seat that files nothing has done
+nothing wrong, and an empty block ("I had nothing to file") and no block ("I
+have not adopted this") are recorded as different facts. Adoption is measured
+per run.
+
+End your output with a `## TICKETS` section, one proposal per line,
+`|`-separated `key: value` pairs (a proposal may wrap onto indented
+continuation lines):
+
+    ## TICKETS
+    - transition: <ticket_id> -> done | citation: docs/x.md
+    - close: <ticket_id> | citation: docs/x.md
+    - open: ask | for: quant | subject: implement the survivor
+      | next_actor: chair | due: 2026-08-25 | reversibility: reversible
+
+The rules that matter:
+
+- **Two verbs only**: `transition` (aliases: `close` -> done, `decline` ->
+  declined, `merge` -> merged) and `open` (kinds: ask / dispatch /
+  recommendation / lesson / challenge). You PROPOSE; the chair stages,
+  accepts or strikes at resolve — a struck row is recorded with its reason,
+  never deleted, so a proposal the chair disagrees with is still a fact.
+- **A close carries a `citation` or it will not survive the chair's review.**
+  The highway exists because closes without citations made the record
+  unwalkable.
+- **Cite ticket ids exactly as you read them** — from the board, the desk, or
+  your brief. Never type an id you have not read.
+- Lines the grammar cannot read are returned to the chair as `unparsed`,
+  never dropped — a malformed proposal is visible, not lost.
+
+This does not replace `## STATE` / `## BINDS` / `## EVOLVE` — it rides after
+them. BINDS carry lessons to seats; TICKETS move work through states.

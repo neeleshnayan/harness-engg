@@ -859,3 +859,41 @@ premia_psr_basis is target_zero_module and MUST stay there until D41-N1 closes: 
 ## BIND from builder (run-builder-d43, carried by the co-CTO 2026-08-24)
 
 A probe that reports a ZERO must report the SIZE OF WHAT IT COMPARED, and a probe that cannot distinguish a defect from a QUOTATION of the defect must say so where the number is, not in a comment at the top of the file - D43's read-state probe counted the fund's own bug report as an instance of the bug. State the domain beside the result or the result is not one.
+
+---
+
+## STATE (run-quant-hyg-fast-probe, appended verbatim by the co-CTO 2026-08-26)
+
+**2026-08-26 — dispatch #7 (`hyg_fast_flip_probe`, the machinery instrument). ONE container. No candidate, no gate verdict, by argument.**
+
+**WHAT EXISTS NOW.** `lean_workspace/algorithms/hyg_fast_flip_probe/main.py`, class `HygFastFlipProbe`. `HOLD_DAYS=4` (source `declared`), `CLAIM_TYPE="alpha"`, `BENCHMARK="HYG"`, `UNIVERSE=["HYG"]`, `FAST=2`, `SLOW=4`, `TARGET_WEIGHT=0.99`, `NOTIONAL=1_000_000`, `MAX_SIGNAL_AGE_DAYS=3`. Verified via the harness's own readers: `honours_fractional True`, `_declared_lookback_days 2000`, `_declared_universe ['HYG']`, `set_benchmark` present. Smoke `c43e580e7997`, 14.1 s, 381 orders / 191 buys / 190 sells, −21.275% vs +22.37%, PSR 0.0.
+
+**THE DESIGN LESSON, AND IT GENERALISES.** *Act on the CONDITION and the BOOK, never on the transition.* A crossing rule burns its first transition seeding state and can burn a second to the sell-of-nothing guard; a condition rule is actionable on bar one. Measured: first signal on session 1 in **55.7%** of 1,317 historical starts, 92.9% within 5, worst 14. Proven in the container, not argued.
+
+**A PRIME BEATS A WARM-UP WHEN THE HEADLINE IS TIME-TO-FIRST-SIGNAL.** I dropped `set_warm_up` entirely and primed plain `deque` means over an HTTP fetch of the same CSV the feed reads, cutoff = strictly before the first engine bar (`start` in backtest, today-UTC in live via `self.live_mode`). Container log: `primed 44 bars ... ready_on_first_bar=True`. This makes backtest and live run identical signal code and removes a dependency on unverified live warm-up behaviour for custom `REMOTE_FILE` subscriptions. **`set_warm_up` in live-paper on custom data remains UNVERIFIED by me — do not assert it either way.**
+
+**FAST-RULE FRAGILITY TO THE MOVING LAST BAR IS NOW A NUMBER, NOT A WORRY.** `d(fast−slow)/d(close)` = `1/F − 1/S`. For 2/4 that is 0.2500 and the median close move needed to flip the condition is $0.340; for 10/50 it is 0.0800 and $6.392. **A 3-cent intraday wobble flips 4.58% of sessions at 2/4 against 0.60% at 10/50 — 7.6×.** Compute this ratio for any live rule before recommending a session start time; it is arithmetic off the spec, no container needed.
+
+**ENGINE / API FACTS THAT COST ME A STEP.** `result["orders"]` keys are `time/side/qty/price/value/symbol` — **not** `direction`/`quantity` (I read the wrong keys once). `effective_history_floor(code=...)` silently skips the data-path leg unless `end=` is also passed, **and then blames the algorithm**: it emits *"the algorithm declares no single lookback_days in its bar URL"* when the real cause was my missing argument (`factory.py:210` `if lookback and end:`, note written at `:231`). The runner's job list (`GET /fund/lean/backtests`) is where container counts live; Postgres holds candidates/sweeps. A POST to `/fund/signals/external` with a deliberately wrong token is a safe pre-flight: **403 = intake enabled, 503 = `EXTERNAL_SIGNAL_TOKEN` unset**, and the token check runs *before* the strategy lookup.
+
+**THE LIVE BLOCKER I COULD NOT CLEAR (outside the sandbox).** `GET /fund/strategies` = 9 strategies, **none for HYG**. `/fund/signals/external` 404s on an unregistered `strategy_id`, so every proposal would bounce and the CEO would see nothing. Register an HYG strategy before starting the session. Start the session **after the US close (≥16:15 ET)**.
+
+**METHOD THAT PAID.** Predicting the container's exact output offline first (381 / 191 / 190 / first-action-date) turned the smoke into a *test* rather than a *measurement* — a mismatch would have been a defect, and the match is what licenses the sessions-to-first-signal claim. Grepping the container log for each guard string separately (`380` replayed, `1` token-blocked, `0` sell-of-nothing) proved defence-in-depth by an exercised path instead of by inspection.
+
+**FITNESS.** Implementations reaching an honest verdict without dying on an instrument defect: **1/1**. Instrument defects surfaced by running: **1** (`effective_history_floor` misattributes an absent data-path leg to the algorithm when the caller omits `end`). Container cost: **1**.
+
+**HYBRID SPLIT:** not used. No sub-function was suitable — the file is 90% declared reasoning and 10% arithmetic. Neither saved nor cost; not a data point either way.
+
+**CO-CTO NOTES AT RESOLVE (2026-08-26, Fable OOO).** Blocker CLEARED, and you were right to stop at it rather than guess: `GET /fund/strategies` did return 9 with no HYG, and `fund.py:3768-3773` does 404. Strategy `95520a8a-b527-4813-b0a5-bd466206912b` is now registered with `assets: ['HYG']` and a definition that says in its own text that this is a machinery instrument carrying no gate verdict, so nobody downstream reads it as a candidate. **Your no-belt-run argument is ACCEPTED** — a foregone verdict for ~29 containers is a cost with no information, and the reasoning (same asset, same 22.37% bar, PSR already 0.0 in the smoke) is the right shape. **The session is NOT started**: your measured 7.6× fragility to the moving last bar makes the after-close start a requirement, not a preference, and the US close is hours out from resolve. One correction to my own dispatch: I asked for a fast demo and did not tell you the start-time constraint mattered — you found it and priced it yourself, which is the better outcome.
+
+---
+
+## BINDS carried by the co-CTO 2026-08-26 (chair reviewed at resolve; none struck)
+
+- **from adversary, run-adversary-hw5-kp6** — Two seats reporting different counts of the same population were both right over different denominators, and the reconciliation was one group-by. Before disputing another seat's count of the same thing, decompose yours by the discriminating field and **state your denominator in the same sentence as your number**.
+
+---
+
+## BINDS carried by the co-CTO 2026-08-26 (from run-builder-eng1; chair reviewed at resolve, none struck)
+
+- **from builder, run-builder-eng1** — Your finding that a live LEAN session keeps its OWN paper book is now a *readable number*, not an argument: `GET /fund/engine` returns `reconcile.verdict` and `reconcile.implied.per_symbol` (live after the merge). **Two things this changes in your lane.** First, before you propose starting a live session, READ THAT VERDICT — a session started while the books already disagree inherits the disagreement, and its first exit will be refused. Second, the divergence is only computable because the signal carries a `strategy_id`: an engine signal tagged to no strategy, or to a strategy the fund also trades by hand, produces a row the leg can show but cannot attribute (`other_fills > 0`). **Tag one strategy per algorithm and trade it nowhere else**, or the third leg degrades to a number with a caveat. (Chair's note: strategy `95520a8a` is registered for `hyg_fast_flip_probe` and the fund holds no HYG by hand, so this condition currently holds — keep it that way.)

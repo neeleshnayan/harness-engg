@@ -33,6 +33,124 @@ maintain a day log for fable to review."***
 
 ---
 
+## 2026-08-26 (UTC)
+
+*Written live by the co-CTO (Opus) through the day, Fable OOO. The CEO was
+active and directing throughout.*
+
+### DECIDED
+
+- **The harness gets tested end to end on a real strategy, at $500, on a short
+  timeframe** (CEO). Gross to 90% is acceptable *for testing*; the point is the
+  plumbing, not the edge. Stage A charter `docs/HARNESS_E2E_CHARTER_2026-08-26.md`,
+  Stage B `docs/HARNESS_E2E_STAGE_B_2026-08-26.md`.
+- **LEAN runs on a DIFFERENT asset class from the Stage A book** (CEO: *"put lean
+  on a different asset class so we can isolate which path failed"*). Stage A is
+  equity ETFs; LEAN is credit (HYG). A shared symbol would make a divergence
+  unattributable.
+- **The adversary runs at the END, blind, not per slice** (CEO: *"lets not
+  unnecessarily block us"*). Held to; it ran once, over both finished stacks.
+- **Testing depth is TIERED by the chair in the brief** (CEO: builders burn tokens
+  testing every small feature). `VERIFICATION TIERS v2` appended to
+  `.claude/agents/builder.md`; applied to the queued builders too.
+- **`venue="paper"` is the internal simulator, not Alpaca's paper account** — the
+  CEO believed otherwise, and said so plainly. Two things wear the word "paper"
+  and only one of them carries cost information. The LEAN intake hardcodes the
+  simulator at `fund.py:3777`. **His decision on whether the intake should name
+  `alpaca` instead is still open** (below).
+- **Delegation v2 call**: registered strategy `95520a8a` for the LEAN probe so its
+  proposals attribute instead of 404ing. Attribution metadata, no control.
+  Flagged SECOND-LOOK: it puts a new named strategy on the CEO's surfaces.
+
+### BUILT
+
+- **Ticket highway slices 1–6 complete and integrated.** `builder-hw5`
+  (ClarkHarness, 52 commits, 25 files, +12,216) and `builder-kp6` (KryptonPay UI,
+  905/905). Slices 7–8 remain unbuilt.
+- **`hyg_fast_flip_probe`** — a deliberately fast, deliberately unprofitable LEAN
+  algorithm whose only job is to make the live path visible within days. Acts on
+  the CONDITION, not the crossing, so it is actionable on bar one: first signal on
+  session 1 in 55.7% of 1,317 historical starts. −21.3% vs +22.4% buy-and-hold,
+  **and that is the design, not a failure** — it must never be tuned.
+- **`scripts/suite_lock.py`** — the cross-process suite lock the constitution
+  already required and nothing enforced.
+- **Engine ledger + third reconcile leg + the CEO's LEAN view** (`builder-eng1`/
+  `kp7`) — **delivered.** ClarkHarness 5,286→5,371 passed; KryptonPay 905→962;
+  58/58 mutants killed on the new logic. A new `/clark/studio/engine` page
+  answers the three things nobody could see: is a session running, what became
+  of every signal it ever raised, and do the engine's book and the fund's agree.
+  **Not merged** — it sits on hw5/kp6, behind the one decision below.
+
+### MEASURED
+
+- **Merged tree: 5,299 passed, 0 failed, 0 skipped** (306.7s). `git merge
+  builder-hw5` onto live `d3acf5e2` is **clean** — branch `merge-hw5-2026-08-26`
+  (`8c770329`). Live tree returned to `d3acf5e2`; nothing adopted.
+- **Adversary: SURVIVES / SURVIVES**, and its own HW4 kill **certified closed by
+  execution** — 0 newly-refused over a 5,940-cell exhaustive input grid across
+  both trees plus a 678-event replay; 17 real note corrections freed; R39 still
+  caught 7 of 8. First direction claim in this firm proved over an input grid
+  rather than over history.
+- **THE CHAIR'S OWN MERGE GATE IS BLIND TO GUARD CODE.** `merge_builder.py` scores
+  **0 sensitive regions** on a diff that loosens a refusal control 37→20 — **and 0
+  on a hand-made diff that deletes the guard call outright**. `app/fund/ticketguard.py`
+  is absent from `SENSITIVE_PATHS` entirely. **Every "0 sensitive" that gate has
+  printed on `fund.py` is unproven, not clear.** Mine, ticketed `78e2650b`.
+- **LEAN live has never run**: 0 events, 1 of 48 orders ever from `external:lean`.
+- **A REAL DIVERGENCE, TEN DAYS OLD, THAT NOTHING HAS EVER RENDERED.** The
+  engine's one signal — GLD 0.1, `external:lean`, **seq 157, 2026-08-16** — was
+  **DECLINED at seq 158 by `claude:loop-test`**. So LEAN believes it holds gold
+  the fund does not own. Chair-verified against Postgres directly, and the
+  direct query was *necessary*: `GET /fund/events?limit=1000` serves the NEWEST
+  thousand (window seq 577–1576 today), so seq 157 is invisible through the door
+  a chair would naturally reach for. Exactly ONE `external:` actor in all 1,576
+  events.
+- **A TIME BOMB, CONFIRMED IN THE SOURCE.** `pgstore.py:295-306` is
+  `WHERE seq > %s ORDER BY seq ASC LIMIT %s` — **oldest-first**, so the cap takes
+  the OLDEST rows. Every fold in the fund shares `limit=100_000`. Past 100k
+  events NAV, positions, the desk and every reconciliation leg freeze on the
+  oldest 100k **and keep agreeing with each other while going stale** — mutual
+  agreement would read as corroboration. 1,576 events today, so ~63× of
+  headroom. Filed (`e413f9ec`) precisely because it will be invisible when it
+  arrives. Event-store code, so parked for Fable, not executed.
+- Four residuals filed at **$0 measured reachability**: `1913deca` (alias-blind AST
+  scan), `a64f0712` (log-vs-table seam, 0 divergence over 491 rows), `170dbaeb`
+  (raw `t.terminal` on the CEO's first screen).
+
+### OPEN FOR FABLE
+
+- **THE MERGE IS PREPARED, GREEN, AND HELD — one word releases it.** Queue entry
+  2026-08-26. It loosens a refusal control (37→20) and touches a guard module, so
+  the co-CTO Tier-3 list and Delegation v2 floor 3 both reserve it to a human. The
+  adversary's blind pass satisfies "adversary blind first"; it does not satisfy
+  "CEO's click always". My honest uncertainty is recorded there rather than
+  resolved in my own favour: on substance it is a bookkeeping guard on a desk door
+  with no order path, and v1 was *broken*. On the charter's text it is not mine.
+- **Three CEO decisions outstanding**: the exceptions-desk thresholds (ages, and a
+  **$900** money line set below the $915 item he lost); whether the LEAN intake
+  should name `alpaca` rather than the simulator; and whether a declined live
+  signal should stop the session.
+- **Two design questions the CEO raised and I answered, awaiting his call**:
+  (a) should the adversary own design-pattern / blind-spot review — **my answer is
+  no**, because its blindness is the mechanism and architecture review needs the
+  opposite diet; I recommend auditioning a separate reviewer the CDO way, with the
+  falsifier written now. (b) the builder should carry a *generated, SHA-stamped*
+  codebase map so each dispatch is not a cold start — a hand-written one goes
+  stale, and a stale map is worse than none.
+- **`builder.md` is 1,100 lines.** A memory that long gets skimmed, and the
+  read-through catches that make the seat valuable come from the lessons, not the
+  volume. Splitting lessons from map is proposed, not done.
+
+### ON FIRE
+
+- **Friday 2026-08-28: three Stage A time exits fire** — the first-ever
+  autopolicy auto-approval attempt in this fund's history (0 approvals / 18
+  declines to date). Dated, and it involves real positions.
+- **The full stack was down for two days** (Docker → Postgres → spine) and nobody
+  knew until a session went looking. Restarted bottom-up. Nothing watches this.
+
+---
+
 ## 2026-08-24 (UTC)
 
 The Monday of the click sheet (~12:30Z) and the first real-venue fills

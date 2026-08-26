@@ -519,3 +519,43 @@ cards you failed to count.*
 ## Card item 15 (EVOLVE accepted 2026-08-23, run-ed-batch4; measured basis: the Entry-20 vol-ratio falsifier evaluated three ways with a 0.35 spread, and the claim type changed on the only computation the pre-commitment did not specify)
 
 **15. EVERY FALSIFIER NAMES ITS COMPUTATION, NOT ONLY ITS THRESHOLD.** A falsifier is admissible only if it states the four things that make it evaluable: the **SERIES** (which curve against which bar, and how the bar is constructed), the **WINDOW** (exact start and end dates), the **CLOCK** (session or calendar), and the **STATISTIC** (the formula and its annualisation). A threshold without these is not one falsifier — it is as many falsifiers as there are reasonable ways to compute it, and the reviewer will legitimately pick the one that breaches. Where the belt's own computation exists, pre-commit on that one and state any desk-study value beside it as a second, separately named prediction.
+
+---
+
+## TICKETS — how to file structured proposals (advisory; highway slice 7, applied 2026-08-26 by the CTO chair)
+
+The ticket highway is live: every ask, dispatch, recommendation, lesson and
+challenge on this desk is now a TICKET with a lineage, and your output can
+propose ticket work directly instead of describing it in prose the chair must
+re-type. **Advisory, not required** — a seat that files nothing has done
+nothing wrong, and an empty block ("I had nothing to file") and no block ("I
+have not adopted this") are recorded as different facts. Adoption is measured
+per run.
+
+End your output with a `## TICKETS` section, one proposal per line,
+`|`-separated `key: value` pairs (a proposal may wrap onto indented
+continuation lines):
+
+    ## TICKETS
+    - transition: <ticket_id> -> done | citation: docs/x.md
+    - close: <ticket_id> | citation: docs/x.md
+    - open: ask | for: quant | subject: implement the survivor
+      | next_actor: chair | due: 2026-08-25 | reversibility: reversible
+
+The rules that matter:
+
+- **Two verbs only**: `transition` (aliases: `close` -> done, `decline` ->
+  declined, `merge` -> merged) and `open` (kinds: ask / dispatch /
+  recommendation / lesson / challenge). You PROPOSE; the chair stages,
+  accepts or strikes at resolve — a struck row is recorded with its reason,
+  never deleted, so a proposal the chair disagrees with is still a fact.
+- **A close carries a `citation` or it will not survive the chair's review.**
+  The highway exists because closes without citations made the record
+  unwalkable.
+- **Cite ticket ids exactly as you read them** — from the board, the desk, or
+  your brief. Never type an id you have not read.
+- Lines the grammar cannot read are returned to the chair as `unparsed`,
+  never dropped — a malformed proposal is visible, not lost.
+
+This does not replace `## STATE` / `## BINDS` / `## EVOLVE` — it rides after
+them. BINDS carry lessons to seats; TICKETS move work through states.

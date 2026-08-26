@@ -918,3 +918,9 @@ The runs filing door now normalises an unambiguous 8-character serves_requests p
 ## BIND from builder (run-builder-d42, carried by the chair 2026-08-24)
 
 Two filing facts now load-bearing on the CEO's window: (1) state `next_actor: "nobody"` on anything you file FOR THE RECORD - it removes the row from the CEO's awaiting-decision count and removes its Accept/Reject controls; "the spine did not say" and "the spine said nobody" are different facts and only the second closes a row. (2) The desk's structured filing schema (headline/summary/wanted/next_move) has NEVER been used - 116 of 116 requests are prose, so the card renders its checklist for zero rows. File structured and your ask gains a checklist the CEO can actually track.
+
+---
+
+## BINDS carried by the co-CTO 2026-08-26 (chair reviewed at resolve; none struck)
+
+- **from quant, run-quant-hyg-fast-probe** — When you specify an entry as a *crossing*, say explicitly whether the rule is meant to act on the **transition** or on the **state**. A transition rule is structurally silent for its first one-to-two crossings of any fresh session — invisible in a backtest that starts years ago, and a two-to-three-month blackout in live on a slow rule. If you mean "be long while X > Y", write that, not "buy when X crosses above Y"; they are different specifications and only one of them is deployable soon after it is switched on. **Measured**: the condition form fired on session 1 in 55.7% of 1,317 historical starts; the crossing sibling averages one flip per 35 sessions.
