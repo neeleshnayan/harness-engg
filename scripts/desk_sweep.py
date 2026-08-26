@@ -14,14 +14,29 @@ sweep one command instead of one script per row.
 
 Every row needs a citation. No citation, no closure - Donna's rule.
 
-ALREADY IS NOT A FAILURE (2026-08-24). The decide door now refuses a decision
-that re-records the status a row already holds - the narrow decision guard, on
-the CEO's decision, and this script is the caller most exposed to it because
-it posts `done` in bulk. 237 rows in the record have already recorded `done`,
-so re-sweeping any of them refuses. That refusal means "there was nothing to
-do here", which is a different outcome from "this closure did not happen", and
-printing both as FAIL would train the chair to ignore the word. The sweep
-therefore reports three outcomes, and its exit status counts only the third.
+ALREADY IS NOT A FAILURE (2026-08-24). The decide door refuses a decision that
+would change nothing the row stores - the narrow decision guard, on the CEO's
+decision, and this script is the caller most exposed to it because it posts
+`done` in bulk. 237 rows in the record have already recorded `done`, so
+re-sweeping one of them with the SAME citation refuses. That refusal means
+"there was nothing to do here", which is a different outcome from "this
+closure did not happen", and printing both as FAIL would train the chair to
+ignore the word. The sweep therefore reports three outcomes, and its exit
+status counts only the third.
+
+AND AN `ALREADY` NOW SAYS WHAT BECAME OF ITS CITATION (2026-08-26). The first
+cut of the third outcome dropped it silently: a refused POST records nothing,
+so a sweep row whose citation was BETTER than the one on the record printed
+ALREADY and lost it, against this file's own rule three lines up. Two things
+fixed that, and only one of them is here. The door's guard was repaired to
+compare `note` as well as `status`, so a sweep carrying a DIFFERENT citation
+now lands it and prints OK - that is where the dropped work went, and 17 real
+note corrections in the record were blocked by the unrepaired form. What
+remains here is the honest report of the other case: when the door still
+refuses, it publishes `unchanged_fields`, and an `already` line says plainly
+whether the citation it was carrying is already on the record byte-for-byte
+or whether this sweep recorded none. Against a spine older than the repair
+that field is absent, and the line says so rather than assuming the good case.
 """
 import json
 import os
@@ -64,6 +79,60 @@ def classify(code, body):
     return "fail"
 
 
+#: What became of the citation this sweep was carrying, when the door refused.
+#: FOUR answers and not two, because "the door did not tell me" is a different
+#: fact from "the door told me it was not recorded" and only one of them is a
+#: problem with this sweep.
+CITATION_ON_RECORD = "on_record"
+CITATION_NOT_RECORDED = "not_recorded"
+CITATION_UNKNOWN = "unknown"
+CITATION_UNREADABLE = "unreadable"
+
+
+def citation_outcome(detail):
+    """Where this row's citation ended up, read from the guard's 409 body.
+
+    Pure, so the four answers can be tested without a spine.
+
+    `unchanged_fields` is the guard's own list of the fields it compared and
+    found identical. `note` appearing in it means the citation this sweep was
+    carrying is ALREADY on the record, byte-for-byte - which is why the refusal
+    is honest: there was nothing to write. `note` absent from it means the door
+    would not have written a note at all, so this sweep recorded none.
+
+    A body with no `unchanged_fields` at all is a spine older than the
+    2026-08-26 scope repair, whose guard compared `status` alone and could
+    therefore refuse a row while dropping a DIFFERENT citation on the floor.
+    That is reported UNKNOWN rather than assumed good: absence is never a pass.
+    """
+    if not isinstance(detail, dict):
+        return CITATION_UNREADABLE
+    fields = detail.get("unchanged_fields")
+    if not isinstance(fields, list):
+        return CITATION_UNKNOWN
+    return CITATION_ON_RECORD if "note" in fields else CITATION_NOT_RECORDED
+
+
+#: One sentence per outcome, so the chair reads a fact instead of a word. The
+#: two that need action are worded as such: nothing here should read like
+#: reassurance when the citation did not land.
+CITATION_SAYS = {
+    CITATION_ON_RECORD: "this citation is already on the record, unchanged",
+    CITATION_NOT_RECORDED: ("NO CITATION WAS RECORDED by this sweep - the "
+                            "door wrote no note"),
+    CITATION_UNKNOWN: ("CITATION UNKNOWN - this spine predates the scope "
+                       "repair and does not say whether the note landed"),
+    CITATION_UNREADABLE: "CITATION UNKNOWN - the refusal body was unreadable",
+}
+
+
+def already_message(detail):
+    """The `ALREADY` line's text, from the guard's 409 body. Pure."""
+    d = detail if isinstance(detail, dict) else {}
+    return (f"already {d.get('recorded_status')!r} since {d.get('recorded_at')}"
+            f" - {CITATION_SAYS[citation_outcome(detail)]}")
+
+
 def _post(path, payload):
     """`(outcome, message)`. The message is None on a clean 200."""
     req = urllib.request.Request(
@@ -77,9 +146,7 @@ def _post(path, payload):
         raw = e.read()
         outcome = classify(e.code, raw)
         if outcome == "already":
-            detail = json.loads(raw)["detail"]
-            return outcome, (f"already {detail.get('recorded_status')!r} "
-                             f"since {detail.get('recorded_at')}")
+            return outcome, already_message(json.loads(raw).get("detail"))
         return outcome, f"{e.code} {raw[:150].decode(errors='replace')}"
 
 
@@ -129,6 +196,13 @@ def decide(rows):
             # the state this sweep wanted it in, so the sweep did nothing and
             # nothing needed doing. Counted separately so a batch of 40 that
             # closes 12 and skips 28 does not read as 28 problems.
+            #
+            # THE MESSAGE CARRIES THE CITATION'S FATE (see `already_message`).
+            # It is not folded into the counter: an `already` whose citation is
+            # already on the record and one whose citation is unknown are both
+            # "nothing to do" as far as this sweep's exit code goes, and
+            # inventing a fourth count would put a judgement in a number. The
+            # chair reads the line.
             print(f"ALREADY {ref}: {msg}"); already += 1
         else:
             print(f"FAIL    {ref}: {msg}"); fail += 1
