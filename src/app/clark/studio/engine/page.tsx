@@ -13,6 +13,7 @@ import {
   impliedCaveat,
   ledgerAbsence,
   ledgerTruncation,
+  unclassifiedNote,
   reconcileHeadline,
   sortedSymbolRows,
   driftExplanation,
@@ -126,6 +127,7 @@ export default function EnginePage() {
   const buckets = fateBuckets(ledger);
   const absence = ledgerAbsence(ledger);
   const truncated = ledgerTruncation(ledger);
+  const unclassified = unclassifiedNote(ledger);
   const caveat = impliedCaveat(leg);
   const rows = sortedSymbolRows(leg);
   const unknowns = unknownsList(view);
@@ -323,6 +325,11 @@ export default function EnginePage() {
 
                 {venue && (
                   <div className={`${KT.inset} px-4 py-3 text-[11px] ${KT.muted}`}>{venue}</div>
+                )}
+                {unclassified && (
+                  <div className={`${KT.inset} border-[var(--kt-warn)]/40 px-4 py-3 text-[11px] text-[var(--kt-warn)]`}>
+                    {unclassified}
+                  </div>
                 )}
 
                 {absence ? (

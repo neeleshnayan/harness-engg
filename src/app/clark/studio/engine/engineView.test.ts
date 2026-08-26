@@ -23,6 +23,7 @@ import {
   plural,
   ledgerAbsence,
   ledgerTruncation,
+  unclassifiedNote,
   syncWord,
   syncTone,
   reconcileHeadline,
@@ -48,7 +49,7 @@ const DOMAIN = { events_scanned: 1569, seq_first: 1, seq_last: 1569, scan_limit:
 function ledger(over: Partial<SignalLedger> = {}): SignalLedger {
   return {
     signals: [],
-    counts: { filled: 0, in_flight: 0, awaiting: 0, refused: 0, failed: 0 },
+    counts: { filled: 0, in_flight: 0, awaiting: 0, refused: 0, failed: 0, unclassified: 0 },
     total: 0,
     returned: 0,
     sources: [],
@@ -496,4 +497,34 @@ test("an ordinary undetermined row is still silent — the two differ", () => {
 test("the unquantified branch does not swallow a real divergence", () => {
   const e = driftExplanation(symbolRow({ implied_unquantified: false }));
   assert.match(e!, /never filled/);
+});
+
+
+// ------------------------------------------- a vocabulary that can run out
+
+test("a signal the stack has no word for is announced, not swallowed", () => {
+  const n = unclassifiedNote(ledger({ total: 1, returned: 1,
+    counts: { filled: 0, in_flight: 0, awaiting: 0, refused: 0, failed: 0, unclassified: 1 } }));
+  assert.ok(n);
+  assert.match(n!, /1 signal reached a state this page has no word for/);
+  assert.match(n!, /vocabulary needs extending/);
+});
+
+test("no unclassified signals means no standing sentence about them", () => {
+  assert.equal(unclassifiedNote(ledger()), null);
+  assert.equal(unclassifiedNote(null), null);
+});
+
+test("the note pluralises like the rest of the page", () => {
+  const n = unclassifiedNote(ledger({ total: 2,
+    counts: { filled: 0, in_flight: 0, awaiting: 0, refused: 0, failed: 0, unclassified: 2 } }));
+  assert.match(n!, /2 signals reached/);
+});
+
+test("an unclassified count does not disturb the five known buckets", () => {
+  const b = fateBuckets(ledger({
+    counts: { filled: 1, in_flight: 0, awaiting: 0, refused: 0, failed: 0, unclassified: 3 },
+  }));
+  assert.deepEqual(b.map((x) => x.fate), FATE_ORDER);
+  assert.equal(b.find((x) => x.fate === "filled")!.n, 1);
 });

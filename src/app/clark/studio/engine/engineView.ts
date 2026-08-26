@@ -66,7 +66,10 @@ export interface LedgerDomain {
 
 export interface SignalLedger {
   signals: SignalRow[];
-  counts: Record<Fate, number>;
+  /** Five fates plus `unclassified` — see `unclassifiedNote`. Typed as a loose
+   *  record rather than `Record<Fate, number>` so a bucket the spine adds
+   *  later is carried rather than dropped at the type boundary. */
+  counts: Record<string, number>;
   total: number;
   returned: number;
   sources: string[];
@@ -275,6 +278,23 @@ export function ledgerAbsence(ledger: SignalLedger | null | undefined): string |
   return `No engine has ever raised a signal. Read over ${scanned}` +
     (d?.seq_first != null && d?.seq_last != null ? ` (seq ${d.seq_first}–${d.seq_last})` : "") +
     ". Nothing was raised, which is not the same as nothing being wrong.";
+}
+
+/**
+ * The sentence for signals whose lifecycle this stack has no word for.
+ *
+ * The spine buckets an order event it cannot name into `unclassified` so that
+ * `sum(counts) == total` holds. If the page then rendered only the five known
+ * fates, the header would count a signal the strip never showed — the same
+ * defect, one layer up. Returns `null` when the count is zero, because a
+ * standing sentence about a thing that has never happened is noise.
+ */
+export function unclassifiedNote(ledger: SignalLedger | null | undefined): string | null {
+  const n = ledger?.counts?.unclassified ?? 0;
+  if (n <= 0) return null;
+  return `${plural(n, "signal")} reached a state this page has no word for. ` +
+    `They are counted in the total above and shown in the list below, and the ` +
+    `vocabulary needs extending — not the count.`;
 }
 
 /** Truncation is a word, never a silently shorter list. */
