@@ -81,6 +81,11 @@ export interface EngineSymbolRow {
   book_qty: number | null;
   engine_qty: number | null;
   engine_implied_qty: number | null;
+  /** True when at least one signal on this (strategy, symbol) carries no
+   *  quantity, so the implied position is UNKNOWN rather than a partial sum.
+   *  Without this field a null implied quantity would read as "the engine has
+   *  not signalled here", which is the opposite of what it means. */
+  implied_unquantified?: boolean;
   drift: number | null;
   /** THREE-VALUED. `null` is "cannot tell" and must never render as agreement. */
   in_sync: boolean | null;
@@ -132,6 +137,9 @@ export interface EngineStatus {
   note: string;
   sessions: EngineSession[];
   sessions_readable?: boolean;
+  /** The exception text, added by the endpoint — the only layer that saw it.
+   *  The STATE is the module's; only the CAUSE is the endpoint's. */
+  sessions_error?: string | null;
   last_signal_at?: string | null;
   last_signal_scope: string;
   last_bar_seen: string | null;
@@ -358,6 +366,13 @@ export function sortedSymbolRows(leg: EngineLeg | null | undefined): EngineSymbo
  * page that always blames the engine is a page that will be wrong loudly.
  */
 export function driftExplanation(row: EngineSymbolRow): string | null {
+  // An unquantified row is not a disagreement — it is an unanswered question,
+  // and it needs its own sentence rather than the silence of a `null`.
+  if (row.implied_unquantified) {
+    return "At least one signal on this symbol carries no quantity, so what " +
+      "the engine implies it holds cannot be summed. This is not a " +
+      "disagreement; it is an unanswered question.";
+  }
   if (row.in_sync !== false) return null;
   const unfilled = (row.signals?.raised ?? 0) - (row.signals?.filled ?? 0);
   const parts: string[] = [];

@@ -470,3 +470,30 @@ test("with rows, the caveat still names the model it is showing", () => {
   const c = impliedCaveat(leg());
   assert.match(c!, /quantities below are what its signals IMPLY/);
 });
+
+
+// ------------------------------------- the Gauntlet's findings, on this side
+
+test("an unquantified row explains itself instead of going silent", () => {
+  // The spine can now return engine_implied_qty: null when a signal carries no
+  // quantity. Without this branch the row rendered UNKNOWN with no sentence,
+  // which reads as "the engine has not signalled here" — the opposite.
+  const e = driftExplanation(symbolRow({
+    implied_unquantified: true, engine_implied_qty: null,
+    drift: null, in_sync: null,
+  }));
+  assert.ok(e);
+  assert.match(e!, /cannot be summed/);
+  assert.match(e!, /not a disagreement/);
+});
+
+test("an ordinary undetermined row is still silent — the two differ", () => {
+  // in_sync null WITHOUT the unquantified flag means the book could not be
+  // read, which the leg-level sentence already says. Two causes, two places.
+  assert.equal(driftExplanation(symbolRow({ in_sync: null, drift: null })), null);
+});
+
+test("the unquantified branch does not swallow a real divergence", () => {
+  const e = driftExplanation(symbolRow({ implied_unquantified: false }));
+  assert.match(e!, /never filled/);
+});
