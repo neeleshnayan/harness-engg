@@ -323,6 +323,38 @@ but what will be impressive is if can spot what others dont and quickly turn it 
 
 ---
 
+### DEEP NIGHT (Fable, ~22:40 UTC): kp9 merged, the graph incident, Ed's zero, crypto chartered honestly
+
+- **kp9 MERGED and LIVE** (`e55a0c72`, 1,096/1,096; production build GREEN after the chair
+  reinstalled the broken `@assistant-ui/react` - the first certified deployable build in memory).
+  The engine page is the CEO's ask made real: five glance tiles, the signal timeline (GLD point
+  fenced), fate strip, strategy cards with rule+datasource. Allocate now renders BOTH engine
+  strategies via an inclusion rule ("trading via engine - unallocated"); the false "above $25k"
+  sentence is gone from SystemStatus. Two chair debts caught by the seat: the brief's field name
+  was wrong (`session` vs `session_state` - keys are PASTED from a live curl now), and the base's
+  red build was proven pre-existing in a throwaway worktree.
+- **THE GRAPH INCIDENT, owned in the record**: the chair OVERWROTE its own pre-OOO knowledge
+  graph (hypothesis-and-kills ledger, scripts/kg tooling) while building the CEO's operator-guide
+  store at the same path - and Ed's batch found the corpse in hours (report.py dead). Restored
+  verbatim (113 kg tests green); the claims store split to `app/fund/guide.py`; isolation census
+  updated. The meta-lesson is claim one of the guide: the author forgot the memory organ within
+  96 hours - the definitive case for query-at-point-of-work.
+- **Ed's crypto menu: 0 filed (third consecutive zero, said aloud), 8 families graded at ZERO
+  container cost.** THE LANE'S LAW: crypto's payers and our execution are at different venues -
+  Alpaca's list IS the survivor set; forced-seller edges point short; Alpaca is long-only at
+  25bps/side. Momentum failed its own max-of-8 family null (trailing-12m NEGATIVE); Ed REFUSED
+  his own belt-ready candidate on his own ladder rule. Both seats independently recommend NOT
+  opening a second venue today. The death-event corpus (2,327 retained dead symbols + 426 dated
+  announcements) is pointed at CALIBRATING equity survivorship - an instrument, not a trade.
+- **The chair's own clobber**: `next build` on the live tree under the running dev server broke
+  every studio route for ~3 minutes at 4am IST. Fixed (stop, rm .next, restart), recorded, and
+  the runbook is guide claim `run-next-build-worktree`. Guide corpus: 21 claims.
+- **Still out**: eng3 (session registry + race fix + autopolicy v5 draft). HYG session RUNNING
+  (~2h). Watchdog on patrol.
+
+
+---
+
 ## 2026-08-24 (UTC)
 
 The Monday of the click sheet (~12:30Z) and the first real-venue fills
