@@ -5402,7 +5402,23 @@ def _live_sessions_or_none() -> tuple[list[dict[str, Any]] | None, str | None]:
         return None, f"{type(e).__name__}: {e}"
 
 
-def _engine_context(sessions: list[dict[str, Any]] | None = _UNSET):
+def _strategy_rows_or_none() -> list[dict[str, Any]] | None:
+    """The strategy registry, or ``None`` when it cannot be read — never ``[]``.
+
+    Same shape and same reason as ``_live_sessions_or_none``: ``[]`` is a claim
+    ("this fund has no strategies"); ``None`` is the absence of one. Both
+    consumers below need the distinction, so it is made once here rather than
+    twice, half-right.
+    """
+    try:
+        return _strategies.list()
+    except Exception as e:  # noqa: BLE001 — an unreadable registry is not empty
+        logger.warning("strategy registry unavailable: %s", e)
+        return None
+
+
+def _engine_context(sessions: list[dict[str, Any]] | None = _UNSET,
+                    strategies: list[dict[str, Any]] | None = _UNSET):
     """Everything the engine fold needs to know about the world outside the log.
 
     **ONE OBJECT, BUILT ONCE, BECAUSE THE FIELDS DESCRIBE ONE CONDITION.** The
@@ -5414,12 +5430,19 @@ def _engine_context(sessions: list[dict[str, Any]] | None = _UNSET):
     could not be read", and either one makes the fence prove nothing rather
     than assume something.
 
-    ``sessions`` may be passed in when the caller has already read it, so one
-    request never reads the session list twice and gets two answers.
+    **BOTH READS ARE INJECTABLE, AND THAT IS NOT AN OPTIMISATION.** The session
+    list and the strategy registry each decide part of the fence, and each is
+    read by TWO consumers inside one ``/fund/engine`` response. Reading either
+    one twice lets a strategy archived between the two reads fence a row in the
+    leg and not in the ledger — one payload, two truths, which is exactly the
+    defect the single-fold rule already closed for the event stream. So the
+    endpoint reads each ONCE and hands the value down.
     """
     from app.fund import engineledger
     if sessions is _UNSET:
         sessions, _ = _live_sessions_or_none()
+    if strategies is _UNSET:
+        strategies = _strategy_rows_or_none()
     try:
         # The instant this runner's in-memory session table began. Before it,
         # no session record CAN exist; after it, a missing session means the
@@ -5427,11 +5450,11 @@ def _engine_context(sessions: list[dict[str, Any]] | None = _UNSET):
         known_since = _lean().sessions_known_since()
     except Exception:  # noqa: BLE001 — an unaskable runner proves nothing
         known_since = None
-    try:
-        archived = {r["strategy_id"] for r in _strategies.list()
-                    if r.get("archived")}
-    except Exception:  # noqa: BLE001 — an unreadable registry is not an empty one
-        archived = None
+    # None PROPAGATES. An unreadable registry means "whether this strategy is
+    # archived is UNKNOWN", which costs the fence one of its two reasons — it
+    # must not silently become "nothing is archived".
+    archived = (None if strategies is None
+                else {r["strategy_id"] for r in strategies if r.get("archived")})
     return engineledger.EngineContext(sessions=sessions,
                                       known_since=known_since,
                                       archived_strategy_ids=archived)
@@ -5454,6 +5477,10 @@ def _engine_leg_payload(events: list[dict[str, Any]] | None = None,
     layer down: a leg that vanishes when an unrelated dependency is down.
     """
     from app.fund import engineledger
+    # ``None`` HERE means "the caller did not supply one", and this layer's job
+    # is to read the world — so it reads one. Inside ``engine_leg`` the same
+    # argument's absence means "assume nothing", and the fold fences nothing.
+    # Two layers, two correct defaults; stated because they look alike.
     ctx = context if context is not None else _engine_context()
     try:
         leg = engineledger.engine_leg(_store, attribution=_attribution,
@@ -5516,7 +5543,8 @@ def engine_view(limit: int = 200):
     # one payload could fence a signal in the ledger and not in the leg. It is
     # built BEFORE the ledger so the ledger's own rows carry their fence state
     # instead of the page having to join two payloads to find it.
-    ctx = _engine_context(sessions)
+    rows = _strategy_rows_or_none()
+    ctx = _engine_context(sessions, rows)
     ledger = engineledger.signal_ledger(_store, limit=limit, events=events,
                                         context=ctx)
     engineledger.attach_strategy_names(
@@ -5529,10 +5557,11 @@ def engine_view(limit: int = 200):
         status["sessions_error"] = sessions_error
     return {"status": status, "ledger": ledger,
             "reconcile": _engine_leg_payload(events, ctx),
-            "strategies": _engine_strategies_payload(ctx, ledger)}
+            "strategies": _engine_strategies_payload(ctx, ledger, rows)}
 
 
-def _engine_strategies_payload(context: Any, ledger: dict[str, Any]
+def _engine_strategies_payload(context: Any, ledger: dict[str, Any],
+                               rows: list[dict[str, Any]] | None
                                ) -> dict[str, Any]:
     """The engine strategy cards, with their own failure named rather than raised.
 
@@ -5542,11 +5571,6 @@ def _engine_strategies_payload(context: Any, ledger: dict[str, Any]
     whose registry is unreachable has UNKNOWN algorithms, not none.
     """
     from app.fund import engineledger
-    try:
-        rows = _strategies.list()
-    except Exception as e:  # noqa: BLE001 — an unreadable registry is not empty
-        logger.warning("strategy registry unavailable for the engine page: %s", e)
-        rows = None
     try:
         return engineledger.engine_strategies(
             rows, ledger=ledger, context=context,

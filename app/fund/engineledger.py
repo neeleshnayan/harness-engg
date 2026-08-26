@@ -1153,8 +1153,12 @@ def engine_strategies(strategies: list[dict[str, Any]] | None,
 
         assets, assets_basis = _assets_of(row)
         mine = [s for s in signals if s.get("strategy_id") == sid]
+        # MATCH ON A NON-EMPTY IDENTITY ONLY. A session started without a
+        # strategy id carries ``""``, and a card whose id were also falsy
+        # would then match it - attaching a running session to whichever
+        # strategy happened to have no id. Both sides must name something.
         sessions = [s for s in ctx.sessions
-                    if (s.get("strategy_id") or "") == (sid or "\0")
+                    if (sid and (s.get("strategy_id") or "") == sid)
                     or (algorithm and (s.get("algorithm") or "") == algorithm)]
         running = [s for s in sessions if s.get("state") in _SESSION_ALIVE]
 

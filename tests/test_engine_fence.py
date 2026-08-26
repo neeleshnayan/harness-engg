@@ -230,6 +230,40 @@ class TestNothingLiveIsEverFenced:
         assert _leg(DEAD_HISTORY, {SID: {}},
                     _ctx(known_since=later))["signals_fenced"] == 1
 
+    @pytest.mark.parametrize("raised,anchor,earlier,why", [
+        ("2026-08-16T18:59:52+00:00", "2026-08-26T19:00:00+00:00", True,
+         "both offset-aware, genuinely earlier"),
+        ("2026-08-16T18:59:52Z", "2026-08-26T19:00:00+00:00", True,
+         "Z and +00:00 are the same instant (3.11 parses Z)"),
+        ("2026-08-27T00:29:52+05:30", "2026-08-26T19:00:00+00:00", True,
+         "a non-UTC offset is CONVERTED, not compared as text"),
+        ("2026-08-16T18:59:52", "2026-08-26T19:00:00+00:00", False,
+         "NAIVE vs aware raises TypeError - and must fail toward LIVE"),
+        ("2026-08-16T18:59:52+00:00", "2026-08-26T19:00:00", False,
+         "aware vs NAIVE, the same hazard the other way round"),
+        ("2026-08-26T19:00:00+00:00", "2026-08-26T19:00:00+00:00", False,
+         "EXACTLY the boundary: a session record could already exist"),
+        ("2026-08-26T18:59:59.999999+00:00", "2026-08-26T19:00:00+00:00", True,
+         "one microsecond before the boundary"),
+    ])
+    def test_the_boundary_table_of_the_comparison_the_fence_rests_on(
+            self, raised, anchor, earlier, why):
+        """EVERY WAY TWO ISO STRINGS CAN MEET, because the entire safety
+        property is one ``<``.
+
+        The two mixed-awareness rows are the ones that matter: comparing a
+        naive datetime with an aware one raises ``TypeError``, and if that
+        escaped or resolved to True the fence would silence history it cannot
+        actually place. It must resolve toward LIVE, and this table is how that
+        stays true. Both timestamp producers in this fund emit ``+00:00``
+        today; HISTORY contains whatever was written then.
+        """
+        assert EL._iso_lt(raised, anchor) is earlier, why
+        ev = _proposed(1, ts=raised)
+        ev["ts"] = raised
+        n = _leg([ev], {SID: {}}, _ctx(known_since=anchor))["signals_fenced"]
+        assert n == (1 if earlier else 0), why
+
     def test_an_unparseable_instant_proves_no_ordering(self):
         """MUTANT M9: make ``_iso_lt`` return True on a parse failure.
 
@@ -1009,6 +1043,47 @@ class TestTheEndpoint:
         monkeypatch.setattr(fundapi, "_live_sessions_or_none", counting)
         c.get("/api/v1/fund/engine")
         assert len(calls) == 1
+
+    def test_one_request_reads_the_strategy_registry_once(self, monkeypatch):
+        """FOUND BY THE READ-THROUGH, not by any suite. The registry decides
+        the fence's ARCHIVED ground and it also builds the cards, and the first
+        version read it twice inside one response — so a strategy archived
+        between the two reads could fence a row in the leg and not in the
+        ledger. One payload, two truths: the same defect the single-fold rule
+        already closed for the event stream, one layer up.
+        """
+        c = _client(monkeypatch, DEAD_HISTORY, rows=[LEAN_GLD],
+                    positions={SID: {}})
+        from app.api.v1 import fund as fundapi
+        calls = []
+        real = fundapi._strategies.list
+
+        def counting():
+            calls.append(1)
+            return real()
+        monkeypatch.setattr(fundapi._strategies, "list", counting)
+        c.get("/api/v1/fund/engine")
+        assert len(calls) == 1, f"registry read {len(calls)} times"
+
+    def test_an_unreadable_registry_costs_the_fence_its_archived_ground(self, monkeypatch):
+        """MUTANT: ``archived = set()`` on a failed registry read.
+
+        An unreadable registry means "whether this strategy is archived is
+        UNKNOWN". Collapsing that to "nothing is archived" would be absence-as-
+        zero inside the loosening itself — the fence would keep working and
+        quietly stop being able to say why.
+        """
+        c = _client(monkeypatch, DEAD_HISTORY, positions={SID: {}},
+                    strategies_raise=True)
+        body = c.get("/api/v1/fund/engine").json()
+        f = body["reconcile"]["fence"]
+        assert f["archived_readable"] is False
+        assert f["archived_strategies"] is None
+        # ...and the row still fences on the SESSION ground, which is
+        # independent — losing one reason must not lose the fence.
+        row, = body["reconcile"]["implied"]["per_symbol"]
+        assert row["fenced"] is True
+        assert "ARCHIVED" not in (row["fence_reason"] or "")
 
     def test_the_strategy_cards_ride_on_the_same_response(self, monkeypatch):
         """One call for one page: the cards must not need a second round trip,
