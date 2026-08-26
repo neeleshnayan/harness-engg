@@ -5338,12 +5338,108 @@ def reconcile():
 
 @router.get("/fund/venue/reconcile")
 def venue_reconcile():
-    """Broker-vs-book drift SIGNAL (read-only — writes no events).
+    """Book-vs-broker drift SIGNAL, plus the ENGINE leg (read-only, no events).
 
     NAV stays folded from the event log; broker equity is only ever a comparison.
     A large delta means investigate before trading.
+
+    **THE THIRD LEG, added 2026-08-26 (CEO: "our books should reconcile").**
+    Two books were being compared and there are three. A live LEAN session
+    keeps its own paper book, which agrees with the fund's only while every
+    signal it raises is approved; the first declined signal makes them diverge,
+    after which the engine eventually proposes an exit for stock the fund does
+    not hold. Nothing noticed, because nothing looked.
+
+    **The engine leg is composed HERE rather than inside ``Reconciler.drift``,
+    deliberately.** ``drift`` returns early with ``{"configured": false}`` the
+    moment the broker is unreachable — so an engine leg computed inside it
+    would VANISH exactly when the broker is down, and a leg that disappears
+    reads as a leg with nothing to say. It is folded from the event log and
+    owes the broker nothing, so it survives that outage and is always present.
     """
-    return _reconciler.drift()
+    payload = _reconciler.drift()
+    payload["engine"] = _engine_leg_payload()
+    return payload
+
+
+def _engine_leg_payload() -> dict[str, Any]:
+    """The engine leg, with its own failure named rather than raised.
+
+    A reporting leg must not be able to take down the reconcile endpoint the
+    desk already reads. If the fold cannot be built, the leg says so in the
+    payload — an unreadable leg and a leg reporting agreement must never be
+    the same rendering.
+    """
+    from app.fund import engineledger
+    try:
+        leg = engineledger.engine_leg(_store, attribution=_attribution,
+                                      sessions=_lean().live_sessions())
+        return engineledger.attach_strategy_names(
+            leg, lambda sid: (_strategies.get(sid) or {}).get("name"))
+    except Exception as e:  # noqa: BLE001
+        logger.warning("engine reconciliation leg unavailable: %s", e)
+        return {"version": engineledger.ENGINE_LEDGER_VERSION,
+                "readable": False,
+                "verdict": {"state": "unreadable",
+                            "sentence": f"The engine leg could not be built: "
+                                        f"{type(e).__name__}: {e}"}}
+
+
+@router.get("/fund/signals/ledger")
+def signal_ledger(limit: int = 200):
+    """Every signal an external engine raised, and what became of each one.
+
+    The fate of an engine signal was scattered across ordinary order events
+    with nothing but an actor string marking it as engine-born, so "what
+    filled and what did not" had no surface at all. This is that surface.
+
+    Read-only. Three states the record can genuinely tell apart are kept
+    apart: AWAITING (nobody has decided — not a failure), REFUSED (a human or
+    the risk gate said no), and NEVER RAISED, which is not a row at all and
+    shows up as the ledger's ``domain`` instead.
+    """
+    from app.fund import engineledger
+    payload = engineledger.signal_ledger(_store, limit=limit)
+    return engineledger.attach_strategy_names(
+        payload, lambda sid: (_strategies.get(sid) or {}).get("name"))
+
+
+@router.get("/fund/engine")
+def engine_view(limit: int = 200):
+    """What the engine is doing, what it raised, and whether the books agree.
+
+    One call for one page, because the three answers are read together and a
+    surface that needs three round trips renders three different moments.
+
+    ``status`` never infers liveness from silence: on daily bars a healthy
+    algorithm can say nothing for days, so a running session's health is
+    reported UNPROVABLE rather than guessed at, and an empty session list is a
+    fact about this fund (none has ever been started) rather than an alarm.
+    """
+    from app.fund import engineledger
+    ledger = engineledger.signal_ledger(_store, limit=limit)
+    engineledger.attach_strategy_names(
+        ledger, lambda sid: (_strategies.get(sid) or {}).get("name"))
+    try:
+        sessions = _lean().live_sessions()
+        sessions_readable = True
+        sessions_error = None
+    except Exception as e:  # noqa: BLE001 — unreachable is not empty
+        sessions, sessions_readable = [], False
+        sessions_error = f"{type(e).__name__}: {e}"
+    status = engineledger.engine_status(sessions if sessions_readable else None,
+                                        ledger)
+    if not sessions_readable:
+        # An engine we cannot ASK about is not an engine that is not running.
+        status["state"] = "unknown"
+        status["note"] = (f"The live-session list could not be read "
+                          f"({sessions_error}) — this is not the same as no "
+                          f"session running.")
+        status["sessions_readable"] = False
+    else:
+        status["sessions_readable"] = True
+    return {"status": status, "ledger": ledger,
+            "reconcile": _engine_leg_payload()}
 
 
 # --- ledger writes (subscribe / redeem) ------------------------------------
