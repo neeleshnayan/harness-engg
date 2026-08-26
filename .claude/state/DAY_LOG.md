@@ -283,6 +283,30 @@ active and directing throughout.*
 
 ---
 
+### CRYPTO CHARTERED (CEO decision, ~21:30 UTC, reaffirmed after the chair's adversarial pass)
+
+- CEO verbatim: **"crypto as an asset class is highly algorithmic; has data freely available and
+  could be a decent pilot"**; on the chair's spot-only attack: **"we can plug in other brokerages
+  for crypto which might be better aligned"**; on sequencing: **"we can start testing and building
+  for it today. If we can beat human traders thats a v0 done and dusted."** The chair's adversarial
+  memo (five attacks, verdict SURVIVES-with-sequencing) preceded; the CEO overrode the
+  after-Sep-1 sequencing - his call, recorded. Entry via the constitution's own ramp (market-
+  specialist trigger, 2026-08-23): a SECTION of Ed's menu, experiment lane, zero capital,
+  paper/testnet only, full chain unchanged.
+- **Launched tonight (both light, web-capable, beside the two builders)**: analyst - the venue
+  and data dossier (India-accessible brokers, testnets, PERPS access for the funding-carry
+  premia leg, fee schedules, survivorship/wash-volume quality, the 00:00 UTC settled-bar
+  question); Ed - the crypto menu section (4-8 falsifiable edges with named counterparties,
+  including which edges exist ONLY at our size, and the CEO's v0 reframed as a measurable
+  event: a candidate clearing buy-and-hold-BTC-after-costs through the full chain).
+- **Tomorrow (needs a builder slot)**: the crypto bars feed (SpineBars-equivalent, 00:00 UTC
+  closed candles), gate benchmark = buy-and-hold BTC, cost-model arm at venue fees.
+- Four agents in flight (kp9, eng3 builders; analyst, Ed light) - cap 5, dependency-checked:
+  disjoint surfaces, no container contention, blind-review uncontaminated.
+
+
+---
+
 ## 2026-08-24 (UTC)
 
 The Monday of the click sheet (~12:30Z) and the first real-venue fills
