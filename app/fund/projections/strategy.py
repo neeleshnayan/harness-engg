@@ -358,6 +358,23 @@ class StrategyAttribution:
             rec["realized"] += sign * realized
             rec["net_invested"] += sign * invested
 
+    def positions_by_strategy(self) -> dict[str, dict[str, Decimal]]:
+        """Raw held quantity per ``strategy_id`` → ``symbol``, unpriced.
+
+        ``with_values`` is the display path: it needs a pricer and it DROPS any
+        symbol whose quantity has gone flat (|qty| < 1e-9), because a zero row
+        is noise on a strategy card. A reconciliation needs the opposite —
+        "the fund holds zero of what the engine thinks it holds" is the whole
+        finding, and a dropped row would render it as no disagreement at all.
+
+        So this returns the fold as it stands, zeros included, and the caller
+        decides what to hide. It is the SAME fold the desk and the risk monitor
+        read (``_build``), deliberately: a second fold over the same fills is
+        how two surfaces start disagreeing about one book.
+        """
+        return {sid: {sym: pos["qty"] for sym, pos in rec["positions"].items()}
+                for sid, rec in self._build().items()}
+
     def with_values(self, pricer: Callable[[str], float]) -> list[dict[str, Any]]:
         out = []
         for rec in self._build().values():
