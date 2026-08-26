@@ -3212,6 +3212,13 @@ def declared_datasource(code: Optional[str]) -> dict[str, Any]:
     contradicting figure in a comment above the URL it actually asks for. The
     same trap applies to every field here, so string literals are read from the
     tree — comments are not in it.
+
+    CONFIRMED ON THE LIVE RECORD, not only on a fixture (2026-08-27):
+    ``announcement_premium/main.py`` carries ``lookback_days=1200`` in a
+    COMMENT on line 372, above a URL asking for 2000 on line 383, and this
+    returns 2000. A text scan would find two values, call the algorithm
+    ambiguous, and report the window absent for the candidate that most
+    needed it.
     """
     absent = {
         "readable": False,

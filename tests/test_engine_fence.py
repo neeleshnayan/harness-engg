@@ -276,6 +276,60 @@ class TestNothingLiveIsEverFenced:
         assert _leg([ev], {SID: {}}, _ctx())["signals_fenced"] == 0
 
 
+class TestTheResidual:
+    """THE ONE CASE THE FENCE CANNOT SEPARATE, tested for its HONESTY rather
+    than for a behaviour it cannot have.
+
+    Found by the Gauntlet against this diff. A LEAN container lives in the
+    docker daemon and outlives the spine process that started it
+    (``_run_live`` runs ``docker run`` from a daemon thread); after a restart
+    ``_live`` is empty and ``stop_live`` cannot even reach it. So an orphan
+    that raised its last signal BEFORE the restart and has been quiet since —
+    the normal state of a daily-bar algorithm — is fenced, and no fact in the
+    event log distinguishes it from a dead one.
+
+    The fix is not in this fold: it is the runner reconciling its session table
+    against ``docker ps`` on start-up. What IS in this fold is refusing to
+    claim more than it proved.
+    """
+
+    def _silent_orphan(self):
+        """Signal before the restart, nothing running, strategy NOT archived —
+        the exact construction, with the book holding the position."""
+        return _leg(DEAD_HISTORY, {SID: {"GLD": 5}},
+                    _ctx(sessions=[], known_since=T2, archived=[]))
+
+    def test_the_silent_orphan_IS_fenced_and_the_report_says_what_that_proved(self):
+        leg = self._silent_orphan()
+        assert leg["verdict"]["state"] == "fenced_history"
+        row, = leg["implied"]["per_symbol"]
+        # THE CLAIM MUST BE ABOUT THE RECORD, NOT ABOUT THE CONTAINER. The
+        # first version of this sentence said "the container that raised it,
+        # and the paper book it moved, are gone" — a statement about the
+        # physical world that this fold has no way to check.
+        assert "no session record accounts for it" in row["fence_reason"]
+        assert "are gone" not in row["fence_reason"]
+        assert "however alive it was" in row["fence_reason"]
+
+    def test_the_fence_publishes_that_it_never_asked_docker(self):
+        """MUTANT: drop ``orphan_containers_checked`` from ``describe()``.
+
+        A payload that reports what the fence DID read and stays silent about
+        what it did not lets a reader conclude the fence checked. The flag can
+        only be False today, and it ships anyway — that is the point.
+        """
+        f = self._silent_orphan()["fence"]
+        assert f["orphan_containers_checked"] is False
+        assert "outlives the spine" in f["orphan_note"]
+        assert "docker ps" in f["orphan_note"]
+
+    def test_an_orphan_that_SPEAKS_after_the_restart_is_still_never_fenced(self):
+        """The half the fence CAN prove, re-asserted beside the half it
+        cannot, so the boundary between them is one test apart."""
+        assert _leg(DEAD_HISTORY, {SID: {"GLD": 5}},
+                    _ctx(sessions=[], known_since=T0))["signals_fenced"] == 0
+
+
 class TestWhatDoesFence:
     """The other direction: the fence must actually fire on proven history, or
     the CEO's page keeps shouting about a dead engine."""

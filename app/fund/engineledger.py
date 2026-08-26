@@ -171,6 +171,21 @@ BASIS_PREDATES_SESSION_MEMORY = "predates_session_memory"
 
 _SESSION_ALIVE = ("starting", "running")
 
+#: Whether anything asks DOCKER what is actually running, as opposed to asking
+#: the runner's in-memory session table. Nothing does, so this is ``False`` and
+#: it is a constant — a flag that can only be one value is still worth shipping
+#: when the payload would otherwise imply the other one.
+ORPHAN_CHECK = False
+
+#: What that costs, in one sentence, on the payload.
+ORPHAN_NOTE = (
+    "Nothing asks Docker what is running. A LEAN container outlives the spine "
+    "process that started it (leanrunner._run_live runs `docker run` from a "
+    "daemon thread) and cannot be stopped after a restart, so a container that "
+    "went quiet before the restart is FENCED and is indistinguishable from a "
+    "dead one. Closing this needs the runner to reconcile its session table "
+    "against `docker ps` on start-up.")
+
 
 class EngineContext:
     """Everything the fence needs to know about the world OUTSIDE the log.
@@ -221,6 +236,14 @@ class EngineContext:
             "archived_readable": self.archived_readable,
             "archived_strategies": (len(self.archived_strategy_ids)
                                     if self.archived_readable else None),
+            # THE FENCE'S OWN BLIND SPOT, PUBLISHED RATHER THAN IMPLIED.
+            # Constant because nothing here can currently be true: no code
+            # path asks Docker what is running, so "no session record" is the
+            # strongest claim available and it is weaker than "no container".
+            # A field rather than a comment, because a reader of the payload
+            # must be able to see the limit of what the fence proved.
+            "orphan_containers_checked": ORPHAN_CHECK,
+            "orphan_note": ORPHAN_NOTE,
         }
 
 
@@ -311,6 +334,22 @@ def signal_liveness(row: dict[str, Any], ctx: EngineContext) -> dict[str, Any]:
     ``archived`` never fences on its own — it enriches the reason, because a
     strategy the CEO retired is why the reader stopped caring, but an archived
     strategy whose orphan is still signalling is a fact we must not bury.
+
+    **THE RESIDUAL, NAMED RATHER THAN GLOSSED (found by the Gauntlet, and the
+    first version of this docstring overclaimed it).** What is proven is that
+    NO SESSION RECORD ACCOUNTS FOR THE SIGNAL — not that the container is dead.
+    ``_run_live`` starts ``docker run`` from a daemon thread and the container
+    lives in the docker daemon, so it OUTLIVES a spine restart; ``stop_live``
+    can only kill sessions the current process's ``_live`` dict knows about, so
+    after a restart an orphan cannot even be stopped. Rule 5 catches an orphan
+    that SPEAKS after the restart. **A silent orphan — one that raised its last
+    signal before the restart and has said nothing since, which is the NORMAL
+    state of a daily-bar algorithm — is fenced, and the fund cannot tell it
+    from a dead one.** No fact in the event log separates the two: the only
+    thing that would is asking Docker what is running, which this fold does not
+    do and says so (``ORPHAN_CHECK``). The residual is published on the fence's
+    own domain so the page can name it, because a control that overstates its
+    proof is the defect this module exists to prevent.
     """
     if not ctx.sessions_readable:
         return {"state": LIVE, "basis": BASIS_SESSIONS_UNREADABLE, "reason": None}
@@ -339,10 +378,10 @@ def signal_liveness(row: dict[str, Any], ctx: EngineContext) -> dict[str, Any]:
     # stop it read "...the paper book it moved, are gone The dead session had
     # asked for 0.1". A fold that emits half-sentences makes punctuation the
     # caller's problem, and the caller will get it wrong.
-    reason = ("no session on this record has survived to now — it was raised "
-              f"before the engine runner's session memory began ({ctx.known_since}), "
-              "so the container that raised it, and the paper book it moved, "
-              "are gone.")
+    reason = ("no session record accounts for it — it was raised before the "
+              f"engine runner's session memory began ({ctx.known_since}), so "
+              "the session that raised it cannot be on record however alive it "
+              "was. Its paper book is beyond this fund's reach either way.")
     if archived:
         reason = ("the strategy is ARCHIVED and " + reason)
     return {"state": FENCED, "basis": BASIS_PREDATES_SESSION_MEMORY,
@@ -1094,11 +1133,25 @@ def engine_strategies(strategies: list[dict[str, Any]] | None,
     an empty bench. The payload says so and carries no cards, rather than
     rendering a fund with no algorithms.
 
-    **THE DATASOURCE IS READ FROM THE ALGORITHM, NEVER ASSUMED.** Both live
-    algorithms subscribe a custom ``SpineBars`` daily feed, and they ask that
-    feed for DIFFERENT windows (700 days and 2000). A panel that hardcoded the
-    shared half would have been right about the class and wrong about the
-    window, in a way no test would catch because the wrong number is plausible.
+    **THE DATASOURCE IS READ FROM THE ALGORITHM, NEVER ASSUMED.** Both engine
+    strategies on the live registry subscribe a custom ``SpineBars`` daily
+    feed, and they ask that feed for DIFFERENT windows. A panel that hardcoded
+    the shared half would have been right about the class and wrong about the
+    window, in a way no reader could catch because the wrong number is
+    plausible.
+
+    Re-derive the pair, and note the second file's status (2026-08-27)::
+
+        grep -o "lookback_days=[0-9]*" lean_workspace/algorithms/*/main.py
+        # gld_sma_filter      700   [tracked]
+        # hyg_fast_flip_probe 2000  [UNTRACKED in the live tree - so this
+        #                            number is NOT reproducible from a clean
+        #                            checkout, and the file the CEO is about
+        #                            to run live is not in git]
+
+    Across all 23 algorithms declaring one the values are 700/900/1200/2000 —
+    so the two-value pairing above is a fact about these two strategies, not
+    about the population.
 
     ``algorithm_source`` is ``name -> code|None`` and is allowed to fail: an
     algorithm whose file is missing gets an UNREADABLE datasource with the
