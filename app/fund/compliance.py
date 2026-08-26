@@ -249,59 +249,20 @@ class ComplianceGate:
                 "be rejected by the venue"
             )
 
-        blocks.extend(self._pdt_blocks(order, account, warnings))
+        # THE PDT BLOCK WAS RETIRED HERE (2026-08-27, CEO signature on AB4-2,
+        # verbatim "sign E20-1 and AB4-2 - both cleared review"). The rule it
+        # enforced no longer exists: SEC approved the FINRA amendment
+        # 2026-04-14 (Reg Notice 26-10), effective 2026-06-04; Alpaca
+        # implemented same day and deleted the pattern_day_trader API fields
+        # by 2026-07-06. All four facts URL-verified by the adversary blind
+        # (docs/reviews/ADVERSARY_BATCH4_2026-08-24.md item 2). The block read
+        # only a day-trade count — no margin-deficiency logic existed here, so
+        # retiring it removed nothing that covered the replacement hazard,
+        # which is de-minimis-excused below $1,000. Removing a compliance
+        # check is a LOOSENING and took the full chain: adversary blind pass,
+        # then the CEO's click. `DayTradeLedger` stays: the count is still an
+        # honest fact about the account's trading, and /fund/compliance still
+        # reports it beside `retired: true`.
 
         return ComplianceDecision(ok=not blocks, blocks=blocks, warnings=warnings)
 
-    # --- pattern day trader -------------------------------------------------
-    def _pdt_blocks(
-        self, order: Order, account: AccountState, warnings: list[str]
-    ) -> list[str]:
-        # Above the threshold the rule imposes no restriction, so there is
-        # nothing to enforce. Only skip when we actually know the equity —
-        # an unreadable equity is not a large one.
-        if account.equity is not None and account.equity >= PDT_EQUITY_THRESHOLD:
-            return []
-
-        creates = self._ledger.would_create_day_trade(order)
-
-        # The broker's count is what the broker enforces on. Ours is the
-        # backstop for when the API cannot be read, and is reported alongside
-        # so a divergence is visible rather than silently preferred.
-        broker_count = account.daytrade_count
-        own_count = self._ledger.count()
-        count = broker_count if broker_count is not None else own_count
-        source = "broker" if broker_count is not None else "our event log"
-
-        if broker_count is not None and broker_count != own_count:
-            warnings.append(
-                f"day-trade count disagrees: broker {broker_count}, "
-                f"our log {own_count} — the broker's is enforced"
-            )
-
-        if not creates:
-            # Not a day trade, so it cannot advance the count. Still worth
-            # saying how close the account is, because the next flip might be.
-            remaining = PDT_MAX_DAY_TRADES - 1 - count
-            if remaining <= 1:
-                warnings.append(
-                    f"{count} day trades in the last five sessions ({source}); "
-                    f"{max(remaining, 0)} left before the account is flagged"
-                )
-            return []
-
-        if count >= PDT_MAX_DAY_TRADES - 1:
-            equity = f"${account.equity:,.0f}" if account.equity is not None else "under $25k"
-            return [
-                f"pattern-day-trader rule: this would be day trade "
-                f"{count + 1} of {PDT_MAX_DAY_TRADES} in five sessions on a "
-                f"{equity} account ({source} count). The fourth flags the "
-                f"account and restricts it to closing-only for 90 days. "
-                f"Hold the position overnight and exit tomorrow instead."
-            ]
-
-        warnings.append(
-            f"this is a day trade — {count + 1} of {PDT_MAX_DAY_TRADES} "
-            f"in five sessions ({source})"
-        )
-        return []

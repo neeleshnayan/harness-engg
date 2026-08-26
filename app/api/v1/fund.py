@@ -832,11 +832,23 @@ def get_compliance_status():
     return {
         "account": account.to_dict(),
         "pdt": {
-            "applies": applies,
+            # RETIRED (2026-08-27, CEO signature on AB4-2; adversary blind
+            # pass docs/reviews/ADVERSARY_BATCH4_2026-08-24.md item 2). The
+            # rule this block reported ended 2026-06-04 (SEC-approved FINRA
+            # amendment, Reg Notice 26-10); Alpaca deleted its API fields by
+            # 2026-07-06. The check no longer blocks anything; the counts
+            # below remain as honest facts about the account's trading, and
+            # `applies` is pinned False so no consumer renders a live cliff.
+            "retired": True,
+            "retired_note": ("the pattern-day-trader rule ended 2026-06-04; "
+                             "this block was retired 2026-08-27 on the CEO's "
+                             "signature after an adversary-verified review — "
+                             "the counts below are history, not a constraint"),
+            "applies": False,
             "equity_threshold": PDT_EQUITY_THRESHOLD,
             "max_day_trades": PDT_MAX_DAY_TRADES,
             "used": used,
-            "remaining": max(PDT_MAX_DAY_TRADES - 1 - used, 0) if applies else None,
+            "remaining": None,
             "broker_count": broker,
             "our_count": own,
             "source": "broker" if broker is not None else "our event log",

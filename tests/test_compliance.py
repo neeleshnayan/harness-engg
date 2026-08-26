@@ -145,92 +145,53 @@ def test_old_round_trips_fall_out_of_the_window():
 
 
 # ------------------------------------------------------------- the PDT block
-def test_the_fourth_day_trade_is_blocked():
+# ------------------------------------------- the retired PDT enforcement -----
+# THE PDT BLOCK WAS RETIRED 2026-08-27 (CEO signature on AB4-2, adversary
+# blind pass docs/reviews/ADVERSARY_BATCH4_2026-08-24.md item 2): the rule it
+# enforced ended 2026-06-04. Eight enforcement tests that asserted the block's
+# behaviour were removed WITH the block - a green test over an uncalled
+# control is the HW3 orphaned-control pattern. What replaces them pins the
+# RETIREMENT, so the block cannot quietly return.
+
+def test_the_retired_pdt_rule_blocks_nothing_whatever_the_count():
+    """The incident this pins: a day trade that v-before-retirement refused.
+
+    Fourth day trade, sub-$25k account, broker count at the old cliff - the
+    exact input the retired block refused with "pattern-day-trader rule".
+    Retired means the gate has NOTHING to say about it: no block, no PDT
+    warning. If this fails, the block came back without the review chain
+    (adversary blind + the CEO's click) that removing it required."""
     s = MemStore()
     s.append_fill("SPY", "buy", now_et())
-    d = gate(s).check(order(side=Side.SELL), account(daytrade_count=3))
-    assert d.ok is False
-    assert any("pattern-day-trader" in b for b in d.blocks)
-
-
-def test_the_block_says_what_to_do_instead():
-    """A block that does not name the alternative reads as a dead end."""
-    s = MemStore()
-    s.append_fill("SPY", "buy", now_et())
-    d = gate(s).check(order(side=Side.SELL), account(daytrade_count=3))
-    assert "overnight" in d.blocks[0]
-    assert "90 days" in d.blocks[0]
-
-
-def test_the_third_day_trade_is_allowed_but_warned_about():
-    s = MemStore()
-    s.append_fill("SPY", "buy", now_et())
-    d = gate(s).check(order(side=Side.SELL), account(daytrade_count=2))
+    d = gate(s).check(order(side=Side.SELL), account(daytrade_count=9))
     assert d.ok is True
-    assert any("day trade" in w for w in d.warnings)
+    assert d.blocks == []
+    assert not any("day trade" in w or "pattern" in w for w in d.warnings)
 
 
-def test_a_non_day_trade_is_never_blocked_however_high_the_count():
-    """Opening a fresh position does not advance the count, so the rule has
-    nothing to say about it — blocking here would stop the fund trading at all."""
-    s = MemStore()
-    d = gate(s).check(order(side=Side.BUY), account(daytrade_count=3))
-    assert d.ok is True
-
-
-def test_a_non_day_trade_still_reports_how_close_the_account_is():
-    s = MemStore()
-    d = gate(s).check(order(side=Side.BUY), account(daytrade_count=3))
-    assert any("before the account is flagged" in w for w in d.warnings)
-
-
-def test_a_large_account_is_exempt():
-    s = MemStore()
-    s.append_fill("SPY", "buy", now_et())
-    d = gate(s).check(order(side=Side.SELL),
-                      account(equity=PDT_EQUITY_THRESHOLD + 1, daytrade_count=9))
-    assert d.ok is True
-    assert d.warnings == []
-
-
-def test_an_unreadable_equity_is_not_treated_as_a_large_one():
-    """The exemption requires knowing the account is big. Not knowing is not big."""
-    s = MemStore()
-    s.append_fill("SPY", "buy", now_et())
-    d = gate(s).check(order(side=Side.SELL), account(equity=None, daytrade_count=3))
-    assert d.ok is False
-
-
-# -------------------------------------------- degrading when the broker is out
-def test_an_unreachable_broker_falls_back_to_our_own_count():
-    """Not fail-open: we still have a measured count from our own books."""
+def test_the_retirement_holds_on_an_unreadable_account_too():
+    """The old block failed CLOSED on unknown equity (not knowing is not big).
+    Retired is retired on every arm: an unreadable broker changes nothing."""
     s = MemStore()
     for sym in ("SPY", "MSFT", "F"):
         s.append_fill(sym, "buy", now_et())
-        s.append_fill(sym, "sell", now_et())        # three round trips
+        s.append_fill(sym, "sell", now_et())
     s.append_fill("NVDA", "buy", now_et())
-    d = gate(s).check(order(symbol="NVDA", side=Side.SELL), AccountState.unknown("timeout"))
-    assert d.ok is False
-    assert "our event log" in d.blocks[0]
+    d = gate(s).check(order(symbol="NVDA", side=Side.SELL),
+                      AccountState.unknown("timeout"))
+    assert d.ok is True
+    assert d.blocks == []
 
 
-def test_a_divergence_between_the_two_counts_is_surfaced():
+def test_the_day_trade_ledger_still_counts_honestly():
+    """The LEDGER outlives the rule: the count is a fact about the account,
+    reported by /fund/compliance beside `retired: true`, and the reconciler
+    cross-checks it. Three round trips is three, retirement or not."""
     s = MemStore()
-    s.append_fill("SPY", "buy", now_et())
-    s.append_fill("SPY", "sell", now_et())          # our count: 1
-    s.append_fill("NVDA", "buy", now_et())
-    d = gate(s).check(order(symbol="NVDA", side=Side.SELL), account(daytrade_count=2))
-    assert any("disagrees" in w for w in d.warnings)
-
-
-def test_the_broker_s_count_is_the_one_enforced_on():
-    """Ours is a backstop and a cross-check, never an override — the broker
-    enforces on its own number, so acting on a lower count of ours would place
-    an order the venue then rejects."""
-    s = MemStore()
-    s.append_fill("SPY", "buy", now_et())           # our count: 0 round trips
-    d = gate(s).check(order(side=Side.SELL), account(daytrade_count=3))
-    assert d.ok is False
+    for sym in ("SPY", "MSFT", "F"):
+        s.append_fill(sym, "buy", now_et())
+        s.append_fill(sym, "sell", now_et())
+    assert DayTradeLedger(s).count() == 3
 
 
 # ------------------------------------------------------- the other hard stops
