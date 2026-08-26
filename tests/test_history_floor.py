@@ -332,7 +332,9 @@ def test_the_repo_ships_exactly_the_geometries_that_were_measured():
             if (d / "main.py").exists() else \
             src[0].read_text(encoding="utf-8", errors="replace")
         if d.name in INSTRUMENTS_NOT_CANDIDATES:
-            head = "\n".join(code.splitlines()[:5])
+            # The header, not line 1: LEAN files open with an imports region,
+            # so the declaration sits just below it (line 11 in the probe).
+            head = "\n".join(code.splitlines()[:40])
             assert "MACHINERY INSTRUMENT, NOT A CANDIDATE" in head, (
                 f"{d.name} is exempted as a machinery instrument but its file "
                 f"no longer declares itself one — re-measure or re-declare.")
