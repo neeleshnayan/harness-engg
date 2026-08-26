@@ -23,7 +23,8 @@ import assert from "node:assert/strict";
 
 import type { StrategyView } from "../../../../lib/fund_api.ts";
 import {
-  archivedStillHolding, cashPctOfNav, foldBook, holdingUnknown, isHolding,
+  archivedStillHolding, cashPctOfNav, engineCount, engineOf, foldBook,
+  holdingUnknown, isHolding,
 } from "./bookFold.ts";
 
 /** Only the fields the fold reads; cast once, here, so the tests stay legible. */
@@ -212,4 +213,44 @@ test("D2: with no archived rows the two totals agree", () => {
     "the hero must not change on a book with no archived holders",
   );
   assert.equal(f.archivedActual.value, null);
+});
+
+// ------------------------------------------------- engine provenance (2026-08-27)
+
+test("an engine strategy is identified by its definition, never by its name", () => {
+  // THE DEFECT THIS GUARDS. The live record carries "TEST - Fast Intraday
+  // (5m SMA)" — a hand-managed strategy whose name looks like a machine's —
+  // and would carry an engine strategy named plainly the day somebody names
+  // one that way. Matching the "LEAN - " prefix badges the first and misses
+  // the second, and both errors point at money: an ENGINE badge is how the
+  // CEO tells an algorithmic sleeve from one he sizes by hand.
+  assert.equal(engineOf({ definition: { engine: "lean", algorithm: "x" } }), "lean");
+  assert.equal(engineOf({ definition: { type: "sma", fast: 10 } }), null);
+  assert.equal(engineOf({ definition: null }), null);
+  assert.equal(engineOf({}), null);
+});
+
+test("a name that looks like a machine's does not earn a badge", () => {
+  const lookalike = { name: "LEAN - not really", definition: { type: "sma" } } as never;
+  assert.equal(engineOf(lookalike), null);
+});
+
+test("the engine NAME is carried, so a second engine is not folded into 'lean'", () => {
+  assert.equal(engineOf({ definition: { engine: "zipline" } }), "zipline");
+  assert.equal(engineOf({ definition: { engine: "  lean  " } }), "lean");
+  // A non-string or blank engine key names no engine — never `true`, and never
+  // the empty string, which would render an empty badge.
+  assert.equal(engineOf({ definition: { engine: true } as never }), null);
+  assert.equal(engineOf({ definition: { engine: "   " } }), null);
+});
+
+test("an unreadable bench has an UNKNOWN engine count, not zero", () => {
+  assert.equal(engineCount(null), null);
+  assert.equal(engineCount(undefined), null);
+  assert.equal(engineCount([]), 0);
+  assert.equal(engineCount([
+    { definition: { engine: "lean" } },
+    { definition: { type: "sma" } },
+    { definition: { engine: "lean" } },
+  ]), 2);
 });

@@ -12,7 +12,7 @@ import { NavPanel } from "../components/NavPanel";
 import { ExecutionAnalytics } from "../components/ExecutionAnalytics";
 import { KT } from "../theme";
 import { money, pct, signedMoney } from "../format";
-import { archivedStillHolding, cashPctOfNav, foldBook, isHolding } from "./bookFold";
+import { archivedStillHolding, cashPctOfNav, engineOf, foldBook, isHolding } from "./bookFold";
 import { fundApiClient, NavResponse, StrategyView } from "@/lib/fund_api";
 
 /**
@@ -56,6 +56,34 @@ function Badge({ state }: { state?: string }) {
     <span className={`rounded border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${STATE_TONE[s] || STATE_TONE.draft}`}>
       {s}
     </span>
+  );
+}
+
+/**
+ * ENGINE PROVENANCE — the smallest thing that makes an algorithmic strategy
+ * findable among hand-managed sleeves (CEO, 2026-08-26: "I would like to see
+ * the Lean engine's strategy in allocate … to get a quick sense and imo most
+ * of our early work will be algorithmic").
+ *
+ * It is a LINK, not just a label. The badge alone would tell the reader that
+ * something is different and leave them to find where; the engine page is
+ * where the datasource, the rule and the signal history actually live, and it
+ * is one click from here.
+ *
+ * Renders NOTHING for a hand-managed strategy — no "manual" badge. Most rows
+ * are manual, and a badge on every row is a badge on none.
+ */
+function EngineBadge({ strategy }: { strategy: StrategyView }) {
+  const engine = engineOf(strategy);
+  if (!engine) return null;
+  return (
+    <Link
+      href="/clark/studio/engine"
+      title={`Run by the ${engine} engine — open the engine page for its datasource, rule and signal history`}
+      className="rounded border border-[var(--kt-accent-border)] bg-[var(--kt-accent-bg)] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[var(--kt-accent)] hover:underline"
+    >
+      {engine} engine
+    </Link>
   );
 }
 
@@ -372,6 +400,7 @@ export default function AllocatePage() {
                           <div className="flex items-center gap-2">
                             <span className="font-medium">{s.name}</span>
                             <Badge state={s.state} />
+                            <EngineBadge strategy={s} />
                             {/* The state badge alone reads as bookkeeping. This
                                 says what the state MEANS for money at risk. */}
                             {unmanaged && (
@@ -476,6 +505,7 @@ export default function AllocatePage() {
                 <li key={s.strategy_id} className="flex items-center gap-3 px-5 py-3">
                   <span className="font-medium">{s.name}</span>
                   <Badge state={s.state} />
+                  <EngineBadge strategy={s} />
                   <span className={`text-[11px] ${KT.muted}`}>
                     {/* Each figure absent on its OWN terms. This read
                         `(total_return ?? 0) * 100` and printed "return 0.0%"

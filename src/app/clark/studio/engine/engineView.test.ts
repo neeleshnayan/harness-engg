@@ -24,8 +24,7 @@ import {
   ledgerAbsence,
   ledgerTruncation,
   unclassifiedNote,
-  syncWord,
-  syncTone,
+  syncLabel,
   reconcileHeadline,
   impliedCaveat,
   sortedSymbolRows,
@@ -50,6 +49,11 @@ function ledger(over: Partial<SignalLedger> = {}): SignalLedger {
   return {
     signals: [],
     counts: { filled: 0, in_flight: 0, awaiting: 0, refused: 0, failed: 0, unclassified: 0 },
+    // Defaulted to the ABSENT value, not to zero: a ledger the fixture did
+    // not give a fence to is one that was never asked what is running.
+    fenced: null,
+    live: null,
+    fence: null,
     total: 0,
     returned: 0,
     sources: [],
@@ -216,12 +220,26 @@ test("truncation is a sentence, never a silently shorter list", () => {
 
 // ------------------------------------------------------------ reconciliation
 
-test("a three-valued sync flag never renders null as agreement", () => {
-  assert.equal(syncWord(true), "in sync");
-  assert.equal(syncWord(false), "DIVERGED");
-  assert.equal(syncWord(null), "cannot tell");
-  assert.equal(syncWord(undefined), "cannot tell");
-  assert.notEqual(syncTone(null), syncTone(true));
+test("the four-valued sync state never renders anything but in_sync as agreement", () => {
+  assert.equal(syncLabel("in_sync").word, "in sync");
+  assert.equal(syncLabel("diverged").word, "DIVERGED");
+  assert.equal(syncLabel("undetermined").word, "cannot tell");
+  assert.equal(syncLabel(null).word, "cannot tell");
+  assert.equal(syncLabel(undefined).word, "cannot tell");
+  // The four tones are four DIFFERENT tones. This replaced a pair of
+  // three-valued helpers whose `null` used to mean one thing and now means
+  // two — an unreadable book and a fenced row — which would have rendered a
+  // history row in the same amber alarm as a book the spine could not read.
+  const tones = ["in_sync", "diverged", "undetermined", "fenced_history"]
+    .map((s2) => syncLabel(s2).tone);
+  assert.equal(new Set(tones).size, 4);
+});
+
+test("a fenced row is quiet, not green: nothing was compared, so nothing agreed", () => {
+  const f = syncLabel("fenced_history");
+  assert.equal(f.word, "fenced history");
+  assert.equal(f.tone, "quiet");
+  assert.notEqual(f.tone, syncLabel("in_sync").tone);
 });
 
 test("the live divergence gets the DIVERGED headline and the bad tone", () => {

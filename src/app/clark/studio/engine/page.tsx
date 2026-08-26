@@ -17,11 +17,21 @@ import {
   reconcileHeadline,
   sortedSymbolRows,
   driftExplanation,
-  syncWord,
-  syncTone,
+  syncLabel,
   unknownsList,
   venueNote,
+  fenceNote,
+  fenceBlindSpots,
+  datasourceLine,
+  assetsLine,
+  sessionLabel,
+  classLine,
+  sortedCards,
+  strategiesAbsence,
+  unmatchedSessionNote,
+  cardBuckets,
   type EngineView,
+  type EngineStrategyCard,
   type EngineSymbolRow,
   type SignalRow,
   type Tone,
@@ -132,6 +142,11 @@ export default function EnginePage() {
   const rows = sortedSymbolRows(leg);
   const unknowns = unknownsList(view);
   const venue = venueNote(ledger);
+  const fence = fenceNote(leg);
+  const fenceBlind = fenceBlindSpots(leg);
+  const cards = sortedCards(view?.strategies);
+  const noCards = strategiesAbsence(view?.strategies);
+  const unmatched = unmatchedSessionNote(view?.strategies);
 
   return (
     <div className={KT.page}>
@@ -234,6 +249,106 @@ export default function EnginePage() {
               </div>
             </Panel>
 
+            {/* ------------------------------------ which strategies, on what data */}
+            <Panel
+              title="Engine strategies"
+              subtitle="What each algorithmic strategy trades, on what data, under what rule — and what it has actually said."
+              right={
+                <span className={`font-mono text-[11px] ${KT.muted}`}>
+                  {view?.strategies?.readable === false
+                    ? "UNKNOWN"
+                    : `${cards.length} strateg${cards.length === 1 ? "y" : "ies"}`}
+                </span>
+              }
+            >
+              <div className="space-y-3 px-5 py-4">
+                {unmatched && (
+                  <div className={`${KT.inset} border-[var(--kt-warn)]/40 px-4 py-3 text-[11px] text-[var(--kt-warn)]`}>
+                    {unmatched}
+                  </div>
+                )}
+                {noCards ? (
+                  <div className={`${KT.inset} px-4 py-3 text-[12px] ${KT.muted}`}>{noCards}</div>
+                ) : (
+                  cards.map((c: EngineStrategyCard) => {
+                    const sess = sessionLabel(c);
+                    const last = c.last_signal;
+                    return (
+                      <div key={c.strategy_id} className={`${KT.inset} px-4 py-3`}>
+                        <div className="flex flex-wrap items-baseline justify-between gap-2">
+                          <div className="flex flex-wrap items-baseline gap-2">
+                            <span className={KT.title}>{c.name ?? "unnamed strategy"}</span>
+                            <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide ${TONE_CHIP.neutral}`}>
+                              {c.engine}
+                            </span>
+                            {/* ARCHIVED STAYS VISIBLE. It is the record of what
+                                ran, and the fenced row on the panel above has
+                                nothing to point at without it. */}
+                            {c.archived && (
+                              <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide ${TONE_CHIP.quiet}`}>
+                                archived
+                              </span>
+                            )}
+                            <span className={`rounded-full border px-2 py-0.5 text-[10px] ${TONE_CHIP[sess.tone]}`}>
+                              {sess.word}
+                            </span>
+                          </div>
+                          <span className={`font-mono text-[11px] ${KT.muted}`}>
+                            {c.state ?? "state unknown"}
+                            {" · "}
+                            {c.allocation_pct == null ? "allocation UNKNOWN" : `${c.allocation_pct}% allocated`}
+                          </span>
+                        </div>
+
+                        {c.rule && <div className={`mt-1 text-[12px] ${KT.body}`}>{c.rule}</div>}
+
+                        <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                          <div>
+                            <div className={KT.label}>Assets</div>
+                            <div className={`mt-0.5 font-mono text-[11px] ${c.assets.length ? "text-[var(--kt-text)]" : KT.muted}`}>
+                              {assetsLine(c)}
+                            </div>
+                          </div>
+                          <div>
+                            <div className={KT.label}>Algorithm</div>
+                            <div className={`mt-0.5 font-mono text-[11px] ${c.algorithm ? "text-[var(--kt-text)]" : KT.muted}`}>
+                              {c.algorithm ?? "NOT DECLARED"}
+                            </div>
+                            <div className={`mt-0.5 text-[10px] ${KT.muted}`}>{classLine(c)}</div>
+                          </div>
+                          <div>
+                            <div className={KT.label}>Datasource</div>
+                            <div className={`mt-0.5 text-[11px] ${c.datasource?.readable ? KT.body : KT.muted}`}>
+                              {datasourceLine(c.datasource)}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 grid gap-2 sm:grid-cols-5">
+                          {cardBuckets(c).map((b) => (
+                            <div key={b.fate} className="border-t border-[var(--kt-border)] pt-1" title={b.help}>
+                              <div className={`text-[9px] uppercase tracking-wide ${KT.muted}`}>{b.label}</div>
+                              <div className={`font-mono tabular-nums text-sm ${TONE_TEXT[b.countTone]}`}>{b.n}</div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className={`mt-2 text-[10px] ${KT.muted}`}>
+                          {last
+                            ? <>Last signal {stamp(last.raised_at)} — {last.side?.toUpperCase()} {last.qty} {last.symbol}, {last.status}
+                                {last.fenced ? " (fenced history — the session that raised it is gone)" : ""}</>
+                            : "This strategy has never raised a signal."}
+                          {(c.signals_fenced ?? 0) > 0 && (
+                            <> · {c.signals_fenced} of {c.signals?.raised ?? 0} fenced.</>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </Panel>
+
             {/* ------------------------------------------- do the books agree */}
             <Panel
               title="Do the books agree"
@@ -249,6 +364,18 @@ export default function EnginePage() {
                 {caveat && (
                   <div className={`${KT.inset} px-4 py-3 text-[11px] ${KT.muted}`}>{caveat}</div>
                 )}
+                {/* THE FENCE SAYS SO ON THE PANEL, not only in the payload.
+                    It removes rows from the verdict above, so "0 symbols
+                    disagree" and "0, and 3 were excluded from it" must not
+                    render identically. */}
+                {fence && (
+                  <div className={`${KT.inset} px-4 py-3 text-[11px] ${KT.muted}`}>{fence}</div>
+                )}
+                {fenceBlind.map((b, i) => (
+                  <div key={i} className={`${KT.inset} border-[var(--kt-warn)]/40 px-4 py-3 text-[11px] text-[var(--kt-warn)]`}>
+                    {b}
+                  </div>
+                ))}
 
                 {rows.length === 0 ? (
                   <div className={`text-[12px] ${KT.muted}`}>
@@ -276,11 +403,23 @@ export default function EnginePage() {
                               {r.strategy_name ?? r.strategy_id ?? "unattributed"}
                             </td>
                             <td className="py-2 pr-4"><Qty v={r.engine_qty} /></td>
-                            <td className="py-2 pr-4"><Qty v={r.engine_implied_qty} /></td>
+                            <td className="py-2 pr-4">
+                              <Qty v={r.engine_implied_qty} />
+                              {/* The dead engine's quantity, beside the live
+                                  absence rather than instead of it — annotate,
+                                  never erase. Without this the fenced row shows
+                                  UNKNOWN and the reader loses the one number
+                                  the history actually contains. */}
+                              {r.fenced && r.fenced_implied_qty != null && (
+                                <div className={`mt-0.5 font-mono text-[10px] ${KT.muted}`}>
+                                  was {r.fenced_implied_qty} (dead session)
+                                </div>
+                              )}
+                            </td>
                             <td className="py-2 pr-4"><Qty v={r.book_qty} /></td>
                             <td className="py-2 pr-4"><Qty v={r.drift} unknown="—" /></td>
-                            <td className={`py-2 text-[11px] ${TONE_TEXT[syncTone(r.in_sync)]}`}>
-                              {syncWord(r.in_sync)}
+                            <td className={`py-2 text-[11px] ${TONE_TEXT[syncLabel(r.sync_state).tone]}`}>
+                              {syncLabel(r.sync_state).word}
                               {driftExplanation(r) && (
                                 <div className={`mt-1 text-[10px] ${KT.muted}`}>{driftExplanation(r)}</div>
                               )}

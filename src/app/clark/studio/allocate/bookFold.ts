@@ -178,3 +178,34 @@ export function cashPctOfNav(
   if (!Number.isFinite(cashUsd) || !Number.isFinite(navUsd) || navUsd <= 0) return null;
   return (cashUsd / navUsd) * 100;
 }
+
+/**
+ * Is this strategy run by an external ENGINE, and which one?
+ *
+ * **WHY IT IS A FIELD AND NOT A NAME PREFIX (CEO, 2026-08-26: "I would like to
+ * see the Lean engine's strategy in allocate … so an algorithmic strategy is
+ * not lost among manual sleeves").** `definition.engine` is what the registrar
+ * writes; the `"LEAN - …"` name prefix is a habit, and the live record shows
+ * the habit is not consistent — `"TEST - Fast Intraday (5m SMA)"` is a manual
+ * strategy whose name looks like a machine's. Matching on the prefix would
+ * badge that one and miss any engine strategy somebody names plainly.
+ *
+ * Returns the engine's NAME, so a second engine is carried rather than folded
+ * into a boolean that says "lean" by implication. `null` means no engine key —
+ * a hand-managed strategy, which is the normal case and not an absence.
+ */
+export function engineOf(s: { definition?: Record<string, unknown> | null }): string | null {
+  const raw = s?.definition?.engine;
+  if (typeof raw !== "string") return null;
+  const name = raw.trim();
+  return name ? name : null;
+}
+
+/** How many strategies on this list are engine-run. Absent list, absent count:
+ *  a bench that could not be read has an UNKNOWN number of engines, not zero. */
+export function engineCount(
+  strategies: { definition?: Record<string, unknown> | null }[] | null | undefined,
+): number | null {
+  if (!strategies) return null;
+  return strategies.filter((s) => engineOf(s) !== null).length;
+}

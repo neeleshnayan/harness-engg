@@ -71,6 +71,13 @@ export interface StrategyView {
   positions?: Record<string, { qty?: number; avg_price?: number }>;
   backtest?: BacktestSummary | null;
   assets?: string[];             // scoped asset universe
+  /** The strategy's own definition, as the registrar wrote it. Free-form by
+   *  design — its keys differ per strategy family — but ONE key is a contract:
+   *  `engine` names the external engine that runs this strategy, and its
+   *  presence is how an algorithmic strategy is told from a hand-managed one.
+   *  The name prefix is NOT that signal: "LEAN - …" is a habit and
+   *  "TEST - Fast Intraday (5m SMA)" shows the habit is not even consistent. */
+  definition?: Record<string, unknown> | null;
   // Layered cake (nested strategies) — many-to-many composition
   parent_id?: string | null;   // back-compat: first parent
   parents?: string[];          // full membership set (a strategy can have several)
