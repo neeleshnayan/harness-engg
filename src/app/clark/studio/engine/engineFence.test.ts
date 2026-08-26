@@ -31,6 +31,7 @@ import {
   unmatchedSessionNote,
   cardBuckets,
   type EngineLeg,
+  type FenceDomain,
   type EngineSymbolRow,
   type EngineStrategyCard,
   type EngineStrategies,
@@ -41,7 +42,7 @@ import {
 
 const DOMAIN = { events_scanned: 1591, seq_first: 1, seq_last: 1591, scan_limit: 100000, window_bound: false };
 
-const FENCE = {
+const FENCE: FenceDomain = {
   version: "v1",
   sessions_readable: true,
   sessions: 0,
@@ -49,6 +50,11 @@ const FENCE = {
   sessions_known_since: "2026-08-26T19:09:25.484641+00:00",
   archived_readable: true,
   archived_strategies: 4,
+  orphan_containers_checked: false,
+  orphan_note: "Nothing asks Docker what is running. A LEAN container outlives " +
+    "the spine process that started it and cannot be stopped after a restart, " +
+    "so a container that went quiet before the restart is FENCED and is " +
+    "indistinguishable from a dead one.",
 };
 
 function row(over: Partial<EngineSymbolRow> = {}): EngineSymbolRow {
@@ -141,26 +147,57 @@ test("nothing fenced means no fence sentence — a mechanism that has not fired 
   assert.equal(fenceNote(null), null);
 });
 
+/**
+ * A leg whose fence could not read something — and therefore FENCED NOTHING.
+ *
+ * The two facts move together and this helper makes that impossible to get
+ * wrong. The first version of this test overrode `fence.sessions_readable`
+ * alone and left `symbols_fenced: 1` beside it, describing a fence that both
+ * could not ask what was running AND had fenced a row on that answer. It went
+ * red the moment a second blind spot was added, which is the only reason the
+ * contradiction was noticed at all. **A multi-field state gets ONE
+ * constructor, in tests exactly as in production.**
+ */
+function unreadableLeg(over: Partial<FenceDomain>): EngineLeg {
+  return leg({
+    fence: { ...FENCE, ...over },
+    implied: { ...leg().implied!, symbols_fenced: 0, per_symbol: [row()] },
+  });
+}
+
 test("the fence names what it could NOT read, in the safe direction", () => {
-  const unread = fenceBlindSpots(leg({
-    fence: { ...FENCE, sessions_readable: false },
-  }));
+  const unread = fenceBlindSpots(unreadableLeg({ sessions_readable: false }));
   assert.equal(unread.length, 1);
   assert.match(unread[0], /nothing was fenced/);
   assert.match(unread[0], /as if its engine might still be running/);
 
-  const noAnchor = fenceBlindSpots(leg({
-    fence: { ...FENCE, sessions_known_since: null },
-  }));
+  const noAnchor = fenceBlindSpots(unreadableLeg({ sessions_known_since: null }));
+  assert.equal(noAnchor.length, 1);
   assert.match(noAnchor[0], /could not say when its session memory began/);
 
-  const noRegistry = fenceBlindSpots(leg({
-    fence: { ...FENCE, archived_readable: false },
-  }));
+  const noRegistry = fenceBlindSpots(unreadableLeg({ archived_readable: false }));
+  assert.equal(noRegistry.length, 1);
   assert.match(noRegistry[0], /strategy registry could not be read/);
 
-  // All three readable: nothing to say.
-  assert.deepEqual(fenceBlindSpots(leg()), []);
+  // Everything readable AND nothing fenced: nothing to say at all.
+  assert.deepEqual(fenceBlindSpots(unreadableLeg({})), []);
+});
+
+test("the orphan residual is published whenever the fence actually fired", () => {
+  // FOUND BY THE GAUNTLET. A LEAN container outlives the spine process, so a
+  // container that went quiet BEFORE the last restart is fenced and cannot be
+  // told from a dead one. The fold proved "no session record accounts for it",
+  // not "the container is gone" — and a blind spot that rides in the payload
+  // and is never rendered has not been published.
+  const fired = fenceBlindSpots(leg());
+  assert.ok(fired.some((b) => /went quiet before the restart|Docker/.test(b)));
+
+  // ...and it is SILENT when nothing was fenced: the limit only matters once a
+  // row has been removed from the verdict on that proof.
+  const nothingFenced = fenceBlindSpots(leg({
+    implied: { ...leg().implied!, symbols_fenced: 0, per_symbol: [row()] },
+  }));
+  assert.deepEqual(nothingFenced, []);
 });
 
 test("which session raised a fenced signal is listed as an unknown, only when one is fenced", () => {

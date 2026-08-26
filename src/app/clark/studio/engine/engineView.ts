@@ -83,6 +83,11 @@ export interface FenceDomain {
   sessions_known_since: string | null;
   archived_readable: boolean;
   archived_strategies: number | null;
+  /** Whether anything asked DOCKER what is running, as opposed to asking the
+   *  runner's in-memory session table. Nothing does, and the payload says so
+   *  rather than letting a reader conclude it was checked. */
+  orphan_containers_checked?: boolean;
+  orphan_note?: string;
 }
 
 export interface LedgerDomain {
@@ -705,6 +710,18 @@ export function fenceBlindSpots(leg: EngineLeg | null | undefined): string[] {
   if (!f.sessions_known_since) {
     out.push("The engine runner could not say when its session memory began, " +
       "so no signal can be placed before it and nothing was fenced.");
+  }
+  // THE RESIDUAL, SHOWN WHENEVER THE FENCE ACTUALLY FIRED. A blind spot that
+  // rides in the payload and is never rendered has not been published. It is
+  // conditioned on something BEING fenced because the limit only matters once
+  // a row has been removed from the verdict on this proof — a standing
+  // sentence about an unfired mechanism is the padding that hides real
+  // entries.
+  if (f.orphan_containers_checked === false
+      && (leg?.implied?.symbols_fenced ?? 0) > 0) {
+    out.push(f.orphan_note ?? "Nothing asked Docker what is running, so a " +
+      "container that went quiet before the last restart is fenced and cannot " +
+      "be told from a dead one.");
   }
   return out;
 }

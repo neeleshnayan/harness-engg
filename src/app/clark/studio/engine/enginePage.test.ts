@@ -140,3 +140,14 @@ test("the page still has no control that acts, after gaining two panels", () => 
   const calls = [...PAGE.matchAll(/fundApiClient\.(\w+)/g)].map((m) => m[1]);
   assert.deepEqual([...new Set(calls)], ["getEngine"]);
 });
+
+test("the fence's residual is rendered, not merely computed", () => {
+  // FOUND BY THE GAUNTLET, then closed on both sides. `fenceBlindSpots` now
+  // carries the orphan residual — a LEAN container outlives the spine, so a
+  // container that went quiet before the last restart is fenced and cannot be
+  // told from a dead one. A blind spot that rides in the payload and is never
+  // rendered has not been published, so the page must map the WHOLE list and
+  // must not slice it.
+  assert.match(PAGE, /fenceBlind\.map\(\(b, i\) =>/);
+  assert.doesNotMatch(PAGE, /fenceBlind\.slice|fenceBlind\[0\]/);
+});
