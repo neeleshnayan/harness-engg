@@ -440,6 +440,106 @@ class TestR39IsUNTOUCHEDByTheRepair:
         assert detail["unchanged_fields"] == ["status", "next_actor"]
 
 
+class TestTheScopeInstrument:
+    """``scripts/instruments/hw5/redecision_scope.py`` — the measurement the
+    two docstrings cite (v1 refused 37, v1.1 refuses 20, 17 freed, 0 newly
+    refused, over the whole log at seq 1..1547 on 2026-08-26).
+
+    Tested on SYNTHETIC populations, never on the live one: the log is
+    append-only and those totals move, so asserting them here would pin a
+    number that is already stale. What is asserted is the instrument's own
+    arithmetic — which is what makes the live reading trustworthy."""
+
+    def _mod(self):
+        import importlib.util
+        import pathlib
+        p = (pathlib.Path(__file__).resolve().parents[1]
+             / "scripts" / "instruments" / "hw5" / "redecision_scope.py")
+        spec = importlib.util.spec_from_file_location("hw5_scope", p)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    def _ev(self, seq, status, note="", next_actor=None, rec=1,
+            run="run-x", actor="cto"):
+        return {"seq": seq, "type": "DeskRecommendationDecided",
+                "actor": actor, "aggregate_id": run,
+                "payload": {"run_id": run, "rec_id": rec, "status": status,
+                            "at": f"t{seq}", "note": note,
+                            "next_actor": next_actor}}
+
+    def test_a_note_correction_is_counted_as_FREED(self):
+        """The 13-shape. v1 refuses the second event, v1.1 allows it, and the
+        instrument must attribute the difference to ``note``."""
+        m = self._mod()
+        out = m.replay([self._ev(1, "done", note="A"),
+                        self._ev(2, "done", note="B")])
+        assert out["v1_refusals"] == 1
+        assert out["v11_refusals"] == 0
+        assert out["freed_by_the_repair"] == 1
+        assert out["freed_shapes"] == {"note": 1}
+
+    def test_a_re_routing_is_counted_with_its_own_shape(self):
+        """The 4-shape: note AND next_actor both move."""
+        m = self._mod()
+        out = m.replay([self._ev(1, "staged", note="A", next_actor="chair"),
+                        self._ev(2, "staged", note="B", next_actor="ceo")])
+        assert out["freed_shapes"] == {"note+next_actor": 1}
+
+    def test_a_TRUE_duplicate_is_freed_by_neither_form(self):
+        """R39's shape. Both forms refuse it, so it lands in neither the
+        freed list nor the newly-refused one — the positive control without
+        which "17 freed" could just mean "the replay allows everything"."""
+        m = self._mod()
+        out = m.replay([self._ev(i, "accepted", note="", next_actor="ceo")
+                        for i in range(1, 9)])
+        assert out["v1_refusals"] == 7
+        assert out["v11_refusals"] == 7
+        assert out["freed_by_the_repair"] == 0
+        assert out["newly_refused_by_the_repair"] == 0
+
+    def test_the_repair_NEVER_adds_a_refusal(self):
+        """THE DIRECTION CLAIM, MADE FALSIFIABLE. v1.1 is strictly weaker than
+        v1 — so over any population, ``newly_refused_by_the_repair`` is zero.
+        The live run reports zero over 678 events; this pins the property on a
+        population that mixes every shape."""
+        m = self._mod()
+        evs = []
+        for i, (st, note, na) in enumerate([
+                ("open", "", None), ("accepted", "a", "ceo"),
+                ("accepted", "a", "ceo"), ("accepted", "b", "ceo"),
+                ("done", "b", None), ("done", "b", None),
+                ("open", "", None), ("open", "c", None)], start=1):
+            evs.append(self._ev(i, st, note=note, next_actor=na))
+        out = m.replay(evs)
+        assert out["newly_refused_by_the_repair"] == 0
+        assert out["v11_refusals"] <= out["v1_refusals"]
+
+    def test_two_rows_do_not_see_each_others_history(self):
+        m = self._mod()
+        out = m.replay([self._ev(1, "done", note="A", rec=1),
+                        self._ev(2, "done", note="A", rec=2)])
+        assert out["distinct_rows"] == 2
+        assert out["v1_refusals"] == 0
+
+    def test_it_REFUSES_an_empty_population(self, monkeypatch, capsys):
+        m = self._mod()
+        monkeypatch.setattr(m, "pull", lambda dsn=None: (
+            [], {"log_events": 0, "seq_min": None, "seq_max": None,
+                 "covers_whole_log": True}))
+        assert m.main([]) == 2
+        assert "REFUSED" in capsys.readouterr().err
+
+    def test_the_null_arm_states_its_domain_size_and_can_fail(self, capsys):
+        """A --null that compared nothing prints the same clean line as one
+        that compared R39's eight. The domain size is in the sentence."""
+        m = self._mod()
+        assert m.main(["--null"]) == 0
+        out = capsys.readouterr().out
+        assert "8 events over 1 row(s) compared" in out
+        assert "freed 0" in out
+
+
 # ============================================================================
 # THE OTHER HALF — 136 rows in the record carry a genuine progression
 # ============================================================================
