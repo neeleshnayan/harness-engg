@@ -60,3 +60,46 @@ test("allocate gained no control it did not have", () => {
   // page whose whole job is sizing, and it is not in this diff.
   assert.doesNotMatch(PAGE, /startLive|stopLive|runAlgorithm|lean\/live/);
 });
+
+// ------------------------------------- the engine inclusion rule (2026-08-27)
+
+/** The page with its comments removed — the surface a NEGATIVE assertion must
+ *  read. Measured on the engine page the same day: a `doesNotMatch` scan that
+ *  reads prose fails on the comment explaining the very fix it checks. */
+const CODE = PAGE.replace(/\/\*[\s\S]*?\*\//g, "");
+
+test("the engine panel exists and is fed by the tested fold", () => {
+  // KILLS THE DEFECT THE CEO NAMED. A badge can only decorate a row that
+  // already renders; the inclusion rule is what makes an archived or
+  // unallocated engine strategy appear at all.
+  assert.match(CODE, /engineBook\(strategies, engine\)/);
+  assert.match(CODE, /engineRows\.rows\.map\(/);
+  assert.doesNotMatch(CODE, /engineRows\.rows\.slice|engineRows\.rows\.filter/);
+  assert.ok(CODE.includes("engineBookHeadline(engineRows)"));
+  assert.ok(CODE.includes("engineBookMismatch(engineRows)"));
+});
+
+test("the engine read fails on its OWN, and never blanks the book", () => {
+  // Defect C3's rule applied to the third source: `Promise.allSettled`, not
+  // `all`. A dead engine endpoint must not take the strategy table with it.
+  assert.match(CODE, /Promise\.allSettled\(\[[\s\S]{0,400}getEngine\(\)/);
+  assert.doesNotMatch(CODE, /Promise\.all\(\[/);
+  // And a failed engine read is NULL — which engineBook renders as UNKNOWN.
+  // `?? []` here would report a live LEAN container as "no session running".
+  assert.match(CODE, /setEngine\(e\.status === "fulfilled" \? \(e\.value\.strategies \?\? null\) : null\)/);
+});
+
+test("the panel's words all come from the module, never inline in JSX", () => {
+  // A second copy of "trading via engine" in JSX is how the page and its
+  // tested module start disagreeing about what a running session means.
+  assert.doesNotMatch(CODE, /trading via engine|unallocated|no session running/);
+  assert.match(CODE, /\{r\.headline\}/);
+  assert.match(CODE, /\{r\.note\}/);
+});
+
+test("allocate STILL gained no control it did not have", () => {
+  // Re-asserted after the panel landed: a per-engine-strategy row is exactly
+  // the shape a start/stop button would arrive in, and this page's job is
+  // sizing.
+  assert.doesNotMatch(CODE, /startLive|stopLive|runAlgorithm|lean\/live/);
+});

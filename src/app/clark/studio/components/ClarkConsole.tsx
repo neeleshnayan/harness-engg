@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom";
 import { ChevronRight, Loader2, RefreshCw, Sparkles, X } from "lucide-react";
 import { KT } from "../theme";
+import { readPdt } from "./pdtRule";
 import { processNaturalLanguageQuery } from "@/lib/agents_api";
 import { fundApiClient } from "@/lib/fund_api";
 import { ClarkMarkdown } from "./ClarkMarkdown";
@@ -228,14 +229,22 @@ export function ClarkConsole() {
       lines.push("Risk state: unknown — this is NOT an all-clear");
     }
 
-    if (comp?.pdt?.applies) {
-      const { used, max_day_trades, remaining, source } = comp.pdt;
+    // THE DAY-TRADE BUDGET, and the rule it describes was RETIRED 2026-08-27
+    // (it ended 2026-06-04). What Clark is told must not contain a constraint
+    // that does not exist — a briefing line is the one place a stale rule
+    // propagates into ADVICE rather than merely onto a screen.
+    const pdt = readPdt(comp ?? null);
+    if (pdt.live) {
       lines.push(
-        `Day trades ${used}/${max_day_trades} used, ${remaining ?? 0} left before a 90-day closing-only restriction (via ${source}). Equity $${val(comp.account?.equity)} is under the $25k PDT threshold.`,
+        `Day trades: ${pdt.detail}. Equity $${val(comp?.account?.equity)}.`,
       );
-      if ((remaining ?? 0) <= 1) {
+      if (pdt.remaining == null || pdt.remaining <= 1) {
         suggestions.push("I have almost no day trades left — what can I still safely do today?");
       }
+    } else if (pdt.state === "retired") {
+      // Stated rather than dropped: Clark is asked about day trades often
+      // enough that silence would let it answer from its own priors.
+      lines.push(`Pattern-day-trader rule: ${pdt.detail}. It is not a constraint today.`);
     }
 
     const v = tca?.summary?.vs_assumption;
@@ -270,7 +279,12 @@ export function ClarkConsole() {
       "Walk me through what this book is actually exposed to.",
       "Backtest NVDA over the last 6 months with an SMA crossover.",
       "Are our trading costs running above what the backtests assume?",
-      "What can I still do today without burning a day trade?",
+      // WAS "What can I still do today without burning a day trade?" — a
+      // standing prompt about the pattern-day-trader rule, which was retired
+      // 2026-08-27. It kept rotating onto the CEO's screen after the rule
+      // ceased to exist, which is the quietest way a dead control stays alive:
+      // not as a number, as a QUESTION the operator is invited to ask.
+      "Is the engine running, and did anything it proposed need me?",
       "Which position is furthest from where its strategy wants it?",
       "Does our book agree with the broker right now?",
       "Do a pass over the fund and tell me anything that deserves attention.",

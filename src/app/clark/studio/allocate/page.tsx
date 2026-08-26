@@ -13,6 +13,8 @@ import { ExecutionAnalytics } from "../components/ExecutionAnalytics";
 import { KT } from "../theme";
 import { money, pct, signedMoney } from "../format";
 import { archivedStillHolding, cashPctOfNav, engineOf, foldBook, isHolding } from "./bookFold";
+import { engineBook, engineBookHeadline, engineBookMismatch, type EngineRow } from "./engineBook";
+import type { EngineStrategies } from "../engine/engineView";
 import { fundApiClient, NavResponse, StrategyView } from "@/lib/fund_api";
 
 /**
@@ -129,6 +131,13 @@ export default function AllocatePage() {
   const [stratErr, setStratErr] = useState<string | null>(null);
   const [navErr, setNavErr] = useState<string | null>(null);
 
+  /* The ENGINE's own view of what is running. Its own state, its own failure,
+     deliberately: `null` means the engine endpoint could not be read, which is
+     NOT "no session running" — a LEAN container outlives the spine process
+     that started it. `engineBook` is three-valued on this input for that
+     reason. See ./engineBook.ts. */
+  const [engine, setEngine] = useState<EngineStrategies | null>(null);
+
   const [allocTarget, setAllocTarget] = useState<StrategyView | null>(null);
   // Which strategy's fills and round-trips are expanded below the table.
   const [drillInto, setDrillInto] = useState<StrategyView | null>(null);
@@ -139,9 +148,15 @@ export default function AllocatePage() {
   // complete, healthy, empty book. Each source now fails on its own and says
   // which one failed.
   const load = useCallback(async () => {
-    const [s, n] = await Promise.allSettled([
+    const [s, n, e] = await Promise.allSettled([
       fundApiClient.getStrategies(),
       fundApiClient.getNav(),
+      /* THE THIRD INDEPENDENT QUESTION, added 2026-08-27: "is an engine
+         running any of these right now?" It joins the allSettled for exactly
+         the C3 reason the other two are there — a dead engine endpoint must
+         not blank the book, and a failed read of it must render as UNKNOWN
+         rather than as an idle engine. */
+      fundApiClient.getEngine(),
     ]);
     if (s.status === "fulfilled") {
       setStrategies(s.value.strategies || []);
@@ -157,6 +172,9 @@ export default function AllocatePage() {
       setNav(null);
       setNavErr(spineError(n.reason));
     }
+    // Null on failure, and null on a payload with no strategies block: both
+    // mean "we could not ask", and `engineBook` renders that as UNKNOWN.
+    setEngine(e.status === "fulfilled" ? (e.value.strategies ?? null) : null);
     setLoading(false);
   }, []);
 
@@ -192,6 +210,12 @@ export default function AllocatePage() {
   // trading. Zero is the ordinary case; non-zero is the C1 condition and gets
   // said out loud rather than folded into a total.
   const pausedHolders = fold.holdingWhileNotDeployed;
+  /* Every engine-run strategy, whatever its state — the inclusion rule the CEO
+     asked for. Folded from the SAME strategy list the tables above use, so a
+     row cannot appear in one and not the other for arithmetic reasons. */
+  const engineRows = useMemo(() => engineBook(strategies, engine), [strategies, engine]);
+  const engineHead = engineBookHeadline(engineRows);
+  const engineMismatch = engineBookMismatch(engineRows);
 
   return (
     <div className={KT.page}>
@@ -450,6 +474,93 @@ export default function AllocatePage() {
                 </tbody>
               </table>
             </div>
+          )}
+        </div>
+
+        {/* ═══════════════════════ ENGINE STRATEGIES ═══════════════════════
+            CEO, 2026-08-27, verbatim: "allocate doesnt show the lean
+            strategies".
+
+            AN INCLUSION RULE, NOT A BADGE. The book table above renders what is
+            DEPLOYED OR HOLDING and the bench renders the rest of the live
+            list; between them, an ARCHIVED engine strategy renders nowhere and
+            a RUNNING one with no allocation renders on a bench headed "not
+            carrying capital". Both were true of this fund on the day this was
+            written, and the second one was the strategy LEAN was trading.
+
+            So every strategy whose `definition.engine` is set gets a row here,
+            whatever its state — and the label says what a running session with
+            no allocation actually is. The arithmetic is in ./engineBook.ts. */}
+        <div className={`mt-6 ${KT.panel}`}>
+          <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-[var(--kt-border)] px-5 py-3">
+            <span className={KT.label}>Run by an engine · every state</span>
+            <Link href="/clark/studio/engine" className={`text-[11px] ${KT.accent} underline underline-offset-2`}>
+              engine page — signals, datasource, reconciliation
+            </Link>
+          </div>
+
+          {engineHead && (
+            <div
+              className={`border-b border-[var(--kt-border)] px-5 py-2 text-[12px] ${
+                engineHead.tone === "warn" ? KT.sev.warn : KT.muted
+              }`}
+            >
+              {engineHead.text}
+            </div>
+          )}
+          {/* TWO SOURCES ANSWER ONE QUESTION. When the engine knows a strategy
+              this page's list does not, that difference is the finding — it is
+              the same class of defect this whole panel exists to close. */}
+          {engineMismatch && (
+            <div className={`border-b border-[var(--kt-border)] px-5 py-2 text-[11px] ${KT.sev.warn}`}>
+              {engineMismatch}
+            </div>
+          )}
+
+          {loading ? (
+            <div className={`flex items-center gap-2 px-5 py-8 text-sm ${KT.muted}`}>
+              <Loader2 size={14} className="animate-spin" /> Loading…
+            </div>
+          ) : engineRows.rows.length === 0 ? (
+            <div className={`px-5 py-8 text-sm ${engineRows.readable ? KT.muted : KT.sev.warn}`}>
+              {engineRows.absence}
+            </div>
+          ) : (
+            <ul className="divide-y divide-[var(--kt-border)]">
+              {engineRows.rows.map((r: EngineRow) => (
+                <li key={r.strategy.strategy_id} className="px-5 py-3">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">{r.strategy.name}</span>
+                      <Badge state={r.strategy.state} />
+                      <EngineBadge strategy={r.strategy} />
+                      {/* NO SEPARATE "ARCHIVED" CHIP. The headline already
+                          carries it in both archived cases, and the look-pass
+                          showed the row reading "ARCHIVED  ARCHIVED · NO
+                          SESSION" — the same word twice, which is how a reader
+                          learns that a surface is generated rather than
+                          written. */}
+                      <span
+                        className={`text-[10px] uppercase tracking-wide ${
+                          r.tone === "warn" ? KT.sev.warn : r.tone === "neutral" ? KT.accent : KT.muted
+                        }`}
+                      >
+                        {r.headline}
+                      </span>
+                    </div>
+                    <span className={`text-[11px] ${KT.muted}`}>
+                      {/* An absent target stays absent. `?? 0` here would draw
+                          an unreported weight as a measured zero — the row-level
+                          form of defect C1. */}
+                      target {pct(r.strategy.allocation_pct)} · actual {pct(r.strategy.actual_pct)}
+                      {r.sessionAlgorithm ? ` · ${r.sessionAlgorithm}` : ""}
+                      {r.inBook ? " · also in the book above" : ""}
+                    </span>
+                  </div>
+                  <div className={`mt-0.5 text-[11px] ${KT.muted}`}>{r.note}</div>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
 

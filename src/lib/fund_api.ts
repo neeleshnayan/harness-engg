@@ -764,12 +764,26 @@ export interface ComplianceAccount {
   error: string | null;
 }
 
-/** The pattern-day-trader budget. A cliff, not a slope: the fourth day trade
- *  in five sessions restricts a sub-$25k account to closing-only for 90 days,
- *  so `remaining` is the number that matters. */
+/** The pattern-day-trader budget.
+ *
+ *  IT WAS A CLIFF AND IT IS NOW HISTORY. The rule ended 2026-06-04 and the
+ *  fund's block was retired 2026-08-27; the spine reports `retired: true`,
+ *  `applies: false` and a `retired_note`. The counts are kept because they are
+ *  the record of what happened, not a constraint on what may happen — and a
+ *  surface that renders them as a live limit is describing a rule that does
+ *  not exist. `studio/components/pdtRule.ts` is the single reading; nothing
+ *  should branch on these fields directly.
+ *
+ *  The cliff fields stay because the rule was RETIRED, not deleted: if it
+ *  returns, `applies` is what turns it back on. */
 export interface ComplianceStatus {
   account: ComplianceAccount;
   pdt: {
+    /** True once the rule stopped existing. ABSENT on an older spine, which is
+     *  why the reading checks `=== true` rather than truthiness. */
+    retired?: boolean;
+    /** The record's own sentence for why. Never re-worded by a surface. */
+    retired_note?: string;
     applies: boolean;
     equity_threshold: number;
     max_day_trades: number;

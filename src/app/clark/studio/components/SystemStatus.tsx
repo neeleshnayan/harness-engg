@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { spineError } from "@/lib/spine_error";
 import { KT } from "../theme";
+import { PDT_LABEL, readPdt } from "./pdtRule";
 import { ComplianceStatus, LedgerVerification, SpineEvent, fundApiClient } from "@/lib/fund_api";
 
 /**
@@ -138,25 +139,21 @@ export function SystemStatus({ refreshSignal = 0 }: { refreshSignal?: number }) 
         ? { label: "Trading", level: "bad", detail: "HALTED — buys blocked" }
         : { label: "Trading", level: "ok", detail: "active" });
 
-    // The day-trade budget. Unlike every other row here this one is a cliff:
-    // the fourth day trade in five sessions restricts the account to
-    // closing-only for ninety days, so the useful number is how many are left
-    // — and it has to be readable BEFORE an order is proposed, not at the
-    // rejection. Counted from our own event log when the broker does not
-    // report it, which on the paper venue is always.
-    if (compliance?.pdt?.applies) {
-      const { remaining, used, max_day_trades, source, diverges } = compliance.pdt;
-      const left = remaining ?? 0;
-      out.push({
-        label: "Day-trade budget",
-        level: left <= 0 ? "bad" : left === 1 ? "warn" : "ok",
-        detail: `${used}/${max_day_trades} used · ${left} left before a 90-day`
-          + ` restriction · via ${source}${diverges ? " (counts disagree)" : ""}`,
-      });
-    } else if (compliance && !compliance.pdt.applies) {
-      out.push({ label: "Day-trade budget", level: "ok",
-                 detail: "above $25k — the rule does not restrict this account" });
-    }
+    // The day-trade budget. It WAS a cliff — the fourth day trade in five
+    // sessions restricted the account to closing-only for ninety days — and
+    // the rule was retired 2026-08-27 (it ended 2026-06-04).
+    //
+    // THE BRANCH THIS REPLACES SHIPPED A FALSE SENTENCE. Its `else` printed
+    // "above $25k — the rule does not restrict this account" over an account
+    // holding $2,008.99: green for the right reason, stating the wrong one. A
+    // status panel that teaches its reader a false fact about the account is
+    // worse than one that says nothing, and it was invisible to the suite
+    // because the row was the colour it should be.
+    //
+    // The reading is now `pdtRule.readPdt`, shared with MonitorVerdict and
+    // ClarkConsole, so the three cannot drift again.
+    const pdt = readPdt(compliance);
+    out.push({ label: PDT_LABEL, level: pdt.level, detail: pdt.detail });
 
     // Tamper evidence. "Append-only" is a description of how we write, not a
     // property anyone outside can check — this row is the check. An unchained

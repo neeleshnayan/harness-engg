@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { KT } from "../theme";
+import { readPdt } from "./pdtRule";
 import { inFlightCount } from "../orderCounts";
 import {
   ComplianceStatus, MarketSessionResponse, OrderHistoryRow, PendingOrder,
@@ -89,17 +90,32 @@ export function MonitorVerdict({
     ),
   );
 
-  // 3 — the cliff. One more day trade than budgeted restricts the account for
-  //     ninety days, so this belongs in the first line read, not row seven of
-  //     a status panel at the bottom.
-  if (compliance?.pdt?.applies) {
-    const left = compliance.pdt.remaining ?? 0;
+  // 3 — the cliff, IF there is one. One more day trade than budgeted restricted
+  //     the account for ninety days, which is why it belonged in the first line
+  //     read rather than row seven of a panel at the bottom. The rule was
+  //     RETIRED 2026-08-27 (it ended 2026-06-04), so on today's payload this
+  //     segment does not render at all — a retired rule is not a constraint and
+  //     the one-line verdict is where the fund's LIVE constraints go.
+  //
+  //     Switched from `pdt.applies` to `readPdt(...).live`. The two agree today
+  //     and they are not the same question: `applies` is a field, `live` is
+  //     "can this stop a trade right now", and the shared reading is what keeps
+  //     this line, SystemStatus and ClarkConsole from drifting apart the way
+  //     they did when the rule was retired.
+  const pdt = readPdt(compliance);
+  if (pdt.live) {
+    const left = pdt.remaining;
     seg.push(
-      <span key="dt" className={left <= 0 ? KT.down : left === 1 ? KT.sev.warn : undefined}>
-        <span className="font-mono tabular-nums">{left}</span> day trade{left === 1 ? "" : "s"} left
+      <span key="dt" className={left == null ? KT.sev.warn : left <= 0 ? KT.down : left === 1 ? KT.sev.warn : undefined}>
+        {/* An unreadable count is a WORD, never a comfortable zero: "0 day
+            trades left" and "we could not read the budget" are opposite
+            facts, and the old `?? 0` rendered the second as the first. */}
+        {left == null
+          ? "day-trade budget UNKNOWN"
+          : <><span className="font-mono tabular-nums">{left}</span> day trade{left === 1 ? "" : "s"} left</>}
       </span>,
     );
-  } else if (compliance === null) {
+  } else if (pdt.state === "unreadable") {
     seg.push(<span key="dt" className={KT.sev.warn}>day-trade budget unreadable</span>);
   }
 
