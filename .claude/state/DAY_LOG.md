@@ -355,6 +355,42 @@ but what will be impressive is if can spot what others dont and quickly turn it 
 
 ---
 
+## 2026-08-28 (UTC)
+
+*Written live by the CTO chair (Fable), opening as the night's last builds land.*
+
+### BUILT / MEASURED (carried from the deep night)
+
+- **ENG3 MERGED** (`3fe23b41`, suite **5,774 / 0 failed**): LEAN sessions are durable Postgres
+  rows; start-up docker reconciliation (re-attach known, stop unknown, mark vanished); the
+  double-200 race is one-200-one-409 **proven live on the wire tonight** (ticket `dc12903f`
+  closed on the seat's own test); multi-session behind `MAX_LIVE_SESSIONS=3` (a NAMED widening,
+  second-look flagged; the container-pool RAM decision is on the CEO's desk, `18d82524`).
+  `autopolicy.py` untouched - blob `da17f759` verified four ways including on the merged tree.
+- **Session `2f3492903246` is the fund's FIRST DURABLE SESSION** (`uniqueness_basis: registry`),
+  running the HYG probe under the CEO's standing approval.
+- **THE VENUE TRAP, into the guide**: paper and real-money modes share
+  `permitted_connectors ["alpaca"]` - only `venue_kind`+`real_money` separate them; the v5
+  draft's own first check fell in. Riskofficer sweep queued. Guide corpus **23 claims**.
+- **The autopolicy v5 draft exists, UNWIRED** (zero importers, test-asserted): twenty fail-closed
+  checks, the venue double-read, aggregate caps. Wiring requires adversary -> riskofficer -> the
+  CEO's version click, in that order.
+
+### IN FLIGHT
+
+- **run-adversary-night2**: the blind batch over the night's five loosenings - v5 draft (primary,
+  told to look beyond the author's own attack list), the fence's sixth-basis question, kp9's tone
+  partition, routing v2 (retroactive by the CEO's sequencing), the HYG bridge boundaries.
+
+### ON FIRE
+
+- **TODAY: Grace's D4 needs the CEO's word** (split demo v1 Sep 1 / v2 Sep 28 - due 08-28).
+- **TOMORROW (Fri 08-28 US session): three Stage A exits fire - the autopolicy's first live
+  approval attempt** (0/18 history), doubling as P1's honest evidence per Grace's fence plan.
+
+
+---
+
 ## 2026-08-24 (UTC)
 
 The Monday of the click sheet (~12:30Z) and the first real-venue fills
