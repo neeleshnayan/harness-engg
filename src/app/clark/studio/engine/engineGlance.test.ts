@@ -18,7 +18,6 @@ import {
   ageLabel,
   engineCaveats,
   fateBar,
-  fateStrip,
   firstSentence,
   foldedCaveats,
   glanceTiles,
@@ -325,15 +324,6 @@ test("an empty ledger draws no bar and says empty, rather than a full grey bar",
   const unread = fateBar(null);
   assert.equal(unread.empty, true);
   assert.equal(unread.total, null, "an unread ledger has an UNKNOWN total, not zero");
-});
-
-test("the strip keeps all five buckets including the zeros", () => {
-  const strip = fateStrip(ledger({ signals: [], counts: {}, total: 0, returned: 0 }));
-  assert.equal(strip.length, 5);
-  assert.deepEqual(strip.map((s) => s.n), [0, 0, 0, 0, 0]);
-  // A zero is quiet whatever bucket it is in, or the absences out-shout the
-  // facts (the countTone lesson, measured on the live reading).
-  assert.deepEqual(new Set(strip.map((s) => s.tone)), new Set(["quiet"]));
 });
 
 // ----------------------------------------------------------- the timeline
@@ -679,4 +669,49 @@ test("the books tile clips the verdict at a SENTENCE, not at any full stop", () 
   });
   const t = glanceTiles(v, NOW).find((x) => x.key === "books")!;
   assert.equal(t.sub, "1 symbol disagrees: GLD 0.1 vs 0.0.");
+});
+
+// ---------------------------------------------- gaps the Gauntlet found
+
+test("the books tile names a DIVERGENCE, and a divergence outranks an undetermined row", () => {
+  // FOUND BY THE GAUNTLET: every fixture above carried
+  // `symbols_out_of_sync: 0, symbols_undetermined: 0`, so the two branches
+  // that describe an ACTUAL disagreement were never exercised — on the tile
+  // that answers "do the books agree". A green-path-only fixture set is the
+  // fixture-classification defect: the model arm was tested and the call arm
+  // was not.
+  const diverged = view({
+    reconcile: {
+      ...view().reconcile,
+      implied: { ...view().reconcile.implied!, symbols_out_of_sync: 2, symbols_undetermined: 1 },
+      verdict: { state: "diverged", sentence: "2 symbols disagree. Open the ledger." },
+    },
+  });
+  const t = glanceTiles(diverged, NOW).find((x) => x.key === "books")!;
+  assert.equal(t.value, "DIVERGED");
+  assert.equal(t.tone, "bad");
+  assert.equal(t.unknown, false);
+  assert.equal(t.sub, "2 symbols where the engine and the fund disagree");
+});
+
+test("an undetermined symbol is named when nothing has diverged", () => {
+  const undetermined = view({
+    reconcile: {
+      ...view().reconcile,
+      implied: { ...view().reconcile.implied!, symbols_out_of_sync: 0, symbols_undetermined: 1 },
+      verdict: { state: "undetermined", sentence: "1 symbol could not be determined." },
+    },
+  });
+  const t = glanceTiles(undetermined, NOW).find((x) => x.key === "books")!;
+  assert.equal(t.sub, "1 symbol could not be determined either way");
+  // Singular, written. "1 symbol(s)" is the tell of a number nobody looked at.
+  assert.doesNotMatch(t.sub, /\(s\)|symbols/);
+});
+
+test("foldedCaveats survives an absent view, exactly like its siblings", () => {
+  // FOUND BY THE GAUNTLET: `foldedCaveats` is called in production and only
+  // its siblings were probed at absence. A null test on two of three
+  // functions is a null test on two of three functions.
+  assert.deepEqual(foldedCaveats(null), []);
+  assert.deepEqual(foldedCaveats(undefined), []);
 });

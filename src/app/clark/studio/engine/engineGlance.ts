@@ -38,7 +38,6 @@ import {
   FATE_HELP,
   FATE_LABEL,
   FATE_ORDER,
-  countTone,
   fateTone,
   fenceBlindSpots,
   fenceNote,
@@ -386,19 +385,6 @@ export function fateBar(ledger: SignalLedger | null | undefined): FateBar {
     empty: covered === 0,
     note,
   };
-}
-
-/** The five buckets, zeros included, for the compact strip beside the bar. */
-export function fateStrip(ledger: SignalLedger | null | undefined): FateSegment[] {
-  const counts = ledger?.counts ?? {};
-  return FATE_ORDER.map((fate: Fate) => ({
-    fate,
-    label: FATE_LABEL[fate],
-    help: FATE_HELP[fate],
-    n: counts[fate] ?? 0,
-    pct: 0,
-    tone: countTone(fate, counts[fate] ?? 0),
-  }));
 }
 
 // -------------------------------------------------------------- the timeline
