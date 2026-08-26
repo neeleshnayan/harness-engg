@@ -1185,13 +1185,29 @@ def next_actor(rec: Any) -> dict[str, Any]:
 #: placement for the CEO's ask-approval control that survives the rows leaving
 #: his list. Then this constant becomes ``"chair"`` in a one-line versioned
 #: change, and the measurements above are already the written reason.
-OPEN_REQUEST_ACTOR = "ceo"
+#:
+#: THE CONDITION WAS MET AND THE CEO SAID THE WORD (v2, 2026-08-27). The
+#: placement exists: the approve control lives on the request card itself,
+#: reachable from the board and the full desk, and the approval-channel
+#: allowlist (only ``neelesh*`` may approve) is untouched by routing — so the
+#: rows leaving his exceptions lane do not take his control with them. The
+#: measurements were already written above (28 of 49 requests in the last log
+#: window resolved with no approval event at all — the modal path is the
+#: chair serving them). The CEO's decision, verbatim, answering the chair's
+#: "route OPEN desk requests to the chair instead of you" item by number:
+#: "4. Yes". Loosening-direction sequencing note, recorded rather than
+#: hidden: the rec's own text asked for an adversary-blind pass BEFORE the
+#: CEO; he decided first, so the blind pass rides the next adversary batch
+#: (his standing 2026-08-26 instruction: adversary at the end, not per
+#: change) and any kill there reopens this with one word.
+OPEN_REQUEST_ACTOR = "chair"
 
 #: Bumped when the line above moves, so a client can tell which rule produced
 #: the number it is holding. v1 IS the pre-existing behaviour, named for the
 #: first time — the rule used to live untitled inside ``desk_items``.
-REQUEST_ROUTING_VERSION = ("request routing v1 (named 2026-08-24) — open -> "
-                           "ceo, approved -> chair")
+REQUEST_ROUTING_VERSION = ("request routing v2 (2026-08-27, CEO decision) — "
+                           "open -> chair, approved -> chair; v1 (named "
+                           "2026-08-24) sent open -> ceo")
 
 
 def open_request_actor(status: Any) -> str:
@@ -1325,18 +1341,24 @@ def desk_load(open_recommendations: list[dict[str, Any]],
                 open_elsewhere = open_elsewhere + 1
         open_recommendations = mine
 
+    # ROUTING v2 (2026-08-27, CEO decision): the open-request leg counts
+    # toward whoever `open_request_actor` names — which is now the CHAIR for
+    # every non-terminal status. Under v1 this leg was counted inline as the
+    # CEO's regardless, which is exactly the one-rule-three-derivations drift
+    # this module's own history warns about; the counter now consults the
+    # router it publishes. The CEO's flow, verbatim: "all decisions route to
+    # you; you move whats relevant to COO's desk for approval and batching
+    # and that dispatches to my desk."
+    requests_ceo = (None if open_requests is None
+                    else sum(1 for r in open_requests
+                             if open_request_actor(
+                                 (r or {}).get("status")) == "ceo"))
     parts = {
         "open_recommendations": _count(open_recommendations),
         "pending_orders": _count(pending_orders),
-        "requests_awaiting_approval": _count(open_requests),
+        "requests_awaiting_approval": requests_ceo,
     }
     unreadable = sorted(k for k, v in parts.items() if v is None)
-    # THE OPEN-REQUEST LEG STILL COUNTS, and that is the shipped state rather
-    # than the one P-2/H-2 asked for. See `OPEN_REQUEST_ACTOR`: the move was
-    # built and measured, and the rendered page showed it would also remove the
-    # CEO's ask-approval control, which makes it a decision for the adversary
-    # blind and the CEO rather than for a builder. `requests_by_actor` below
-    # publishes the finding without acting on it.
     total = sum(v for v in parts.values() if v is not None)
     backlog = chair_backlog if isinstance(chair_backlog, dict) else None
     undispatched = (backlog or {}).get("requests_approved_undispatched")

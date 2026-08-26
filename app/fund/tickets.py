@@ -1026,6 +1026,7 @@ def _reconciliation(tickets: list[dict[str, Any]]) -> dict[str, Any]:
                               and t.get("legacy_status") == "open")
     ask_legacy_open = sum(1 for t in asks
                           if t.get("legacy_status") == "open")
+    from app.fund.desk import open_request_actor
     return {
         "ask_tickets": len(asks),
         "ask_filed": ask_filed,
@@ -1041,11 +1042,22 @@ def _reconciliation(tickets: list[dict[str, Any]]) -> dict[str, Any]:
         # The named divergence condition; see this function's docstring.
         "recommendation_unrecognised_status": sum(
             1 for t in recs if t.get("legacy_state_recognised") is False),
-        "total_less_pending_orders": ceo + ask_legacy_open,
+        # ROUTING v2 (2026-08-27, CEO decision): open asks route to the CHAIR,
+        # so they left the CEO-total identity. Under v1 this read
+        # `ceo + ask_legacy_open`; the asks are still counted in
+        # `ask_legacy_open` above and on desk_load's requests_by_actor.chair —
+        # they are just not HIS. The identity must mirror whatever
+        # `desk.open_request_actor` ships, or the two instruments drift by
+        # exactly the number of open asks.
+        "total_less_pending_orders": ceo + (
+            ask_legacy_open
+            if open_request_actor("open") == "ceo" else 0),
         "working_tickets": len(working),
         "arithmetic": (
-            "desk_load.total = recommendation_ceo + pending_orders + "
-            "ask_legacy_open; ask_legacy_open = ask_filed + "
+            "desk_load.total = recommendation_ceo + pending_orders "
+            "(+ ask_legacy_open only while desk.open_request_actor('open') "
+            "== 'ceo' — routing v2 sends open asks to the chair); "
+            "ask_legacy_open = ask_filed + "
             "ask_dispatched_while_open; recommendation_working = "
             "recommendation_ceo + recommendation_decided_awaiting_execution + "
             "recommendation_open_elsewhere"),

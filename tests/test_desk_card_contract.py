@@ -293,9 +293,17 @@ class TestRequestCasePins:
         taken, THIS TEST is what has to be edited by hand — which is the point
         of pinning it.
         """
+        # THE MOVE WAS TAKEN: routing v2, 2026-08-27, the CEO's decision item
+        # by item ("4. Yes") and then in full ("all decisions route to you;
+        # you move whats relevant to COO's desk for approval and batching and
+        # that dispatches to my desk"). This edit is the deliberate act the
+        # docstring above demanded. The ask-approval control note stands: his
+        # page hung Approve/Decline on the ask being his, so until the
+        # COO-batch stage ships, asks reach him through the board's request
+        # card or the chair seeking his word directly — recorded, not hidden.
         by = {c["name"]: c["expect"]["next_actor_resolved"]
               for c in contract["request_cases"]}
-        assert by["PROSE-ONLY REQUEST — the permanent fallback"] == "ceo"
+        assert by["PROSE-ONLY REQUEST — the permanent fallback"] == "chair"
         assert by["STRUCTURED REQUEST — the four questions"] == "chair",             "status `approved` — the CEO decided; the chair must dispatch it"
         assert by["SERVED REQUEST — the rail reaches delivered"] == "nobody"
         assert contract["expect_totals"]["requests_on_the_ceos_figure"] ==             sum(1 for v in by.values() if v == "ceo")

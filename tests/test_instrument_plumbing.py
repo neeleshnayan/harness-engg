@@ -216,11 +216,13 @@ class TestTriggerSpec:
 
 class TestDeskLoad:
     def test_the_count_is_the_sum_of_the_three_named_components(self):
+        # Routing v2 (2026-08-27): the two status-less requests route to the
+        # chair, so the CEO total is 18 + 3. v1 read 23 here.
         load = desk_mod.desk_load([{}] * 18, [{}] * 3, [{}] * 2)
-        assert load["total"] == 23
+        assert load["total"] == 21
         assert load["components"] == {"open_recommendations": 18,
                                       "pending_orders": 3,
-                                      "requests_awaiting_approval": 2}
+                                      "requests_awaiting_approval": 0}
 
     def test_the_chip_fires_at_or_above_the_threshold(self):
         """RENAMED AND RE-PINNED 2026-08-21 (CEO instruction, verbatim:
@@ -262,7 +264,7 @@ class TestDeskLoad:
         """A partial count that reads like a full one is how a desk over the
         trigger looks quiet."""
         load = desk_mod.desk_load([{}] * 19, None, [{}] * 2)
-        assert load["total"] == 21
+        assert load["total"] == 19
         assert load["complete"] is False
         assert load["unreadable"] == ["pending_orders"]
         assert "could not be counted" in load["note"]

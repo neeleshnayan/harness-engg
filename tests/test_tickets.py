@@ -320,9 +320,11 @@ class TestEverythingAppearsExactlyOnce:
                             now="2026-08-24T00:00:00Z")
         actors = lone["counts"]["by_next_actor"]
         assert set(actors) == set(desk.NEXT_ACTORS)
-        assert actors["ceo"] == 1
+        # Routing v2 (2026-08-27, CEO "4. Yes"): an OPEN ask is the CHAIR's
+        # move now, not the CEO's. v1 pinned ceo == 1 here.
+        assert actors["chair"] == 1
         assert actors["seat"] == 0 and actors["nobody"] == 0 \
-            and actors["chair"] == 0 and actors["unknown"] == 0
+            and actors["ceo"] == 0 and actors["unknown"] == 0
 
 
 # ============================================================================
@@ -351,8 +353,13 @@ class TestReconciliationWithDeskLoad:
             == load["components"]["open_recommendations"]
 
     def test_the_open_request_leg_agrees(self, folded, load):
+        # ROUTING v2 (2026-08-27, CEO decision): open asks are the CHAIR's
+        # move, so the fold's open-ask count agrees with the CHAIR leg of the
+        # census and the CEO component reads zero. The AGREEMENT between the
+        # two instruments is the invariant; the addressee moved.
         assert folded["reconciliation"]["ask_legacy_open"] \
-            == load["components"]["requests_awaiting_approval"]
+            == load["requests_by_actor"]["chair"]
+        assert load["components"]["requests_awaiting_approval"] == 0
 
     def test_the_decided_and_elsewhere_legs_agree(self, folded, load):
         r = folded["reconciliation"]
@@ -373,8 +380,11 @@ class TestReconciliationWithDeskLoad:
         (``scratchpad/hw1_reconcile.py``)."""
         r = folded["reconciliation"]
         pending = load["components"]["pending_orders"]
-        assert r["recommendation_ceo"] + pending + r["ask_legacy_open"] \
-            == load["total"]
+        # ROUTING v2: open asks left the CEO's figure for the chair's, so the
+        # identity is recommendations + pending. The asks are still counted —
+        # requests_by_actor.chair carries them — they are just not HIS.
+        assert r["recommendation_ceo"] + pending == load["total"]
+        assert r["ask_legacy_open"] == load["requests_by_actor"]["chair"]
         assert r["total_less_pending_orders"] == load["total"] - pending
 
     def test_the_recommendation_partition_is_exhaustive(self, folded):
@@ -470,11 +480,14 @@ class TestReconciliationWithDeskLoad:
 
     def test_a_dispatched_ask_is_not_silently_dropped_from_the_ceo_leg(
             self, folded, load):
-        """The direction guard on the finding above. Reporting the gap must
-        not become an excuse to shrink the CEO's figure: ``ask_legacy_open``
-        still equals what ``desk_load`` counts, gap and all."""
+        """The direction guard on the finding above. Routing the asks off the
+        CEO's figure (routing v2) must not become HIDING them: the fold's
+        count still equals what ``desk_load`` publishes on the chair leg,
+        gap and all. A dispatched ask that vanished from BOTH legs would
+        fail here."""
         assert folded["reconciliation"]["ask_legacy_open"] == 2
-        assert load["components"]["requests_awaiting_approval"] == 2
+        assert load["requests_by_actor"]["chair"] == 2
+        assert load["components"]["requests_awaiting_approval"] == 0
 
 
 # ============================================================================
