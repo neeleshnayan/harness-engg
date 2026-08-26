@@ -31,7 +31,7 @@ import { readFileSync } from "node:fs";
 import type { Ticket } from "@/lib/fund_api";
 
 import {
-  STATE_LABEL, awaitingCount, isTerminal, recordCount, ticketCardState,
+  STATE_LABEL, isTerminal, ticketCardState,
 } from "./ticketCard.ts";
 
 /**
@@ -204,14 +204,18 @@ test("the lifecycle in the contract IS the module's, not a copy of it", () => {
   }
 });
 
-test("the population counters agree with the case-by-case verdicts", () => {
-  // `awaitingCount` and `recordCount` are what the desk headings print. If
-  // they disagreed with the per-row verdicts, a heading would say "N awaiting"
-  // over rows that say otherwise — one quantity computed twice, which this
-  // desk has shipped twice.
+test("the population counts agree with the case-by-case verdicts", () => {
+  // A HEADING'S NUMBER AND ITS ROWS ARE ONE QUANTITY, and this desk has
+  // shipped it computed twice more than once. Folded from `ticketCardState`
+  // here rather than from a counter helper: the two helpers that used to live
+  // in the module had no production caller and were deleted at the read-
+  // through, so folding at the call site is what a real caller would do.
   const rows = C.cases.map((c) => c.row);
-  assert.equal(awaitingCount(rows), C.expect_totals.counted_as_awaiting);
-  assert.equal(recordCount(rows), C.expect_totals.terminal);
+  assert.equal(
+    rows.filter((t) => ticketCardState(t).countedAsAwaiting).length,
+    C.expect_totals.counted_as_awaiting);
+  assert.equal(rows.filter((t) => isTerminal(t)).length,
+    C.expect_totals.terminal);
 });
 
 test("every invariant the contract states is a sentence, not a placeholder", () => {

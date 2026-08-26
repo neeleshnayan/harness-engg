@@ -14,18 +14,93 @@
 
 import React from "react";
 import Link from "next/link";
-import type { Ticket } from "@/lib/fund_api";
+import { fundApiClient, type Ticket, type TicketPage } from "@/lib/fund_api";
 import { KT } from "../theme";
 import { money } from "../format";
 import {
   RULE_LABEL, type ExceptionRow, type RuleReport,
 } from "./ticketExceptions.ts";
 import {
-  STATE_LABEL, type TicketCardState, ticketCardState,
+  STATE_LABEL, TERMINAL_STATES, WORKING_STATES, type TicketCardState,
+  ticketCardState,
 } from "./ticketCard.ts";
 import {
   LINK_SENTENCE, type TicketLineage, lineageFor, ticketIndex,
 } from "./ticketLineage.ts";
+import { readState, type DeskRead } from "./deskRead.ts";
+import {
+  ticketFailureKind, ticketReadNote, ticketsCountable,
+  type TicketReadFailure,
+} from "./ticketRead.ts";
+
+/* --------------------------------------------------------------- the read -- */
+
+/** How often a ticket surface re-asks. Named because two pages used to spell
+ *  it, and a poll interval written twice drifts silently. */
+export const TICKET_POLL_MS = 20000;
+
+export interface TicketFold {
+  page: TicketPage | null;
+  tickets: Ticket[] | null;
+  read: DeskRead;
+  /** Whether this surface may print a number at all. */
+  countable: boolean;
+  /** The sentence to show instead of numbers, or null when the read is good. */
+  note: string | null;
+  failure: TicketReadFailure;
+  /** The spine capped the fold. No count over it can be trusted. */
+  truncated: boolean;
+}
+
+/**
+ * Read the ticket fold, with all four read states, once for every surface.
+ *
+ * EXTRACTED AT THE LATE READ-THROUGH. Both ticket pages carried a
+ * byte-for-byte copy of this block — four pieces of state, the fetch, the
+ * interval, and the three derivations. Two copies of a read discipline is two
+ * places for it to diverge, and the discipline is the whole point of the
+ * module it calls.
+ *
+ * THE PAYLOAD IS CLEARED ON FAILURE, deliberately: a decision list is exactly
+ * the thing a reader acts on without noticing a banner, so a surface must
+ * never show a stale fold beside a failure sentence.
+ */
+export function useTicketFold(): TicketFold {
+  const [page, setPage] = React.useState<TicketPage | null>(null);
+  const [failed, setFailed] = React.useState(false);
+  const [failure, setFailure] =
+    React.useState<TicketReadFailure>("unreadable");
+  const [reason, setReason] = React.useState<unknown>(null);
+
+  const load = React.useCallback(async () => {
+    try {
+      setPage(await fundApiClient.getTickets({ limit: 5000 }));
+      setFailed(false);
+    } catch (e) {
+      setPage(null);
+      setFailed(true);
+      setFailure(ticketFailureKind(e));
+      setReason(e);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    load();
+    const t = setInterval(load, TICKET_POLL_MS);
+    return () => clearInterval(t);
+  }, [load]);
+
+  const read = readState(page !== null, failed);
+  return {
+    page,
+    tickets: page?.tickets ?? null,
+    read,
+    countable: ticketsCountable(read),
+    note: ticketReadNote(read, failure, reason),
+    failure,
+    truncated: page?.truncated === true,
+  };
+}
 
 /* ------------------------------------------------------------- the lamps --- */
 
@@ -202,7 +277,10 @@ function LineageRow({ t }: { t: Ticket }) {
  * pre-highway; a chain that drew them as "no lineage" would tell the reader the
  * bookkeeping is clean where in truth it is unreadable.
  */
-export function TicketLineageView({ lineage }: { lineage: TicketLineage }) {
+/** Internal: `LineageForId` is the only caller and the only export. An
+ *  exported component with no external consumer reads, from outside, like a
+ *  second entry point that must be kept working. */
+function TicketLineageView({ lineage }: { lineage: TicketLineage }) {
   const l = lineage;
   const fenced = l.parent.state === "fenced";
   return (
@@ -384,12 +462,16 @@ export function LifecycleLegend() {
   return (
     <p className={`text-xs ${KT.muted}`}>
       <span className="font-medium">Working:</span>{" "}
-      {["filed", "approved", "in_flight", "returned", "accepted"]
-        .map((s) => STATE_LABEL[s as keyof typeof STATE_LABEL]).join(" · ")}
+      {/* THE VOCABULARY IS READ, NOT RETYPED. The read-through found this
+          list written out THREE times — here, in the board's census grid, and
+          in `ticketCard.ts` where the named constant already lived with zero
+          production consumers. A copy that happens to agree today is exactly
+          what a MOVE test cannot distinguish from a read, so the copies are
+          gone and the constant is what renders. */}
+      {WORKING_STATES.map((s) => STATE_LABEL[s]).join(" · ")}
       {" — "}
       <span className="font-medium">Terminal:</span>{" "}
-      {["done", "declined", "superseded", "merged", "expired"]
-        .map((s) => STATE_LABEL[s as keyof typeof STATE_LABEL]).join(" · ")}
+      {TERMINAL_STATES.map((s) => STATE_LABEL[s]).join(" · ")}
       {". "}
       Terminal is terminal: there is no reopen transition, and a dispute with a
       closed ticket is a new challenge ticket.

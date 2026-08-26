@@ -1,21 +1,15 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import Link from "next/link";
-import { fundApiClient, type Ticket, type TicketPage } from "@/lib/fund_api";
 import { KT } from "../../../theme";
 import { StudioHeader } from "../../../components/StudioHeader";
 import { SeatFace } from "../../SeatFace";
 import {
   CEO_EXCEPTIONS_VERSION, ceoExceptions, exceptionsNote,
 } from "../../ticketExceptions.ts";
-import { readState, type DeskRead } from "../../deskRead.ts";
 import {
-  ticketFailureKind, ticketReadNote, ticketsCountable,
-  type TicketReadFailure,
-} from "../../ticketRead.ts";
-import {
-  LifecycleLegend, LineageForId, RuleReportTable, TicketCard,
+  LifecycleLegend, LineageForId, RuleReportTable, TicketCard, useTicketFold,
 } from "../../TicketViews";
 
 /**
@@ -56,44 +50,18 @@ import {
  * `/desk/ceo`; this page names what is owed and links there.
  */
 export default function CeoExceptionsPage() {
-  const [page, setPage] = useState<TicketPage | null>(null);
-  const [failed, setFailed] = useState(false);
-  const [failure, setFailure] = useState<TicketReadFailure>("unreadable");
-  const [reason, setReason] = useState<unknown>(null);
   const [openLineage, setOpenLineage] = useState<string | null>(null);
   const [showEscalations, setShowEscalations] = useState(false);
 
-  const load = useCallback(async () => {
-    try {
-      const p = await fundApiClient.getTickets({ limit: 5000 });
-      setPage(p);
-      setFailed(false);
-    } catch (e) {
-      // THE PAYLOAD IS CLEARED ON FAILURE, deliberately: this page must never
-      // show a stale fold beside a failure banner, because a decision list is
-      // exactly the thing a reader would act on without noticing the banner.
-      setPage(null);
-      setFailed(true);
-      setFailure(ticketFailureKind(e));
-      setReason(e);
-    }
-  }, []);
+  // ONE READ DISCIPLINE, SHARED. Four states, the 404 discriminator and the
+  // truncation flag all come from the same hook the board uses; two copies of
+  // it is two places for the discipline to drift.
+  const { page, tickets, read, countable, note, failure, truncated }
+    = useTicketFold();
 
-  useEffect(() => {
-    load();
-    const t = setInterval(load, 20000);
-    return () => clearInterval(t);
-  }, [load]);
-
-  const read: DeskRead = readState(page !== null, failed);
-  const countable = ticketsCountable(read);
-  const note = ticketReadNote(read, failure, reason);
-
-  const tickets: Ticket[] | null = page?.tickets ?? null;
   // THE FILTER RUNS OVER THE WHOLE FOLD, NEVER OVER A PAGE. A filter applied to
   // a truncated page is a filter that lies about its denominator, so a
   // truncated payload disqualifies the counts rather than shrinking them.
-  const truncated = page?.truncated === true;
   const x = useMemo(
     () => ceoExceptions(truncated ? null : tickets, new Date().toISOString()),
     [tickets, truncated]);

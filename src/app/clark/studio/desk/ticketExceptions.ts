@@ -333,7 +333,7 @@ export interface CeoExceptions {
 
 /* --------------------------------------------------------------- the fold --- */
 
-function ruleWhy(rule: ExceptionRule, t: Ticket, nowIso: string): string {
+function ruleWhy(rule: ExceptionRule, t: Ticket): string {
   switch (rule) {
     case "your_move":
       return t.next_actor_why || "the spine routes this ticket to the CEO";
@@ -360,10 +360,6 @@ function ruleWhy(rule: ExceptionRule, t: Ticket, nowIso: string): string {
       return `a challenge filed against a closed ticket${target}`;
     }
   }
-  // Unreachable for the closed union above; a default that invented a
-  // sentence would hide a new rule that forgot to add one.
-  void nowIso;
-  return "";
 }
 
 function rankedOnOf(t: Ticket): RankedOn {
@@ -387,7 +383,7 @@ function compareRows(a: ExceptionRow, b: ExceptionRow): number {
   if (ad !== bd) {
     if (ad === null) return 1;
     if (bd === null) return -1;
-    if (ad !== bd) return ad < bd ? -1 : 1;
+    return ad < bd ? -1 : 1;
   }
   const am = moneyOf(a.ticket), bm = moneyOf(b.ticket);
   if (am !== bm) {
@@ -499,7 +495,7 @@ export function ceoExceptions(
       ticket: t,
       rules,
       primary,
-      why: ruleWhy(primary, t, nowIso),
+      why: ruleWhy(primary, t),
       rankedOn: rankedOnOf(t),
       overdue: (() => {
         const d = dueOf(t);

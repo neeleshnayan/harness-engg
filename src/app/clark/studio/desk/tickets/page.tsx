@@ -1,23 +1,18 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  fundApiClient, type Ticket, type TicketPage, type TicketState,
-} from "@/lib/fund_api";
+import type { Ticket, TicketState } from "@/lib/fund_api";
 import { KT } from "../../theme";
 import { StudioHeader } from "../../components/StudioHeader";
 import { SeatFace } from "../SeatFace";
-import { readState, type DeskRead } from "../deskRead.ts";
 import {
-  ticketFailureKind, ticketReadNote, ticketsCountable,
-  type TicketReadFailure,
-} from "../ticketRead.ts";
-import { STATE_LABEL, isTerminal, listCap } from "../ticketCard.ts";
+  STATE_LABEL, WORKING_STATES, isTerminal, listCap,
+} from "../ticketCard.ts";
 import { allTrays, chairQueue, type SeatTray } from "../ticketTrays.ts";
 import { lineageCoverage } from "../ticketLineage.ts";
 import {
-  LifecycleLegend, LineageForId, TicketCard, TicketLamp,
+  LifecycleLegend, LineageForId, TicketCard, TicketLamp, useTicketFold,
 } from "../TicketViews";
 
 /**
@@ -45,36 +40,12 @@ import {
  * approval path.
  */
 export default function TicketBoardPage() {
-  const [page, setPage] = useState<TicketPage | null>(null);
-  const [failed, setFailed] = useState(false);
-  const [failure, setFailure] = useState<TicketReadFailure>("unreadable");
-  const [reason, setReason] = useState<unknown>(null);
   const [stateFilter, setStateFilter] = useState<TicketState | "all">("all");
   const [openLineage, setOpenLineage] = useState<string | null>(null);
   const [openSeat, setOpenSeat] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    try {
-      setPage(await fundApiClient.getTickets({ limit: 5000 }));
-      setFailed(false);
-    } catch (e) {
-      setPage(null);
-      setFailed(true);
-      setFailure(ticketFailureKind(e));
-      setReason(e);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-    const t = setInterval(load, 20000);
-    return () => clearInterval(t);
-  }, [load]);
-
-  const read: DeskRead = readState(page !== null, failed);
-  const countable = ticketsCountable(read);
-  const note = ticketReadNote(read, failure, reason);
-  const tickets: Ticket[] | null = page?.tickets ?? null;
+  // The same read discipline the exceptions desk uses — one hook, four states.
+  const { page, tickets, read, countable, note, failure } = useTicketFold();
 
   const trays = useMemo(() => allTrays(tickets), [tickets]);
   const queue = useMemo(() => chairQueue(tickets), [tickets]);
@@ -126,8 +97,7 @@ export default function TicketBoardPage() {
             <section className={`${KT.card} mb-6`}>
               <p className={KT.label}>The population</p>
               <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-5">
-                {(["filed", "approved", "in_flight", "returned", "accepted"] as TicketState[])
-                  .map((s) => (
+                {WORKING_STATES.map((s) => (
                     <div key={s}>
                       <p className={`font-mono tabular-nums text-2xl ${
                         page.counts.by_state[s] ? "" : KT.muted}`}>

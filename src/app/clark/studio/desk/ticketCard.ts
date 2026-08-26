@@ -289,24 +289,6 @@ export function ticketCardState(t: Ticket): TicketCardState {
   };
 }
 
-/**
- * How many of a population are awaiting somebody — the count the desk prints.
- *
- * IT IS A COUNT OF `countedAsAwaiting`, NOT A COUNT OF ROWS WITH BUTTONS.
- * Those two numbers differ on every row that is somebody else's move, and
- * conflating them is how a heading once said "awaiting a decision" over rows
- * that had none.
- */
-export function awaitingCount(tickets: readonly Ticket[]): number {
-  return tickets.filter((t) => ticketCardState(t).countedAsAwaiting).length;
-}
-
-/** The five terminals, counted. Rendered beside the awaiting count so a reader
- *  can see the population is whole rather than filtered. */
-export function recordCount(tickets: readonly Ticket[]): number {
-  return tickets.filter((t) => isTerminal(t)).length;
-}
-
 /* ---------------------------------------------------------- the list cap --- */
 
 /**

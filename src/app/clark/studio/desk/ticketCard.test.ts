@@ -25,7 +25,6 @@ import { CARD_HEADLINE_MAX } from "./cardAnatomy.ts";
 import {
   TERMINAL_STATES, WORKING_STATES, STATE_LABEL,
   isTerminal, ticketLamp, ticketTitle, ticketAdjudication, ticketCardState,
-  awaitingCount, recordCount,
   BOARD_ROW_CAP, listCap,
 } from "./ticketCard.ts";
 
@@ -519,43 +518,56 @@ test("a finite positive age is known and passes through unchanged", () => {
 });
 
 /* ==================================================== *
- * 10. awaitingCount / recordCount
+ * 10. THE POPULATION COUNTS — folded at the call site
+ *
+ * `awaitingCount` and `recordCount` USED TO LIVE IN THE MODULE and were
+ * deleted at the late read-through: neither had a single production caller.
+ * An exported counter with green tests and no caller reads, from outside,
+ * exactly like a guarded door — and this repo has shipped one of those before.
+ *
+ * The BEHAVIOUR they guarded is real and stays guarded, folded here from
+ * `ticketCardState` directly, which is what a caller would do.
  * ==================================================== */
 
-test("awaitingCount counts countedAsAwaiting, NOT rows that render a button", () => {
-  // Two rows: one is the chair's move (no button, but awaiting), one is the
-  // CEO's own decide lane (a button, and also awaiting). A count of "rows
-  // with a button" would read 1; the correct count is 2.
+const awaiting = (rows: Ticket[]) =>
+  rows.filter((t) => ticketCardState(t).countedAsAwaiting).length;
+
+test("the awaiting count follows countedAsAwaiting, NOT rows with a button", () => {
+  // Two rows: one is the chair's move (no button, but somebody IS waiting),
+  // one is the CEO's own decide lane (a button, and also waiting). A count of
+  // "rows with a button" reads 1; the honest count is 2. This is the whole
+  // reason the two fields are computed separately.
   const rows = [
     tk({ ticket_id: "chairs-move", next_actor: "chair" }),
     tk({ ticket_id: "ceo-decide", next_actor: "ceo", decided: false }),
   ];
-  assert.equal(awaitingCount(rows), 2);
-  const withButton = rows.filter((t) => ticketCardState(t).controls !== "none").length;
+  assert.equal(awaiting(rows), 2);
+  const withButton = rows.filter(
+    (t) => ticketCardState(t).controls !== "none").length;
   assert.equal(withButton, 1, "sanity: only one of the two rows has a button");
 });
 
-test("awaitingCount excludes terminal rows and 'nobody' rows", () => {
+test("the awaiting count excludes terminal rows and 'nobody' rows", () => {
   const rows = [
     tk({ terminal: true, state: "done", next_actor: "ceo" }),
     tk({ next_actor: "nobody" }),
     tk({ next_actor: "ceo" }),
   ];
-  assert.equal(awaitingCount(rows), 1);
+  assert.equal(awaiting(rows), 1);
 });
 
-test("recordCount counts terminals, independent of next_actor", () => {
+test("terminality is independent of next_actor", () => {
   const rows = [
     tk({ terminal: true, state: "done", next_actor: "ceo" }),
     tk({ terminal: true, state: "expired", next_actor: "chair" }),
     tk({ terminal: false, state: "filed" }),
   ];
-  assert.equal(recordCount(rows), 2);
+  assert.equal(rows.filter((t) => isTerminal(t)).length, 2);
 });
 
-test("an empty population gives awaitingCount 0 and recordCount 0, not NaN", () => {
-  assert.equal(awaitingCount([]), 0);
-  assert.equal(recordCount([]), 0);
+test("an empty population folds to 0, never NaN", () => {
+  assert.equal(awaiting([]), 0);
+  assert.equal(([] as Ticket[]).filter(isTerminal).length, 0);
 });
 
 /* ================================================== *
