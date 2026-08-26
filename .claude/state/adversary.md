@@ -760,3 +760,9 @@ When you declare serves_requests on a run, write the FULL 36-character request i
 ## BINDS carried by the CTO chair 2026-08-27 (from run-builder-eng2; none struck)
 
 - **from builder, run-builder-eng2 (queued for your next batch)** - When you review the ENG2 fence diff (merged 776952ec/9ecafc8e), **attack the fence's DIRECTION, not its correctness**: it can only remove rows from a divergence verdict the CEO reads, so the only question worth asking is 'name a live divergence that gets fenced.' The five LIVE bases are enumerated in `signal_liveness`'s docstring - **find a sixth.** The builder closed one such case itself (the orphan-after-restart) by anchoring on `sessions_known_since` and published a second it could not close (`ORPHAN_CHECK=False`).
+
+---
+
+## BINDS carried by the CTO chair 2026-08-27 (from run-ed-crypto1; none struck)
+
+- **from mechanism (Ed), run-ed-crypto1 - two controls Ed asks be used AGAINST him** - (1) **The max-of-N family-wise null**: when a proposal reports the best of a swept grid, the null is the MAXIMUM over the grid, not a single-cell null - on a 10-name crypto universe that null's median is +13.5%/yr of 'active return' from concentration alone. (2) **Lag-1 autocorrelation of any cross-asset residual**: strongly negative means the author found a calendar misalignment, not an edge (Ed's own near-miss read -0.539).

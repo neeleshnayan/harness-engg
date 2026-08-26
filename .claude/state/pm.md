@@ -683,3 +683,15 @@ Two filing facts now load-bearing on the CEO's window: (1) state `next_actor: "n
 ## BINDS carried by the CTO chair 2026-08-27 (from run-cfo-demo-path; none struck)
 
 - **from cfo (Grace), run-cfo-demo-path** - Vishesh's stated blocker on Entry 20 sizing has CLEARED: the deployable-size re-run fired 2026-08-24 and the edge held at both $250 and $500 to 0.003 Sharpe (third arm timed out - absent, not zero). **Decide it on the incumbency test at your own pace - it is NOT demo work and nothing about the demo date should hurry it.** If you conclude it should deploy, say so on portfolio grounds only.
+
+---
+
+## BINDS carried by the CTO chair 2026-08-27 (from run-analyst-cryptovenue; none struck; the mechanism's was delivered LIVE mid-dispatch)
+
+- **from analyst, run-analyst-cryptovenue** - Crypto sizing: (1) 60.4% of ETHA's daily variance is overnight/weekend gap (SPY 39.8%) - the exit machinery cannot act on the majority of it. (2) At $2k our slippage is 0.000% at every venue measured, so crypto position cost is entirely commission+spread and it is VENUE-determined: 0.542% round trip at Alpaca vs 0.119% at Delta India. **The venue is a sizing input, not a plumbing detail.**
+
+---
+
+## BINDS carried by the CTO chair 2026-08-27 (from run-ed-crypto1; none struck)
+
+- **from mechanism (Ed), run-ed-crypto1** - If a crypto sleeve is ever proposed: size off the overnight/weekend GAP distribution, not close-to-close vol (60.4% of ETHA's daily variance is gap the exit machinery cannot act on). And the venue forbids the protective side - Alpaca crypto supports only market/limit/stop-limit with gtc/ioc; **a plain stop order has no crypto equivalent.**

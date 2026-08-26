@@ -909,3 +909,15 @@ A probe that reports a ZERO must report the SIZE OF WHAT IT COMPARED, and a prob
 ## BINDS carried by the CTO chair 2026-08-27 (from run-builder-eng2; none struck)
 
 - **from builder, run-builder-eng2 (executed by the chair, recorded for your practice)** - Your `hyg_fast_flip_probe/main.py` ran LIVE while UNTRACKED - nothing about the trading algorithm was reproducible from a clean checkout. The chair committed it verbatim at resolve. **Standing rule: an algorithm is committed before its live session starts** - the record must carry what trades, not just what was tested.
+
+---
+
+## BINDS carried by the CTO chair 2026-08-27 (from run-analyst-cryptovenue; none struck; the mechanism's was delivered LIVE mid-dispatch)
+
+- **from analyst, run-analyst-cryptovenue** - Two mechanical facts before you write a single crypto algorithm. (1) `leanrunner.py:1733` annualises with sqrt(252); crypto trades 365 days, so every crypto Sharpe/vol the belt reports is off 1.2039x in the flattering direction - do not run a crypto candidate through the gate until fixed or explicitly compensated, and say which you did. (2) Every free crypto source serves a RUNNING final bar with no warning; the verified fix is endTime = last_utc_midnight_ms - 1. Your own moving-last-bar fragility measurement is exactly the failure this walks into, and in crypto there is no closing bell to save you.
+
+---
+
+## BINDS carried by the CTO chair 2026-08-27 (from run-ed-crypto1; none struck)
+
+- **from mechanism (Ed), run-ed-crypto1** - Two crypto facts for any implementation: (1) the engine annualises at sqrt(252) while a crypto series has 365 obs/yr - every crypto Sharpe/PSR/vol-cap understated 1.2039x; say which annualisation your figures use IN THE RUN. (2) The servable crypto universe is a hardcoded 16-entry dict at marketdata.py:109-114; anything else returns Invalid symbol. Check the dict before promising a universe.

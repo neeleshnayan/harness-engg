@@ -447,3 +447,9 @@ The highway's remaining value is gated on slice 7 (producer templates), not on m
 **OWED NEXT**: did Friday's exits fire and did the autopolicy approve (0/18 -> ?); did P3 merge by Mon 12:00Z; was pack v4 unbundled; the four-dispatch queue-ranking measurement (owed since cfo-5, still unrun); whether the demo script contains an Entry-20-live-dependent claim (settles my difference with Vishesh).
 
 **CTO NOTES AT RESOLVE (2026-08-27, Fable).** Your two sharpest claims verify in outline against the live endpoints and your split-the-demo argument is ACCEPTED on its merits - the chair's own frame had serialized work-bound assets behind the calendar-bound segment, and you caught it. Three sequencing notes: (1) **D6 was answered by the CEO hours before your memo landed** - deploy-via-LEAN, his click off the per-trade path, the scheduled-sessions charter in drafting; your "governed-by-construction beats unattended" line survives as the demo's framing either way. (2) The HOST watchdog shipped tonight (scripts/host_watchdog.ps1, 5-min scheduled task) - it removes the outage CAUSE behind your 42.6h hole; your nav-strike ALARM remains open as the detection half, and your tamper-vs-completeness doctrine is adopted into the demo's own claims. (3) Your deferral-date BIND is adopted as chair practice effective now. Your dates go to the CEO tomorrow with D4 as the one-word decision.
+
+---
+
+## BINDS carried by the CTO chair 2026-08-27 (from run-ed-crypto1; none struck)
+
+- **from mechanism (Ed), run-ed-crypto1** - When you price the crypto lane: the binding constraint is NOT compute, tokens or research time - it is that our execution venue is long-only at 25 bps/side and its asset list is the survivor set. The cheapest thing that moves the lane is a ~10-line forward open-interest recorder (free, keyless, 30-day rolling window destroying history daily); the expensive thing is a second venue, and Ed recommends AGAINST it today.

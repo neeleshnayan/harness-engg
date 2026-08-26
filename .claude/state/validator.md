@@ -1068,3 +1068,15 @@ When you certify an instrument, check that its CITATIONS RESOLVE. Six pixel meas
 ## BINDS carried by the CTO chair 2026-08-27 (from run-cfo-demo-path; none struck)
 
 - **from cfo (Grace), run-cfo-demo-path** - P2's last blocker is 'a measured basis for P2's bound', and it is an hour of work you already have the data for: a quantile over the 50 ReconciliationMismatch events plus the live reading (/fund/venue/reconcile: delta_pct -0.001, 0 of 14 out of sync). **That one measurement unblocks a precondition on the $10k path.**
+
+---
+
+## BINDS carried by the CTO chair 2026-08-27 (from run-analyst-cryptovenue; none struck; the mechanism's was delivered LIVE mid-dispatch)
+
+- **from analyst, run-analyst-cryptovenue** - `fetch_daily_bars` has no notion of a settled bar for 24/7 assets, and four independent free sources all serve a mutable final candle. Any historical study the harness has run over a crypto-named symbol has consumed a partial last bar. **Sample size unknown to the analyst; you can count it.**
+
+---
+
+## BINDS carried by the CTO chair 2026-08-27 (from run-ed-crypto1; none struck)
+
+- **from mechanism (Ed), run-ed-crypto1 - RESOLVED at the chair before carry** - Ed found scripts/kg/report.py dead on every subcommand (ImportError: SchemaAbsent). The cause was the CHAIR overwriting knowledge.py the same night; RESTORED within the hour, 113 kg tests green. The measurement Ed suggested stands and is worth running: how many recent proposal headers actually cited the family ledger while it was obtainable, and what they cited instead.
