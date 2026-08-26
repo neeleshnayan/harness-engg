@@ -461,3 +461,23 @@ test("both percentages are null on an empty population, never 0 and never NaN", 
   assert.equal(cov.fencedPct, null);
   assert.equal(cov.leads, "linked", "no fence can lead when there is none");
 });
+
+test("MUTANT M36: a FENCED ask is fenced, not 'no parent by design'", () => {
+  // SWAPPING THE TWO CHECKS SURVIVED, because no test carried a row that is
+  // BOTH a root type AND fenced. On today's record none exists — the fence
+  // only sits on recommendations — but the shape is representable, and the two
+  // answers say opposite things: `not_applicable` asserts the row correctly
+  // has no parent, `fenced` says the record cannot tell. **When both are true
+  // of the same row the honest answer is the one that claims less**, so the
+  // fence is checked first, and this pins that order.
+  const fencedAsk = tk({ ticket_id: "fenced-ask", type: "ask",
+                         parent_basis: FENCE });
+  const lin = lineageFor("fenced-ask", [fencedAsk])!;
+  assert.equal(lin.parent.state, "fenced");
+  assert.match(lin.parent.sentence, /predates the highway/);
+  // And a root type with NO fence is still not_applicable — the mutant must
+  // not be closed by making everything fenced.
+  const plainAsk = tk({ ticket_id: "plain-ask", type: "ask" });
+  assert.equal(lineageFor("plain-ask", [plainAsk])!.parent.state,
+    "not_applicable");
+});

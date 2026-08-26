@@ -469,3 +469,21 @@ test("lastTransitionAt returns null when filed_at is blank and there are no tran
   const t = tk({ transitions: [], filed_at: "   " });
   assert.equal(lastTransitionAt(t), null);
 });
+
+test("MUTANT M52: a CLOSED lesson still proves lessons exist", () => {
+  // COMPUTING `anyLesson` OVER THE LIVE ROWS INSTEAD OF THE WHOLE POPULATION
+  // SURVIVED, because no test carried a terminal lesson. The note it drives
+  // says "NO `lesson` ticket exists in the record at all — BINDS are still
+  // carried by hand", and that sentence is about the RECORD, not about what is
+  // currently open. One consumed lesson makes it false, and the mutant would
+  // keep printing it.
+  const closedLesson = tk({ ticket_id: "L1", type: "lesson", filed_for: "pm",
+                            state: "done", terminal: true });
+  const other = tk({ ticket_id: "X", filed_for: "pm" });
+  const tray = trayFor("pm", [closedLesson, other])!;
+  assert.equal(tray.unconsumedLessons.length, 0,
+    "a closed lesson is not unconsumed");
+  assert.doesNotMatch(tray.note, /exists in the record at all/,
+    "but the record DOES hold a lesson, so the never-filed sentence is false");
+  assert.match(tray.note, /no unconsumed lesson is addressed to this seat/);
+});

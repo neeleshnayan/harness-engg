@@ -542,3 +542,44 @@ test("the version string names the levels as unratified", () => {
   assert.match(CEO_EXCEPTIONS_VERSION, /BUILDER'S PROPOSAL/);
   assert.match(CEO_EXCEPTIONS_VERSION, /ratification/);
 });
+
+/* --------------------------------------- mutation survivors, closed ------ */
+
+test("MUTANT M04: every level is pinned, so a move is deliberate", () => {
+  // A ONE-HOUR NUDGE TO ANY LEVEL SURVIVED THE WHOLE SUITE. Every other test
+  // READS `AGE_THRESHOLD_HOURS` — which is right, and is what proves the value
+  // is read rather than copied — but reading it means no test can see it move.
+  //
+  // THESE VALUES ARE THE BUILDER'S PROPOSAL AND THIS TEST DOES NOT CLAIM THEY
+  // ARE CORRECT. It claims only that changing one is a deliberate act with a
+  // diff a human reads, which is the direction rule applied to a display
+  // threshold. When the CEO ratifies or moves a level, this literal moves with
+  // it, in the same commit, on purpose.
+  assert.deepEqual(
+    { filed: AGE_THRESHOLD_HOURS.filed, approved: AGE_THRESHOLD_HOURS.approved,
+      in_flight: AGE_THRESHOLD_HOURS.in_flight,
+      returned: AGE_THRESHOLD_HOURS.returned,
+      accepted: AGE_THRESHOLD_HOURS.accepted },
+    { filed: 96, approved: 96, in_flight: 72, returned: 48, accepted: 144 });
+});
+
+test("every level lies inside the band where it can discriminate", () => {
+  // THE MEASURED CLAIM, AND THE ONE WORTH GUARDING MORE THAN THE VALUES. Over
+  // the live record every working ticket's age-in-state is between 43.1h and
+  // 146.8h. A level below the floor admits its state's whole population; a
+  // level above the ceiling can never fire. Either way the level stops being a
+  // measurement and becomes a tie-break wearing one's clothes, which is the
+  // failure this fund has already priced once.
+  //
+  // The band is the RECORD's, so it will widen as the record ages — these
+  // numbers are the floor and ceiling measured 2026-08-26 by
+  // `scripts/instruments/kp6/exception_curve.mjs`, and a level outside them
+  // needs a re-measurement, not a wider constant.
+  const FLOOR = 43.1, CEILING = 146.8;
+  for (const [state, lvl] of Object.entries(AGE_THRESHOLD_HOURS)) {
+    if (lvl === null) continue;
+    assert.ok(lvl > FLOOR && lvl < CEILING,
+      `${state} at ${lvl}h is outside the 43.1-146.8h band the record can `
+      + "discriminate in: it either admits everything or can never fire");
+  }
+});

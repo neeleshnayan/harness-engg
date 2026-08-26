@@ -620,3 +620,13 @@ test("the cap has a named default, so a page cannot invent one inline", () => {
   assert.equal(listCap(1000, 1000).shown, BOARD_ROW_CAP);
   assert.equal(listCap(1000, 1000).hidden, 1000 - BOARD_ROW_CAP);
 });
+
+test("MUTANT M26: an UNCLOSED brace is not a repr — both ends are checked", () => {
+  // DROPPING `endsWith("}")` SURVIVED THE WHOLE SUITE: no test carried a
+  // subject that opens a brace and never closes one. The looser check would
+  // flag a legitimate sentence beginning "{" as a broken row, and a false
+  // "this row is broken" costs the reader the same trust a missed one does.
+  assert.equal(ticketTitle("{'id': 'E20-1'}").looksUnreadable, true);
+  assert.equal(ticketTitle("{unclosed and never closed").looksUnreadable, false);
+  assert.equal(ticketTitle("closed but never opened}").looksUnreadable, false);
+});
