@@ -713,3 +713,108 @@ class TestTheEmptyInput:
         a = _run()
         b = _run()
         assert a == b
+
+
+# ===================================== the boundaries, probed AT the boundary
+
+class TestTheMarkCheck:
+    """CHECK 13 HAD ZERO TESTS — not the boundary, not the over-limit case, not
+    even the absence branch. Found by the Gauntlet's boundary pass, and it is
+    the check that carries v4's R1 forward: the phantom read 75.8% off a strike
+    made half an hour earlier and nothing consulted it.
+
+    A whole check with no negative path is a check that could have been
+    ``ok=True`` all along and no test in this file would have noticed.
+    """
+
+    def test_a_mark_far_from_the_last_strike_refuses(self):
+        assert "mark_corroborated" in _failed(mark_move_vs_strike_pct=75.8)
+
+    def test_an_UNCORROBORATABLE_mark_refuses(self):
+        """Absence, separately from over-limit: the two have different fixes
+        and the riskofficer reads the detail."""
+        out = _run(ctx=_ok_ctx(mark_move_vs_strike_pct=None))
+        assert "mark_corroborated" in out["failed"]
+        detail = [c for c in out["checks"]
+                  if c["check"] == "mark_corroborated"][0]["detail"]
+        assert "could not be compared" in detail
+
+    @pytest.mark.parametrize("junk", ["", "abc", float("nan"), float("inf")])
+    def test_a_mark_move_that_will_not_parse_refuses(self, junk):
+        assert "mark_corroborated" in _failed(mark_move_vs_strike_pct=junk)
+
+    def test_the_boundary_is_inclusive(self):
+        b = V5.MAX_MARK_MOVE_VS_STRIKE_PCT
+        assert "mark_corroborated" not in _failed(mark_move_vs_strike_pct=b)
+        assert "mark_corroborated" in _failed(mark_move_vs_strike_pct=b + 0.01)
+
+
+class TestEveryOtherBoundary:
+    """One row per inequality the Gauntlet listed as unprobed. Each asserts the
+    exact ceiling PASSES and one step past it REFUSES — strict-vs-non-strict is
+    the class that produced two mutation survivors on this seat's D23, and a
+    test near a boundary cannot tell the two apart."""
+
+    NAV = 2000.0
+
+    def test_the_daily_cap_at_exactly_the_ceiling(self):
+        at = self.NAV * V5.MAX_ENGINE_DAILY_NOTIONAL_PCT / 100.0
+        assert "daily_cumulative_within_cap" not in _failed(
+            notional_usd=100.0, day_auto_notional_usd=at - 100.0)
+        assert "daily_cumulative_within_cap" in _failed(
+            notional_usd=100.0, day_auto_notional_usd=at - 100.0 + 1.0)
+
+    def test_the_name_concentration_at_exactly_the_ceiling(self):
+        # 20% of 2000 = $400 = 40 units at a $10 mark; the order adds 10.
+        assert "post_fill_name_within_concentration" not in _failed(
+            book_qty_signed=30.0, venue_qty_signed=30.0)
+        assert "post_fill_name_within_concentration" in _failed(
+            book_qty_signed=30.1, venue_qty_signed=30.1)
+
+    def test_the_strategy_allocation_at_exactly_the_ceiling(self):
+        # post-fill strategy exposure = 0 - 0 + |10 x 10| = $100 = 5% of NAV.
+        assert "post_fill_strategy_within_allocation" not in _failed(
+            strategy_allocation_pct=5.0)
+        assert "post_fill_strategy_within_allocation" in _failed(
+            strategy_allocation_pct=4.99)
+
+    def test_the_gross_throttle_at_exactly_the_ceiling(self):
+        # post-fill gross = 500 - 0 + 100 = $600 = 30% of NAV.
+        assert "post_fill_gross_within_throttle" not in _failed(
+            mandate_gross_fraction=0.30, throttle_multiplier=1.0)
+        assert "post_fill_gross_within_throttle" in _failed(
+            mandate_gross_fraction=0.2999, throttle_multiplier=1.0)
+
+    def test_the_book_venue_drift_at_exactly_the_tolerance(self):
+        tol = V5.MAX_POSITION_DRIFT_QTY
+        assert "book_venue_in_sync" not in _failed(
+            book_qty_signed=tol, venue_qty_signed=0.0)
+        assert "book_venue_in_sync" in _failed(
+            book_qty_signed=tol * 10, venue_qty_signed=0.0)
+
+    def test_the_risk_monitor_freshness_at_exactly_the_ceiling(self):
+        at = V5.MAX_RISK_MONITOR_AGE_SECONDS
+        assert "risk_monitor_fresh" not in set(_run(beats=_beats(
+            risk_monitor={"ok": True, "age_seconds": at}))["failed"])
+        assert "risk_monitor_fresh" in set(_run(beats=_beats(
+            risk_monitor={"ok": True, "age_seconds": at + 0.01}))["failed"])
+
+    def test_an_exit_committed_at_the_SAME_INSTANT_is_not_pre_commitment(self):
+        """MUTATION SURVIVOR M51. ``<=`` would count an exit written in the
+        same instant as the signal, and the whole content of the word "pre" is
+        that ordering. Sub-second timestamps make equality rare rather than
+        impossible — and 'usually right' is the shape of bound this fund keeps
+        finding at boundaries."""
+        same = _ok_ctx()["signal_raised_at"]
+        assert "exit_committed_for_entry" in _failed(
+            committed_exit={"set_at": same, "live": True})
+        one_earlier = "2026-08-27T09:59:59.999999+00:00"
+        assert "exit_committed_for_entry" not in _failed(
+            committed_exit={"set_at": one_earlier, "live": True})
+
+    def test_a_zero_NAV_is_absent_at_exactly_the_epsilon(self):
+        """``_pct_of`` treats |nav| <= POSITION_EPS as absent. Probed AT the
+        epsilon, not merely at zero."""
+        assert V5._pct_of(1.0, V5.POSITION_EPS) is None
+        assert V5._pct_of(1.0, V5.POSITION_EPS * 10) is not None
+

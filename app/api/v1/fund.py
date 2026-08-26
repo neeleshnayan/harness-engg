@@ -1533,7 +1533,23 @@ def lean_list_live():
     """
     from app.fund import leanrunner as _lr
     runner = _lean()
-    return {"sessions": runner.live_sessions(),
+    try:
+        sessions = runner.live_sessions()
+    except Exception as e:  # noqa: BLE001 — unreadable is not empty
+        # 503, NOT an empty list, and not the unstructured 500 this fell
+        # through to before. ``live_sessions`` RAISES by design when the
+        # registry is configured and unreachable, because after a restart the
+        # in-memory table is empty and serving it as ``{"sessions": []}`` would
+        # tell the reader that nothing is running on the exact path where
+        # nothing can be known. Found by the Gauntlet: the sibling
+        # reconciliation endpoint handled this and the list endpoint did not.
+        logger.warning("live sessions unreadable: %s", e)
+        raise HTTPException(
+            status_code=503,
+            detail=(f"the live-session registry could not be read ({e}), so "
+                    f"what is running is UNKNOWN — this is not a claim that "
+                    f"nothing is running"))
+    return {"sessions": sessions,
             "registry": {
                 "durable": runner.registry_durable(),
                 "sessions_known_since": runner.sessions_known_since(),

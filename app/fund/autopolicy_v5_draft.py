@@ -551,6 +551,11 @@ def evaluate(order: dict[str, Any], *, halted: bool,
     else:
         set_at = str(exit_rule.get("set_at") or "").strip()
         live = exit_rule.get("live")
+        # STRICTLY BEFORE. ``<=`` would let an exit written in the same
+        # instant as the signal count as pre-commitment, and the whole content
+        # of the word "pre" is that ordering. Sub-second timestamps make
+        # equality rare rather than impossible, and a bound that is only
+        # usually right is the kind this fund keeps finding at boundaries.
         raised_ok = bool(set_at) and bool(raised) and set_at < raised
         ok = live is True and raised_ok
         check("exit_committed_for_entry", ok,

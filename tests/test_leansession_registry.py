@@ -18,15 +18,31 @@ import pytest
 
 from app.fund import leansessions as LS
 
-# IMPORTED AT MODULE SCOPE, DELIBERATELY. ``app.api.v1.fund`` wires its event
-# store AT IMPORT (fund.py:262), so importing it inside a test that has already
-# set FUND_STORE=postgres sends it to the MODE-resolved database
-# (krypton_fund_dev), which does not exist here, and the connect retries for
-# 30 seconds before failing. Collection happens before any fixture touches the
-# environment, so importing here is both correct and fast. Pre-existing, open
-# since builder ENG1; worked around rather than fixed, which is not this
-# dispatch's scope.
-from app.api.v1 import fund as fundapi  # noqa: E402
+# IMPORTED AT MODULE SCOPE UNDER AN EXPLICIT ENV GUARD, and both halves are
+# load-bearing.
+#
+# ``app.api.v1.fund`` wires its event store AT IMPORT (fund.py:262). Import it
+# inside a test that has already set FUND_STORE=postgres and it goes to the
+# MODE-resolved database (krypton_fund_dev), which does not exist here, and
+# retries the connection for 30 seconds before failing. So it is imported at
+# module scope, where collection happens before any fixture runs — AND with
+# FUND_STORE forced to a non-Postgres value for the duration, because an
+# EXPORTED FUND_STORE=postgres is already set at collection and ``conftest``'s
+# ``setdefault`` cannot neutralise it the way it neutralises a ``.env`` file.
+# Without the guard this file is uncollectable in any shell that exports it.
+#
+# Found by the Gauntlet's env-sensitivity pass. The import-time wiring itself is
+# a pre-existing defect, open since builder ENG1, and is not this dispatch's to
+# fix — this is a work-around and says so.
+_PREV_STORE = os.environ.get("FUND_STORE")
+os.environ["FUND_STORE"] = "firestore"
+try:
+    from app.api.v1 import fund as fundapi  # noqa: E402
+finally:
+    if _PREV_STORE is None:
+        os.environ.pop("FUND_STORE", None)
+    else:
+        os.environ["FUND_STORE"] = _PREV_STORE
 
 pytestmark = pytest.mark.skipif(
     os.getenv("SKIP_PG_TESTS") == "1", reason="Postgres tests disabled")
@@ -442,3 +458,28 @@ class TestTheEndpointAnswers409:
         assert body["containers_seen"] is None
         assert body["registry_readable"] is True
         assert body["actions"] == []
+
+    def test_an_unreadable_registry_is_503_and_never_an_empty_session_list(
+            self, durable, tmp_path, monkeypatch):
+        """FOUND BY THE GAUNTLET: this endpoint called ``live_sessions()`` with
+        no handler, and that method RAISES by design when the registry is
+        configured and unreachable — so the failure fell through to an
+        unstructured 500 while its sibling reconciliation endpoint answered
+        cleanly.
+
+        503 rather than 200-with-an-empty-list is the whole point. After a
+        restart the in-memory table is empty, so ``{"sessions": []}`` would
+        tell the reader that NOTHING IS RUNNING on the exact path where nothing
+        can be known — and every consumer of this endpoint, including the
+        engine fence's own domain, counts what it returns.
+        """
+        r = durable(tmp_path)
+        monkeypatch.setattr(type(r), "_registry",
+                            lambda self: (_ for _ in ()).throw(RuntimeError("down")))
+        c = self._client(monkeypatch, r)
+        resp = c.get("/api/v1/fund/lean/live")
+        assert resp.status_code == 503, resp.text
+        body = resp.json()["detail"]
+        assert "UNKNOWN" in body
+        assert "not a claim that nothing is running" in body
+

@@ -20,12 +20,32 @@ THE INCIDENTS THESE TESTS GUARD, NAMED:
 
 import ast
 import inspect
+import pathlib
 import textwrap
 import threading
 
 import pytest
 
 from app.fund import leansessions as LS
+
+#: The spine's entry module, READ AS TEXT rather than imported.
+#:
+#: ``app.api.v1.fund`` wires its event store AT IMPORT (fund.py:262) and
+#: ``app.main`` imports it, so importing either from this file sends it to the
+#: MODE-resolved database whenever ``FUND_STORE=postgres`` is set in the
+#: environment — 30 seconds of connect retries and then a failure, and at
+#: module scope that takes the whole FILE uncollectable. Found by the
+#: Gauntlet's env-sensitivity pass against an EXPORTED variable, which
+#: ``conftest``'s ``setdefault`` cannot neutralise the way it neutralises a
+#: ``.env`` file.
+#:
+#: The first fix moved the import to module scope and traded eight failures for
+#: a collection error, which is worse. The right answer is that this file needs
+#: no import: the claim under test is about the SHAPE OF THE SOURCE, and source
+#: is a file. The underlying import-time wiring is a pre-existing defect, open
+#: since builder ENG1, and is not this dispatch's to fix.
+MAIN_SRC = (pathlib.Path(__file__).resolve().parents[1]
+            / "app" / "main.py").read_text(encoding="utf-8")
 
 
 # ================================================================ the scope key
@@ -409,6 +429,25 @@ time.sleep(60)
 """
 
 
+@pytest.fixture(autouse=True)
+def _no_registry(monkeypatch):
+    """EVERY TEST IN THIS FILE IS THE NO-REGISTRY CASE, AND IT SAYS SO.
+
+    These tests exist to prove the IN-PROCESS half of the guard — the half a
+    deployment without Postgres has all of. Left to inherit the ambient
+    environment they were a different test on a developer's machine than in
+    CI: the Gauntlet ran them with ``FUND_STORE=postgres`` exported and eight
+    went red, two of them by racing a real ``CREATE TABLE IF NOT EXISTS``.
+    A test whose subject depends on an environment variable nobody set on
+    purpose is not a test of anything.
+
+    The registry's own behaviour is proved in ``test_leansession_registry.py``,
+    which points ``FUND_PG_DSN`` at its own database explicitly.
+    """
+    monkeypatch.setenv("FUND_STORE", "firestore")
+    monkeypatch.delenv("FUND_PG_DSN", raising=False)
+
+
 def _runner(tmp_path):
     import sys
     from app.fund.leanrunner import LeanRunner
@@ -571,13 +610,205 @@ class TestRunnerReconciliation:
             r.reconcile_containers()   # the runner does raise ...
 
     def test_the_spine_start_up_swallows_that_and_says_so(self):
-        """... and ``lifespan`` is where it is caught. Pinned at the source
-        because starting the whole app in a unit test would prove less: what
-        matters is that the call is inside a try that logs and continues."""
-        import app.main as main
-        src = inspect.getsource(main.lifespan)
-        i = src.index("reconcile_containers")
-        window = src[max(0, i - 400):i + 600]
+        """... and ``lifespan`` is where it is caught. Pinned at the SOURCE
+        because starting the whole app in a unit test would prove less — and
+        read as text rather than imported, for the reason on ``MAIN_SRC``.
+
+        The window is bounded on both sides so a ``try`` belonging to some
+        other statement two hundred lines away cannot satisfy it."""
+        assert MAIN_SRC.count("reconcile_containers") == 1
+        i = MAIN_SRC.index("reconcile_containers")
+        window = MAIN_SRC[max(0, i - 400):i + 600]
         assert "try:" in window
         assert "except Exception" in window
         assert "_log.warning" in window
+        # AND IT RUNS BEFORE THE SCHEDULER, not after: a reconciliation that
+        # happens once the strike/exit ticks are already firing would be acting
+        # on a book those ticks had begun to move.
+        assert i < MAIN_SRC.index("_scheduler())")
+
+
+# ================== the real docker read, and the real registry read
+
+class TestTheRealDockerRead:
+    """``docker_live_containers`` had NO coverage of its real implementation —
+    every reconciliation test replaced it with a lambda. Found by the
+    Gauntlet's fixture-classification pass, and it is the function whose
+    ``None``-vs-``[]`` answer decides whether a start-up marks live sessions
+    vanished. A fake that stands in for the thing under test proves nothing
+    about the format string or the tab split.
+
+    These use a FAKE DOCKER EXECUTABLE — the real subprocess, the real argv,
+    the real stdout parsing — which is the same instrument
+    ``tests/test_leanrunner.py`` already uses for backtests.
+    """
+
+    def _runner_with(self, tmp_path, script):
+        import sys
+        from app.fund.leanrunner import LeanRunner
+        p = tmp_path / "fake_docker_ps.py"
+        p.write_text(script, encoding="utf-8")
+        return LeanRunner(workspace=tmp_path / "ws",
+                          docker_cmd=[sys.executable, str(p)])
+
+    PS_TWO = r"""
+import sys
+sys.stdout.write("lean-live-aaa\tdev\nlean-live-bbb\t\n")
+"""
+
+    def test_it_parses_names_and_labels_off_the_real_stdout(self, tmp_path):
+        r = self._runner_with(tmp_path, self.PS_TWO)
+        assert r.docker_live_containers() == [
+            {"name": "lean-live-aaa", "mode": "dev"},
+            {"name": "lean-live-bbb", "mode": None}]
+
+    def test_an_EMPTY_label_column_reads_as_ABSENT_and_not_as_a_mode(self, tmp_path):
+        """``docker ps --format {{.Label "x"}}`` prints an empty column for BOTH
+        "no such label" and "the label is empty". Reading "" as a mode would
+        make a container claim a mode named nothing."""
+        r = self._runner_with(tmp_path, self.PS_TWO)
+        assert r.docker_live_containers()[1]["mode"] is None
+
+    def test_the_argv_asks_docker_the_question_we_think_it_asks(self, tmp_path):
+        """The format string is a contract with another program and nothing
+        else in this suite reads it. Verified against the real daemon on
+        2026-08-27 before it was written; pinned here so a later edit to the
+        template cannot pass silently."""
+        script = r"""
+import json, sys, os
+open(os.environ["ARGV_OUT"], "w").write(json.dumps(sys.argv))
+"""
+        out = tmp_path / "argv.json"
+        import os
+        os.environ["ARGV_OUT"] = str(out)
+        try:
+            self._runner_with(tmp_path, script).docker_live_containers()
+        finally:
+            os.environ.pop("ARGV_OUT", None)
+        import json
+        argv = json.loads(out.read_text())
+        assert "ps" in argv
+        assert f"name={LS.CONTAINER_PREFIX}" in argv
+        assert any(LS.MODE_LABEL in a and "{{.Names}}" in a for a in argv)
+
+    def test_a_NONZERO_exit_is_UNREADABLE_and_not_nothing_running(self, tmp_path):
+        """MUTANT M35. ``[]`` would make start-up mark every live session
+        VANISHED — releasing the uniqueness scope of containers that are still
+        running — on the strength of a failed query."""
+        r = self._runner_with(tmp_path, 'import sys; sys.exit(3)')
+        assert r.docker_live_containers() is None
+
+    def test_an_UNREACHABLE_docker_is_UNREADABLE(self, tmp_path):
+        """MUTANT M34, the same defect one branch over."""
+        from app.fund.leanrunner import LeanRunner
+        r = LeanRunner(workspace=tmp_path / "ws",
+                       docker_cmd=["definitely-not-a-real-binary-9f3a"])
+        assert r.docker_live_containers() is None
+
+    def test_docker_answering_NOTHING_is_a_readable_empty_list(self, tmp_path):
+        """The other side, and it must NOT be ``None``: a daemon that answered
+        and listed nothing is exactly when a live row IS vanished."""
+        r = self._runner_with(tmp_path, 'pass')
+        assert r.docker_live_containers() == []
+
+    def test_the_reader_is_RAW_and_the_prefix_filter_lives_in_ONE_place(
+            self, tmp_path):
+        """``docker ps --filter name=`` is a SUBSTRING match, so the daemon
+        really does return ``mine-lean-live-x`` from this query — verified
+        against the real daemon.
+
+        THE READER DOES NOT FILTER, AND THAT IS THE DESIGN: the rule for "is
+        this ours" is ``leansessions.session_id_of``, in the pure module, with
+        the test that names the hazard. Filtering here as well would be the
+        rule spelled twice, and the second spelling is the one that goes stale.
+        So this asserts BOTH halves — the raw read returns what docker said,
+        and the impostor is gone by the time anything acts on it.
+        """
+        r = self._runner_with(tmp_path, r"""
+import sys
+sys.stdout.write("mine-lean-live-x\t\nlean-live-ok\t\n")
+""")
+        raw = r.docker_live_containers()
+        assert [c["name"] for c in raw] == ["mine-lean-live-x", "lean-live-ok"]
+        plan = LS.reconcile([], raw, our_mode="dev")
+        assert plan["containers_seen"] == 1
+        assert [a["session_id"] for a in plan["actions"]] == ["ok"]
+
+    def test_the_unreadable_read_reaches_the_reconciler_as_unreadable(self, tmp_path):
+        """END TO END, through the real method rather than a lambda: a docker
+        that cannot be reached must produce ``checked: false`` and no action."""
+        from app.fund.leanrunner import LeanRunner
+        r = LeanRunner(workspace=tmp_path / "ws",
+                       docker_cmd=["definitely-not-a-real-binary-9f3a"])
+        report = r.reconcile_containers()
+        assert report["checked"] is False
+        assert report["containers_readable"] is False
+        assert report["actions"] == []
+
+
+class TestTheRegistryReadIsThreeValued:
+    def test_no_registry_configured_is_an_EMPTY_list_of_rows(self, tmp_path):
+        """Not ``None``: a deployment with no registry genuinely has no rows,
+        and the reconciler must still be able to stop an orphan on it."""
+        assert _runner(tmp_path).registry_rows_or_none() == []
+
+    def test_an_UNREADABLE_registry_is_None_and_never_an_empty_list(
+            self, tmp_path, monkeypatch):
+        """MUTANT M33, and it is the most dangerous of the four survivors.
+        ``[]`` means "the registry knows of no session", which makes EVERY
+        running container an unaccounted orphan — so one unreachable database
+        at start-up would stop every engine this fund is running."""
+        monkeypatch.setenv("FUND_STORE", "postgres")
+        r = _runner(tmp_path)
+        monkeypatch.setattr(type(r), "_registry",
+                            lambda self: (_ for _ in ()).throw(RuntimeError("down")))
+        assert r.registry_rows_or_none() is None
+
+    def test_and_the_reconciler_then_stops_nothing(self, tmp_path, monkeypatch):
+        """The consequence, asserted separately from the value — because the
+        value is only interesting for what it prevents."""
+        monkeypatch.setenv("FUND_STORE", "postgres")
+        r = _runner(tmp_path)
+        monkeypatch.setattr(type(r), "_registry",
+                            lambda self: (_ for _ in ()).throw(RuntimeError("down")))
+        killed = []
+        r._kill_container = lambda c: (killed.append(c), (True, "x"))[1]
+        r.docker_live_containers = lambda: [_con("ghost")]
+        report = r.reconcile_containers()
+        assert killed == []
+        assert report["registry_readable"] is False
+        assert report["checked"] is False
+
+
+class TestAnUnregisterableSessionNeverStarts:
+    def test_a_claim_that_raises_something_other_than_a_conflict_refuses(
+            self, tmp_path, monkeypatch):
+        """MUTANT M30. The existing test covered an unreachable registry at
+        RESOLUTION time; this covers the claim itself failing, which is a
+        different branch and was the one with no test.
+
+        FAIL CLOSED: starting a container the registry never recorded creates
+        exactly the orphan this whole change exists to remove."""
+        from app.fund.leanrunner import LeanError
+        monkeypatch.setenv("FUND_STORE", "postgres")
+        r = _runner(tmp_path)
+
+        class _Boom:
+            """A registry that RESOLVES and then refuses the write. The
+            existing coverage broke at resolution; this breaks one step later,
+            which is a different branch of ``start_live``."""
+
+            def claim_session(self, session):
+                raise RuntimeError("the insert failed")
+
+            def live_session_rows(self):
+                return []
+
+        monkeypatch.setattr(type(r), "_registry", lambda self: _Boom())
+        with pytest.raises(LeanError, match="refusing to start"):
+            r.start_live("live", strategy_id="s1")
+        # AND THE TENTATIVE CLAIM IS ROLLED BACK. Without this the scope would
+        # stay held in memory by a session that never ran.
+        assert r._live == {}
+        assert r.live_sessions() == []
+

@@ -391,6 +391,18 @@ class LeanStore:
                 rows = cur.fetchall()
         return [_session_row(r) for r in rows]
 
+    def session(self, session_id: str) -> Optional[dict[str, Any]]:
+        """One session by id, or ``None``. Uncapped by construction — the point
+        of it: ``session_rows`` is a capped page and a lookup that scans a page
+        answers "unknown" for anything past the cap."""
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"SELECT {self._SESSION_COLS} FROM fund_lean_sessions "
+                    f"WHERE session_id = %s", (session_id,))
+                r = cur.fetchone()
+        return _session_row(r) if r else None
+
     def registry_epoch(self) -> Optional[str]:
         """When this registry began recording, or ``None`` if it cannot say.
 

@@ -400,6 +400,18 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _by_started_at(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Newest first, tolerating a row with no start.
+
+    One helper because the two branches of ``live_sessions`` sorted the same
+    list two ways — one with ``x["started_at"]`` and one with
+    ``x.get("started_at")`` — so a row missing the key raised on one path and
+    sorted last on the other. Same list, two behaviours, decided by whether a
+    database happened to be configured.
+    """
+    return sorted(rows, key=lambda x: x.get("started_at") or "", reverse=True)
+
+
 class LeanRunner:
     """Algorithms on disk, jobs in memory, the engine in Docker.
 
@@ -789,12 +801,21 @@ class LeanRunner:
                 raise LeanConflict(
                     f"a live session already holds {key} — one live session per "
                     f"strategy; stop that one before starting another")
+            # THE CEILING IS PER PROCESS AND THE REGISTRY DOES NOT ENFORCE
+            # IT. Counted from ``_live`` deliberately: reading the registry here
+            # would put a database round trip inside the lock that decides
+            # uniqueness, and the two are not the same guarantee. In practice
+            # ``_live`` holds every session this host is running, because
+            # start-up reconciliation re-attaches the ones it inherited — but a
+            # SECOND spine on the same daemon could jointly exceed this bound,
+            # and nothing here would notice. Said out loud because a limit whose
+            # scope is unstated reads as a limit on the host.
             if len(alive) >= MAX_LIVE_SESSIONS:
                 raise LeanError(
-                    f"{len(alive)} live sessions is already the ceiling of "
-                    f"{MAX_LIVE_SESSIONS} (LEAN_MAX_LIVE_SESSIONS); each holds a "
-                    f"container for its whole life, and the host's RAM is what "
-                    f"bounds them")
+                    f"{len(alive)} live sessions is already this process's "
+                    f"ceiling of {MAX_LIVE_SESSIONS} (LEAN_MAX_LIVE_SESSIONS); "
+                    f"each holds a container for its whole life, and the host's "
+                    f"RAM is what bounds them")
             self._live[session_id] = session
 
         if registry is not None:
@@ -870,12 +891,20 @@ class LeanRunner:
         with self._lock:
             live = [dict(s) for s in self._live.values()]
         if not self._registry_required:
-            return sorted(live, key=lambda x: x["started_at"] or "", reverse=True)
+            return _by_started_at(live)
         registry = self._registry()
         known = {s["session_id"] for s in live}
-        rows = [r for r in registry.session_rows() if r["session_id"] not in known]
-        return sorted(live + rows,
-                      key=lambda x: x.get("started_at") or "", reverse=True)
+        # ONLY THE REGISTRY'S *LIVE* ROWS, not its whole history. ``jobs()``
+        # merges history because the Lab wants a history; this endpoint is
+        # called ``/fund/lean/live`` and its consumers COUNT what it returns —
+        # the engine fence publishes ``sessions`` and ``sessions_running`` off
+        # it, and folding a fortnight of ended rows in would move one of those
+        # numbers from 1 to 200 without any session having started. This
+        # process's OWN finished sessions still appear, exactly as they always
+        # did, because they are in ``_live``.
+        rows = [r for r in registry.live_session_rows()
+                if r["session_id"] not in known]
+        return _by_started_at(live + rows)
 
     def live_session(self, session_id: str) -> dict[str, Any]:
         with self._lock:
@@ -883,9 +912,13 @@ class LeanRunner:
         if s is not None:
             return dict(s)
         if self._registry_required:
-            for r in self._registry().session_rows():
-                if r["session_id"] == session_id:
-                    return r
+            # BY ID, NOT BY SCANNING ``session_rows()``. That list is CAPPED
+            # (200), so a scan would answer "unknown session" for a real
+            # session as soon as 200 newer ones existed — a lookup whose
+            # correctness quietly expires. HW1's lesson, one layer down.
+            found = self._registry().session(session_id)
+            if found is not None:
+                return found
         raise LeanError(f"unknown live session {session_id!r}")
 
     def stop_live(self, session_id: str) -> dict[str, Any]:
@@ -907,12 +940,17 @@ class LeanRunner:
             if row is not None:
                 row["state"] = "stopped"
                 row["stopped_at"] = stopped_at
-                row["stop_detail"] = detail
                 s = dict(row)
             else:
-                s = {**s, "state": "stopped", "stopped_at": stopped_at,
-                     "stop_detail": detail}
+                s = {**s, "state": "stopped", "stopped_at": stopped_at}
         self._register_state(s)
+        # THE DETAIL IS RETURNED AND LOGGED, NEVER STORED ON THE SESSION. An
+        # earlier version of this put it on the session dict, which would have
+        # made it a field that exists on a session this process stopped and
+        # vanishes on the next restart — one key meaning two things depending
+        # on when you asked, which is the shape of defect this whole change
+        # exists to remove.
+        logger.info("live session %s stopped: %s", session_id, detail)
         return {"session_id": session_id, "state": "stopped",
                 "container_killed": killed, "detail": detail}
 
@@ -1035,6 +1073,13 @@ class LeanRunner:
                               "container": act.get("container"),
                               "restored": True})
                 if what == leansessions.ADOPT:
+                    # THE REGISTRY WRITE BELOW CAN BE REFUSED, and the safe
+                    # direction is to adopt anyway. If a NEWER session already
+                    # holds this scope, the partial unique index rejects moving
+                    # this row back to ``running``; ``_register_state`` logs
+                    # that and does not raise. The container is still taken into
+                    # ``_live``, which is what makes it stoppable — and being
+                    # able to stop a container we can see beats a tidy row.
                     taken["error"] = (
                         f"the registry recorded this session as "
                         f"{act.get('row_state')!r} and its container was still "
@@ -1072,13 +1117,22 @@ class LeanRunner:
         res_dir = (self._ws / "results" / f"live-{session_id}").resolve()
         res_dir.mkdir(parents=True, exist_ok=True)
 
+        # WHOSE CONTAINER THIS IS, on the container itself. Two spines in
+        # different modes share one docker daemon and one `lean-live-`
+        # namespace; without this the reconciler would call the other's session
+        # an unaccounted orphan and stop it.
+        #
+        # OMITTED ENTIRELY WHEN THE MODE CANNOT BE READ, rather than written as
+        # an empty string: `docker ps --format {{.Label "x"}}` returns "" for
+        # BOTH "no such label" and "the label is empty", so an empty label would
+        # be a claim indistinguishable from an absence. An absent label already
+        # means "legacy, ours by name", which is the honest reading of a
+        # container whose mode we could not record.
+        label = ([] if not session.get("mode") else
+                 ["--label", f"{leansessions.MODE_LABEL}={session['mode']}"])
         cmd = self._docker + [
             "run", "--rm", "--name", session["container"],
-            # WHOSE CONTAINER THIS IS, on the container itself. Two spines in
-            # different modes share one docker daemon and one `lean-live-`
-            # namespace; without this the reconciler would call the other's
-            # session an unaccounted orphan and stop it.
-            "--label", f"{leansessions.MODE_LABEL}={session.get('mode') or ''}",
+            *label,
             "--add-host=host.docker.internal:host-gateway",
             "-v", f"{algo_dir}:/Algorithm:ro",
             "-v", f"{res_dir}:/Results",
