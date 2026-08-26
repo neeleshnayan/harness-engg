@@ -192,7 +192,8 @@ def _ok_ctx(**over):
     field, so a failure names the check it belongs to rather than a fixture."""
     ctx = {
         "engine_entries_enabled": True,
-        "execution_venue": "alpaca",
+        "execution_venue_kind": "alpaca_paper",
+        "execution_venue_real_money": False,
         "strategy": {"strategy_id": "s1", "state": "deployed",
                      "archived": False, "assets": ["HYG"]},
         "strategy_allocation_pct": 25.0,
@@ -292,9 +293,63 @@ class TestTheKillSwitch:
 
 
 class TestTheVenue:
-    def test_only_alpaca(self):
-        assert "venue_is_permitted" in _failed(execution_venue="paper")
-        assert "venue_is_permitted" in _failed(execution_venue=None)
+    def test_only_the_alpaca_PAPER_kind(self):
+        for bad in ("simulated", "paper", "alpaca", None, "", "ALPACA_LIVE"):
+            assert "venue_kind_is_permitted" in _failed(
+                execution_venue_kind=bad), bad
+
+    def test_the_REAL_MONEY_venue_is_refused_by_BOTH_checks(self):
+        """THE ONE THAT MATTERS, AND IT WAS MEASURED ON THE LIVE SPINE
+        (2026-08-27, GET /fund/mode). ``alpaca-paper`` and ``alpaca-prod``
+        BOTH carry ``permitted_connectors: ["alpaca"]``, so an envelope written
+        against the connector name — which is what a first draft of this used —
+        passes with real money behind it. The KIND separates them and the
+        ``real_money`` flag separates them again."""
+        out = _run(ctx=_ok_ctx(execution_venue_kind="alpaca_live",
+                               execution_venue_real_money=True))
+        assert "venue_kind_is_permitted" in out["failed"]
+        assert "venue_is_not_real_money" in out["failed"]
+
+    def test_the_two_venue_checks_are_INDEPENDENT(self):
+        """Two checks for one condition is only worth its cost if a gatherer
+        can get one right and the other wrong. Each is asserted failing while
+        the other passes."""
+        only_kind_bad = _failed(execution_venue_kind="alpaca_live")
+        assert "venue_kind_is_permitted" in only_kind_bad
+        assert "venue_is_not_real_money" not in only_kind_bad
+        only_money_bad = _failed(execution_venue_real_money=True)
+        assert "venue_is_not_real_money" in only_money_bad
+        assert "venue_kind_is_permitted" not in only_money_bad
+
+    @pytest.mark.parametrize("flag", [True, None, "false", 0, 1])
+    def test_anything_but_an_explicit_False_is_not_paper(self, flag):
+        """MUTANT: ``not real_money``. The string "false" is truthy and 0 is
+        falsy — an unreadable flag must refuse, and a zero must not pass by
+        accident of Python."""
+        failed = _failed(execution_venue_real_money=flag)
+        assert ("venue_is_not_real_money" in failed) is (flag is not False)
+
+    def test_the_venue_kind_values_are_the_REAL_enum_s_values(self):
+        """PIN THE PREMISE. The constant is a ``mode.VenueKind`` value and the
+        table in its comment is copied from the live spine; if the enum is ever
+        re-spelled, the comment and the check would go stale together and
+        nothing else in this file would notice."""
+        from app.fund.mode import VenueKind
+        assert V5.PERMITTED_VENUE_KIND == VenueKind.ALPACA_PAPER.value
+        assert VenueKind.ALPACA_LIVE.value != V5.PERMITTED_VENUE_KIND
+
+    def test_the_two_alpaca_modes_really_do_share_a_connector(self):
+        """The measured fact the whole check rests on, asserted against
+        ``mode.MODES`` rather than trusted from a comment. If this ever stops
+        being true, the reason written into the constant has gone stale."""
+        from app.fund.mode import FundMode, MODES
+        paper = MODES[FundMode.ALPACA_PAPER]
+        prod = MODES[FundMode.ALPACA_PROD]
+        assert paper.permitted_connectors == prod.permitted_connectors == ("alpaca",)
+        # The two fields that DO separate them, both asserted, because the
+        # draft checks both and one of them alone would be a single point.
+        assert paper.venue_kind != prod.venue_kind
+        assert paper.real_money is False and prod.real_money is True
 
     def test_the_ORDER_s_own_venue_field_is_never_read(self):
         """v4's measured lesson: ``exitrule.py`` hardcodes ``venue="paper"`` on

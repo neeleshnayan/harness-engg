@@ -812,3 +812,126 @@ class TestAnUnregisterableSessionNeverStarts:
         assert r._live == {}
         assert r.live_sessions() == []
 
+
+# ================== the stop path, and what a stop actually did
+
+class TestStopLiveActuallyStops:
+    """MUTATION SURVIVORS M63, M64 AND M66 — all three in ``stop_live``, and
+    all three the same shape: the state said ``stopped`` and nothing checked
+    that anything had been stopped.
+
+    A control is not done until something calls it, and a control that reports
+    success without calling anything is the unwired kill switch wearing a green
+    tick. These assert on the SIDE EFFECT, not on the returned state.
+    """
+
+    def _spy(self, tmp_path):
+        r = _runner(tmp_path)
+        calls = []
+        real = r._kill_container
+
+        def spy(container):
+            calls.append(container)
+            return real(container)
+        r._kill_container = spy
+        return r, calls
+
+    def test_stopping_asks_docker_to_kill_THIS_session_s_container(self, tmp_path):
+        """MUTANT M64: ``killed, detail = (True, "assumed")``. Every existing
+        assertion about ``state == "stopped"`` passes under that mutant, which
+        is the point — the state is what the fund BELIEVES and the kill is what
+        happened."""
+        r, calls = self._spy(tmp_path)
+        out = r.start_live("live", strategy_id="s1")
+        sid = out["session_id"]
+        expected = r.live_session(sid)["container"]
+        r.stop_live(sid)
+        assert calls == [expected]
+
+    def test_a_kill_docker_REFUSED_is_reported_as_not_killed(self, tmp_path):
+        """MUTANT M63: ``if proc.returncode >= 0``. The state is ``stopped``
+        either way — it is not running now — but WHY is not the same, and the
+        reason is what tells a reader whether the orphan problem just bit
+        them."""
+        import sys
+        from app.fund.leanrunner import LeanRunner
+        script = tmp_path / "refuse.py"
+        script.write_text(
+            'import sys\nsys.stderr.write("No such container\\n")\n'
+            'sys.exit(1)\n', encoding="utf-8")
+        r = LeanRunner(workspace=tmp_path / "ws",
+                       docker_cmd=[sys.executable, str(script)])
+        killed, detail = r._kill_container("lean-live-ghost")
+        assert killed is False
+        assert "refused to kill" in detail
+        assert "No such container" in detail
+
+    def test_a_kill_docker_ACCEPTED_is_reported_as_killed(self, tmp_path):
+        """The positive control. Without it the assertion above is satisfied by
+        a function that always says False."""
+        r = _runner(tmp_path)
+        killed, detail = r._kill_container("lean-live-anything")
+        assert killed is True
+        assert "docker killed" in detail
+
+    def test_an_unreachable_docker_says_UNKNOWN_and_not_killed(self, tmp_path):
+        from app.fund.leanrunner import LeanRunner
+        r = LeanRunner(workspace=tmp_path / "ws",
+                       docker_cmd=["definitely-not-a-real-binary-9f3a"])
+        killed, detail = r._kill_container("lean-live-x")
+        assert killed is False
+        assert "UNKNOWN" in detail
+
+    def test_a_session_with_no_container_name_kills_nothing_and_says_so(self):
+        from app.fund.leanrunner import LeanRunner
+        killed, detail = LeanRunner.__new__(LeanRunner)._kill_container("")
+        assert killed is False
+        assert "no container name" in detail
+
+    def test_the_stop_returns_whether_the_container_really_died(self, tmp_path):
+        r = _runner(tmp_path)
+        sid = r.start_live("live", strategy_id="s1")["session_id"]
+        out = r.stop_live(sid)
+        assert out["container_killed"] is True
+        assert "docker killed" in out["detail"]
+
+
+class TestTheListOrder:
+    def test_sessions_come_back_NEWEST_first(self, tmp_path):
+        """MUTANT M60: drop ``reverse=True``. Nothing asserted the order, and
+        'newest first' is the contract every consumer of this list reads it
+        under — the engine page renders the head of it as the current
+        session.
+
+        The sleep is load-bearing and its absence is what found the tie-break
+        defect: without it both sessions carried the SAME ``started_at`` (the
+        Windows clock is coarser than ``_now()``'s microseconds) and the order
+        was dict-insertion order wearing a timestamp's clothes.
+        """
+        import time
+        r = _runner(tmp_path)
+        first = r.start_live("live", strategy_id="s1")["session_id"]
+        time.sleep(0.05)
+        second = r.start_live("live", strategy_id="s2")["session_id"]
+        assert r.live_session(first)["started_at"] !=             r.live_session(second)["started_at"], "the clock did not move"
+        ids = [s["session_id"] for s in r.live_sessions()]
+        assert ids == [second, first], ids
+
+    def test_two_sessions_on_the_SAME_instant_sort_DETERMINISTICALLY(self):
+        """Nothing can make this order truthful — the two things happened at
+        the same recorded instant. It can be made REPRODUCIBLE, which is the
+        property a reader can rely on and a screenshot can be compared
+        against. Without the tie-break the answer is dict-insertion order.
+        """
+        from app.fund.leanrunner import _by_started_at
+        t = "2026-08-27T00:00:00.000000+00:00"
+        a = {"session_id": "aaa", "started_at": t}
+        b = {"session_id": "bbb", "started_at": t}
+        assert _by_started_at([a, b]) == _by_started_at([b, a]) == [b, a]
+
+    def test_a_row_with_no_start_sorts_last_and_does_not_raise(self):
+        from app.fund.leanrunner import _by_started_at
+        rows = [{"session_id": "no-start"},
+                {"session_id": "x", "started_at": "2026-01-01T00:00:00+00:00"}]
+        assert [r["session_id"] for r in _by_started_at(rows)] == ["x", "no-start"]
+

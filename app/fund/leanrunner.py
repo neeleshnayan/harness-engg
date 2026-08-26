@@ -401,15 +401,31 @@ def _now() -> str:
 
 
 def _by_started_at(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Newest first, tolerating a row with no start.
+    """Newest first, then by session id, tolerating a row with no start.
 
     One helper because the two branches of ``live_sessions`` sorted the same
     list two ways — one with ``x["started_at"]`` and one with
     ``x.get("started_at")`` — so a row missing the key raised on one path and
     sorted last on the other. Same list, two behaviours, decided by whether a
     database happened to be configured.
+
+    **THE SESSION ID IS A TIE-BREAK, NOT DECORATION, AND IT WAS MEASURED.**
+    ``_now()`` has microsecond resolution and the Windows clock does not: two
+    sessions started in the same tick get the SAME ``started_at``, and a stable
+    sort then hands back dict-insertion order — which is arbitrary and which
+    nothing would have noticed while only one session could exist at a time.
+    Multi-session support is what made it reachable, and a page that renders
+    the head of this list as "the current session" would have picked between
+    them by accident. The tie-break does not make the order truthful (nothing
+    can, when two things happened at the same recorded instant) — it makes it
+    DETERMINISTIC and reproducible, which is the property a reader can actually
+    rely on. This is the unseeded-hash tie-break the belt was bitten by, caught
+    at a smaller scale.
     """
-    return sorted(rows, key=lambda x: x.get("started_at") or "", reverse=True)
+    return sorted(rows,
+                  key=lambda x: (x.get("started_at") or "",
+                                 x.get("session_id") or ""),
+                  reverse=True)
 
 
 class LeanRunner:

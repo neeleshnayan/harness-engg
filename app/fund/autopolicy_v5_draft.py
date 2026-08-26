@@ -131,12 +131,33 @@ MAX_RISK_MONITOR_AGE_SECONDS = 300.0
 #: number so the judgement can be made with it in view.
 REQUIRED_HEARTBEATS = ("exit_check", "risk_monitor", "settlement", "nav_strike")
 
-#: The only venue an engine entry may execute on. Read from the RESOLVED
-#: execution venue, never from ``order["venue"]`` — v4 learned that the hard
-#: way: ``exitrule.py`` hardcodes ``"paper"`` on every exit it raises whatever
-#: connector will actually execute it, so a check against the order's own field
-#: would have passed the exact orders that went to Alpaca.
-PERMITTED_VENUE = "alpaca"
+#: The only venue an engine entry may execute on, as a ``mode.VenueKind``
+#: VALUE — not a connector name, not a label, not a mode name.
+#:
+#: **THE THREE SPELLINGS ARE NOT INTERCHANGEABLE AND ONE OF THEM DOES NOT
+#: DISCRIMINATE. Measured against the live spine, 2026-08-27,
+#: `GET /fund/mode`:**
+#:
+#:     mode           kind            label          permitted_connectors
+#:     alpaca-paper   alpaca_paper    alpaca         ["alpaca"]
+#:     alpaca-prod    alpaca_live     alpaca-live    ["alpaca"]
+#:
+#: **The paper account and the REAL-MONEY account permit the SAME CONNECTOR** —
+#: and ``mode.py:167-170`` says so in its own words: *"``connector.name`` is
+#: 'alpaca' for both"*. That comment is about ``venue_label``; ``venue_kind``
+#: and ``real_money`` are two further fields that separate them, and this draft
+#: reads both rather than either.
+#: An earlier draft of this constant was the string ``"alpaca"``, which is the
+#: connector name and the paper mode's label — and a gatherer that supplied
+#: either of those from ``alpaca-prod`` would have passed this check with real
+#: money behind it. The kind is the only field that separates them, and
+#: ``real_money`` is the second, independent one.
+#:
+#: Read from the RESOLVED venue, never from ``order["venue"]`` — v4 learned
+#: that the hard way: ``exitrule.py`` hardcodes ``"paper"`` on every exit it
+#: raises whatever connector will actually execute it, so a check against the
+#: order's own field would have passed the exact orders that went to Alpaca.
+PERMITTED_VENUE_KIND = "alpaca_paper"
 
 #: Float noise, not a threshold. Same constant and same value as
 #: ``autopolicy.POSITION_EPS`` so three ledgers cannot acquire three ideas of
@@ -275,7 +296,8 @@ def evaluate(order: dict[str, Any], *, halted: bool,
     ``_fraction`` means 0..1, ``_pct`` means 0..100, ``_usd`` means dollars.
 
       engine_entries_enabled       — the arming flag; anything but True is manual
-      execution_venue              — the RESOLVED venue, from the connector/mode
+      execution_venue_kind         — the RESOLVED ``mode.VenueKind`` VALUE
+      execution_venue_real_money   — the mode spec's own real_money flag
       strategy                     — {strategy_id, state, archived, assets}
       strategy_allocation_pct      — the strategy's envelope, PERCENT of NAV
       live_sessions                — session rows, or None when unreadable
@@ -321,14 +343,27 @@ def evaluate(order: dict[str, Any], *, halted: bool,
           f"engine entries are not armed (flag={armed!r}) — every order in this "
           f"class goes to the CEO queue, which is what flipping it off is for")
 
-    # --- 2. the venue, from the resolved connector and not from the order ----
-    venue = str(ctx.get("execution_venue") or "").lower()
-    check("venue_is_permitted", venue == PERMITTED_VENUE,
-          f"resolved execution venue is {venue!r} against a permitted "
-          f"{PERMITTED_VENUE!r}" +
-          ("" if venue == PERMITTED_VENUE else
-           " — note this is the RESOLVED venue; order['venue'] is a string the "
-           "proposer supplies and is never read here"))
+    # --- 2. the venue, TWICE, from two independent fields --------------------
+    #
+    # Two checks for one condition, deliberately, and only here. Everywhere else
+    # in this fund a second opinion is a defect; on the one boundary where being
+    # wrong costs REAL MONEY it is the cheapest insurance available — the kind
+    # and the real-money flag come from different fields of the mode spec, so a
+    # gatherer that gets one wrong has to get the other wrong the same way.
+    kind = str(ctx.get("execution_venue_kind") or "").lower()
+    check("venue_kind_is_permitted", kind == PERMITTED_VENUE_KIND,
+          f"resolved venue kind is {kind!r} against a permitted "
+          f"{PERMITTED_VENUE_KIND!r}" +
+          ("" if kind == PERMITTED_VENUE_KIND else
+           " — the KIND, not the connector name: alpaca-paper and alpaca-prod "
+           "both permit the connector 'alpaca', so a name check passes under "
+           "real money. order['venue'] is never read here at all"))
+    real_money = ctx.get("execution_venue_real_money")
+    check("venue_is_not_real_money", real_money is False,
+          f"the resolved venue reports real_money={real_money!r}" +
+          ("" if real_money is False else
+           " — anything but an explicit False refuses; an unreadable venue is "
+           "not a paper one"))
 
     # --- 3. the strategy is real, deployed and not archived ------------------
     strat = ctx.get("strategy") or {}
@@ -379,7 +414,22 @@ def evaluate(order: dict[str, Any], *, halted: bool,
     # rotating them is an operational design, not a policy check.
     sessions = ctx.get("live_sessions")
     raised = str(ctx.get("signal_raised_at") or "").strip()
-    sid = str(strat.get("strategy_id") or order.get("strategy_id") or "").strip()
+    # THE STRATEGY THE ROW DESCRIBES MUST BE THE STRATEGY THE ORDER NAMES.
+    # Without this, a gatherer that fetched the wrong registry row would have
+    # checks 3, 4, 5 and 11 all evaluating strategy A while the order moved
+    # strategy B's book — every check passing, about the wrong strategy. The
+    # gatherer does not exist yet, which is exactly when to write the check
+    # that bounds its mistakes.
+    row_sid = str(strat.get("strategy_id") or "").strip()
+    order_sid = str(order.get("strategy_id") or "").strip()
+    check("strategy_matches_the_order",
+          bool(row_sid) and bool(order_sid) and row_sid == order_sid,
+          f"the strategy row describes {row_sid!r} and the order names "
+          f"{order_sid!r}" +
+          ("" if row_sid and order_sid and row_sid == order_sid else
+           " — every strategy-scoped check below would otherwise be answered "
+           "about a strategy this order does not belong to"))
+    sid = row_sid or order_sid
     if sessions is None:
         check("signal_from_live_session", False,
               "the live-session registry could not be read — an unreadable "

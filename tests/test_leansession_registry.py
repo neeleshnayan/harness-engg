@@ -483,3 +483,62 @@ class TestTheEndpointAnswers409:
         assert "UNKNOWN" in body
         assert "not a claim that nothing is running" in body
 
+
+class TestTheLookupDoesNotExpireAtTheCap:
+    def test_a_session_past_the_page_cap_is_still_found_by_id(
+            self, durable, tmp_path, monkeypatch):
+        """MUTATION SURVIVOR M61. ``live_session`` used to scan
+        ``session_rows()``, which is a CAPPED page — so the lookup answered
+        "unknown live session" for a real session as soon as 200 newer ones
+        existed, and a session nobody could look up is a session nobody can
+        stop.
+
+        Tested against the CONTRACT rather than by inserting 201 rows: the fake
+        registry's page deliberately does NOT contain the id and its by-id read
+        does. A scan cannot pass this; a lookup cannot fail it.
+        """
+        from app.fund.leanrunner import LeanError
+        r = durable(tmp_path)
+        wanted = {"session_id": "beyond-the-cap", "state": "running",
+                  "algorithm": "live", "container": "lean-live-beyond-the-cap",
+                  "started_at": "2026-01-01T00:00:00+00:00", "restored": True}
+
+        class _Paged:
+            def session_rows(self, limit=200):
+                return [{"session_id": f"newer-{i}", "state": "ended"}
+                        for i in range(limit)]
+
+            def live_session_rows(self):
+                return []
+
+            def session(self, session_id):
+                return dict(wanted) if session_id == wanted["session_id"] else None
+
+        monkeypatch.setattr(type(r), "_registry", lambda self: _Paged())
+        assert r.live_session("beyond-the-cap")["container"] == \
+            "lean-live-beyond-the-cap"
+        # POSITIVE CONTROL: a genuinely unknown id must still raise, or the
+        # assertion above would pass on a lookup that returns everything.
+        with pytest.raises(LeanError, match="unknown live session"):
+            r.live_session("no-such-session")
+
+    def test_a_stop_is_WRITTEN_to_the_registry_and_releases_the_scope(
+            self, durable, tmp_path):
+        """MUTATION SURVIVOR M66. Without the write the row stays ``running``
+        for ever: the partial unique index would refuse every future session
+        for that strategy, and the next start-up would find a live row with no
+        container and mark it vanished — a strategy locked out until a
+        restart."""
+        r = durable(tmp_path)
+        scope = f"s-{uuid.uuid4()}"
+        sid = r.start_live("live", strategy_id=scope)["session_id"]
+        r.stop_live(sid)
+        row = r._registry().session(sid)
+        assert row is not None
+        assert row["state"] == "stopped"
+        assert row["stopped_at"]
+        # AND A SECOND PROCESS CAN CLAIM THE SCOPE AGAIN — the consequence,
+        # asserted separately, because the row's value is only interesting for
+        # what it permits.
+        durable(tmp_path, name="ws2").start_live("live", strategy_id=scope)
+
