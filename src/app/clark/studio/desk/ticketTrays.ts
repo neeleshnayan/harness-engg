@@ -34,7 +34,7 @@
  */
 
 import type { Ticket } from "@/lib/fund_api";
-import { isTerminal } from "./ticketCard";
+import { isTerminal } from "./ticketCard.ts";
 
 /* --------------------------------------------------------------- the seat -- */
 

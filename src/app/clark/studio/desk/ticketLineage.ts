@@ -47,7 +47,7 @@
  */
 
 import type { Ticket } from "@/lib/fund_api";
-import { PRE_HIGHWAY_FENCE } from "./ticketExceptions";
+import { PRE_HIGHWAY_FENCE } from "./ticketExceptions.ts";
 
 /* ---------------------------------------------------------------- types --- */
 

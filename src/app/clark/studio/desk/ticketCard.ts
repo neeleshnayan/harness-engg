@@ -40,8 +40,8 @@
  */
 
 import type { Ticket, TicketState } from "@/lib/fund_api";
-import { CARD_HEADLINE_MAX, clampLine, type ClampedLine } from "./cardAnatomy";
-import { NOBODY } from "./recordRow";
+import { CARD_HEADLINE_MAX, clampLine, type ClampedLine } from "./cardAnatomy.ts";
+import { NOBODY } from "./recordRow.ts";
 
 /* -------------------------------------------------------- the vocabulary --- */
 
