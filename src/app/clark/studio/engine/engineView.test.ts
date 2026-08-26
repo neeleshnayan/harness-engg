@@ -450,3 +450,23 @@ test("a truncation sentence and a multi-signal drift both read singular at one",
   }));
   assert.match(e!, /2 of 3 signals on this symbol never filled/);
 });
+
+
+test("the caveat does not promise quantities that are not on screen", () => {
+  // MEASURED, no-signals arm 2026-08-26: "The quantities below are what its
+  // signals IMPLY" rendered above an empty table.
+  const empty = leg({
+    implied: { ...leg().implied!, per_symbol: [], symbols_out_of_sync: 0 },
+    verdict: { state: "no_signals", sentence: "nothing to reconcile" },
+  });
+  const c = impliedCaveat(empty);
+  assert.ok(c);
+  assert.doesNotMatch(c!, /quantities below/);
+  assert.match(c!, /no implied position to show/);
+  assert.match(c!, /UNKNOWN/);            // the fact itself survives
+});
+
+test("with rows, the caveat still names the model it is showing", () => {
+  const c = impliedCaveat(leg());
+  assert.match(c!, /quantities below are what its signals IMPLY/);
+});

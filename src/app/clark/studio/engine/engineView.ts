@@ -329,9 +329,18 @@ export function impliedCaveat(leg: EngineLeg | null | undefined): string | null 
   const direct = leg?.direct;
   if (!direct) return null;
   if (direct.readable) return null;
-  return `The engine's own holdings are UNKNOWN — ${direct.reason} ` +
-    `The quantities below are what its signals IMPLY, not what it reports. ` +
-    `To read them directly: ${direct.would_need}.`;
+  // "The quantities below" is only true when there ARE quantities below. On
+  // the no-signals arm the caveat rendered over an empty table, promising a
+  // reading of something that was not on screen — found by looking at that
+  // arm, 2026-08-26. The UNKNOWN half stays either way: the engine's book is
+  // unreadable whether or not it has ever signalled, and that is the fact
+  // this sentence exists to carry.
+  const hasRows = (leg?.implied?.per_symbol?.length ?? 0) > 0;
+  const model = hasRows
+    ? ` The quantities below are what its signals IMPLY, not what it reports.`
+    : ` Nothing has been signalled, so there is no implied position to show either.`;
+  return `The engine's own holdings are UNKNOWN — ${direct.reason}${model}` +
+    ` To read them directly: ${direct.would_need}.`;
 }
 
 /** Rows worth a reader's eye first: disagreements, then undetermined, then rest. */
