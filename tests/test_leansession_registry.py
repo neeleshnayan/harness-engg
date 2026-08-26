@@ -542,3 +542,20 @@ class TestTheLookupDoesNotExpireAtTheCap:
         # what it permits.
         durable(tmp_path, name="ws2").start_live("live", strategy_id=scope)
 
+    def test_the_by_id_read_is_an_EQUALITY_and_never_a_pattern(self, store):
+        """MUTATION SURVIVOR M78, and it is the one with teeth.
+
+        ``DELETE /fund/lean/live/{session_id}`` puts a caller-supplied string
+        straight into this lookup and then KILLS whatever container comes back.
+        Under ``LIKE`` instead of ``=``, ``%`` matches every row — so one
+        request could stop a session it never named. Session ids are hex today
+        and contain no wildcard, which is exactly why nothing noticed: the
+        defect is unreachable through legitimate input and wide open to
+        anything else.
+        """
+        s = _session(f"strategy:{uuid.uuid4()}")
+        store.claim_session(s)
+        assert store.session(s["session_id"])["session_id"] == s["session_id"]
+        for pattern in ("%", "_" * len(s["session_id"]), s["session_id"][:4] + "%"):
+            assert store.session(pattern) is None, pattern
+

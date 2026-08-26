@@ -935,3 +935,55 @@ class TestTheListOrder:
                 {"session_id": "x", "started_at": "2026-01-01T00:00:00+00:00"}]
         assert [r["session_id"] for r in _by_started_at(rows)] == ["x", "no-start"]
 
+
+class TestTheContainerLabel:
+    """MUTATION SURVIVOR M62. An unreadable mode must produce NO label, not an
+    empty one: ``docker ps --format {{.Label "x"}}`` prints "" for both "no
+    such label" and "the label is empty", so writing an empty label makes a
+    claim indistinguishable from an absence — and the reconciler's ownership
+    rule turns on exactly that distinction."""
+
+    ARGV_DUMP = r"""
+import json, os, sys
+open(os.environ["LIVE_ARGV_OUT"], "w").write(json.dumps(sys.argv))
+"""
+
+    def _argv_for(self, tmp_path, monkeypatch, mode):
+        import json
+        import sys
+        import time
+        from app.fund.leanrunner import LeanRunner
+        out = tmp_path / "argv.json"
+        monkeypatch.setenv("LIVE_ARGV_OUT", str(out))
+        script = tmp_path / "argv_docker.py"
+        script.write_text(self.ARGV_DUMP, encoding="utf-8")
+        r = LeanRunner(workspace=tmp_path / "ws",
+                       docker_cmd=[sys.executable, str(script)])
+        monkeypatch.setattr(type(r), "_our_mode", lambda self: mode)
+        r.save_algorithm("live", LIVE_ALGO)
+        r.start_live("live", strategy_id="s1")
+        for _ in range(100):
+            if out.exists():
+                break
+            time.sleep(0.05)
+        return json.loads(out.read_text())
+
+    def test_a_readable_mode_is_stamped_on_the_container(self, tmp_path,
+                                                         monkeypatch):
+        argv = self._argv_for(tmp_path, monkeypatch, "alpaca-paper")
+        assert "--label" in argv
+        assert f"{LS.MODE_LABEL}=alpaca-paper" in argv
+
+    @pytest.mark.parametrize("mode", [None, ""])
+    def test_an_UNREADABLE_mode_stamps_NOTHING(self, tmp_path, monkeypatch,
+                                               mode):
+        argv = self._argv_for(tmp_path, monkeypatch, mode)
+        assert "--label" not in argv
+        assert not any(LS.MODE_LABEL in a for a in argv)
+
+    def test_and_an_unlabelled_container_then_reads_as_LEGACY_and_ours(self):
+        """The consequence, asserted at the other end: an absent label is
+        already the honest reading of a container whose mode we could not
+        record, and it keeps that container reconcilable."""
+        assert LS.ownership(None, "alpaca-paper") == LS.OWN_LEGACY
+
