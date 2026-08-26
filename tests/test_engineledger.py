@@ -90,10 +90,19 @@ class _Attribution:
                 for sid, syms in self._positions.items()}
 
 
+#: The live record's own case, reused by several tests below.
+_DECLINED_EVENTS = None      # bound after _proposed/_ev are defined, below
+
+
 def _leg(events, positions=None, sessions=(), raises=None):
     store = _Store(events)
     return EL.engine_leg(store, attribution=_Attribution(positions, raises),
                          sessions=list(sessions))
+
+
+_DECLINED_EVENTS = [_proposed(1),
+                    _ev(2, "OrderDeclined",
+                        payload={"approver": "claude:loop-test"})]
 
 
 # ================================================================== the fates
@@ -727,3 +736,42 @@ class TestEngineEndpoint:
         assert st["state"] == "running"
         assert st["liveness_provable"] is False
         assert st["sessions"][0]["log_tail_pending"] is True
+
+
+class TestSentencesReadLikeEnglish:
+    """These strings ARE the surface — the CEO reads the verdict sentence and
+    nothing under it. "1 symbol(s)" is the tell of a number formatted by a
+    machine that did not look at it, and it shipped in the first draft."""
+
+    def test_one_symbol_is_singular(self):
+        leg = _leg(_DECLINED_EVENTS, positions={"s1": {}})
+        assert "1 symbol:" in leg["verdict"]["sentence"]
+        assert "(s)" not in leg["verdict"]["sentence"]
+
+    def test_two_symbols_are_plural(self):
+        leg = _leg([
+            _proposed(1, oid="a", symbol="GLD"), _ev(2, "OrderDeclined", "a"),
+            _proposed(3, oid="b", symbol="SLV"), _ev(4, "OrderDeclined", "b"),
+        ], positions={"s1": {}})
+        assert "2 symbols:" in leg["verdict"]["sentence"]
+
+    def test_one_agreeing_symbol_is_singular(self):
+        leg = _leg([
+            _proposed(1),
+            _ev(2, "OrderFilled", payload={"filled_qty": 0.1, "symbol": "GLD",
+                                           "strategy_id": "s1"}),
+        ], positions={"s1": {"GLD": 0.1}})
+        assert "All 1 symbol the engine" in leg["verdict"]["sentence"]
+
+    def test_one_running_session_is_singular(self):
+        st = EL.engine_status([{"session_id": "x", "state": "running"}], {})
+        assert st["note"].startswith("1 session running")
+
+    def test_two_running_sessions_are_plural(self):
+        st = EL.engine_status([{"session_id": "x", "state": "running"},
+                               {"session_id": "y", "state": "running"}], {})
+        assert st["note"].startswith("2 sessions running")
+
+    def test_an_undetermined_symbol_is_singular(self):
+        leg = _leg(_DECLINED_EVENTS, raises=RuntimeError("down"))
+        assert leg["verdict"]["sentence"].startswith("1 symbol cannot be compared")

@@ -96,6 +96,13 @@ _OUTCOME = {
 _TERMINAL = {"filled", "declined", "rejected", "failed"}
 
 
+def _plural(n: int, word: str, plural: str | None = None) -> str:
+    """``1 symbol`` / ``2 symbols``. Not cosmetic: these sentences are the
+    surface the CEO reads, and "1 symbol(s)" is the tell of a number that was
+    formatted by a machine that did not look at it."""
+    return f"{n} {word if n == 1 else (plural or word + 's')}"
+
+
 def _split_rationale(rationale: str | None) -> tuple[str | None, str | None]:
     """``"[lean:gld_sma_filter] GLD crossed above its 100-day SMA"`` → the algo
     id and the engine's own words.
@@ -481,24 +488,27 @@ def _verdict(rows: list[dict[str, Any]], per_symbol: list[dict[str, Any]],
                             "same as agreement."}
     if not per_symbol:
         return {"state": "unknown",
-                "sentence": f"{len(rows)} signal(s) were raised but none names "
-                            "a symbol, so no position comparison is possible."}
+                "sentence": f"{_plural(len(rows), 'signal')} "
+                            f"{'was' if len(rows) == 1 else 'were'} raised but "
+                            "none names a symbol, so no position comparison is "
+                            "possible."}
     if undetermined and not out_of_sync:
         return {"state": "unknown",
-                "sentence": f"{undetermined} symbol(s) cannot be compared — the "
-                            "fund's own per-strategy book could not be read."}
+                "sentence": f"{_plural(undetermined, 'symbol')} cannot be "
+                            "compared — the fund's own per-strategy book could "
+                            "not be read."}
     if out_of_sync:
         parts = [f"{p['symbol']} engine {p['engine_implied_qty']} vs book "
                  f"{p['book_qty']}" for p in per_symbol if p["in_sync"] is False]
         return {"state": "diverged",
                 "sentence": ("The engine's signals and the fund's book "
-                             f"disagree on {out_of_sync} symbol(s): "
+                             f"disagree on {_plural(out_of_sync, 'symbol')}: "
                              + "; ".join(parts) + "."),
                 "symbols": [p["symbol"] for p in per_symbol
                             if p["in_sync"] is False]}
     return {"state": "in_sync",
-            "sentence": f"All {len(per_symbol)} symbol(s) the engine has "
-                        "signalled on agree with the fund's book."}
+            "sentence": f"All {_plural(len(per_symbol), 'symbol')} the engine "
+                        "has signalled on agree with the fund's book."}
 
 
 def engine_status(sessions: list[dict[str, Any]] | None,
@@ -535,13 +545,13 @@ def engine_status(sessions: list[dict[str, Any]] | None,
             "fact about the fund, not a fault in the engine.")
     elif running:
         state, note = "running", (
-            f"{len(running)} session(s) running. Liveness cannot be proven "
-            "from here: on daily bars a healthy algorithm can be silent for "
-            "days, so a quiet engine and a dead one look identical.")
+            f"{_plural(len(running), 'session')} running. Liveness cannot be "
+            "proven from here: on daily bars a healthy algorithm can be silent "
+            "for days, so a quiet engine and a dead one look identical.")
     elif failed:
         state, note = "failed", (
-            f"{len(failed)} session(s) ended in failure — the session's own "
-            "state says so, so this one IS readable.")
+            f"{_plural(len(failed), 'session')} ended in failure — the "
+            "session's own state says so, so this one IS readable.")
     else:
         state, note = "stopped", (
             "Sessions exist on this record but none is running.")
