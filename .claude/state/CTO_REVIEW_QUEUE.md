@@ -2535,3 +2535,31 @@ without re-measuring the base. That includes the mark-sanity evidence behind a
 control-layer merge I already took.
 
 **[Fable @ resolve]**:
+
+---
+
+## 2026-08-26 — TIER ASSIGNMENTS FOR THE QUEUE (tiers v2, CEO: "apply this to the queued builders too")
+
+Set by the chair BEFORE dispatch, per v2. A builder that believes its tier is
+wrong says so in its first message and proceeds under protest.
+
+| queued work | tier | why | fan-out |
+|---|---|---|---|
+| **Intake venue fix** — `venue="paper"` → `alpaca` on the LEAN signal intake (`fund.py:3777`), plus `venue` losing its default and failing closed (`schemas/fund.py:10`, `fund.py:4068`) | **A** | THE ORDER PATH. Decides whether an engine's signal reaches a broker or a simulator. Exactly where depth belongs. | uncapped |
+| **T0 — the injectable clock** (ticket `45efaf68`) | **A** | Not obvious, and stated so it is not argued later: an injectable `now()` on a fund with DATED EXIT RULES is control-adjacent by construction — a clock you can set is a clock that can make an exit fire early, late, or never. It gets full depth precisely because it looks like plumbing. | uncapped |
+| **Live-session visibility** — a running LEAN session appears on the desk, with a heartbeat, so a dead engine and a flat engine stop looking identical | **B** | A decision surface a human reads; no control moves. | ONE helper |
+| **Slice 6 UI** (in flight, kp6) | **B** | as declared; already running, not re-tiered mid-flight | — |
+| **Slice 7 — producer templates** (seats emit `## TICKETS`) | **C** | Brief boilerplate. No consumer on a decision path until a seat actually files one. **Chair builds directly.** | none |
+| **Slice 8 — historical lineage backfill** | **A** | It APPENDS TO THE EVENT LOG. The design already reserves it as a chair-executed act, not a builder one, and it may only write joins the record mechanically supports — everything else is fenced, counted and labelled, never guessed. | chair-executed |
+
+**Not re-tiered mid-flight, deliberately**: `hw5` (guard scope repair, Tier A by
+nature) and `kp6` (desk UI, Tier B) are both in their late read-through with
+clean trees. Interrupting a dispatch at its highest-yield step to save fan-out
+that has already been spent would cost more than it saves.
+
+**The quant's HYG dispatch** is a different seat and carries no tier, but its
+brief bounds the same way: a gate FAIL is explicitly acceptable and parameter
+sweeping to improve the verdict is forbidden — which removes the usual reason a
+belt dispatch grows.
+
+**[Fable @ resolve]**:
