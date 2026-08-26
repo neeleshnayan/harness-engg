@@ -308,8 +308,14 @@ class TestTheResidual:
         # and the paper book it moved, are gone" — a statement about the
         # physical world that this fold has no way to check.
         assert "no session record accounts for it" in row["fence_reason"]
-        assert "are gone" not in row["fence_reason"]
         assert "however alive it was" in row["fence_reason"]
+        # THE PROPERTY, NOT ONE PHRASE OF IT. The first version of this line
+        # was ``"are gone" not in reason`` and mutation M43 walked straight
+        # past it with "the container that raised it IS gone" — a negative
+        # assertion narrow enough to be satisfied by the defect it names. The
+        # actual requirement is that the sentence makes NO claim about the
+        # container at all, because this fold cannot see one.
+        assert "container" not in row["fence_reason"].lower()
 
     def test_the_fence_publishes_that_it_never_asked_docker(self):
         """MUTANT: drop ``orphan_containers_checked`` from ``describe()``.
@@ -932,6 +938,23 @@ class TestEngineStrategyCards:
         assert by_id[OTHER]["session_state"] == "running"
         assert by_id[SID]["session_state"] == "none"
         assert out["sessions_unmatched"] == []
+
+    def test_a_session_with_no_identity_is_not_matched_to_an_id_less_card(self):
+        """MUTANT M44: match on ``(s.strategy_id or "") == (sid or "")``.
+
+        ``start_live``'s default ``strategy_id`` is ``""``, and a card built
+        from a history row could carry a falsy id too. Comparing the two
+        EMPTY strings equal would attach a running session to whichever
+        strategy happened to have no id — a card claiming an engine that is
+        not its own, on the panel the CEO reads to see what is running.
+        """
+        no_id = _strategy("", "nameless engine strategy", {"engine": "lean"})
+        ctx = _ctx(sessions=[_session(sid="", algo="something_else")])
+        c, = _cards([no_id], ctx=ctx)["strategies"]
+        assert c["sessions"] == []
+        assert c["session_state"] == "none"
+        # ...and the orphan is still NAMED rather than lost.
+        assert len(_cards([no_id], ctx=ctx)["sessions_unmatched"]) == 1
 
     def test_a_session_no_card_accounts_for_is_named(self):
         """MUTANT M27: drop ``sessions_unmatched``.
