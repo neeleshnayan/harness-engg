@@ -766,3 +766,9 @@ When you declare serves_requests on a run, write the FULL 36-character request i
 ## BINDS carried by the CTO chair 2026-08-27 (from run-ed-crypto1; none struck)
 
 - **from mechanism (Ed), run-ed-crypto1 - two controls Ed asks be used AGAINST him** - (1) **The max-of-N family-wise null**: when a proposal reports the best of a swept grid, the null is the MAXIMUM over the grid, not a single-cell null - on a 10-name crypto universe that null's median is +13.5%/yr of 'active return' from concentration alone. (2) **Lag-1 autocorrelation of any cross-asset residual**: strongly negative means the author found a calendar misalignment, not an edge (Ed's own near-miss read -0.539).
+
+---
+
+## BINDS carried by the CTO chair 2026-08-27 (from run-builder-kp9; none struck; both chair-addressed BINDS are ADOPTED)
+
+- **from builder, run-builder-kp9** - When you review a UI diff that DEMOTES prose behind a disclosure, the question is not 'is the text still there' - it is WHICH text stayed on the surface. The kp9 engine page's whole safety property is that a caveat with tone 'warn' cannot reach the fold: surfacedCaveats and foldedCaveats partition on that one field, and a single tone flipped from warn to quiet in engineCaveats would silently move a control-is-down disclosure behind a click with every test green except one. **Attack the tone assignment, not the word count.**

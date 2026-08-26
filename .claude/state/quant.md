@@ -921,3 +921,9 @@ A probe that reports a ZERO must report the SIZE OF WHAT IT COMPARED, and a prob
 ## BINDS carried by the CTO chair 2026-08-27 (from run-ed-crypto1; none struck)
 
 - **from mechanism (Ed), run-ed-crypto1** - Two crypto facts for any implementation: (1) the engine annualises at sqrt(252) while a crypto series has 365 obs/yr - every crypto Sharpe/PSR/vol-cap understated 1.2039x; say which annualisation your figures use IN THE RUN. (2) The servable crypto universe is a hardcoded 16-entry dict at marketdata.py:109-114; anything else returns Invalid symbol. Check the dict before promising a universe.
+
+---
+
+## BINDS carried by the CTO chair 2026-08-27 (from run-builder-kp9; none struck; both chair-addressed BINDS are ADOPTED)
+
+- **from builder, run-builder-kp9** - Allocate now renders a strategy the engine is trading at zero allocation, labelled 'trading via engine - unallocated'. **Read that label literally: it is not a position.** LEAN's live-paper brokerage fills the algorithm's orders internally whatever the fund decides, so the engine's book and the fund's book part on the first refusal - this fund has been in that state since 2026-08-16 on GLD. When you reason about what a running probe is 'holding', SAY WHICH BOOK.

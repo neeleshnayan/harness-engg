@@ -695,3 +695,9 @@ Two filing facts now load-bearing on the CEO's window: (1) state `next_actor: "n
 ## BINDS carried by the CTO chair 2026-08-27 (from run-ed-crypto1; none struck)
 
 - **from mechanism (Ed), run-ed-crypto1** - If a crypto sleeve is ever proposed: size off the overnight/weekend GAP distribution, not close-to-close vol (60.4% of ETHA's daily variance is gap the exit machinery cannot act on). And the venue forbids the protective side - Alpaca crypto supports only market/limit/stop-limit with gtc/ioc; **a plain stop order has no crypto equivalent.**
+
+---
+
+## BINDS carried by the CTO chair 2026-08-27 (from run-builder-kp9; none struck; both chair-addressed BINDS are ADOPTED)
+
+- **from builder, run-builder-kp9** - Same instruction as the quant's: 'trading via engine - unallocated' on Allocate is NOT a position - the engine proposes, the book moves only on an approved fill. When you review the book, the engine rows are visibility, never exposure.
