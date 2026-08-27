@@ -94,6 +94,23 @@ class TestCalendar:
         assert got["trading_days"] == ["2026-08-25"]
         assert got["covered"] is True
 
+    def test_the_day_walk_is_in_MARKET_time_at_the_calendar_boundary(self):
+        """Mutant M06: walking UTC dates instead of market-local ones.
+
+        MEASURED equivalent for ``seconds`` and ``trading_days`` — 20,000
+        random intervals, zero disagreements — because every US regular session
+        lies strictly inside one UTC date while the two date labels differ only
+        during 00:00-05:00Z, which contains no session. It is NOT equivalent at
+        the calendar's coverage boundary, and the market-local reading is the
+        conservative one: 02:00Z on 2026-01-01 is 2025-12-31 in New York, a date
+        the sourced table has no opinion about. Claiming coverage there would be
+        a confident answer about a day nobody looked up.
+        """
+        got = navgap.trading_overlap(_at("2026-01-01T02:00:00+00:00"),
+                                     _at("2026-01-01T03:00:00+00:00"))
+        assert got["uncovered_days"] == ["2025-12-31"]
+        assert got["covered"] is False
+
     def test_overlap_over_an_uncovered_date_reports_it_and_does_not_count_it(self):
         got = navgap.trading_overlap(_at("2025-06-02T00:00:00+00:00"),
                                      _at("2025-06-04T00:00:00+00:00"))
