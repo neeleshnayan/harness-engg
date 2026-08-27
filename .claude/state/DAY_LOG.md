@@ -371,6 +371,23 @@ but what will be impressive is if can spot what others dont and quickly turn it 
   hook cannot map their subagent types to a parent seat; design the convention honestly or
   render worker counts at return, never fake live.
 
+### DECIDED + DISPATCHED (CEO crypto challenge, ~11:05Z)
+
+- **CEO, verbatim: "Why are we not exploring crypto - are we declaring that space is dead
+  and no one is able to make any money?"** Chair's honest answer on the record: NOT dead —
+  two ideas died on DATA (funding carry: 94% hardcoded history; delisting: the screen),
+  while the moat quietly compounds (OI day ~21 of an unbuyable series, survivorship
+  corpus, cost table, Alpaca paper venue ready). The REAL gap he caught: two engine
+  blockers make crypto candidates unjudgeable (leanrunner's sqrt(252) equity constant;
+  marketdata's 16-coin hardcode) and Ed's attention went to equities.
+- **Executed**: (1) both crypto blockers PULLED FORWARD into the next builder batch (B1
+  gains them, ahead of their old B3 position — CEO's push is the priority signal);
+  (2) **ED BATCH #7 FIRED, CRYPTO-ONLY**, armed with the exogenous-trigger screen pointed
+  at holder-triggered crypto flows: vesting unlocks, miner treasury selling, ETF
+  creation/redemption flows, tax-deadline and court-scheduled distribution events; 24/7
+  structural premia admissible with a named counterparty. Fan-out capped at two workers.
+  Engine-blocker status required per proposal so nothing pretends to be belt-ready.
+
 ### MEASURED (Ed batch 6, ~10:45Z) — an honest zero that bought a rule
 
 - **0 candidates, fourth zero batch — and Ed flagged it himself before anyone else
