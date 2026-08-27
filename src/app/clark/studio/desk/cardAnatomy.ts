@@ -155,7 +155,10 @@ export interface RailedRec {
 
 const HOUR_MS = 3600 * 1000;
 
-function hoursBetween(from: string | null, nowIso: string): number | null {
+/** EXPORTED 2026-08-27 so `deskItemFacts` can compute a card's age from the
+ *  same function the lifecycle rail uses. It was private and a second copy
+ *  was written before anyone looked. */
+export function hoursBetween(from: string | null, nowIso: string): number | null {
   if (!from) return null;
   const a = Date.parse(from);
   const b = Date.parse(nowIso);

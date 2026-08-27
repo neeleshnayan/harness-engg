@@ -113,9 +113,18 @@ export interface CardBand {
   tone: BandTone;
   /** The word for the tone, for a screen reader and for the `title`. */
   label: string;
+  /** The same fact in a form that fits a 7.5rem column at 10px — `3d late`,
+   *  `today`, `28 Aug`. Its own field rather than a truncation at the render
+   *  site: a label the component clips is a label whose meaning the component
+   *  decided. */
+  short: string | null;
   why: string;
   /** How many whole days past due. `null` unless the tone is `blocker`. */
   daysOverdue: number | null;
+  /** The VALIDATED `YYYY-MM-DD`, or null when the row states none or states
+   *  one that could not be read. The card prints this; nothing re-validates
+   *  the raw string a second time. */
+  due: string | null;
 }
 
 /**
@@ -139,6 +148,20 @@ function daysBetween(a: string, b: string): number {
   return Math.round(ms / 86_400_000);
 }
 
+//: Month names for the compact form. `28 Aug` reads at a glance where
+//: `2026-08-28` does not; the full ISO date stays in `due` and in the title,
+//: so nothing is lost and nobody has to parse a number back into a month.
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** `2026-08-28` -> `28 Aug`. The input is already shape-validated by
+ *  `readableDay`, so this does no parsing of its own beyond the slice. */
+function shortDay(iso: string): string {
+  const m = Number(iso.slice(5, 7));
+  const d = Number(iso.slice(8, 10));
+  return `${d} ${MONTHS[m - 1] ?? iso.slice(5, 7)}`;
+}
+
 export function cardBand(facts: CardFacts, scale: CardScale): CardBand {
   const today = readableDay(scale.now);
   const due = readableDay(facts.dueDate);
@@ -148,7 +171,9 @@ export function cardBand(facts: CardFacts, scale: CardScale): CardBand {
     return {
       tone: "quiet",
       label: "no date",
+      short: null,
       daysOverdue: null,
+      due: null,
       why: stated
         ? `this row states a due date the desk cannot read ("${stated}") — `
           + "unreadable, so it is not treated as dated and not treated as late"
@@ -162,7 +187,9 @@ export function cardBand(facts: CardFacts, scale: CardScale): CardBand {
     return {
       tone: "dated",
       label: "dated",
+      short: shortDay(due),
       daysOverdue: null,
+      due,
       why: `due ${due}, but the instant to judge it against could not be read, `
         + "so whether it is late is UNKNOWN — shown as dated, not as on time",
     };
@@ -173,7 +200,9 @@ export function cardBand(facts: CardFacts, scale: CardScale): CardBand {
     return {
       tone: "blocker",
       label: over === 1 ? "1 day overdue" : `${over} days overdue`,
+      short: `${over}d late`,
       daysOverdue: over,
+      due,
       why: `due ${due}, and today is ${today} — this is the one condition on `
         + "this desk that is true whether or not anybody clicks, which is why "
         + "it is the only one that spends colour",
@@ -182,7 +211,9 @@ export function cardBand(facts: CardFacts, scale: CardScale): CardBand {
   return {
     tone: "dated",
     label: over === 0 ? "due today" : `due ${due}`,
+    short: over === 0 ? "today" : shortDay(due),
     daysOverdue: null,
+    due,
     why: over === 0
       ? `due ${due}, which is today`
       : `due ${due}, ${-over} day(s) from ${today}`,

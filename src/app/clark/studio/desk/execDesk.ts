@@ -33,6 +33,7 @@
 
 import type { DeskView, PendingOrder } from "@/lib/fund_api";
 import type { DeskRun } from "./seatLib";
+import { hoursBetween } from "./cardAnatomy.ts";
 
 /* --------------------------------------------------------- reversibility -- */
 
@@ -181,10 +182,26 @@ export function orderItems(pending: PendingOrder[]): DeskItem[] {
 /**
  * Open recommendations as ranked items.
  *
- * `runs` supplies the staleness anchor. A recommendation whose run is not in
- * the list gets `waitingSince: null` and sorts as undated rather than as new —
- * an undated item floating to the top of a freshness sort is how the oldest
- * thing on the desk becomes invisible.
+ * THE STALENESS ANCHOR IS THE ROW'S OWN `resolved_at`, AND IT USED TO BE A
+ * LOOKUP IN A CAPPED LIST. `runs` is the desk payload's 25-run window; a
+ * recommendation whose run fell outside it got `waitingSince: null`.
+ *
+ * MEASURED 2026-08-27 against the live desk: 324 open recommendations, 25
+ * runs in the payload. The map could date **66**; the rows carry the field
+ * themselves and can date **324**. On the CEO's own decision list the map
+ * dated **7 of 39** — so thirty-two rows he is asked to rank by urgency had
+ * no readable waiting time, and every card's age encoding read UNKNOWN.
+ *
+ * The two AGREE where both exist — 66 of 66, zero disagreements, and zero
+ * rows the map could date that the row could not. So this is a wider read of
+ * ONE fact, not a switch to a second one, and the check is the only thing
+ * that makes that sentence safe to write. The map stays as a fallback for a
+ * spine that predates the row annotation.
+ *
+ * The original comment's argument is the argument FOR this: *"an undated item
+ * floating to the top of a freshness sort is how the oldest thing on the desk
+ * becomes invisible."* Exactly so — and it was undated because of a cap on a
+ * neighbouring payload, not because the fund did not know.
  */
 /** Statuses that are FINISHED. A terminal row is not desk work — it is record.
  *  `noted` joined them 2026-08-21 (CEO): read, closed, and deliberately never
@@ -210,7 +227,9 @@ export function recItems(
       ? r.money_at_stake
       : null,
     reversibility: reversibilityOf(r.reversibility, r.kind),
-    waitingSince: resolvedAt.get(r.run_id) ?? null,
+    waitingSince: (typeof r.resolved_at === "string" && r.resolved_at.trim())
+      ? r.resolved_at
+      : (resolvedAt.get(r.run_id) ?? null),
     // Never parsed out of `text`. See DeskItem.dueDate.
     dueDate: typeof r.due_date === "string" && r.due_date.trim()
       ? r.due_date.trim()
@@ -1020,23 +1039,9 @@ export function deskItemFacts(item: DeskItem, now: string): {
   };
 }
 
-/**
- * Hours from `then` to `now`, or `null` when either cannot be read.
- *
- * `null` on an unparseable stamp rather than `0` or `NaN`. `NaN` would
- * propagate into a width; `0` would claim the row is new. Both are worse than
- * saying the age is unknown, which the spine renders as a drawn nothing and a
- * sentence.
- */
-export function hoursBetween(then: string | null | undefined,
-                             now: string): number | null {
-  if (!then) return null;
-  const a = Date.parse(then);
-  const b = Date.parse(now);
-  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
-  const h = (b - a) / 3_600_000;
-  // A stamp in the FUTURE is not a negative age; it is a clock disagreement,
-  // and reporting it as unknown is the honest reading. `cardAge` refuses
-  // negatives for the same reason and this keeps the refusal in one place.
-  return h < 0 ? null : h;
-}
+/* `hoursBetween` is NOT redefined here. `cardAnatomy.ts` has had it since the
+   lifecycle rail was built, with the same three refusals (unreadable stamp,
+   unparseable instant, negative age) argued out in its own comment — and I
+   wrote a byte-equivalent second copy before noticing. Two implementations of
+   "how long has this waited" is precisely the duplication this desk has been
+   repaired from twice; the existing one is now exported. */

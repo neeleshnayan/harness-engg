@@ -1219,6 +1219,17 @@ export interface DeskView {
  * changing a threshold's population under a rendering's name.
  */
 export interface DeskCardFields {
+  /** WHEN THE RUN THAT FILED THIS ROW WAS RESOLVED — the row's own staleness
+   *  anchor, and the field that answers "how long has this waited".
+   *
+   *  Declared here 2026-08-27 because it was on the wire and not in the type:
+   *  the spine annotates every row (324 of 324 on the live desk) and the
+   *  client was reading the same fact out of the payload's 25-run `runs`
+   *  window instead, which could date 7 of the CEO's 39 decision rows. The
+   *  two agree on the overlap, 66 of 66, so this is the wider read of one
+   *  fact rather than a second one. `RailedRec` in `cardAnatomy.ts` has
+   *  declared it structurally since the lifecycle rail shipped. */
+  resolved_at?: string | null;
   /** The repaired display line — a dict payload's `title` where `text` holds
    *  the repr. The stored `text` is NEVER rewritten; this sits beside it. */
   text_display?: string | null;

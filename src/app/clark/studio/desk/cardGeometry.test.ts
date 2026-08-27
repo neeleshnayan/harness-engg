@@ -315,3 +315,58 @@ test("EVERY encoding carries a why — a rectangle with no provenance is decor",
       + "rectangle exactly as hard as it binds a number");
   }
 });
+
+/* -------------------------------- the compact date, and why it exists ----- */
+
+test("the band carries a SHORT form that fits the figure column", () => {
+  /* THE MEASUREMENT THAT PUT IT THERE: with the due date as an inline chip
+   * before the headline, 39 live cards produced FOUR distinct headline start
+   * positions spanning 119px — every dated row indented by the width of its
+   * own chip. The column is fixed at 7.5rem and 10px mono, so the label had
+   * to be short; truncating at the render site would have made the component
+   * decide what the label means. */
+  assert.equal(cardBand({ dueDate: "2026-08-24" }, S).short, "3d late");
+  assert.equal(cardBand({ dueDate: "2026-08-26" }, S).short, "1d late");
+  assert.equal(cardBand({ dueDate: "2026-08-27" }, S).short, "today");
+  assert.equal(cardBand({ dueDate: "2026-08-28" }, S).short, "28 Aug");
+  assert.equal(cardBand({ dueDate: "2026-09-03" }, S).short, "3 Sep");
+  assert.equal(cardBand({ dueDate: "2027-01-01" }, S).short, "1 Jan");
+  // Every month name resolves — an off-by-one on the index would print the
+  // wrong month for eleven of twelve dates and look completely normal.
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  for (let m = 1; m <= 12; m += 1) {
+    const iso = `2027-${String(m).padStart(2, "0")}-15`;
+    assert.equal(cardBand({ dueDate: iso }, S).short, `15 ${months[m - 1]}`,
+                 `month ${m}`);
+  }
+});
+
+test("a row with no readable date has NO short form at all", () => {
+  // `null`, not `""`. The component renders the line only when there is one,
+  // and an empty string would render an empty element that takes vertical
+  // space on 27 of 39 rows.
+  assert.equal(cardBand({}, S).short, null);
+  assert.equal(cardBand({ dueDate: "soon" }, S).short, null);
+  assert.equal(cardBand({}, S).due, null);
+  assert.equal(cardBand({ dueDate: "soon" }, S).due, null);
+});
+
+test("`due` is the VALIDATED date and nothing re-validates it downstream", () => {
+  assert.equal(cardBand({ dueDate: "2026-08-24" }, S).due, "2026-08-24");
+  // A stamp is accepted and reduced to its day, so a payload that starts
+  // carrying instants does not lose its date.
+  assert.equal(cardBand({ dueDate: "2026-08-24T09:00:00Z" }, S).due, "2026-08-24");
+  assert.equal(cardBand({ dueDate: "2026-08-24T09:00:00Z" }, S).short, "3d late");
+});
+
+test("the short form and the long label never disagree about lateness", () => {
+  for (const d of ["2026-08-01", "2026-08-26", "2026-08-27", "2026-08-28",
+                   "2026-12-31", "soon", ""]) {
+    const b = cardBand({ dueDate: d }, S);
+    if (b.short === null) { assert.equal(b.tone, "quiet"); continue; }
+    const shortSaysLate = b.short.endsWith("late");
+    assert.equal(shortSaysLate, b.tone === "blocker",
+      `${d}: short "${b.short}" and tone "${b.tone}" must agree`);
+  }
+});

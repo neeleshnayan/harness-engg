@@ -1178,22 +1178,12 @@ function CardShell({ geo, children }: {
   );
 }
 
-/**
- * THE DATE CHIP — the only chip on any row, deliberately.
- *
- * One visual token, reserved for the one ranking key that does not wait for a
- * click: a dated commitment happens whether or not anybody decides. Giving
- * money or reversibility a chip too would spend the token on things the type
- * scale already says, and a page where every row has a badge is a page with no
- * badges.
- */
-function DueChip({ date }: { date: string }) {
-  return (
-    <span className={`${KT.chip} shrink-0 font-mono tabular-nums`}>
-      due {date}
-    </span>
-  );
-}
+/* `DueChip` was DELETED here 2026-08-27. Its rule stands and its rendering
+   moved: "one visual token, reserved for the one ranking key that does not
+   wait for a click" is now the figure column's date line plus the spine's
+   tone, both driven by `cardBand`. Keeping the component beside its
+   replacement would have left two ways to render one fact, which is the
+   duplication this desk has been repaired from twice. */
 
 /**
  * One recommendation, wearing the ratified card anatomy.
@@ -1300,7 +1290,12 @@ function RecCard({ item, onDecide, sources, now, scale }: {
             does not wait for a click, and the spine's tone says "late" while
             the chip says WHEN. */}
         <CardFigure geo={geo} />
-        {item.dueDate && <DueChip date={item.dueDate} />}
+        {/* THE DUE CHIP IS GONE FROM THIS ROW and the date is in the figure
+            column above — see `CardFigure`. It was measured: an inline chip
+            indented every dated headline by its own width, giving 39 cards
+            four different headline start positions across 119px. `rankReason`
+            still suppresses the date on the metadata line, because the card
+            still carries it; only the position changed. */}
         <p className={`min-w-0 flex-1 ${type.text}`}>{face.line}</p>
         <span className="flex shrink-0 items-center gap-2">
           {lamp.showButtons ? (
