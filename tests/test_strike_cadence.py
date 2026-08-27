@@ -8,9 +8,10 @@ exit check, the autopolicy, two reconciles, prunes results, and every fifth
 minute shells out to ``docker ps``. Measured from the fund's own NavStruck
 series (n=76, 2026-08-13..26), the strike interval ran between **1.6% and 20.0%
 long against a configured 3600s**, and the stretch GREW as the loop gained
-work — 4321s on 2026-08-26 against a heartbeat budget of 5400s. The clock was
-walking toward its own alarm, and the alarm would have fired on a correct
-budget and a broken clock.
+work — 4321s on 2026-08-26 against the heartbeat's 5400s nav_strike budget, so
+1.25x more loop growth fires that alarm. Note WHAT the heartbeat watches: it
+beats on a deliberate no-strike too, so the budget bounds the strike CHECK's
+cadence, which is exactly the quantity this defect stretched.
 
 **THE SECOND HALF.** A fresh worker started its strike clock at zero, so every
 spine restart and every lease handoff bought a full interval of silence however
@@ -65,6 +66,42 @@ def test_a_slow_tick_still_strikes_at_the_configured_interval():
     assert max(periods) <= HOUR + tick, (
         f"strike period {max(periods)}s exceeds the interval plus one tick "
         f"({HOUR + tick}s) — the accumulator is not counting measured time")
+
+
+def test_a_SPIKY_tick_still_strikes_at_the_configured_interval():
+    """THE WORST CASE, not the average one. The previous test drives a constant
+    23.5s tick, which is a MODEL of a loop that never spikes — and this loop
+    spikes by design: ``run_universe_refresh`` spends ~50 seconds when the
+    screen goes stale, and the LEAN reconcile shells out to ``docker ps`` every
+    fifth minute. So the bound must be asserted against the SPIKIEST tick in the
+    run, not the typical one, because the overshoot is bounded by the tick that
+    happens to cross the boundary and that is the one a mean would hide.
+    """
+    ticks = []
+    for i in range(3000):
+        t = 21.0
+        if i % 15 == 0:
+            t = 71.0        # a universe refresh landed on this pass
+        elif i % 4 == 0:
+            t = 26.0        # a docker ps
+        ticks.append(t)
+    worst = max(ticks)
+
+    served, clock, strikes = 0.0, 0.0, []
+    for t in ticks:
+        clock += t
+        served, due = S.advance(served, t, HOUR)
+        if due:
+            strikes.append(clock)
+    periods = [b - a for a, b in zip(strikes, strikes[1:])]
+    assert len(periods) >= 10
+    assert min(periods) >= HOUR, "a strike must never land EARLY"
+    assert max(periods) <= HOUR + worst, (
+        f"strike period {max(periods):.1f}s exceeds the interval plus the "
+        f"worst tick in the run ({HOUR + worst}s)")
+    # And the whole point: a loop whose worst pass is 71 seconds still holds a
+    # cadence far inside the 5400s budget the heartbeat measures it against.
+    assert max(periods) < 5400.0
 
 
 def test_the_nominal_constant_is_what_stretched_the_interval():
@@ -312,7 +349,7 @@ def test_the_strike_clock_is_resumed_on_every_lease_acquisition():
     assert "resume_strike_clock(" in body
     assert "_newest_strike()" in body
     before = body.split("resume_strike_clock(", 1)[0]
-    between = before[before.rindex("if state.held:"):]
+    between = before[before.rindex("if state.held and strike_every > 0:"):]
     assert "if not state.held:" not in between, (
         "the resume moved out of the lease-acquisition branch")
     # SIXTEEN SPACES: inside ``if state.held != was_held:`` and then inside
@@ -347,9 +384,6 @@ def test_the_reconcile_tick_can_still_be_disabled_by_zero():
 #: happened. So the reader is exercised the way the archive-memo route is.
 _READER_PROBE = r'''
 import json, os, sys
-os.environ.setdefault("FUND_STORE", "firestore")
-os.environ.setdefault("FUND_MODE", "test")
-os.environ.setdefault("FUND_MODE_FILE", os.path.join("tests", ".fund_mode.absent"))
 sys.path.insert(0, "tests")
 import conftest  # installs the in-memory Firestore fake before any app import
 import app.main as M
@@ -383,12 +417,36 @@ sys.stdout.write("PROBE" + json.dumps(out) + "PROBE")
 
 @pytest.fixture(scope="module")
 def reader_probe():
+    """The probe's environment is SET, never ``setdefault``-ed.
+
+    The first version used ``os.environ.setdefault`` inside the probe, which is
+    a no-op when the variable is already present — so the subprocess INHERITED
+    the developer's shell instead of being isolated from it. Reproduced: with a
+    leftover ``FUND_MODE=alpaca-paper`` the probe died on absent Alpaca
+    credentials, and with ``FUND_STORE=postgres`` it spent thirty seconds
+    retrying a database that does not exist before failing. A test that reports
+    the developer's shell is not a test of anything, and the failure mode is
+    worst for whoever has the most interesting environment.
+    """
     import json as _json
+    import os as _os
     import subprocess
     import sys as _sys
     repo = pathlib.Path(__file__).resolve().parents[1]
+    env = dict(_os.environ)
+    env.update({
+        "FUND_STORE": "firestore",
+        "FUND_MODE": "test",
+        "FUND_MODE_FILE": str(pathlib.Path("tests") / ".fund_mode.absent"),
+    })
+    # Poisoning variables the parent may carry are REMOVED, not overridden:
+    # there is no value for these that means "ignore me".
+    for poison in ("ALPACA_API_KEY", "ALPACA_SECRET_KEY", "FUND_ENV",
+                   "STRIKE_INTERVAL_SECONDS", "SETTLE_INTERVAL_SECONDS"):
+        env.pop(poison, None)
     r = subprocess.run([_sys.executable, "-c", _READER_PROBE],
-                       capture_output=True, text=True, cwd=str(repo), timeout=300)
+                       capture_output=True, text=True, cwd=str(repo),
+                       env=env, timeout=300)
     assert r.returncode == 0, (
         f"the reader probe could not run:\n{r.stdout[-3000:]}\n{r.stderr[-3000:]}")
     assert "PROBE" in r.stdout, f"probe produced no result:\n{r.stdout[-2000:]}"
@@ -451,3 +509,57 @@ def test_the_strike_block_is_gated_on_the_accumulator_being_due():
     body = _scheduler_body()
     assert "\n        if strike_due:\n" in body, (
         "the strike block is no longer gated on the accumulator being due")
+
+
+# ================================================ gaps the Gauntlet exposed
+def test_a_NaN_can_never_kill_the_accumulator_permanently():
+    """GAUNTLET, boundary table. Every comparison against NaN is False, so
+    ``elapsed < 0`` would let a NaN through, ``seconds_served`` would become NaN,
+    and ``seconds_served >= interval`` would then be False on EVERY future tick.
+
+    That is a periodic control that has died silently and permanently — no
+    strike, no reconcile, no log line, forever. ``time.monotonic()`` deltas
+    cannot be NaN, so nothing in production reaches this today; the reason it is
+    guarded anyway is that the failure is unbounded, undetectable and one new
+    caller away.
+    """
+    nan = float("nan")
+    served, due = S.advance(0.0, nan, HOUR)
+    assert served == 0.0 and due is False, "a NaN elapsed must not enter the sum"
+    # ...and the accumulator still works afterwards, which is the real assertion.
+    served, due = S.advance(served, HOUR, HOUR)
+    assert due is True
+
+    served, due = S.advance(10.0, 5.0, nan)
+    assert due is False, "a NaN interval is not a period"
+    assert served == 10.0, "a NaN interval must not consume the accumulator"
+
+
+def test_an_infinite_elapsed_fires_once_and_leaves_the_clock_usable():
+    served, due = S.advance(0.0, float("inf"), HOUR)
+    assert due is True and served == 0.0
+    served, due = S.advance(served, 1.0, HOUR)
+    assert due is False
+
+
+def test_the_resume_is_skipped_when_striking_is_disabled():
+    """GAUNTLET, cost on a hot path. With ``strike_every <= 0`` nothing will
+    ever be struck, so folding the whole event log on every lease acquisition to
+    find out how overdue the strike is would be work for a feature that is off.
+    """
+    body = _scheduler_body()
+    assert "if state.held and strike_every > 0:" in body
+
+
+def test_the_probe_sets_its_environment_rather_than_defaulting_it():
+    """GAUNTLET, env sensitivity. ``os.environ.setdefault`` in a subprocess that
+    INHERITS the parent env is not isolation — it is a no-op whenever the
+    variable is already there. Reproduced by the Gauntlet: a leftover
+    ``FUND_MODE=alpaca-paper`` killed three tests on absent credentials, and
+    ``FUND_STORE=postgres`` spent thirty seconds retrying a missing database.
+    """
+    src = pathlib.Path(__file__).read_text(encoding="utf-8")
+    probe = src[src.index("_READER_PROBE = r'''"):src.index("@pytest.fixture")]
+    assert "setdefault" not in probe, (
+        "the probe is configuring itself from the parent's environment again")
+    assert "env=env" in src, "the subprocess is not given an explicit environment"

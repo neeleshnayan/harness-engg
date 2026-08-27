@@ -149,10 +149,24 @@ def advance(seconds_served: float, elapsed: float,
     A negative ``elapsed`` cannot come from a monotonic clock, and is treated as
     zero rather than winding the accumulator backwards, because the one thing a
     periodic control must never do is become less due than it already was.
+
+    BOTH GUARDS ARE WRITTEN ``not (x > 0)`` RATHER THAN ``x <= 0`` / ``x < 0``,
+    and the reason is NaN. Every comparison against NaN is False, so ``x <= 0``
+    lets a NaN interval through and ``x < 0`` lets a NaN elapsed through — and a
+    NaN that reaches the accumulator makes ``seconds_served`` NaN forever, after
+    which ``>= interval`` is False on every future tick. That is a periodic
+    control that has silently died, permanently, with nothing in the log: the
+    exact shape this codebase calls an unwired kill switch. ``not (x > 0)``
+    catches negative, zero and NaN in one condition, so the safe reading is the
+    DEFAULT rather than a special case somebody has to remember to add.
+
+    ``seconds_served`` is not separately guarded and does not need to be: it is
+    only ever this function's own output plus a guarded ``elapsed``, and both
+    are finite by construction.
     """
-    if interval <= 0:
+    if not (interval > 0):
         return seconds_served, False
-    if elapsed < 0:
+    if not (elapsed > 0):
         elapsed = 0.0
     seconds_served = seconds_served + elapsed
     if seconds_served >= interval:

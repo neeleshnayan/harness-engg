@@ -249,7 +249,7 @@ async def _scheduler():
             _log.info("scheduler lease %s — %s",
                       "ACQUIRED" if state.held else "NOT HELD", state.reason)
             was_held = state.held
-            if state.held:
+            if state.held and strike_every > 0:
                 # RESUME THE STRIKE CLOCK FROM THE DURABLE RECORD, on every
                 # acquisition — the first one after start-up and every handoff
                 # after that, because they are the same event from the clock's
@@ -262,6 +262,22 @@ async def _scheduler():
                 # It is SAFE against a restart loop because the record is the
                 # thing being read: once a strike is written the newest event is
                 # seconds old, so the next process resumes at ~0 and waits.
+                #
+                # NOT RUN WHEN THE STRIKE TICK IS DISABLED. With
+                # ``strike_every <= 0`` nothing will ever be struck, so folding
+                # the event log to find out how overdue the strike is would be
+                # work done for a feature that is off.
+                #
+                # THE WINDOW THIS DOES NOT CLOSE, named rather than left for
+                # someone to find: the record is read AFTER the lease is held,
+                # so the only way to read a stale one is for the previous holder
+                # to be writing a strike while no longer holding the lease. That
+                # is possible — a tick checks the lease at its top and strikes at
+                # its bottom — and ``run_strike`` has no recency guard, so the
+                # result would be two struck NAVs seconds apart. Sequential
+                # restarts, which are the common case, cannot hit it. Closing it
+                # properly means a guard on the WRITE, which is not this loop's
+                # to add.
                 resumed = schedule.resume_strike_clock(
                     _newest_strike(), strike_every,
                     _dt.datetime.now(_dt.timezone.utc))
