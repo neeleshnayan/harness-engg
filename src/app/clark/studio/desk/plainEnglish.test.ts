@@ -5,7 +5,7 @@ import { CODENAMES, isPlain, jargonIn, meaning } from "./plainEnglish.ts";
 import { briefingChips, briefingOf, briefingRows } from "./briefing.ts";
 import { benchFlight, seatLamps } from "./seatActivity.ts";
 import { consoleQueue } from "./consoleQueue.ts";
-import type { DeskRun } from "./seatLib.ts";
+import type { DeskRec, DeskRun } from "./seatLib.ts";
 import type { DeskView } from "@/lib/fund_api";
 
 /**
@@ -91,7 +91,7 @@ const RUN = (over: Record<string, unknown> = {}): DeskRun => ({
 const REC = (over: Record<string, unknown> = {}) => ({
   kind: "dispatch", rec_id: 1, status: "open", text: "do the thing",
   next_actor: "chair", money_at_stake: null, due_date: null, ...over,
-});
+}) as unknown as Partial<DeskRec>;
 
 const ACT = (over: Record<string, unknown> = {}) => ({
   status: "working", task: "slice3", since: "2026-08-27T07:32:39+00:00",

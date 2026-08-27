@@ -5,7 +5,7 @@ import {
   MAX_CHIPS, briefingChips, briefingOf, briefingRows, fmtDuration,
   fmtTokensShort, nextActorOf, ranMinutes,
 } from "./briefing.ts";
-import type { DeskRun } from "./seatLib.ts";
+import type { DeskRec, DeskRun } from "./seatLib.ts";
 
 /**
  * THE BRIEFING CONTRACT.
@@ -42,12 +42,15 @@ const RUN = (over: Record<string, unknown> = {}): DeskRun => ({
   ...over,
 }) as unknown as DeskRun;
 
+// Cast at the boundary: the literal widens `status` to `string`, and the
+// point of these fixtures is to feed the reader shapes it will meet on the
+// wire — including ones the union does not yet name.
 const REC = (over: Record<string, unknown> = {}) => ({
   kind: "dispatch", seat: "builder", rec_id: 1, status: "open",
   text: "Route the v5 draft r2 to the adversary BLIND before anything else.",
   next_actor: "chair", reversibility: "reversible",
   money_at_stake: null, due_date: null, ...over,
-});
+}) as unknown as Partial<DeskRec>;
 
 /* --------------------------------------------------------- the headline --- */
 
@@ -61,8 +64,8 @@ test("the headline is the run's verdict, one line", () => {
 test("a run with NO verdict gets a sentence, never a blank headline", () => {
   const b = briefingOf(RUN({ verdict: null }));
   assert.equal(b.headline, null);
-  assert.match(b.headlineNote!, /filed no verdict/);
-  assert.match(b.headlineNote!, /not an empty conclusion/);
+  assert.match(b.headlineNote!, /recorded no conclusion/);
+  assert.match(b.headlineNote!, /did not conclude that there was nothing/);
 });
 
 test("a blank-string verdict is ABSENT, not an empty headline", () => {
@@ -75,14 +78,14 @@ test("an ABORTED run is never dressed as a delivery", () => {
   // The verdict is still shown — it is where the seat got to — but the note
   // refuses to let it read as a conclusion.
   assert.ok(stopped.headline);
-  assert.match(stopped.headlineNote!, /ABORTED/);
-  assert.match(stopped.headlineNote!, /not a delivered conclusion/);
+  assert.match(stopped.headlineNote!, /STOPPED before it finished/);
+  assert.match(stopped.headlineNote!, /not a conclusion it stands behind/);
 });
 
 test("an aborted run with no verdict says the seat STOPPED", () => {
   const b = briefingOf(RUN({ status: "aborted", verdict: null }));
-  assert.match(b.headlineNote!, /the seat stopped/);
-  assert.match(b.headlineNote!, /not the same as a seat that found nothing/);
+  assert.match(b.headlineNote!, /STOPPED before it finished and reached no conclusion/);
+  assert.match(b.headlineNote!, /different from finishing and finding nothing/);
 });
 
 test("an unrecognised status is `unstated`, not silently delivered", () => {
@@ -124,8 +127,8 @@ test("text_display wins over text when the spine annotated one", () => {
 test("no recommendations is a RESULT, with a sentence and no chip", () => {
   const b = briefingOf(RUN({ recommendations: [] }));
   assert.deepEqual(b.rows, []);
-  assert.match(b.rowsNote!, /asked for nothing/);
-  assert.match(b.rowsNote!, /a result, not an empty record/);
+  assert.match(b.rowsNote!, /not asking you for anything/);
+  assert.match(b.rowsNote!, /a result, not a blank page/);
   assert.equal(b.chips.some((c) => c.label === "asks"), false);
 });
 
@@ -178,14 +181,14 @@ test("the money chip states its DENOMINATOR when not every row is priced", () =>
   ]);
   const chip = briefingChips(rows, RUN()).find((c) => c.label === "at stake")!;
   assert.equal(chip.value, "$400");
-  assert.equal(chip.sub, "1 of 3 rows priced");
+  assert.equal(chip.sub, "1 of 3 asks carry a figure");
 });
 
 test("an all-priced set says so rather than printing 3 of 3", () => {
   const rows = briefingRows([REC({ money_at_stake: 12.5 }), REC({ rec_id: 2, money_at_stake: 3 })]);
   const chip = briefingChips(rows, RUN()).find((c) => c.label === "at stake")!;
   assert.equal(chip.value, "$15.50");
-  assert.equal(chip.sub, "all rows priced");
+  assert.equal(chip.sub, "every ask carries a figure");
 });
 
 test("rows priced at zero earn NO money chip — zero is quiet", () => {

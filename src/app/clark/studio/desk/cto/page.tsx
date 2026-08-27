@@ -3,47 +3,46 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
-import { fundApiClient, DeskView, SpineEvent } from "@/lib/fund_api";
+import { fundApiClient, DeskView } from "@/lib/fund_api";
 import { KT } from "../../theme";
 import { StudioHeader } from "../../components/StudioHeader";
 import { SeatFace } from "../SeatFace";
-import { faceFor } from "../faces";
-import { estimateCostUsd, fmtAt, fmtUsd, isSeat } from "../seatLib";
-import { QueuedAsk, queuedAsks } from "../execDesk";
+import { estimateCostUsd, fmtUsd, SEATS } from "../seatLib";
 import { CooTriageChip } from "../components";
+import { consoleQueue } from "../consoleQueue.ts";
+import { QueueRow } from "../QueueRow";
+import { benchFlight, seatLamps } from "../seatActivity.ts";
+import { fmtTokensShort } from "../briefing.ts";
 
 /**
- * The CTO's desk — what waits on Fable's hands, and what the bench costs.
+ * THE CONSOLE — what is on the chair's hands, ranked, as rows.
  *
- * Full build against docs/briefs/EXEC_DESKS_2026-08-20.md. Everything here is
- * CTO WORK, not CEO decisions: the dispatch queue, unresolved dispatches, the
- * accepted-but-unbuilt backlog, and the week's dispatch economics.
+ * Rebuilt 2026-08-27 against the CEO-approved Main board (*"Cool lets get
+ * this"*) and his ranking decision the same day (*"can we add ordering to my
+ * desk say high-priority to low; time-sensitive or not; blocker or not?"*).
  *
- * The queue is where the constitution's 2026-08-20 amendment becomes visible.
- * A seat may FILE a dispatch request tagged with its own name — "mechanism
- * requests validator" — but a seat-filed request is an ASK, never a trigger:
- * it sits until a human fires it, exactly like a CEO-typed one. So each row
- * renders three things the old version collapsed into two: who filed it (with
- * their face, and whether that filer is a seat or a human), where it sits on
- * the seat files → CEO approves → CTO triggers path, and how long it has
- * waited. The first live instance is request 5fc56190, filed by `mechanism`
- * against `validator` — it renders as "awaiting CEO approval" because no
- * DeskRequestApproved event exists for it, and that is the honest state, not a
- * missing feature.
+ * WHAT CHANGED AND WHY, because the old page was not wrong so much as unusable:
+ * it rendered three separate stacks of cards — queued asks, unresolved
+ * dispatches, accepted-not-built — each card a paragraph tall, none of them
+ * ranked against each other. The chair's real question is *what do I fire
+ * next*, and answering it meant reading three lists and doing the merge by eye.
+ * Measured on the live record the day this was written: 55 approved asks
+ * awaiting a trigger, the oldest 142 hours old, indistinguishable on screen
+ * from the newest.
+ *
+ * So: ONE ranked list over both populations, the band from the record on every
+ * row, prose one tap down, and an honest tail that says what it is hiding and
+ * why. The in-flight lamps move to the top as three numbers, because "is a slot
+ * free" is the other question this page exists to answer — and it now answers
+ * it with EVERY open dispatch rather than one per seat.
  */
 export default function CtoDeskPage() {
   const [desk, setDesk] = useState<DeskView | null>(null);
-  const [events, setEvents] = useState<SpineEvent[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const [d, ev] = await Promise.allSettled([
-      fundApiClient.getDesk(),
-      fundApiClient.getEvents(1000, 0),
-    ]);
-    if (d.status === "fulfilled") { setDesk(d.value); setErr(null); }
-    else { setDesk(null); setErr(d.reason instanceof Error ? d.reason.message : "unreachable"); }
-    setEvents(ev.status === "fulfilled" ? (ev.value.events || []) : null);
+    try { setDesk(await fundApiClient.getDesk()); setErr(null); }
+    catch (e) { setDesk(null); setErr(e instanceof Error ? e.message : "unreachable"); }
   }, []);
 
   useEffect(() => {
@@ -52,26 +51,24 @@ export default function CtoDeskPage() {
     return () => clearInterval(t);
   }, [load]);
 
-  const queue = useMemo(() => queuedAsks(desk?.requests ?? []), [desk]);
-  const seatFiled = queue.filter((a) => a.seatFiled).length;
-  const cleared = queue.filter((a) => a.stage === "cleared_to_trigger").length;
+  /* The queue. `null` where the read FAILED and `[]` where it succeeded and
+     held nothing — the fold reports the difference, and the note below prints
+     it. Passing `[]` for an unread payload is the absence-as-zero this whole
+     surface is written against. */
+  const queue = useMemo(() => consoleQueue(
+    desk ? desk.requests : null,
+    desk ? (desk.open_recommendations as unknown as Record<string, unknown>[]) : null,
+  ), [desk]);
 
-  const unresolvedDispatches = useMemo(() => {
-    if (!events) return null;
-    const resolved = new Set(
-      events.filter((e) => e.type === "DeskRequestResolved")
-            .map((e) => (e.payload as { request_id?: string })?.request_id));
-    return events.filter((e) => e.type === "DeskDispatched")
-      .map((e) => e.payload as { task_id?: string; seat?: string; task?: string; at?: string })
-      .filter((p) => p.task_id && !resolved.has(p.task_id));
-  }, [events]);
-
-  const backlog = useMemo(() => (desk?.runs ?? []).flatMap((run) =>
-    (run.recommendations ?? [])
-      .filter((r) => r.status === "accepted"
-                     && ["fix", "harness", "envelope_v2", "infra", "code_fix",
-                         "measurement", "dispatch"].includes(r.kind ?? ""))
-      .map((r) => ({ ...r, run_id: run.run_id }))), [desk]);
+  /* THE ROOM'S TRUTH, on the console too. Every open dispatch per seat, not
+     one per seat — the CEO's own observation, 2026-08-27: "1 builder working
+     but 2 in reality". */
+  const lamps = useMemo(() => SEATS.map((s) =>
+    seatLamps(s, desk?.roster?.find((r) => r.agent === s)?.activity ?? null)),
+    [desk]);
+  const flight = useMemo(() => benchFlight(lamps), [lamps]);
+  const running = useMemo(
+    () => lamps.filter((l) => l.lamps.length > 0), [lamps]);
 
   const weekCost = useMemo(() => {
     const cutoff = Date.now() - 7 * 86400_000;
@@ -89,209 +86,165 @@ export default function CtoDeskPage() {
 
   return (
     <div className="min-h-screen bg-[var(--kt-bg)] text-[var(--kt-text)]">
-      <StudioHeader subtitle="The CTO's desk — the build and dispatch queue, and what the bench costs" />
+      <StudioHeader subtitle="The console — what is on your hands, ranked" />
       <div className={KT.container}>
-        <header className="mb-7 flex items-center gap-4">
-          <SeatFace actor="cto" size={64} />
-          <div>
-            <p className={KT.label}>Krypton Fund · the console</p>
-            <h1 className="text-2xl font-medium tracking-tight">Fable · CTO</h1>
-            {/* The CEO's desk load, on the console that dispatches the COO. The
-                chip is where the CTO learns the registered trigger has been
-                crossed; crossing it still fires nothing by itself. */}
-            {desk?.desk_load && (
-              <p className="mt-1 text-sm">
-                <CooTriageChip load={desk.desk_load} />
-              </p>
-            )}
-            <p className={`mt-0.5 text-xs ${KT.muted}`}>
-              {/* "0 runs · $— est." folded from an unread desk claims a week in
-                  which the bench cost nothing. Say unknown instead. */}
-              {desk === null ? (
-                <span className={KT.sev.warn}>
-                  bench economics unreadable — the week&apos;s cost is unknown, not zero
+
+        {/* ============ HEADER: three numbers, one line of cost ============ */}
+        <header className="mb-7 flex flex-wrap items-end gap-x-10 gap-y-4">
+          <div className="flex items-center gap-3">
+            <SeatFace actor="cto" size={44} decorative />
+            <div className="flex flex-col gap-1">
+              <span className={KT.label}>The console · Fable</span>
+              <div className="flex items-baseline gap-2">
+                <span className={KT.hero}>
+                  {desk === null ? "—" : queue.total}
                 </span>
-              ) : (
-                <>
-                  bench, last 7 days: {weekCost.runs} runs ·{" "}
-                  <span className="font-mono tabular-nums">
-                    {weekCost.tokens ? `${Math.round(weekCost.tokens / 1000)}k tokens` : "no tokens recorded"}
-                  </span>{" "}
-                  · {fmtUsd(weekCost.priced ? weekCost.usd : null)} est.
-                  ({weekCost.priced} of {weekCost.runs} runs priced)
-                </>
-              )}
-              {" "}· <Link href="/clark/studio/desk" className={`${KT.accent} hover:underline`}>back to the floor</Link>
-            </p>
+                <span className="text-[13px] text-[var(--kt-text-dim)]">
+                  cleared to trigger
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1 pb-1">
+            <div className="flex items-baseline gap-2">
+              <span className={KT.numberLg}>
+                {desk === null ? "—" : flight.working}
+              </span>
+              <span className="text-xs text-[var(--kt-text-dim)]">
+                running now{flight.isFloor ? " (at least)" : ""}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1 pb-1">
+            <div className="flex items-baseline gap-2">
+              <span className={`font-mono tabular-nums text-2xl font-light ${flight.awaiting > 0 ? "text-[var(--kt-warn)]" : "text-[var(--kt-text-strong)]"}`}>
+                {desk === null ? "—" : flight.awaiting}
+              </span>
+              <span className="text-xs text-[var(--kt-text-dim)]">
+                back, waiting on your review
+              </span>
+            </div>
+          </div>
+
+          <div className="ml-auto flex flex-col items-end gap-1 pb-1">
+            {desk?.desk_load && <CooTriageChip load={desk.desk_load} />}
+            <span className={`font-mono text-[11px] ${KT.muted}`}>
+              {desk === null
+                ? "what the bench cost this week is unknown, not nothing"
+                : `bench, 7 days · ${weekCost.runs} runs · ${weekCost.tokens ? fmtTokensShort(weekCost.tokens) : "no token totals filed"} · ${fmtUsd(weekCost.priced ? weekCost.usd : null)} (${weekCost.priced} of ${weekCost.runs} priced)`}
+            </span>
           </div>
         </header>
 
         {err && (
           <div className={`${KT.card} mb-6 flex items-start gap-2 border-[var(--kt-warn)]`}>
             <AlertTriangle size={15} className="mt-0.5 text-[var(--kt-warn)]" />
-            <p className="text-sm">The desk could not be read — the queue is unknown, not empty. {err}</p>
+            <p className="text-sm">
+              We could not reach the fund&apos;s record, so this page is showing
+              nothing rather than a clear board. {err}
+            </p>
           </div>
         )}
 
+        {/* ============ THE QUEUE ============ */}
         <section className="mb-8">
-          {/* The headline counts what is on YOUR hands (CDO D4). `cleared` asks
-              are the CEO's decision already made and waiting on the trigger;
-              `awaiting_ceo` asks are somebody else's decision, and folding them
-              into one number made a queue where nothing was actionable read
-              identically to one where everything was. */}
-          <p className={`${KT.label} mb-2`}>
-            Cleared to trigger ({desk === null ? "unknown" : cleared})
-            {desk !== null && queue.length - cleared > 0 && (
-              <span className={`ml-2 font-normal normal-case tracking-normal ${KT.muted}`}>
-                · {queue.length - cleared} still awaiting the CEO
-              </span>
-            )}
-          </p>
-          {/* The summary line is a CLAIM ABOUT THE QUEUE'S COMPOSITION. Made
-              from an unread desk it asserted "every open ask was filed by a
-              human" about asks nobody had loaded — the loudest instance of the
-              absence-as-value error on this page. Caught on the dead-spine
-              pass, 2026-08-20. */}
-          {desk === null ? (
-            <p className={`mb-2 text-sm ${KT.sev.warn}`}>
-              The queue could not be read. How many asks are open, who filed them, and
-              whether any are cleared to fire are all unknown — not none.
-            </p>
-          ) : (
-            <>
-              <p className={`mb-2 text-xs leading-relaxed ${KT.muted}`}>
-                {cleared > 0
-                  ? `${cleared} cleared by the CEO and waiting on your trigger; `
-                  : "Nothing is cleared to fire; "}
-                {seatFiled > 0
-                  ? `${seatFiled} filed by a bench seat rather than a human — a seat-filed ask is an ASK, never a trigger.`
-                  : "every open ask was filed by a human."}
+          <div className="mb-2.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span className={KT.label}>Cleared to trigger</span>
+            <span className={`text-[11px] ${KT.muted}`}>{queue.note}</span>
+          </div>
+
+          <div className={`${KT.panel} overflow-hidden`}>
+            {queue.rows.length === 0 ? (
+              <p className={`px-5 py-4 text-sm ${desk === null ? KT.sev.warn : KT.muted}`}>
+                {desk === null
+                  ? "The queue is unknown, not empty."
+                  : "Nothing is waiting on you."}
               </p>
-              {queue.length === 0 && (
-                <p className={`text-sm ${KT.muted}`}>Empty — every filed ask has been triggered and resolved.</p>
-              )}
-            </>
-          )}
-          <div className="space-y-1.5">
-            {queue.map((a) => <AskRow key={a.requestId} a={a} />)}
+            ) : (
+              queue.rows.map((r, i) => (
+                <QueueRow key={r.id} row={r} last={i === queue.rows.length - 1 && !queue.tailNote} />
+              ))
+            )}
+            {queue.tailNote && (
+              <div className="flex items-center justify-between border-t border-[var(--kt-border)] bg-[var(--kt-inset)] px-5 py-3">
+                <span className={`text-xs ${KT.muted}`}>{queue.tailNote}</span>
+                <span className={`font-mono text-[11px] ${KT.muted}`}>
+                  all {queue.total} in the fund&apos;s record
+                </span>
+              </div>
+            )}
           </div>
         </section>
 
+        {/* ============ IN FLIGHT ============ */}
         <section className="mb-8">
-          <p className={`${KT.label} mb-2`}>Dispatched, not yet resolved</p>
-          {unresolvedDispatches === null ? (
-            <p className={`text-sm ${KT.sev.warn}`}>Event log unreadable — in-flight work is unknown, not none.</p>
-          ) : unresolvedDispatches.length === 0 ? (
-            <p className={`text-sm ${KT.muted}`}>Nothing in flight — every dispatch has been resolved.</p>
+          <div className="mb-2.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span className={KT.label}>
+              In flight · {desk === null ? "unknown" : flight.working + flight.awaiting}
+            </span>
+            <span className={`text-[11px] ${KT.muted}`}>{flight.note}</span>
+          </div>
+          {running.length === 0 ? (
+            <p className={`text-sm ${desk === null ? KT.sev.warn : KT.muted}`}>
+              {desk === null
+                ? "What the bench is doing is unknown, not nothing."
+                : "Nothing is running. A bench sitting idle costs the fund nothing."}
+            </p>
           ) : (
-            <div className="space-y-1.5">
-              {unresolvedDispatches.map((p) => (
-                <div key={p.task_id} className={`${KT.card} flex flex-wrap items-baseline gap-x-3 gap-y-1 p-3 text-sm`}>
-                  <span className="flex shrink-0 items-center gap-1.5 font-mono text-[11px] text-[var(--kt-accent)]">
-                    <SeatFace actor={p.seat} size={16} decorative /> {p.seat}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {running.flatMap((seat) => seat.lamps.map((l, i) => (
+                <Link key={`${seat.seat}-${l.taskId ?? i}`}
+                      href={`/clark/studio/desk/${seat.seat}`}
+                      className={`${KT.panel} ${KT.cardHover} flex flex-col gap-1.5 p-3.5`}>
+                  <div className="flex items-center gap-2">
+                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${l.state === "working" ? "bg-[var(--kt-warn)]" : "bg-[var(--kt-accent)]"}`} />
+                    <span className="text-[13px] font-semibold text-[var(--kt-text-strong)]">
+                      {seat.seat}
+                    </span>
+                    <span className={`ml-auto font-mono text-[10px] tabular-nums ${KT.muted}`}>
+                      {l.since ? sinceLabel(l.since) : "no start time on record"}
+                    </span>
+                  </div>
+                  <span className="text-xs leading-snug text-[var(--kt-text-dim)]">
+                    {l.task ?? "This job was started with no description on the record."}
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-[13px]">{p.task}</span>
-                  {p.at && <span className={`font-mono text-[10px] ${KT.muted}`}>{fmtAt(p.at)}</span>}
-                </div>
-              ))}
+                  {l.state === "awaiting_review" && (
+                    <span className={`font-mono text-[10px] uppercase tracking-[0.14em] ${KT.accent}`}>
+                      back — waiting on your review
+                    </span>
+                  )}
+                  {!l.reviewDetectable && l.state === "working" && (
+                    <span className={`text-[10px] ${KT.muted}`}>
+                      We cannot tell whether this has come back yet.
+                    </span>
+                  )}
+                </Link>
+              )))}
             </div>
           )}
         </section>
 
-        <section className="mb-8">
-          <p className={`${KT.label} mb-2`}>
-            Accepted, not yet built ({desk === null ? "unknown" : backlog.length})
-          </p>
-          <p className={`mb-2 text-xs ${KT.muted}`}>
-            CEO-accepted recommendations of buildable kinds — the CTO&apos;s backlog,
-            straight from the flight recorder.
-          </p>
-          {desk === null ? (
-            <p className={`text-sm ${KT.sev.warn}`}>
-              The flight recorder could not be read — the backlog is unknown, not clear.
-            </p>
-          ) : backlog.length === 0 ? (
-            <p className={`text-sm ${KT.muted}`}>Empty — everything accepted has been implemented.</p>
-          ) : null}
-          <div className="space-y-1.5">
-            {backlog.map((r) => (
-              <div key={`${r.run_id}-${r.rec_id}`} className={`${KT.card} flex flex-wrap items-baseline gap-x-3 gap-y-1 p-3 text-sm`}>
-                <span className="flex shrink-0 items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--kt-agent)]">
-                  <SeatFace actor={r.seat} size={14} decorative /> {r.seat} · rec {r.rec_id}
-                </span>
-                <span className="min-w-0 flex-1 text-[13px] leading-snug">{r.text}</span>
-              </div>
-            ))}
-          </div>
-        </section>
+        <p className={`text-xs ${KT.muted}`}>
+          <Link href="/clark/studio/desk" className={`${KT.accent} hover:underline`}>
+            back to the floor
+          </Link>
+          {" · "}The fund records what was asked and what came back. It does not
+          run the agents, and nothing on this page starts one.
+        </p>
       </div>
     </div>
   );
 }
 
-/**
- * One queued ask: who filed it, who it serves, where it sits, how long it has
- * waited.
- *
- * The filer's face is drawn from the same registry as everywhere else, so a
- * seat-filed ask is recognisable at a glance without reading the name — and an
- * actor with NO face on file draws the dashed "unknown" head rather than
- * borrowing someone's. `faceFor` is exact-match by design: the live log carries
- * `actor` strings that are whole sentences, and a prefix match would hand one
- * of those a colleague's portrait.
- */
-function AskRow({ a }: { a: QueuedAsk }) {
-  const cleared = a.stage === "cleared_to_trigger";
-  const face = faceFor(a.actor);
-  const ageHours = a.at ? (Date.now() - Date.parse(a.at)) / 3_600_000 : null;
-  return (
-    <div className={`${KT.card} p-3 text-sm ${cleared ? "border-[var(--kt-accent-border)]" : ""}`}>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <span className="flex shrink-0 items-center gap-1.5 font-mono text-[11px]">
-          <SeatFace actor={a.actor} size={18} decorative />
-          {face?.label ?? (a.actor || "unattributed")}
-          {/* The constitutional distinction, on the row. A seat asking for
-              another seat is the org chart gaining an edge; it must not look
-              identical to the CEO typing the same words. */}
-          {a.seatFiled && (
-            <span className={`rounded-full border border-[var(--kt-border)] px-1.5 text-[9px] uppercase tracking-[0.1em] ${KT.muted}`}>
-              seat-filed
-            </span>
-          )}
-        </span>
-        <span className={`font-mono text-[10px] uppercase tracking-[0.1em] ${KT.muted}`}>asks</span>
-        <span className="flex shrink-0 items-center gap-1.5 font-mono text-[11px]">
-          <SeatFace actor={a.serves} size={18} decorative />
-          {isSeat(a.serves)
-            ? <Link href={`/clark/studio/desk/${a.serves}`} className={`${KT.accent} hover:underline`}>{a.serves}</Link>
-            : a.serves}
-        </span>
-        <span className="min-w-0 flex-1 text-[13px] leading-snug">{a.subject}</span>
-        {cleared ? (
-          <span className="shrink-0 rounded-full border border-[var(--kt-accent-border)] bg-[var(--kt-accent-bg)] px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--kt-accent)]">
-            CEO-approved — trigger it
-          </span>
-        ) : (
-          <span className={`shrink-0 font-mono text-[10px] uppercase tracking-[0.1em] ${KT.muted}`}>
-            awaiting CEO approval
-          </span>
-        )}
-      </div>
-      <p className={`mt-1 flex flex-wrap gap-x-3 font-mono text-[10px] ${KT.muted}`}>
-        <span>
-          {a.at
-            ? `filed ${fmtAt(a.at)}${ageHours != null ? ` · ${ageHours < 24 ? `${ageHours.toFixed(1)}h` : `${(ageHours / 24).toFixed(1)}d`} ago` : ""}`
-            : "undated — the request carries no timestamp"}
-        </span>
-        {cleared && (
-          <span className="text-[var(--kt-accent)]">
-            approved by {a.approvedBy ?? "an unrecorded actor"}
-            {a.approvedAt ? ` ${fmtAt(a.approvedAt)}` : ""}
-          </span>
-        )}
-        <span className="font-mono">{a.requestId.slice(0, 8)}</span>
-      </p>
-      {a.note && <p className={`mt-1 text-xs ${KT.muted}`}>{a.note}</p>}
-    </div>
-  );
+/** How long ago, said the way a person says it. Absent stays absent. */
+function sinceLabel(at: string): string {
+  const t = Date.parse(at);
+  if (Number.isNaN(t)) return "start time unreadable";
+  const m = (Date.now() - t) / 60_000;
+  if (m < 0) return "start time is in the future";
+  if (m < 60) return `${Math.round(m)}m`;
+  if (m < 1440) return `${(m / 60).toFixed(1)}h`;
+  return `${(m / 1440).toFixed(1)}d`;
 }

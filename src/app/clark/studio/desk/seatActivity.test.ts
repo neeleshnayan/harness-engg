@@ -98,7 +98,7 @@ test("an OLD envelope draws ONE lamp and says the number is a floor", () => {
   // confident answer built on a truncated list.
   assert.equal(r.workingCount, null);
   assert.equal(r.awaitingCount, null);
-  assert.match(r.note, /floor, not a count/);
+  assert.match(r.note, /at least, not exactly/);
 });
 
 test("an OLD envelope on an IDLE seat draws no lamp and still says floor", () => {
@@ -118,7 +118,7 @@ test("no envelope at all reads UNKNOWN, never idle", () => {
     assert.equal(r.headline, null);
     assert.equal(r.drawn, 0);
     assert.equal(r.workingCount, null);
-    assert.match(r.note, /UNKNOWN — not idle/);
+    assert.match(r.note, /UNKNOWN — not nothing/);
   }
 });
 
@@ -140,7 +140,7 @@ test("headline idle + an open dispatch is reported as a DISAGREEMENT", () => {
   assert.equal(r.headline, "idle");
   assert.equal(r.understates, true);
   assert.equal(r.drawn, 1);
-  assert.match(r.note, /headline is the compatibility surface/);
+  assert.match(r.note, /older one is still going/);
 });
 
 test("headline idle with an EMPTY list is not a disagreement", () => {
@@ -150,7 +150,7 @@ test("headline idle with an EMPTY list is not a disagreement", () => {
   }));
   assert.equal(r.understates, false);
   assert.equal(r.workingCount, 0, "a measured zero, and it is reported");
-  assert.match(r.note, /An idle seat costs zero/);
+  assert.match(r.note, /costs the fund nothing/);
 });
 
 /* ------------------------------------------------------- broken rows ------ */
@@ -167,8 +167,8 @@ test("a row with an unreadable state is DROPPED and the drop is reported", () =>
     working_count: 1, awaiting_review_count: 0,
   }));
   assert.equal(r.drawn, 1);
-  assert.match(r.note, /3 carried no readable state/);
-  assert.match(r.note, /not a job that is not running/);
+  assert.match(r.note, /3 of them could not be read/);
+  assert.match(r.note, /not jobs that stopped/);
 });
 
 test("review_detectable absent reads as NOT detectable, never as true", () => {
@@ -208,7 +208,7 @@ test("the bench total sums the lamps, and is a FLOOR if any seat is old", () => 
   const mixed = benchFlight([modern, old]);
   assert.equal(mixed.working, 3);
   assert.equal(mixed.isFloor, true);
-  assert.match(mixed.note, /only their newest dispatch/);
+  assert.match(mixed.note, /only reported its most recent job/);
 });
 
 test("an unreadable seat NAMES itself in the bench note and floors the total", () => {
@@ -216,7 +216,7 @@ test("an unreadable seat NAMES itself in the bench note and floors the total", (
   assert.deepEqual(b.unreadable, ["cfo"]);
   assert.equal(b.isFloor, true);
   assert.match(b.note, /cfo/);
-  assert.match(b.note, /this total is a floor/);
+  assert.match(b.note, /at least this many, not exactly this many/);
 });
 
 test("an empty bench is zero and says so without claiming a floor", () => {
