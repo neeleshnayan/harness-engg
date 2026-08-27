@@ -878,8 +878,17 @@ def _evaluate_into(checks: list[dict[str, Any]], check: Any, order: Any,
     if qty is None:
         delta = None
     elif delta is not None:
-        # Re-derive from the validated quantity so a negative or boolean qty
-        # cannot reach the arithmetic through ``abs()``.
+        # REDUNDANT BY CONSTRUCTION TODAY, AND KEPT ON PURPOSE — stated
+        # honestly because the first version of this comment claimed it was
+        # stopping something, and mutation proved it was not (M34 survived).
+        # ``order_delta`` returns ``±abs(_as_float(qty))`` and ``qty`` here is
+        # ``_number(raw, lo=POSITION_EPS)``, which is strictly positive, so
+        # ``abs(qty) == qty`` on every input that reaches this line and the two
+        # forms are equivalent. It is not a behaviour fix.
+        #
+        # What it buys is the SECOND fault: it is the line that keeps the sign
+        # honest if that ``lo`` is ever removed or relaxed, which is exactly
+        # how r1 accepted ``qty=-1`` through ``abs()``.
         delta = qty if delta > 0 else -qty
 
     # --- 3. the venue, TWICE, from two independent fields --------------------

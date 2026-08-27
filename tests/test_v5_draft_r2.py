@@ -95,6 +95,13 @@ def failed_order(**order_over):
     return set(run(order(**order_over))["failed"])
 
 
+def failed_order_ctx(order_over, **ctx_over):
+    """Refusing checks when BOTH the order and the context are
+    overridden — ``failed`` takes only the context and
+    ``failed_order`` only the order."""
+    return set(run(order(**order_over), **ctx_over)["failed"])
+
+
 def detail(out, name):
     rows = [c["detail"] for c in out["checks"] if c["check"] == name]
     assert len(rows) == 1, f"{name} appears {len(rows)} times"
@@ -1093,3 +1100,139 @@ class TestTheEPSILON_boundaries_the_Gauntlet_found_unprobed:
             book_qty_signed=qty, venue_qty_signed=qty, strategy_qty_signed=qty,
             gross_exposure_usd=qty * mark - 1.0,
             strategy_exposure_usd=qty * mark - 1.0)
+
+
+class TestTheMutationSurvivors:
+    """Each test here exists because a mutant lived. The mutant id is named so
+    the harness table and the suite can be read against each other."""
+
+    def test_M01_an_unreadable_ledger_says_SO_and_not_that_it_is_a_NoneType(self):
+        """MUTANT M01: delete the ``pending is None`` arm. The verdict does not
+        change — ``None`` then falls through to the type check and still
+        refuses — so every assertion on the BOOLEAN survived it. What changes
+        is the SENTENCE, from "the in-flight ledger could not be read" to "the
+        in-flight ledger is a NoneType, not a list of orders".
+
+        THOSE ARE DIFFERENT DEFECTS AND THE AUDIT READS THE SENTENCE. The first
+        is a query that failed and will succeed on retry; the second is a
+        gatherer with a type error in it. A survivor whose only casualty is a
+        reason is exactly the survivor this seat keeps finding."""
+        d = detail(run(pending_approved=None), "in_flight_ledger_readable")
+        assert V5.IN_FLIGHT_UNREADABLE in d
+        assert "NoneType" not in d
+        # ...and the type-error sentence is still reachable, on a real type
+        # error, or this test would pass on a module that had one sentence.
+        d2 = detail(run(pending_approved=7), "in_flight_ledger_readable")
+        assert "is a int, not a list of orders" in d2
+        assert V5.IN_FLIGHT_UNREADABLE not in d2
+
+    @pytest.mark.parametrize("side", ["", None, "  ", "sel", "buys", 1, True])
+    def test_M07_a_row_with_no_readable_SIDE_makes_the_fold_unreadable(self, side):
+        """MUTANT M07: admit ``""`` to the side test. A sideless in-flight
+        order then falls to the ``else`` and is folded as a SELL — which is the
+        direction that feeds the reduce-only bound. The parametrised bad-row
+        table used ``"short"`` and never the empty string, so the mutant lived.
+
+        ``"sel"`` and ``"buys"`` are in the table because a truncated or
+        extended word must not match; ``1`` and ``True`` because a numeric side
+        must not be str()-ed into one."""
+        row = pending(qty=1.0)
+        row["side"] = side
+        out = run(pending_approved=[row])
+        assert "in_flight_ledger_readable" in out["failed"]
+        assert "neither buy nor sell" in detail(out, "in_flight_ledger_readable")
+
+    @pytest.mark.parametrize("side,sign", [("BUY ", 1), (" sell", -1),
+                                            ("Buy", 1), ("SELL", -1)])
+    def test_M07_the_side_IS_normalised_and_that_is_deliberate(self, side, sign):
+        """THE POSITIVE CONTROL, and it is the arm that keeps the test above
+        honest. The side is read after ``.strip().lower()``, so case and
+        whitespace are accepted — a refusal test that also refused these would
+        have been asserting a bug.
+
+        (This test's first draft put ``"BUY "`` in the refusal table above and
+        explained in its own docstring why it should be accepted. The
+        contradiction was caught by running it.)"""
+        row = pending(qty=1.0)
+        row["side"] = side
+        f = V5.in_flight([row], "HYG", SID)
+        assert f["readable"] is True
+        got = f["symbol_buy_qty"] if sign > 0 else f["symbol_sell_qty"]
+        assert got == sign * 1.0
+
+    def test_M21_an_EPSILON_sized_short_is_float_noise_and_not_a_short(self):
+        """MUTANT M21: ``>=`` becomes ``>`` on the reduce-only bound. Flattening
+        to exactly 0.0 passes under BOTH, so the test written for that case
+        could never kill it — the two forms differ only AT ``-POSITION_EPS``.
+
+        The decision being pinned: a residual of one part in a billion of a
+        share is the fund's shared idea of zero (``POSITION_EPS``, the same
+        constant ``within()`` adds to every ceiling), not a short position. A
+        bound that refused it would refuse a clean exit whose arithmetic landed
+        one ulp low."""
+        assert "post_fill_position_not_short" not in failed_order(
+            side="sell", qty=V5.POSITION_EPS)
+        # ...and one that is genuinely short, by ten epsilons, is refused.
+        out = run(order(side="sell", qty=V5.POSITION_EPS * 10))
+        assert "post_fill_position_not_short" in out["failed"]
+
+    def test_M21_the_ordinary_flat_exit_is_still_allowed(self):
+        """The positive control the survivor exposed as insufficient: this is
+        the assertion that could not tell the two forms apart, kept because it
+        is still the behaviour that matters most."""
+        assert "post_fill_position_not_short" not in failed_order_ctx(
+            dict(side="sell", qty=4.0),
+            book_qty_signed=4.0, venue_qty_signed=4.0, strategy_qty_signed=4.0,
+            strategy_exposure_usd=320.0, gross_exposure_usd=320.0)
+
+
+class TestTheRetiredMutants:
+    """THREE MUTANTS ARE PROVABLY EQUIVALENT ON THE CURRENT CODE and are
+    retired with the proof rather than counted as gaps. Each is kept in the
+    source anyway, because each would absorb a SECOND fault — and a test that
+    records why is what stops the next reader from "simplifying" it back.
+    """
+
+    def test_M11_a_row_can_never_have_an_empty_symbol_so_the_guard_is_spare(self):
+        """``if r_sym == want_sym and want_sym:`` vs ``if r_sym == want_sym:``.
+        The two differ ONLY when both are the empty string — and ``in_flight``
+        refuses any row whose symbol is empty three lines earlier, so ``r_sym``
+        is never empty inside that comparison. Equivalent today; the guard is
+        the thing that stays correct if the row check is ever relaxed."""
+        row = pending(qty=1.0)
+        row["symbol"] = ""
+        assert "in_flight_ledger_readable" in set(
+            run(pending_approved=[row])["failed"])
+        # An ORDER with no symbol still folds every row into OTHER-symbol
+        # gross, which is the conservative side.
+        f = V5.in_flight([pending(qty=1.0)], "", SID)
+        assert f["symbol_buy_qty"] == 0.0
+        assert f["other_gross_usd"] == MARK
+
+    def test_M34_the_quantity_re_derivation_is_redundant_BY_CONSTRUCTION(self):
+        """``delta = qty if delta > 0 else -qty`` vs leaving ``order_delta``'s
+        answer alone. ``order_delta`` returns ``±abs(_as_float(qty))`` and the
+        re-derivation uses ``±qty`` where ``qty = _number(raw, lo=POSITION_EPS)``
+        — strictly positive, so ``abs(qty) == qty`` and the two agree on every
+        input that reaches the line. Equivalent today. It is what keeps the
+        sign honest if that ``lo`` is ever removed."""
+        for raw in (1.0, 0.5, 12.3456):
+            assert V5.order_delta({"side": "buy", "qty": raw}) == raw
+            assert V5.order_delta({"side": "sell", "qty": raw}) == -raw
+        # The values where they WOULD differ are all stopped before the line.
+        for bad in (-1.0, 0.0, True, "x", None):
+            assert V5._number(bad, lo=V5.POSITION_EPS) is None
+
+    def test_M42_every_recorded_ok_is_already_a_strict_bool(self):
+        """``all(c["ok"] is True ...)`` vs ``all(c["ok"] is not False ...)``.
+        ``check()`` coerces with ``ok is True`` in exactly one place, so the
+        recorded value is only ever ``True`` or ``False`` and the two
+        quantifiers agree over that domain. Equivalent today; ``is True`` is
+        the form that stays safe if the coercion is ever moved."""
+        seen = set()
+        for c in (run()["checks"] + run(nav_usd=None)["checks"]
+                  + V5.evaluate(None, halted=True, heartbeats=None,
+                                signal_age_minutes=None)["checks"]):
+            seen.add(type(c["ok"]))
+            assert c["ok"] is True or c["ok"] is False
+        assert seen == {bool}
