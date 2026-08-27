@@ -9,9 +9,10 @@ archive exists to prevent.
 
 import os
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 import pytest
+from _testdb import scratch_database
 
 #: Bars archived NOW are only visible to an as-of on or after today. That is
 #: the archive being honest rather than convenient: it cannot tell you what you
@@ -22,7 +23,7 @@ TODAY = datetime.now(timezone.utc).date().isoformat()
 pytestmark = pytest.mark.skipif(
     os.getenv("SKIP_PG_TESTS") == "1", reason="Postgres tests disabled")
 
-TEST_DB = "krypton_fund_test"
+TEST_DB = scratch_database("krypton_fund_test")
 
 
 def _store():

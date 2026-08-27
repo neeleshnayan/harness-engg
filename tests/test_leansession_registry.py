@@ -17,6 +17,7 @@ import uuid
 import pytest
 
 from app.fund import leansessions as LS
+from _testdb import scratch_database
 
 # IMPORTED AT MODULE SCOPE UNDER AN EXPLICIT ENV GUARD, and both halves are
 # load-bearing.
@@ -48,7 +49,7 @@ finally:
 pytestmark = pytest.mark.skipif(
     os.getenv("SKIP_PG_TESTS") == "1", reason="Postgres tests disabled")
 
-TEST_DB = "krypton_fund_test"
+TEST_DB = scratch_database("krypton_fund_test")
 
 
 def _test_dsn() -> str:

@@ -34,6 +34,7 @@ What each test pins is a way the ingestion could quietly lie:
 import os
 
 import pytest
+from _testdb import scratch_database
 
 pytestmark = pytest.mark.skipif(
     os.getenv("SKIP_PG_TESTS") == "1", reason="Postgres tests disabled")
@@ -41,7 +42,7 @@ pytestmark = pytest.mark.skipif(
 #: THIS MODULE'S OWN SCRATCH DATABASE. See the module docstring for the
 #: measured reason; the short version is that this module reads the WHOLE of
 #: fund_candidates and two other modules own rows in it.
-TEST_DB = "krypton_fund_kgtest"
+TEST_DB = scratch_database("krypton_fund_kgtest")
 
 #: The fixture's own dates. The fence's real cohort is 2026-08-20/21; the
 #: fixture puts exactly ONE candidate on 2026-08-20, so a run with
@@ -57,7 +58,21 @@ def _dsn() -> str:
     return f"{head}/{TEST_DB}"
 
 
-def _connect():
+def _ensure_database() -> None:
+    """Create this module's scratch DATABASE if it is not there yet.
+
+    SPLIT OUT OF ``_connect``, and the reason is the same one the comment in
+    ``_fixture`` already records one level down: that comment says the schema
+    step "passed only because the tables happened to survive from an earlier
+    run", and the DATABASE was surviving the same way. ``_fixture`` calls
+    ``_graph().ensure_schema()`` BEFORE it ever calls ``_connect``, so on a
+    genuinely fresh name every test in this module died with *database
+    "krypton_fund_kgtest..." does not exist*.
+
+    Latent until the scratch names were namespaced per worktree (2026-08-27),
+    because until then the database had been created by hand on this host
+    months ago. Nothing about the defect was new; only the first fresh run was.
+    """
     pytest.importorskip("psycopg")
     import psycopg
     from app.fund.pgstore import dsn
@@ -70,6 +85,11 @@ def _connect():
             cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (TEST_DB,))
             if not cur.fetchone():
                 cur.execute(f'CREATE DATABASE "{TEST_DB}"')
+
+
+def _connect():
+    import psycopg
+    _ensure_database()
     return psycopg.connect(_dsn())
 
 
@@ -88,10 +108,14 @@ def _source_schema(cur, with_jobs=True, with_runs=True) -> None:
 def _fixture(with_jobs=True, with_runs=True):
     """Six candidates covering every interpretation branch, and their jobs."""
     import json
+    # THE DATABASE FIRST, THEN THE SCHEMA. `ensure_schema` connects to this
+    # module's own database, which does not exist until something creates it —
+    # and the only thing that ever did was `_connect`, three calls later.
+    _ensure_database()
     # EXPLICIT since the reader/writer split: constructing a graph no longer
     # issues DDL, so the fixture has to ask. Without this the TRUNCATE below
-    # fails on a first run against a fresh krypton_fund_kgtest — and it passed
-    # only because the tables happened to survive from an earlier run.
+    # fails on a first run against a fresh database — and it passed only
+    # because the tables happened to survive from an earlier run.
     _graph().ensure_schema()
     conn = _connect()
     with conn:

@@ -14,15 +14,15 @@ the whole of ``fund_execution_quotes`` in almost every assertion.
 
 from __future__ import annotations
 
-import os
 
 import pytest
 
 from app.fund import executionquality as eq
+from _testdb import scratch_database
 
 #: Its own database. Created on demand and never shared - see the module
 #: docstring for the race this avoids.
-EQ_TEST_DB = "krypton_fund_eqtest"
+EQ_TEST_DB = scratch_database("krypton_fund_eqtest")
 
 
 def _dsn() -> str:
@@ -150,13 +150,16 @@ def test_reading_a_store_with_no_table_raises_rather_than_returning_empty():
     """
     dsn = _postgres_or_skip()
     import psycopg
-    scratch = dsn.rsplit("/", 1)[0] + "/krypton_fund_eqtest_absent"
+    # This module uses a SECOND database — one whose schema is deliberately
+    # absent — and it too is per-worktree. A shared name here would let one
+    # crew's DROP TABLE decide another crew's SchemaAbsent assertions.
+    absent_db = scratch_database("krypton_fund_eqtest_absent")
+    scratch = dsn.rsplit("/", 1)[0] + "/" + absent_db
     with psycopg.connect(dsn.rsplit("/", 1)[0] + "/postgres",
                          autocommit=True) as conn, conn.cursor() as cur:
-        cur.execute("SELECT 1 FROM pg_database WHERE datname = %s",
-                    ("krypton_fund_eqtest_absent",))
+        cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (absent_db,))
         if cur.fetchone() is None:
-            cur.execute('CREATE DATABASE "krypton_fund_eqtest_absent"')
+            cur.execute(f'CREATE DATABASE "{absent_db}"')
     with psycopg.connect(scratch) as conn, conn.cursor() as cur:
         cur.execute("DROP TABLE IF EXISTS fund_execution_quotes")
         conn.commit()

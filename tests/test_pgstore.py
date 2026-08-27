@@ -17,6 +17,7 @@ import pytest
 
 from app.fund.chain import GENESIS_HASH, event_hash, verify
 from app.fund.events import Event, EventType
+from _testdb import scratch_database
 
 pytestmark = pytest.mark.skipif(
     os.getenv("SKIP_PG_TESTS") == "1", reason="Postgres tests disabled")
@@ -27,7 +28,7 @@ pytestmark = pytest.mark.skipif(
 #: since one test deliberately inserts a sealed event with a bogus hash, it
 #: broke the fund's chain verification. A test that can corrupt the ledger it
 #: is testing is not a test.
-TEST_DB = "krypton_fund_test"
+TEST_DB = scratch_database("krypton_fund_test")
 
 
 def _test_dsn() -> str:

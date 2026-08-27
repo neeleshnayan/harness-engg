@@ -25,6 +25,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.fund import ticketstaging
+from _testdb import scratch_database
 
 
 BINDS = """## BINDS
@@ -495,7 +496,7 @@ class TestTheBindsEndpoint:
 
 pgmark = pytest.mark.skipif(os.getenv("SKIP_PG_TESTS") == "1",
                             reason="Postgres tests disabled")
-TEST_DB = "krypton_fund_ticketstagingtest"
+TEST_DB = scratch_database("krypton_fund_ticketstagingtest")
 
 
 @pytest.fixture()

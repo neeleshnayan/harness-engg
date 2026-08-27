@@ -5,14 +5,14 @@ exist because ignoring either produces a screen full of names we cannot hold.
 """
 
 import os
-import uuid
 
 import pytest
+from _testdb import scratch_database
 
 pytestmark = pytest.mark.skipif(
     os.getenv("SKIP_PG_TESTS") == "1", reason="Postgres tests disabled")
 
-TEST_DB = "krypton_fund_test"
+TEST_DB = scratch_database("krypton_fund_test")
 
 
 def _test_dsn() -> str:
