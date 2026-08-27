@@ -1162,6 +1162,14 @@ def _nav_strike_history_or_none() -> list[dict[str, Any]] | None:
 #: rather than one per poll, and the payload publishes what it cost so the day
 #: the headroom disappears is visible on the very payload the watchdog reads.
 #:
+#: WHAT THE CACHE DOES NOT FIX, said plainly rather than left to be discovered:
+#: the FIRST call in a process still pays the full fold, and that call is the
+#: watchdog's own poll immediately after a restart — its most fragile moment.
+#: Today that is 1.3s against an 8s timeout; the cost grows with the event log,
+#: and `EventStore.stream`'s oldest-first `[:limit]` is the systemic version of
+#: the same problem. Closing it properly needs a time-bounded strike query, not
+#: a longer TTL.
+#:
 #: The verdict describes a series that changes at most once an hour
 #: (STRIKE_INTERVAL_SECONDS), so serving one up to five minutes old costs
 #: nothing real — and `computed_at`/`age_seconds` ride the payload, because a
@@ -4856,14 +4864,29 @@ def scheduled_job_liveness():
     about it. Only the absence of the strikes themselves is durable, and
     ``navgap`` reads that.
 
-    ``warnings`` is a MEASURED list: empty means this looked and found nothing.
-    An unreadable NAV record produces a warning saying so, never an empty list.
+    ``warnings`` is a MEASURED list covering EVERYTHING on this payload — the
+    NAV record AND the overdue or unobserved jobs. A top-level key called
+    "warnings" that quietly ignored ``stale`` would be a half-truth in exactly
+    the shape this route exists to remove; empty means this looked at both and
+    found nothing, and an unreadable NAV record produces a warning saying so.
     """
     from app.fund import heartbeat
     report = heartbeat.report()
     record = _nav_completeness()
     report["nav_record"] = record
-    report["warnings"] = list(record.get("warnings") or [])
+    warnings = list(record.get("warnings") or [])
+    # Derived from the report, never refolded — one source, two renderings.
+    for job in report.get("stale") or []:
+        warnings.append({
+            "level": "warn", "key": "job_overdue",
+            "message": f"scheduled job {job!r} is past its staleness budget; "
+                       f"whatever it enforces is currently unenforced"})
+    for job in report.get("unobserved") or []:
+        warnings.append({
+            "level": "warn", "key": "job_unobserved",
+            "message": f"scheduled job {job!r} has never run in this process — "
+                       f"unknown, which is neither broken nor fine"})
+    report["warnings"] = warnings
     return report
 
 

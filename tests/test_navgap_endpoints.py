@@ -80,7 +80,12 @@ def test_liveness_survives_an_exploding_fold(monkeypatch):
     body = r.json()
     assert body["nav_record"]["state"] == navgap.STATE_UNREADABLE
     assert body["nav_record"]["readable"] is False
-    assert [w["key"] for w in body["warnings"]] == ["nav_record_unreadable"]
+    # Filtered to the record's own warnings: in a fresh process no heartbeat
+    # has beaten yet, so the merged list legitimately also carries one
+    # job_unobserved row per scheduled job.
+    assert [w["key"] for w in body["nav_record"]["warnings"]] == [
+        "nav_record_unreadable"]
+    assert "nav_record_unreadable" in [w["key"] for w in body["warnings"]]
 
 
 def test_the_completeness_fold_is_total(monkeypatch):
@@ -220,7 +225,8 @@ def test_liveness_survives_a_reader_that_ALWAYS_explodes(monkeypatch):
     assert body["nav_record"]["hole_count"] is None
     assert body["nav_record"]["scan_limit_bound"] is None
     assert "ZeroDivisionError" in body["nav_record"]["reason"]
-    assert [w["key"] for w in body["warnings"]] == ["nav_record_unreadable"]
+    assert [w["key"] for w in body["nav_record"]["warnings"]] == [
+        "nav_record_unreadable"]
 
 
 # --- the warnings -----------------------------------------------------------
@@ -230,10 +236,45 @@ def test_a_healthy_record_produces_an_empty_measured_warning_list(monkeypatch):
     never mistake "no warnings" for "this payload has no warnings field"."""
     # A single strike seconds ago. There is no LEADING gap by design — the
     # fund's own beginning is not a hole — so this really is a clean record.
+    from app.fund import heartbeat
+    monkeypatch.setattr(heartbeat, "report", lambda: {
+        "jobs": [], "stale": [], "unobserved": [], "note": "all fine"})
     client = _client(monkeypatch, FakeNav([{"ts": _recent(0.01)}]))
     body = client.get("/api/v1/fund/liveness").json()
     assert "warnings" in body
     assert body["warnings"] == []
+
+
+def test_the_warnings_list_covers_the_JOBS_as_well_as_the_record(monkeypatch):
+    """A top-level key called "warnings" that ignored the payload's own
+    ``stale`` list would be a half-truth in exactly the shape this route exists
+    to remove. Read-through catch, not a suite catch.
+    """
+    from app.fund import heartbeat
+    monkeypatch.setattr(heartbeat, "report", lambda: {
+        "jobs": [], "stale": ["exit_check"], "unobserved": ["snapshot"],
+        "note": "x"})
+    client = _client(monkeypatch, FakeNav(OUTAGE))
+    keys = [w["key"] for w in client.get("/api/v1/fund/liveness").json()["warnings"]]
+    assert "nav_record_holes" in keys
+    assert "job_overdue" in keys
+    assert "job_unobserved" in keys
+
+
+def test_the_heartbeat_report_does_not_already_own_the_warnings_key(monkeypatch):
+    """If it ever does, this route silently replaces it. Pinned rather than
+    assumed — the collision would be invisible in both files."""
+    from app.fund import heartbeat
+    assert "warnings" not in heartbeat.report()
+
+
+def test_a_healthy_payload_has_no_job_warnings(monkeypatch):
+    """The null arm: an empty warnings list means BOTH halves were looked at."""
+    from app.fund import heartbeat
+    monkeypatch.setattr(heartbeat, "report", lambda: {
+        "jobs": [], "stale": [], "unobserved": [], "note": "all fine"})
+    client = _client(monkeypatch, FakeNav([{"ts": _recent(0.01)}]))
+    assert client.get("/api/v1/fund/liveness").json()["warnings"] == []
 
 
 def test_the_heartbeat_rows_are_untouched(monkeypatch):
