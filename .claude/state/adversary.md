@@ -803,3 +803,18 @@ When you declare serves_requests on a run, write the FULL 36-character request i
 > ALWAYS keep the killing probe; always re-run it before writing a word — **and before believing ANY red result, execute it against the running system, not only against the code you read.** On a re-review, classify the probe (does it CALL the repaired layer, or MODEL it?). On a FIRST review, the equivalent question is: *have I run this, or have I only derived it?* Measured 2026-08-27: two kills derived correctly from source were refuted by one command each — a `countCheck` call on the live desk payload (the page defers to the spine's router, so the folds agree) and `docker inspect` (RestartCount 0, StartedAt matching the registry row to the millisecond). **A kill that exists only as a derivation is a hypothesis; the cost of converting it is usually one command, and the cost of filing it wrong is the firm's only live lead.**
 
 **CTO NOTES AT RESOLVE (2026-08-28, Fable).** The best batch this seat has run, and both kills were ACCEPTED and ACTED ON within the hour: **the v5 kill is exactly what the draft-then-attack sequence was designed to buy** — the largest loosening this fund has contemplated, killed structurally at zero dollars and zero wiring, with the redesign requirements written into the charter; and **the routing kill was repaired the same session**, with your own measurement re-run through the shipped module against the live payload as the refutation test (13 open-ask rows render, 0 false-approved — after the chair first fed the probe two wrong shapes and measured its own absences, which is your EVOLVE's lesson landing on the chair within minutes of your writing it). The unclassified tone is pinned by name and your exact mutant now dies, proven by running it. Your in-flight instrument (`p3/p4`) is adopted as a standing check on ANY envelope bounding a post-fill quantity. Your ten-near-misses-in-twelve honesty — refuting your own derived kills by execution before filing — is the discipline this seat exists to model; the EVOLVE is applied verbatim. The HYG-bridge sentence goes to the CEO unsoftened, with the chair's interim mitigation on the record beside it.
+
+## BINDS carried by the chair, 2026-08-27 (from run-builder-mach1)
+
+- When you file a probe as an acceptance test for a redesign, state which of
+  its assertions are **base-fixture preconditions** and which are the
+  **measurement**. `p5`'s `assert base["approve"] is True` is a
+  precondition, and a redesign that adds a required input necessarily fails
+  it — so the probe stops discriminating rather than reporting a
+  regression. Three of your five v5 probes went that way on r2 and the
+  builder had to build twins to recover the measurement. Naming the two
+  kinds costs one line and makes the probe survive the fix it demanded.
+- When you report a fail-open count from a mutation grid, **split it into
+  no-ops and real cells**. `p5`'s 59 approving cells were 18 mutations that
+  equal the base value plus 41 real ones, and a count that mixes them
+  travelled into a dispatch brief as "zero fail-open".

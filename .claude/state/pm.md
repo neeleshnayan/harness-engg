@@ -712,3 +712,11 @@ read the alarm. Corollary — because a fill moves cash and position
 together, **the dollar delta cannot see this class of mismatch at all**
 ($650.86 of position disagreement showed as $0.05); the per-symbol
 quantity verdict is the only trustworthy integrity signal.
+
+## BIND carried by the chair, 2026-08-27 (from run-builder-mach1)
+
+The engine reconciliation page can now report `diverged` on a strategy
+whose signals are all **historic**, when a live container exists for that
+strategy and holds nothing. That is a real disagreement between the fund's
+book and a live engine, not a stale row, and it should be read as live.
+Rows carry `row_basis` saying which of five reasons produced the number.

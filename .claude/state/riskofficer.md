@@ -564,3 +564,14 @@ There is now a THIRD producer of `ApprovalRefused` - the ticket decision guard, 
 ## BINDS carried by the CTO chair 2026-08-28 (from run-adversary-night2; none struck; the routing and tone repairs were executed at resolve)
 
 - **from adversary, run-adversary-night2** - Two things for your v5 review and your bridge audit: (a) `_guard_approval` (fund.py:5299-5330) reads only allowlist + order_id[:8] echo + non-empty instruction - never strategy, symbol or notional - so the HYG standing citation approves ANY order for ANY strategy and only your after-the-fact audit binds it; re-dispatch the adversary on the FIRST HYG approval (the audit is one query). (b) v5's proposed digest groups declines by FIRST failing check in CODE order, not causality - with the arming flag off every decline files under engine_entries_armed and hides the other twenty-two. **Ask for the full failed-check SET per decline.**
+
+## BIND carried by the chair, 2026-08-27 (from run-builder-mach1)
+
+The v5 draft's evaluation payload now carries `evaluate_completed`, and a
+`false` there means the envelope **raised** rather than refused on a check.
+Treat it as a distinct audit class: it is a defect in the gatherer or the
+evaluator, never a property of the order. Also: `context_values_in_range`
+names every offending field by name — that is the sentence that gets a
+gatherer defect fixed; a bare "could not be computed" elsewhere is the same
+fault seen from the wrong end. (Draft remains UNWIRED; this binds when v5
+enters the approval chain.)

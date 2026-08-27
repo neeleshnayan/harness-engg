@@ -371,6 +371,32 @@ but what will be impressive is if can spot what others dont and quickly turn it 
   hook cannot map their subagent types to a parent seat; design the convention honestly or
   render worker counts at return, never fake live.
 
+### BUILT (mach1 merged, ~07:35Z)
+
+- **THE V5 REDESIGN LANDED AND MERGED** (69681ec0; merged-tree suite **6092 passed / 0
+  failed**; autopolicy.py blob-identical da17f759, AUTOPOLICY_VERSION still v4, draft
+  UNWIRED with zero importers — verified by the chair, not taken from the report). Both
+  adversary kills closed with the incident's own numbers as regressions: the stacking case
+  now refuses at order 2 (29.8% vs the 20% ceiling; was 5 approvals to 74.5%), the naked
+  short refuses by name; p5's raise column 17→0, real fail-opens 41→0. Five UNFILED defects
+  also closed (negative signal age, notional_usd as a redundant input, phantom oldest-order
+  sentence, dead conjunct, unbounded repr into the event log). Mutation 67/70, three
+  survivors retired with proof. Memo: docs/design/AUTOPOLICY_V5_2026-08-27.md §9.
+- **Periodic session reconcile live in code** (5-min tick, mid-flight guards written before
+  the tick) and **the fence's sixth basis closed** (row_fence, five outcomes, one fences).
+  Both take effect at the next spine cycle — HELD until ops1 lands so one restart covers
+  both merges.
+- **For Neelesh's desk**: two new PROPOSED thresholds in the unwired draft
+  (MAX_PENDING_AGE_MINUTES=30; MAX_PLAUSIBLE_NAV_USD=1e12, explicitly an invented
+  corruption bound) — his to set at v5's own approval chain. And the builder's blocker
+  finding: **nothing computes pending_approved today** — the in-flight fold must be built
+  before the arming flag is ever set.
+- Next on v5: adversary BLIND re-review of r2 (the kill was answered; the answer has not
+  been attacked) — queued for the next adversary batch. Brief-premise correction recorded:
+  the "zero fail-open" figure in my own dispatch brief was wrong (41 real fail-opens) —
+  sixth consecutive dispatch catching a brief fact; the context engine's auto-curl is the
+  structural answer.
+
 ### MEASURED (p2bound resolved, ~06:50Z)
 
 - **P2's bound: the accepted method was unbuildable, and the validator proved it.**

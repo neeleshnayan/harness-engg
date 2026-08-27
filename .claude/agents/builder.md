@@ -578,3 +578,39 @@ The rules that matter:
 
 This does not replace `## STATE` / `## BINDS` / `## EVOLVE` — it rides after
 them. BINDS carry lessons to seats; TICKETS move work through states.
+
+## EVOLVE applied 2026-08-27 (run-builder-mach1, chair-reviewed and accepted)
+
+**A PERIODIC CONTROL IS NOT A START-UP CONTROL RUN MORE OFTEN — enumerate
+what can be MID-FLIGHT before you put anything on a timer.** Before making
+any one-shot control periodic, list the operations that can be
+half-finished when it fires and could not be half-finished at start-up, and
+write the guard for each *before* the tick. *Measured basis: MACH1 — making
+session reconciliation periodic created two defects that could not exist at
+start-up: it clobbered the session dict `_run_live` binds once and mutates
+for the session's life (so the process reported `running` forever after the
+engine exited), and it could retire a session inside `start_live`'s
+row-written-before-`docker run` window. Neither was reachable by the
+start-up caller; both were found by the late read-through, not by 6,091
+green tests.*
+
+**VERIFY A HARNESS RESTORE BY `git hash-object`, NOT BY `sha256` — AND DO
+NOT MAKE THE IO BYTE-TRANSPARENT TO "FIX" IT.** Amends the ENG1/D41 restore
+rules with the correction that cost two runs. Text mode normalises newlines
+in both directions, which is exactly what lets a multi-line anchor match a
+CRLF working tree; it also rewrites an LF file as CRLF, which changes the
+byte hash and not the content. Keep text-mode IO and change the *identity*
+to the one the repository uses. *Measured basis: MACH1 — a restore mismatch
+on a file whose blob was identical three ways and whose `git diff` was
+empty; the byte-transparent "fix" then silently turned every multi-line
+anchor into an ANCHOR miss, converting real mutants into no-results.*
+
+**A MUTANT THAT CHANGES ONLY THE REASON IS A REAL GAP, NOT AN EQUIVALENT.**
+Extends the three-outcome rule. When a mutant leaves the verdict identical
+and changes only the sentence, do not retire it — the audit reads the
+sentence, and two different causes printing one sentence is the
+absence-collapse this firm keeps paying for. *Measured basis: MACH1 M01 —
+deleting the `pending is None` arm still refused, via the type check, and
+changed "the ledger could not be read" into "the ledger is a NoneType". A
+failed query and a gatherer with a type error are different defects with
+different fixes; every assertion was on the boolean.*

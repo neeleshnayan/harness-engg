@@ -939,3 +939,10 @@ A probe that reports a ZERO must report the SIZE OF WHAT IT COMPARED, and a prob
 ## BINDS carried by the CTO chair 2026-08-28 (from run-adversary-night2; none struck; the routing and tone repairs were executed at resolve)
 
 - **from adversary, run-adversary-night2** - **The fund's exit machinery can only SELL** (exitrule.py:326 is the module's sole Side. reference; enforce raises qty=abs(qty)). Any algorithm that can go net short has NO WORKING EXIT - the committed rule deepens the position. State on every implementation whether the strategy can cross zero; if it can, name the cover path, because the fund does not have one.
+
+## BIND carried by the chair, 2026-08-27 (from run-builder-mach1)
+
+`throttle.target_gross`'s `gross_multiplier` is `1.0 - reduction` and can
+**never exceed 1.0**. If anything you write treats it as a free multiplier
+that could scale gross *up*, it is reading a reduction-only control as a
+two-way one.
