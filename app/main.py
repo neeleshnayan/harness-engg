@@ -432,6 +432,15 @@ async def _scheduler():
         # ``reconcile_every and`` below is kept as well, because the setting is
         # supported and a reader should not have to open another module to see
         # that zero means off.
+        #
+        # DELIBERATELY NOT RESUMED FROM A RECORD the way the strike clock is,
+        # and the asymmetry is the point rather than an oversight: this
+        # accumulator freezes while the lease is elsewhere, so a handoff can
+        # make the next pass late by up to one reconcile interval. That is five
+        # minutes of delayed orphan detection against the strike clock's ONE
+        # HOUR of missing permanent record, and this tick writes nothing that
+        # persists. If it ever earns a resume, ``_lr.last_reconciliation()`` is
+        # the hook.
         since_reconcile, reconcile_due = schedule.advance(
             since_reconcile, elapsed, reconcile_every)
         if reconcile_every and reconcile_due:
