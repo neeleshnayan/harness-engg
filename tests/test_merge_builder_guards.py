@@ -269,6 +269,35 @@ def test_a_file_the_gate_could_not_read_is_reported_not_skipped():
     assert got["unreadable"] and "not examined" in got["unreadable"][0]["reason"]
 
 
+def test_an_APP_file_that_does_not_parse_is_reported_UNKNOWN_by_the_scan():
+    """Found by mutation (M45). The parse failure was tested on the predicate
+    function and never through the scan, so deleting the scan's own report of
+    it survived — and this gate's rule is that anything unknown is a FAIL, not
+    a quiet skip."""
+    got = scan_control_flow({"app/fund/broken.py": {3}}, lambda p: "def (:\n")
+    assert got["hits"] == []
+    assert got["unreadable"] and "UNKNOWN" in got["unreadable"][0]["reason"]
+
+
+def test_a_tool_that_could_not_RUN_reports_unavailable_and_says_why(tmp_path,
+                                                                    monkeypatch):
+    """Found by mutation (M49). "ruff found nothing" and "ruff is not
+    installed" are the same empty list and opposite facts, and nothing tested
+    the second."""
+    import merge_builder as mb
+
+    (tmp_path / "app").mkdir()
+    (tmp_path / "app" / "x.py").write_text("import os\n", encoding="utf-8")
+    monkeypatch.setattr(mb, "_run",
+                        lambda *a, **k: (127, "command not found: ruff"))
+    got = mb.janitor_scan(tmp_path, ["app/x.py"])
+    assert got["tools"], "no tool was even attempted"
+    for tool in got["tools"]:
+        assert tool["available"] is False
+        assert tool["findings"] == []
+        assert "could not run" in (tool["note"] or "")
+
+
 def test_only_python_under_app_is_control_flow_scanned():
     """The scan reads Python syntax. Handing it a TypeScript file would
     produce an 'unparsed' blocker that means nothing."""

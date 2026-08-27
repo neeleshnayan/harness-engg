@@ -264,16 +264,37 @@ def test_the_exact_boundary_is_asymmetric_in_binary_floating_point():
     evaluates to 0.004999999999999893 and passes ``<= 0.005``, while
     ``1.0 - 0.995`` evaluates to 0.005000000000000004 and fails it. So the two
     boundary points land on opposite sides of the comparison for reasons that
-    have nothing to do with clocks, ``<=`` versus ``<`` AT EXACTLY the
-    tolerance is not observable through this function, and a mutation between
-    them is EQUIVALENT rather than a test gap. The cases either side (above)
-    are what actually pin the comparison.
+    have nothing to do with clocks.
+
+    AND THE EXACT BOUNDARY IS UNREACHABLE — PROVED, not assumed, because a
+    mutation from ``<=`` to ``<`` survives here and the honest question is
+    whether that is a test gap or an equivalence:
+
+      * ``f - 1.0`` is EXACT for every ``f`` in [0.5, 2), so ``abs(f - 1.0)``
+        is always an integer multiple of 2^-53. (Checked over 10,000 ULPs
+        around 1.005: zero inexact cases.)
+      * The double written ``0.005`` is exactly 5764607523034235 / 2^60.
+        Divided by 2^-53 that leaves 5764607523034235/128 — NOT an integer.
+      * Outside [0.5, 2) the difference exceeds 0.5 and cannot be 0.005.
+
+    So no clock pair can make ``abs(factor - 1.0)`` equal the tolerance, and
+    ``<=`` versus ``<`` at exactly that point is not observable through this
+    function. The mutation is EQUIVALENT and is retired with this proof rather
+    than counted as a surviving gap.
     """
+    from fractions import Fraction
+
     from app.fund.leanrunner import clocks_agree
     assert clocks_agree((1.0 + _TOL) ** 2, 1.0) is True
     assert clocks_agree((1.0 - _TOL) ** 2, 1.0) is False
     assert math.sqrt((1.0 + _TOL) ** 2) - 1.0 < _TOL
     assert 1.0 - math.sqrt((1.0 - _TOL) ** 2) > _TOL
+    # The proof itself, executable, so it fails if the tolerance ever moves to
+    # a value the comparison CAN land on exactly.
+    quotient = Fraction(_TOL) / Fraction(1, 2 ** 53)
+    assert quotient.denominator != 1, (
+        f"the tolerance {_TOL} is an exact multiple of 2^-53, so the boundary "
+        f"IS reachable and `<=` versus `<` needs a test rather than a proof")
 
 
 def test_the_predicate_the_boundary_table_probes_is_the_one_the_clock_uses():

@@ -495,6 +495,27 @@ def test_an_explicit_historical_window_is_not_a_mistake_and_is_not_refused(monke
     assert bars.freshness == "live"      # relative to the window that was asked for
 
 
+def test_a_window_whose_END_is_past_the_tape_is_SERVED_and_FLAGGED_not_refused(monkeypatch):
+    """The half the first pass did not test, found by mutation (M31).
+
+    A caller asking 2022-06-01..2026-01-01 gets bars that stop in 2023. That is
+    not a mistake to refuse — an explicit window is the caller asking for
+    history, and the ONE case the refusal exists for is a trailing window,
+    where "give me the last 30 days" means "give me now". So the bars come back
+    and the object says the tape stopped.
+
+    Deleting `and not (start and end)` from the refusal survived every other
+    test in this file, because they all asked for windows the tape covered.
+    """
+    _universe(monkeypatch, "TRX/USD")
+    monkeypatch.setattr(md, "_alpaca_crypto_rows",
+                        lambda *a, **k: [_Bar(d) for d in _days(93, "2023-04-19")])
+    bars = fetch_daily_bars("TRX/USD", start="2022-06-01", end="2026-01-01")
+    assert bars.source == "alpaca-crypto" and len(bars.closes) == 93
+    assert bars.freshness == "stale"
+    assert "2023-04-19" in bars.freshness_note
+
+
 def test_a_stale_verdict_from_the_venue_is_not_shopped_around_to_another_source(monkeypatch):
     """Finding a source willing to serve a dead tape is not a second opinion —
     it is a louder version of the same silence."""
