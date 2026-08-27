@@ -13,6 +13,13 @@ import {
 import { MemoThread } from "../MemoThread";
 import { SeatFace } from "../SeatFace";
 import { splitRecordRows } from "../recordRow";
+import { BriefingCard } from "../BriefingCard";
+import { OpenJobs } from "../OpenJobs";
+import { seatLamps } from "../seatActivity.ts";
+import {
+  EMPTY_LINGER, LINGER_LABEL, LINGER_MS, isLingering, trackDecisions,
+  type LingerState,
+} from "../justDecided.ts";
 import { readError, readState, recordCaption } from "../deskRead";
 import { LaneTrackRecord } from "../laneViews";
 import {
@@ -132,9 +139,43 @@ function Seat({ seat }: { seat: SeatId }) {
   /* THREE queues since D42, and the third is the CEO's *"like WTF"*: a row
      the spine routes to `nobody` is filed for the record, is `open` forever,
      and was being counted here as something this seat was asking of him. */
-  const seatRecs = (desk?.open_recommendations ?? []).filter((r) => r.seat === seat);
+  /* Memoised: `?? []` then `.filter` is a fresh array on every render, and the
+     linger effect below keys off it. Without this the effect sets state, the
+     state re-renders, the render rebuilds the array, and the effect fires
+     again — for ever. */
+  const seatRecs = useMemo(
+    () => (desk?.open_recommendations ?? []).filter((r) => r.seat === seat),
+    [desk, seat]);
   const { awaiting: openRecs, record: recordRecs, decided: decidedRecs } =
     splitRecordRows(seatRecs);
+
+  /* APPROVED -> MOVING TO EXECUTION (CEO, 2026-08-27). The COUNT above already
+     excludes a decided row and always did; what he could not see was the
+     MOMENT. A row this session watched leave `open` lingers for thirty seconds
+     wearing the tag, then goes. Keyed on the observed change and never on the
+     status, or every reload would resurrect every approval he ever made. */
+  const [linger, setLinger] = useState<LingerState>(EMPTY_LINGER);
+  const [, forceTick] = useState(0);
+  /* The effect keys on a STRING of ids and statuses, not on the row array.
+     A memoised array still changes identity whenever the desk refetches — every
+     15 seconds — and re-running the fold then would be harmless but pointless;
+     keying on the content means the fold runs when something actually moved. */
+  const statusKey = useMemo(
+    () => seatRecs.map((r) => `${r.run_id}-${r.rec_id}:${r.status}`).join("|"),
+    [seatRecs]);
+  useEffect(() => {
+    setLinger((prev) => trackDecisions(prev, seatRecs.map((r) => ({
+      id: `${r.run_id}-${r.rec_id}`, status: r.status,
+    })), Date.now()));
+    // The tag has to disappear without a refetch, so one timer sweeps the
+    // component after the linger window rather than one timer per row.
+    const t = setTimeout(() => forceTick((n) => n + 1), LINGER_MS + 250);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusKey]);
+  const now = Date.now();
+  const justDecided = decidedRecs.filter(
+    (r) => isLingering(linger, `${r.run_id}-${r.rec_id}`, now));
   const observedModels = Array.from(
     new Set(seatRuns.map((r) => r.model).filter((m): m is string => !!m)),
   );
@@ -151,6 +192,17 @@ function Seat({ seat }: { seat: SeatId }) {
     () => productionShelf(seatRuns, desk?.artifacts ?? []),
     [seatRuns, desk],
   );
+  /* THE LATEST DELIVERY, by resolved_at. `undefined` when the recorder has not
+     answered OR holds nothing for this seat — the section is then not drawn at
+     all, and the "never dispatched" block above says why. An empty briefing
+     card would be a delivery that did not happen. */
+  const latestRun = useMemo(() => [...seatRuns]
+    .sort((a, b) => (b.resolved_at ?? "").localeCompare(a.resolved_at ?? ""))[0],
+    [seatRuns]);
+  /* EVERY OPEN JOB, not the newest (the CEO on the floor, 2026-08-27: "1
+     builder working but 2 in reality"). */
+  const lamps = useMemo(() => seatLamps(seat, roster?.activity ?? null),
+    [seat, roster]);
 
   return (
     <div className="min-h-screen bg-[var(--kt-bg)] text-[var(--kt-text)]">
@@ -203,6 +255,7 @@ function Seat({ seat }: { seat: SeatId }) {
                     the same thing is a second thing to drift. It lives only in
                     the face's tooltip, where nothing else is competing. */}
                 <LastDelivered roster={roster} />
+                <OpenJobs lamps={lamps} />
               </div>
             </div>
           </div>
@@ -314,12 +367,43 @@ function Seat({ seat }: { seat: SeatId }) {
           </section>
         ) : null}
 
+        {/* -------------------------------------------- 0. THE LATEST DELIVERY
+            THE BRIEFING CONTRACT (CEO-approved canvas, 2026-08-27): headline ->
+            stat chips -> recommendation rows with who-moves-next -> the fold.
+            It goes FIRST because the page's question is "what did this seat
+            just tell me", and the old page answered it with a metrics strip
+            and made the reader scroll past the machinery to the output. */}
+        {latestRun && (
+          <section className="mb-8">
+            <SectionHead
+              title="The latest delivery"
+              lede="What this seat came back with, what it costs, and what it is asking for."
+            />
+            <BriefingCard run={latestRun} requests={desk?.requests ?? null} />
+          </section>
+        )}
+
         {/* ------------------------------------------------- 1. the seat asks -- */}
         <section className="mb-8">
           <SectionHead
             title={`What this seat is asking of you${desk ? ` (${openRecs.length})` : ""}`}
             lede="Its UNDECIDED recommendations, decidable here. Accepting records the decision on the event log; it stages nothing and moves no money."
           />
+          {justDecided.length > 0 && (
+            <div className="mb-3 space-y-1.5">
+              {justDecided.map((r) => (
+                <div key={`${r.run_id}-${r.rec_id}`}
+                     className={`${KT.inset} flex items-baseline gap-3 px-3.5 py-2.5 opacity-70`}>
+                  <span className={`shrink-0 rounded-full border ${KT.agent.border} ${KT.agent.bg} px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] ${KT.agent.text}`}>
+                    {LINGER_LABEL}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[12px] text-[var(--kt-text-dim)]">
+                    {r.text_display ?? r.text}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
           {openRecs.length === 0 ? (
             <p className={`text-sm ${KT.muted}`}>
               {/* Three states, kept apart — the same rule the production shelf
