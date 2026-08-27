@@ -93,6 +93,7 @@ test("an unbanded row sorts BEHIND every judged row, including `rest`", () => {
 const ROW = (over: Record<string, unknown>) => ({
   id: "x", origin: "recommendation" as const, band: "rest" as const,
   bandRank: 3, bandLabel: "", bandBasis: "undeclared", bandNote: null,
+  actionTag: null, actionTagLabel: null,
   seat: null, filedBy: null, seatFiled: false, verbObject: "x",
   dueDate: null, money: null, at: null, ageHours: null, ageLabel: null,
   detail: null, approvedBy: null, approvedAt: null, ...over,

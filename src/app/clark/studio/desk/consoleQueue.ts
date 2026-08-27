@@ -66,6 +66,13 @@ export interface ConsoleRow {
   bandBasis: string;
   /** The plain sentence behind the chip, from the spine. */
   bandNote: string | null;
+  /** THE FIVE ACTION TAGS (CEO, 2026-08-28: "Pending, In FLight, Executed,
+   *  Deprioritised, Completed"). Folded on the spine (`deskcard.action_tag`)
+   *  and READ here, never computed — the band rule's own discipline. Null =
+   *  the wire carried none (an older payload); no chip is drawn. */
+  actionTag: string | null;
+  /** The chip's word, exactly as the spine wrote it. */
+  actionTagLabel: string | null;
   /** The seat the work is FOR. Null when the record names none. */
   seat: string | null;
   /** Who asked, when that is a different party from the seat — the org chart
@@ -223,6 +230,11 @@ function fromRequest(r: DeskView["requests"][number], now: number): ConsoleRow |
   const hours = ageHoursOf(at, now);
   return {
     id, origin: "request", ...bandOf(raw),
+    // Every row this builder admits is `approved` and undispatched — a
+    // decision landed, the follow-through is owed. That is `in_flight` in the
+    // spine's five-tag vocabulary (deskcard.ACTION_TAG_LABELS), mirrored here
+    // because a request's serializer does not carry the fold yet.
+    actionTag: "in_flight", actionTagLabel: "In flight",
     seat: str(raw.serves) ?? str(raw.seat),
     filedBy: actor,
     seatFiled: actor != null && !HUMANS.has(actor.toLowerCase()),
@@ -254,6 +266,7 @@ function fromRec(r: Record<string, unknown>, now: number): ConsoleRow | null {
   const seat = str(r.seat);
   return {
     id: `${runId}#${recId}`, origin: "recommendation", ...bandOf(r),
+    actionTag: str(r.action_tag), actionTagLabel: str(r.action_tag_label),
     seat, filedBy: seat, seatFiled: seat != null && !HUMANS.has(seat),
     verbObject,
     dueDate: str(r.due_date),

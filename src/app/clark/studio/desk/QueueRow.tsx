@@ -46,13 +46,44 @@ const BAND_TONE: Record<Band, string> = {
  * declined to make.
  */
 export function BandChip({ row }: { row: Pick<ConsoleRow, "band" | "bandLabel" | "bandNote"> }) {
-  if (!row.bandLabel) return null;
+  // ONLY THE BLOCKER EARNS A BAND CHIP NOW (CEO, 2026-08-28: "what does dated
+  // even mean... I want simpler action oriented tags"). The `dated` chip
+  // duplicated the date column one inch to its left; the blocker chip is the
+  // one band fact the date column cannot carry. The BAND still ranks the
+  // list — only its chip vocabulary retired.
+  if (!row.bandLabel || row.band !== "blocker") return null;
   return (
     <span
       title={row.bandNote ?? undefined}
       className={`shrink-0 rounded-full border px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.14em] ${BAND_TONE[row.band]}`}
     >
       {row.bandLabel}
+    </span>
+  );
+}
+
+/* The five action tags, toned by what they ask of the reader: pending is
+ * quiet, in-flight carries the accent (something is moving), executed and
+ * completed sit in the up-tone (done is good news), deprioritised is muted.
+ * Vocabulary and assignment are the SPINE's (`deskcard.action_tag`); this
+ * component only picks a colour for a word it did not choose. */
+const ACTION_TONE: Record<string, string> = {
+  pending: "border-[var(--kt-border-strong)] text-[var(--kt-text-dim)]",
+  in_flight: "border-[var(--kt-accent-border)] bg-[var(--kt-accent-bg)] text-[var(--kt-accent)]",
+  executed: "border-[var(--kt-up)]/40 bg-[var(--kt-up)]/10 text-[var(--kt-up)]",
+  completed: "border-[var(--kt-up)]/40 text-[var(--kt-up)]",
+  deprioritised: "border-[var(--kt-border)] text-[var(--kt-text-muted)]",
+};
+
+/** The action-tag chip. Renders NOTHING when the wire carried no tag — an
+ *  older payload made no claim, and this component must not invent one. */
+export function ActionChip({ row }: { row: Pick<ConsoleRow, "actionTag" | "actionTagLabel"> }) {
+  if (!row.actionTag || !row.actionTagLabel) return null;
+  const tone = ACTION_TONE[row.actionTag]
+    ?? "border-[var(--kt-border-strong)] text-[var(--kt-text-dim)]";
+  return (
+    <span className={`shrink-0 rounded-full border px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.14em] ${tone}`}>
+      {row.actionTagLabel}
     </span>
   );
 }
@@ -123,6 +154,7 @@ export function QueueRow({ row, last = false }: { row: ConsoleRow; last?: boolea
         <span className={`w-[68px] shrink-0 font-mono text-[10px] uppercase tracking-[0.1em] tabular-nums ${row.dueDate ? "text-[var(--kt-warn)]" : KT.muted}`}>
           {row.dueDate ? row.dueDate.slice(5).replace("-", " ") : "—"}
         </span>
+        <ActionChip row={row} />
         <BandChip row={row} />
         <span className="flex shrink-0 items-center gap-1.5 font-mono text-[10px]">
           <SeatFace actor={row.seat ?? undefined} size={16} decorative />
