@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
 import { AlertTriangle, ArrowLeft, Send } from "lucide-react";
-import { fundApiClient, DeskView, SpineEvent } from "@/lib/fund_api";
+import { fundApiClient, DeskView, NavResponse, SpineEvent } from "@/lib/fund_api";
 import { KT } from "../../theme";
 import { StudioHeader } from "../../components/StudioHeader";
 import {
@@ -21,6 +21,8 @@ import {
   type LingerState,
 } from "../justDecided.ts";
 import { readError, readState, recordCaption } from "../deskRead";
+import { bookStrip } from "../../book/bookStrip";
+import { BookHeadline, BookStripView } from "../../book/BookViews";
 import { LaneTrackRecord } from "../laneViews";
 import {
   ASSUMED_INPUT_SHARE,
@@ -85,15 +87,27 @@ function Seat({ seat }: { seat: SeatId }) {
      on failure and `null` was also its value before the first answer — and the
      metric strip below made an "unreadable" claim from that one value. */
   const [eventsErr, setEventsErr] = useState(false);
+  /* THE BOOK, FOR THE SEAT THAT OWNS IT. Fetched only on the PM's page — a
+     seat page is a WINDOW onto one lane and a strip of the fund's holdings on
+     the adversary's page would be chrome, not context. `null` is UNREADABLE
+     and `bookStrip` says so; the read is never started for other seats, which
+     is a third state and the reason `navAsked` exists rather than a bare
+     null. */
+  const [nav, setNav] = useState<NavResponse | null>(null);
+  const [navErr, setNavErr] = useState(false);
+  const wantsBook = seat === "pm";
 
   const load = useCallback(async () => {
     // Three independent reads, three independent failures. A page that hides
     // its runs because the event log timed out would be reporting an absence it
     // did not measure.
-    const [d, r, e] = await Promise.allSettled([
+    const [d, r, e, n] = await Promise.allSettled([
       fundApiClient.getDesk(),
       fundApiClient.getDeskRuns(seat, 200),
       fundApiClient.getEvents(1000, 0),
+      // Not fetched at all off the PM's page. `Promise.resolve(null)` keeps
+      // the tuple shape fixed so the destructure below cannot drift.
+      seat === "pm" ? fundApiClient.getNav() : Promise.resolve(null),
     ]);
     if (d.status === "fulfilled") { setDesk(d.value); setDeskErr(null); }
     else setDeskErr(readError(d.reason));
@@ -101,6 +115,8 @@ function Seat({ seat }: { seat: SeatId }) {
     else setRunsErr(readError(r.reason));
     if (e.status === "fulfilled") { setEvents(e.value.events || []); setEventsErr(false); }
     else { setEvents(null); setEventsErr(true); }
+    if (n.status === "fulfilled") { setNav(n.value); setNavErr(false); }
+    else { setNav(null); setNavErr(true); }
   }, [seat]);
 
   useEffect(() => {
@@ -118,6 +134,8 @@ function Seat({ seat }: { seat: SeatId }) {
   const eventsRead = readState(events !== null, eventsErr);
 
   const roster = desk?.roster?.find((r) => r.agent === seat) ?? null;
+  const book = useMemo(
+    () => bookStrip(navErr ? null : nav?.live ?? null), [nav, navErr]);
   // Memoised: `?? []` is a fresh array each render, and the folds below key off it.
   const seatRuns = useMemo(() => runs ?? [], [runs]);
   const stats = useMemo(() => tokenStats(seatRuns), [seatRuns]);
@@ -272,6 +290,34 @@ function Seat({ seat }: { seat: SeatId }) {
               </p>
             </div>
           </div>
+        )}
+
+        {/* ── THE BOOK THIS SEAT OWNS ──────────────────────────────────────
+            SEAT_PAGES_DESIGN's rule for the per-seat views: *metrics native to
+            the lane*. The PM's lane is the book, and this page has never shown
+            it — a portfolio manager's page that renders dispatch counts and no
+            positions is a profile, not a desk.
+
+            WHAT A READER LEARNS BEFORE READING A WORD: how many things the
+            fund holds, whether one of them dominates, and how much is idle
+            cash. The same component the CEO desk uses, from the same fold —
+            two renderings of the book would be two opinions about
+            concentration. */}
+        {wantsBook && (
+          <section className="mb-8">
+            <div className={`${KT.card}`}>
+              <p className={KT.label}>
+                what the fund holds
+                {book.asOf ? ` · ${fmtAt(book.asOf)}` : ""}
+              </p>
+              <div className="mt-3">
+                <BookStripView strip={book} height={12} />
+              </div>
+              <div className="mt-2">
+                <BookHeadline strip={book} />
+              </div>
+            </div>
+          </section>
         )}
 
         {/* ---------------------------------------------- dispatch economics -- */}
@@ -552,6 +598,63 @@ function Seat({ seat }: { seat: SeatId }) {
 
         {/* ------------------------------------------------ 5. track record --- */}
         <LaneTrackRecord seat={seat} runs={seatRuns} desk={desk} events={events ?? []} />
+
+        {/* ── 8. THE CHARTER LINE ──────────────────────────────────────────
+            SEAT_PAGES_DESIGN §8: *"one sentence, footer-set: lane, and what
+            this seat may never do."*
+
+            FOOTER-SET IS THE DESIGN, not an afterthought. A charter is the
+            thing a reader consults after forming an opinion from the work
+            above — put it at the top and it becomes a header nobody reads
+            twice; put it at the foot and it answers the question the page has
+            just raised ("could this seat have done X?").
+
+            EVERY WORD IS THE SPINE'S. `lane`, `emits` and `exists_because`
+            are the roster's own fields, so the sentence cannot drift from the
+            constitution the way a hand-written copy would. `exists_because`
+            is the half nothing has ever rendered — the demonstrated need that
+            seated this agent — and it is the most interesting line on the
+            page for a reader deciding whether a seat still earns its tokens.
+
+            WHAT IS NOT HERE, and it is stated rather than faked: *"what this
+            seat may never do"* has NO field on any endpoint. It lives in the
+            constitution as prose. Writing it into this component would put a
+            second copy of a governance boundary in TypeScript, where nothing
+            would notice it going stale — which is the exact defect the
+            AUTOPOLICY_VERSION prose has now been caught on three times. The
+            line says where the answer lives instead. */}
+        <section className="mb-8 border-t border-[var(--kt-border)] pt-4">
+          <p className={KT.label}>the charter</p>
+          {roster ? (
+            <>
+              <p className={`mt-2 max-w-3xl text-sm leading-relaxed ${KT.body}`}>
+                <span className="font-mono text-[var(--kt-text)]">{seat}</span>
+                {" — "}{roster.lane}. Emits {roster.emits}.
+              </p>
+              <p className={`mt-1 max-w-3xl text-xs leading-relaxed ${KT.muted}`}>
+                {/* "Why this seat exists" and not "Seated because" — the
+                    roster's own text for several seats BEGINS "Seated the day
+                    …", and the prefix stuttered on the rendered page. Read it
+                    before writing the label. */}
+                Why this seat exists: {roster.exists_because}
+              </p>
+            </>
+          ) : (
+            <p className={`mt-2 text-sm ${KT.muted}`}>
+              {deskRead === "unreadable"
+                ? "The roster could not be read, so this seat's charter is UNKNOWN — not undeclared."
+                : deskRead === "loading"
+                  ? "Reading the roster…"
+                  : "The spine's roster carries no entry for this seat, so it has no charter to show."}
+            </p>
+          )}
+          <p className={`mt-2 max-w-3xl text-xs leading-relaxed ${KT.muted}`}>
+            What this seat may never do is not a field on any payload — it is
+            the constitution&apos;s, and it is deliberately not copied here.
+            Windows, never doors: this page renders no approve button and fires
+            no dispatch.
+          </p>
+        </section>
       </div>
     </div>
   );
