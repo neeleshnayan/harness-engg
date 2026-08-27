@@ -225,3 +225,22 @@ test("a fund with EXACTLY ZERO cash draws no void, and says zero not unknown", (
   assert.ok(!od.segments.some((x) => x.kind === "cash"));
   assert.equal(od.cashUsd, -100);
 });
+
+test("the residual tolerance is probed AT the boundary, not around it", () => {
+  /* THE GAUNTLET'S FINDING: the discrimination test used 0.002 and 0.007 and
+   * never 0.005 itself, so `>` and `>=` were indistinguishable. The comparison
+   * is STRICT — a residual of exactly the tolerance is inside it — and that
+   * choice is now pinned rather than assumed. */
+  const at = bookStrip({ total_nav_usd: 1000,
+    positions: [{ symbol: "S", usd_value: 995 }], breakdown: { cash: 0 } });
+  assert.ok(Math.abs(at.residualPct! - RESIDUAL_TOLERANCE) < 1e-12,
+            `the fixture must sit exactly on the bound: ${at.residualPct}`);
+  assert.doesNotMatch(at.note, /do not add up/,
+    "exactly at the tolerance is INSIDE it — the comparison is strict");
+
+  // One cent past it, on a $1,000 fund, and it fires.
+  const past = bookStrip({ total_nav_usd: 1000,
+    positions: [{ symbol: "S", usd_value: 994.99 }], breakdown: { cash: 0 } });
+  assert.ok(past.residualPct! > RESIDUAL_TOLERANCE);
+  assert.match(past.note, /do not add up/);
+});

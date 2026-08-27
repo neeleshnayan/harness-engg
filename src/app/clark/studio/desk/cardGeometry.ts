@@ -28,8 +28,14 @@
  * FOUR RULES THE ENCODINGS OBEY, each from a standing lesson:
  *
  *   1. **ZERO IS QUIET.** `$0.00` at stake is a real measurement and it earns
- *      NO bar. 124 of the 200 priced rows on the live desk are exactly zero;
- *      a bar on each would be 124 pieces of furniture carrying no information.
+ *      NO bar. MEASURED 2026-08-27 on the live desk: of 324 open
+ *      recommendations, 210 carry a figure and **127 of those are exactly
+ *      zero** — a bar on each would be 127 pieces of furniture carrying no
+ *      information. (This comment first said "124 of 200", a figure BORROWED
+ *      from a neighbouring file rather than measured; re-derived from the
+ *      saved payload with
+ *      `[r for r in desk["open_recommendations"] if r["money_at_stake"] == 0]`.
+ *      A number copied is a number nobody owns.)
  *   2. **ABSENT IS NOT ZERO AND MUST NOT LOOK LIKE IT.** An unpriced row gets
  *      a *different rendering*, never a zero-width bar — a zero-width bar and
  *      a missing bar are the same pixels, which is absence-as-zero drawn
@@ -138,7 +144,23 @@ export interface CardBand {
  */
 function readableDay(v: string | null | undefined): string | null {
   const s = (v ?? "").slice(0, 10);
-  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  /* SHAPE IS NOT A DATE. `"2026-13-45"` passes the pattern above, and the
+     first version stopped there — `Date.parse` then returned NaN and the row
+     came out `dated` with `short: "45 13"` and the word "NaN" inside its own
+     explanation. A garbage date must land on the SAME branch as `"soon"`:
+     unreadable, stated in words, no tone.
+
+     Round-tripping through `Date.UTC` is the check, because it is the only
+     one that knows February has 28 days in 2026 and 29 in 2028: an
+     out-of-range component silently rolls over (31 April becomes 1 May), so
+     a value that does not come back identical was never a real day. */
+  const [y, m, d] = s.split("-").map(Number);
+  const t = Date.UTC(y, m - 1, d);
+  if (!Number.isFinite(t)) return null;
+  const back = new Date(t);
+  return (back.getUTCFullYear() === y && back.getUTCMonth() === m - 1
+          && back.getUTCDate() === d) ? s : null;
 }
 
 /** Whole days between two `YYYY-MM-DD` strings, `b - a`. UTC by construction:

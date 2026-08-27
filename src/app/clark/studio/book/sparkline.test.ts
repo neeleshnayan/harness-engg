@@ -190,3 +190,22 @@ test("the shape constants are the ones the geometry uses", () => {
   assert.equal(pts[2][1], SPARK_PAD, "the high sits on the top pad");
   assert.equal(pts[1][0], SPARK_W / 2, "the middle point is centred");
 });
+
+test("the flat threshold is probed AT the boundary, not around it", () => {
+  /* THE GAUNTLET'S FINDING: the flat test used ratios of ~0.00015 and ~0.0015
+   * and never `FLAT_RANGE_FRACTION` itself. The comparison is `<`, so a series
+   * whose range is EXACTLY the fraction of its level DRAWS. */
+  // level (high) = 2000, so a range of exactly 2000 * 0.0005 = 1.0.
+  const at = sparkline([{ total_nav_usd: 1999 }, { total_nav_usd: 1999.5 },
+                        { total_nav_usd: 2000 }]);
+  assert.equal((2000 - 1999) / 2000, FLAT_RANGE_FRACTION,
+               "the fixture must sit exactly on the bound");
+  assert.equal(at.state, "line",
+    "exactly at the fraction is NOT flat — the comparison is strict");
+
+  // A hair under it, and it is flat.
+  const under = sparkline([{ total_nav_usd: 1999.5 }, { total_nav_usd: 1999.75 },
+                           { total_nav_usd: 2000 }]);
+  assert.ok((2000 - 1999.5) / 2000 < FLAT_RANGE_FRACTION);
+  assert.equal(under.state, "flat");
+});

@@ -397,3 +397,30 @@ test("the 'question' keyword is REACHABLE on its own", () => {
   assert.match(cardGlyph({ kind: "policy-question" }).why, /matched on policy/);
   assert.match(cardGlyph({ kind: "threshold_question" }).why, /matched on threshold/);
 });
+
+test("a SHAPE-valid but CALENDAR-invalid date is unreadable, not dated", () => {
+  /* THE GAUNTLET'S FINDING. `/^\d{4}-\d{2}-\d{2}$/` accepts `2026-13-45`;
+   * `Date.parse` then returns NaN and the row came out `dated` with
+   * `short: "45 13"` and the literal word "NaN" inside its own explanation —
+   * a garbage date wearing a real one's rendering on the CEO's desk.
+   *
+   * It must land on the SAME branch as "soon": unreadable, in words, no tone. */
+  for (const bad of ["2026-13-45", "2026-02-30", "2026-04-31", "2026-00-10",
+                     "2026-01-00", "2026-02-29"]) {
+    const b = cardBand({ dueDate: bad }, S);
+    assert.equal(b.tone, "quiet", bad);
+    assert.equal(b.short, null, bad);
+    assert.equal(b.due, null, bad);
+    assert.equal(b.daysOverdue, null, bad);
+    assert.doesNotMatch(b.why, /NaN/, bad);
+    assert.match(b.why, /cannot read/, bad);
+  }
+  // A LEAP DAY IS A REAL DAY, and a validator that rejected it would be the
+  // same defect pointing the other way. 2028 is a leap year; 2026 is not.
+  const leap = cardBand({ dueDate: "2028-02-29" }, S);
+  assert.equal(leap.tone, "dated");
+  assert.equal(leap.due, "2028-02-29");
+  assert.equal(leap.short, "29 Feb");
+  // ...and the ordinary case is untouched.
+  assert.equal(cardBand({ dueDate: "2026-08-24" }, S).tone, "blocker");
+});
