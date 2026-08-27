@@ -1133,3 +1133,27 @@ execution-sequence.
 6. **The cost meter runs on real data now**: NBBO captured at every
    submit; GLD's touch was $12 wide at fill time. TCA n roughly doubles
    today against pre-registered predictions.
+
+
+## 2026-08-27 — two chair rules from ops1 (BINDS addressed to the chair, accepted verbatim)
+
+1. **WHEN A BRIEF ADDS WORK TO `GET /fund/liveness` (or any polled route),
+   THE BRIEF NAMES THE CONSUMER AND ITS TIMEOUT.** That route is the
+   dead-man switch's: `host_watchdog.ps1` polls it every 5 minutes on an
+   8-second timeout and restarts Docker, Postgres and the spine on a
+   non-200. The hazard is not a raise (guards catch that) — it is SLOW,
+   which nothing catches. Any future endpoint work gets a cost budget in
+   the brief, not just a correctness requirement. General form: a route's
+   consumer is part of its contract; grep the pollers before chartering.
+2. **IF THE BUILDER'S DELETION RATIO IS EVER TO INVERT, SCOPE A DISPATCH AS
+   REMOVAL.** Three consecutive greenfield dispatches posted 302:1, 33:1,
+   378:1 — the metric will not move as a side effect of building. The
+   janitor program's weekly pass is the natural vehicle; its first real
+   dispatch should be scoped "what comes out", with the 25 auto-fixable
+   imports + the ~500 legacy TS lines as the starting census.
+
+Also: the missing 2026-08-26 closing NAV is REAL and still open (newest
+strike 17:28Z, verified live at resolve) — the strike loop's p75 tail
+(106.7min vs 60min configured) is undetermined and app/main.py:167's
+nominal-sleep advance explains only ~10%. On the CEO's desk: the 5400s
+budget vs 3600s interval question; the alarm-wiring decision.

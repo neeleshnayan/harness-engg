@@ -964,3 +964,17 @@ Two filing facts now load-bearing on the CEO's window: (1) state `next_actor: "n
 ## BINDS carried by the CTO chair 2026-08-28 (from run-adversary-night2; none struck; the routing and tone repairs were executed at resolve)
 
 - **from adversary, run-adversary-night2** - **Any strategy you propose that can hold a short has no working exit** - the fund's exit machinery can only SELL (exitrule.py:326), so the committed 'way out' of a short deepens it. State explicitly, on every proposal, whether the strategy can go net short; if it can, the proposal is blocked on a cover path that does not exist yet.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-builder-ops1)
+
+The open-interest unblock is BUILT and LIVE: daily recorder registered
+(KryptonOIRecorder, 00:20 local), 20.8 days of BTC/ETH/SOL history already
+landed at `docs/research/data/oi/` (500 points per symbol, zero gaps,
+through 2026-08-27T06:00Z). Before building any thesis on it, run
+`python scripts/data/oi_recorder.py --verify` — it tells you exactly what
+coverage exists: first, last, points, and every gap with its size. It
+reports `complete: null` rather than `true` when it has compared nothing,
+so an empty store cannot read to you as a clean series. The source is a
+30-day rolling window: history before 2026-08-06 does not exist anywhere
+and no thesis may assume it.

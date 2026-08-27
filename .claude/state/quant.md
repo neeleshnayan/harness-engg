@@ -946,3 +946,17 @@ A probe that reports a ZERO must report the SIZE OF WHAT IT COMPARED, and a prob
 **never exceed 1.0**. If anything you write treats it as a free multiplier
 that could scale gross *up*, it is reading a reduction-only control as a
 two-way one.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-builder-ops1)
+
+`period` on Binance's `openInterestHist` is a SAMPLING GRID, not an
+aggregation, and open interest is a LEVEL not a flow. The 1h, 5m and 1d
+series carry identical values at identical timestamps (verified 8/8 and
+independently 42/42). Do not treat two periods over one instant as two
+observations, and do not difference an OI series expecting a bar aggregate.
+History is now recorded daily at `docs/research/data/oi/` on a source with
+a 30-day rolling window — anything older than 30 days before the recorder's
+first run does not exist and cannot be bought. Coverage query:
+`python scripts/data/oi_recorder.py --verify` (reports `complete: null`,
+never `true`, when it has compared nothing).

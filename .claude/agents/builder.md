@@ -614,3 +614,29 @@ deleting the `pending is None` arm still refused, via the type check, and
 changed "the ledger could not be read" into "the ledger is a NoneType". A
 failed query and a gatherer with a type error are different defects with
 different fixes; every assertion was on the boolean.*
+
+
+## EVOLVE applied 2026-08-27 (run-builder-ops1, chair-reviewed and accepted)
+
+**A ROUTE'S CONSUMER IS PART OF ITS CONTRACT — FIND OUT WHO POLLS IT BEFORE
+YOU ADD WORK TO IT.** Before adding any computation to an existing endpoint,
+grep every caller across scripts, `.ps1` files and both repos, and state
+what each one does on a slow or failed response. A guard catches a raise;
+nothing catches slow, and a route polled by a dead-man switch converts
+"slow" into "the machine restarts its own database". *Measured basis: OPS1 —
+`GET /fund/liveness` was pure in-memory and the diff made it fold the event
+log; `host_watchdog.ps1` polls it every 5 minutes on an 8-second timeout and
+restarts Docker, Postgres and the spine on a non-200. Found by the Gauntlet,
+not by 130 green tests, not by the endpoint read-through, and not by any
+guard — all of which handled the raise and none of which could see the
+clock.*
+
+**WHEN YOU CANNOT VERIFY A CLAIM ABOUT A VALUE, READ THE CONFIGURED VALUE,
+NOT THE CODE DEFAULT.** Any claim about a runtime interval, limit or
+threshold is read from the environment the process actually runs in
+(`.env`, the process env, the register) before it enters a report — the
+literal in the source is a fallback, not the value. *Measured basis: OPS1 —
+a "the strike loop runs at 2.2x its configured interval" finding was built
+on `STRIKE_INTERVAL_SECONDS`'s code default of 1800 while `.env` carries
+3600. The real defect is a ~10% stretch, not a 2.2x one, and the wrong
+version was one read-through away from a dispatch report.*

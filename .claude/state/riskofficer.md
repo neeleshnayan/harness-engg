@@ -575,3 +575,17 @@ names every offending field by name — that is the sentence that gets a
 gatherer defect fixed; a bare "could not be computed" elsewhere is the same
 fault seen from the wrong end. (Draft remains UNWIRED; this binds when v5
 enters the approval chain.)
+
+
+## BIND carried by the chair, 2026-08-27 (from run-builder-ops1)
+
+`RiskMonitor.evaluate_alarms` has no check registry, and that is now a
+load-bearing fact: it is a hardcoded rule sequence, so any new alarm
+condition is a diff to a sensitive control-layer file. The builder built a
+NAV-record hole detector (`navgap.completeness()`) and deliberately did NOT
+wire it to an alarm for exactly that reason. If you judge a trading-session
+hole in the NAV record worth an alarm, that is your recommendation to make
+and a human's to approve — and `navgap.completeness()` gives you the
+verdict without you having to fold anything. Context: the record shows 11
+holes in 76 strikes, including a 12.83h trading-time hole (08-18/19) nobody
+had named and a missing 2026-08-26 closing mark.

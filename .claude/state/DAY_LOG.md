@@ -371,6 +371,28 @@ but what will be impressive is if can spot what others dont and quickly turn it 
   hook cannot map their subagent types to a parent seat; design the convention honestly or
   render worker counts at return, never fake live.
 
+### BUILT + MEASURED (ops1 merged, ~08:05Z)
+
+- **THE NAV RECORD CAN NOW TELL YOU WHEN IT HAS A HOLE** (navgap.py, merged; gaps in
+  trading-session seconds, not wall time; tolerance READ from the heartbeat budget at call
+  time; unreadable is a first-class state). Run against the fund's whole life (76 strikes):
+  **11 holes** — the chartered 42.6h outage, a SECOND larger hole nobody knew
+  (08-18→08-19, **12.83h of trading time**), and a LIVE one: **the 2026-08-26 closing NAV
+  was never struck** (chair re-verified: newest strike still 17:28Z next morning). Fields
+  flow on `GET /fund/nav/history` (completeness) and `/fund/liveness` (nav_record +
+  warnings) after the spine cycle.
+- **OI HISTORY IS NOW BEING BOUGHT DAILY on a source that destroys a day every day**:
+  KryptonOIRecorder registered (00:20), 20.8 days of BTC/ETH/SOL landed and verified
+  (500 pts × 3, zero gaps). Ed's OI unblock is DONE — BIND carried with the coverage query.
+- **FOR NEELESH (decisions, not defaults)**: (1) nav_strike budget 5400s vs configured
+  3600s interval flags ~25% of in-session gaps — real cadence defect or budget due a
+  versioned review; (2) should a trading-session NAV hole raise a warn alarm? (a versioned
+  riskmonitor change, adversary blind first). Both on the desk via run-builder-ops1.
+- Open engineering: the strike-cadence p75 tail (106.7min, cause undetermined); the
+  liveness cold-fold residual (time-bounded strike query); heartbeat.status() discarding
+  the beat note. Chair rules adopted from the seat's BINDS: polled-route briefs name the
+  consumer and its timeout; the deletion ratio needs a removal-scoped dispatch (janitor).
+
 ### DISPATCHED (slice 3 fired, ~07:45Z)
 
 - **SLICE 3 AWAY on the freed builder slot** (charter 910c480a): briefing-contract seat
