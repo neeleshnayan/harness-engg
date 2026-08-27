@@ -371,6 +371,29 @@ but what will be impressive is if can spot what others dont and quickly turn it 
   hook cannot map their subagent types to a parent seat; design the convention honestly or
   render worker counts at return, never fake live.
 
+### THE DESK BECOMES A PICTURE (B2 merged + live, ~15:30Z spine clock)
+
+- **THE VISUAL REBUILD SHIPPED AND IS LIVE** (CH 8286d6df at 6571/0; KP 1281/1281, tsc
+  0; screenshots sent to the CEO): his desk shows the fund itself for the first time —
+  NAV as figure + struck-line sparkline, the book as a position-weight strip, and every
+  decision card wearing band/money/age/kind as GEOMETRY computed by one function. The
+  look-pass caught three defects 1,266 green tests could not (0x0 money bars — a
+  Tailwind size utility on an inline span does nothing, silently; row ages read from a
+  25-run cap while the rows carried the field; 119.5px of headline drift, now 4px).
+- **A standing false belief retired**: KP's "18 tsc errors / broken dependency" was a
+  CORRUPT LIVE node_modules, not broken packages — clean npm ci gives tsc 0 and build
+  green. Live-tree npm ci scheduled pre-market tomorrow; worktrees get their own ci
+  (chair rule).
+- **Two pre-existing calendar-dependent tests** (red on the untouched base, B2-proven)
+  chair-repaired as property assertions before the merge so the green is honest.
+- Final spine cycle of the day: GETH now names itself at the HTTP surface ("Green
+  EnviroTech Holdings Corp., OTC Markets — confirm this is the instrument you meant");
+  running_now reads the true working count; session relaunched (052650b749da). The
+  auto-close retired B2's lamp itself — third flawless firing.
+- Honest deferrals, ticketed: seat sections 1/3/7 (blocked on read endpoints that do not
+  exist — POST-only binds, no seat-fitness surface); three dead-but-defective wallet
+  surfaces (off-roadmap, repairs named in place).
+
 ### THE EVENING KILLS — and both closed inside the hour (~14:30Z spine clock)
 
 - **Leg B's 0.50% KILLED before it reached Neelesh — the review order doing its exact

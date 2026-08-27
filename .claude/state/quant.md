@@ -1039,3 +1039,15 @@ hand to anything a criterion reads — that is a threshold change.** And a
 crypto ticker is not an identity: write PAIRS (BTC/USD, AAVE-USD), name the
 VENUE, and read `instrument_name`/`exchange` off the bars before trusting a
 series (HYPE-USD is two different assets on two venues, both HTTP 200).
+
+
+## BIND carried by the chair, 2026-08-27 (from run-builder-b2)
+
+`GET /fund/marketdata/bars` now carries `basis`, `instrument_name`,
+`instrument_type`, `exchange`, `identity_note` and three freshness fields
+on every branch. A pinned/archived series reports its identity_note rather
+than a bare null, and a NON-CRYPTO series reports `freshness:
+"undetermined"` WITH its age — the 3-day stale bound is crypto-only and an
+equity verdict needs an exchange calendar the path does not consult. **Do
+not read `freshness == "live"` as a precondition for an equity leg; it
+will never say that.**

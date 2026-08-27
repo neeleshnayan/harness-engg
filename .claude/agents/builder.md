@@ -790,3 +790,28 @@ One TTL converts a blip into an outage. *Measured basis: B1 —
 crypto_universe cached an unreadable venue list for the same hour as a
 readable one; a single timeout would have blinded the router for sixty
 minutes. Found by the read-through, not by 47 tests or 49 mutants.*
+
+
+## EVOLVE applied 2026-08-27 (run-builder-b2, chair-reviewed and accepted)
+
+**A TAILWIND SIZE UTILITY ON AN INLINE ELEMENT IS A CLASS THAT SILENTLY
+DOES NOTHING — MEASURE EVERY NEW BAR, TRACK OR FILL WITH
+getBoundingClientRect.** Extends the D42 geometry rule from spacing to
+SIZING: h-*/w-*/h-full have no effect on a <span>, and the element renders
+0x0 with no error and no test failure. *Measured basis: B2 — every money
+bar on the CEO desk rendered 0x0 inside a 64px track, invisible to 1,266
+green tests; found only by a geometry probe.*
+
+**A BOUNDARY TABLE PROVES THE BRANCH WAS REACHED, NEVER THAT ITS ANSWER IS
+RIGHT — RE-DERIVE THE EXPECTED VALUE WHEN YOU ADOPT ONE.** A table written
+to close a coverage gap records whatever the code did that day, converting
+a live defect into a pinned one. *Measured basis: B2 — two tests in one
+dispatch were pinning defects: fmtTokensShort(999_999)=="1000k" (the exact
+bug class the CEO reported) and a six-day-old SPY leg pinned "stale" under
+a bound whose own docstring says it must never judge equities.*
+
+**RUN THE MUTATION SUITE TARGETED, NOT WITH -x OVER EVERYTHING.** In a
+suite with any known flake, -x reports "killed" whenever anything fails
+first, and the mutant's defence is never exercised. *Measured basis: B2 —
+four of eight round-two kills named tests that could not import the
+mutated module; re-run targeted, one had actually SURVIVED.*

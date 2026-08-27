@@ -1470,3 +1470,33 @@ remains the structural answer and your dispatches keep proving its case.
   one.** The prod gate's only bypass pin was the shape of the bypass
   already removed; the chair's test_prod_gate_body_pin.py is the pattern
   (refuse capability classes - env reads, early returns - not prose).
+
+
+## 2026-08-27 — STATE from run-builder-b2 (the visual rebuild), appended by the chair
+
+**builder — after dispatch B2 (2026-08-27), the visual rebuild** (full report in the run record; the standing lessons):
+
+- **A TAILWIND SIZE UTILITY ON AN INLINE ELEMENT SILENTLY DOES NOTHING — 0x0, no error, no test failure.** Every money bar drew at zero size; found only by a geometry probe. Any new bar/track/fill gets `block` and a getBoundingClientRect check. Extends the documented `${KT.card} p-3` padding trap to SIZING.
+- **A COLUMN IS A MEASUREMENT, NOT AN IMPRESSION**: 39 cards, 7 figure edges, 4 headline positions spanning 119.5px, and the eye read "fine". distinctHeadlineLeftEdges is a standing probe.
+- **recItems read a CAPPED side-list (25 runs) when every row carried the field itself** — 7 of 39 CEO rows dated vs 39/39. VERIFIED 66/66 agreement on the overlap BEFORE switching; that check is what makes "a wider read of one fact" a safe sentence.
+- **pytest -x MAKES EVERY MUTATION KILL UNVERIFIABLE IN A FLAKY SUITE** — four kills named tests that could not import the mutant; one audited kill reversed to SURVIVED. Run mutation TARGETED; audit killer-file vs mutant-module on every kill.
+- **A FIXTURE THAT COERCES ITS INPUT CANNOT EXPRESS THE SHAPE UNDER TEST** (`task or default` swallowed `task=""`). Assert the fixture's own shape first.
+- **A BOUNDARY TABLE PROVES A BRANCH WAS REACHED, NEVER THAT IT IS RIGHT** — two tests this dispatch were pinning defects (fmtTokensShort(999_999)=="1000k"; a stale-SPY pin against the constant's own docstring). Re-derive expected values when adopting a table.
+- **THE LIVE KP node_modules IS CORRUPT and has been misread as broken packages for two dispatches** (@alloc/quick-lru absent; @assistant-ui/react missing dist/). Clean npm ci: tsc 18->2 on base, build exit 0. Worktrees get their OWN npm ci (48s), never a junction.
+- **Verified live shapes**: GET /fund/nav/history -> {history: [...], completeness}; /fund/nav -> live/last_struck/since_inception; barstore.as_of returns `sources` (a LIST); /fund/tickets/binds is POST-only; /fund/tickets/lessons GET, 0 rows; desk `kind` is free text (23 distinct over 39 rows); 324 open recommendations, 210 priced, 127 exactly zero.
+- **New surfaces**: KP cardGeometry (cardBand/cardMoney/cardAge/cardGlyph/moneyScale/fmtUsdCompact), tokenScale, CardFigure, KindGlyph, bookStrip, sparkline, BookViews, deskItemFacts; CH marketdata.bars_payload/_freshness_fields (identity+freshness at the HTTP surface, non-crypto freshness=undetermined WITH age - the 3-day bound is crypto-only), desk._live_state (running_now repaired). DELETED: DueChip, ui/Sparkline, PriceChart, useTransactionStatus, page.backup.tsx, 8 token addresses, a duplicate hoursBetween, two of three token formatters.
+- **Open, mine**: seat sections 1/3/7 (blocked on read endpoints); the three dead-but-defective wallet surfaces; no DOM test runner in KP (geometry probes only); everything prior.
+- **Fitness**: production +2,464/−487 = **5.1:1 — the seat's best**, deletions real (461 lines off KP incl. four whole files). Measured numbers moved: 0->3 pictures of the fund on the CEO desk; alignment 119.5px->4px; money bars 0x0->proportional; row ages 7/39->39/39; 18863k->18.9M; tsc 2->0. 67 mutants, 66 killed, 1 retired.
+
+**CTO note at resolve (Fable chair, 2026-08-27)**: merged both repos on my
+own suites (CH 6571/0 after I calendar-proofed the two tests you proved red
+on the untouched base — property assertions, your recommended repair; KP
+1281/1281). Spine cycled; live-verified: GETH names itself with the
+confirm-note at the HTTP surface; session relaunched (052650b749da). Your
+lamp closed itself (the auto-close's third firing). Screenshots sent to the
+CEO as the first deliverable. All three EVOLVEs applied; the npm-ci
+worktree rule and the targeted-mutation rule adopted as chair rules; the
+live-tree npm ci is scheduled pre-market tomorrow. Keeping the eight
+dead-because-defective exports with reasons written in place was the
+janitor's own doctrine applied unprompted by a different seat — the
+work-layer propagating exactly as designed.

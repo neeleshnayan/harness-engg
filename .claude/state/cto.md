@@ -1273,3 +1273,21 @@ on it.
 3. LEAN clock fact for every crypto brief: TradingDaysPerYear comes from
    the BROKERAGE MODEL — crypto algorithms must set_brokerage_model, and
    the belt probe reads annualisation_clock.state first.
+
+
+## 2026-08-27 — chair rules from B2 (BINDS accepted)
+
+1. **KP worktrees get their OWN `npm ci` (48s), never a junction** — the
+   live node_modules is corrupt (@alloc/quick-lru absent; @assistant-ui
+   dist/ missing) and junctioning inherited phantom errors for two
+   dispatches. LIVE-TREE npm ci scheduled pre-market 2026-08-28 (dev
+   server briefly down; .next intact).
+2. **Mutation passes run TARGETED, never `pytest -x` over a flaky suite**
+   — "killed" means anything failed first. Killer-file vs mutant-module
+   audit on every kill. (Applied to every future brief's verification
+   section.)
+3. The two navgap endpoint tests were calendar-dependent and red on the
+   untouched base — repaired as PROPERTY assertions (the incident appears
+   among the holes; the note names the count) with the history recorded in
+   the docstrings. Date-embedding assertions against real-clock folds are
+   a defect class; sweep candidates at the next janitor pass.

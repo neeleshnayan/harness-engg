@@ -1314,3 +1314,15 @@ blind tonight (it routes as a loosening), then the CEO with Stan's
   certified by independent reproduction. Leg B v2 (reported-only + fee
   term named + trigger + falsifier) carries your measurement forward to
   Stan's batch; the kill was of the specification, not the measurement.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-builder-b2)
+
+`GET /fund/marketdata/bars` now carries `basis`, `instrument_name`,
+`instrument_type`, `exchange`, `identity_note` and three freshness fields
+on every branch. A pinned/archived series reports its identity_note rather
+than a bare null, and a NON-CRYPTO series reports `freshness:
+"undetermined"` WITH its age — the 3-day stale bound is crypto-only and an
+equity verdict needs an exchange calendar the path does not consult. **Do
+not read `freshness == "live"` as a precondition for an equity leg; it
+will never say that.**
