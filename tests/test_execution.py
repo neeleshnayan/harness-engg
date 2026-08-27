@@ -272,7 +272,7 @@ def test_holding_unknown_without_timestamps():
 # declared ``DISCRETIONARY = "discretionary"``. Two folds over the SAME fills,
 # each with its own private spelling of the bucket a fill with no strategy_id
 # lands in. Nothing compared them, so a rename on one side would have produced
-# two discretionary ledgers out of one event log and no test would have said so.
+# two discretionary ledgers out of one event log, silently.
 
 def test_the_two_fills_folds_agree_on_the_unattributed_bucket_name():
     """Both folds put a fill with no ``strategy_id`` under the SAME key.

@@ -270,7 +270,8 @@ def test_the_worst_fill_is_the_most_expensive_one():
 # ``executionquality.SIMULATED_VENUES`` carried the same judgement separately.
 # The behavioural pin in tests/test_executionquality_store.py iterates the very
 # list it checks against, so it could only ever catch the drift after someone
-# shipped it. These pin the READ: they fail if tca decides this for itself again.
+# shipped it. These two pin the READ instead: they fail if tca ever goes back
+# to deciding this for itself.
 
 def _submitted_on(venue):
     s = MemStore()

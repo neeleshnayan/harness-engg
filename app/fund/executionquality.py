@@ -149,9 +149,9 @@ MARK_BASIS = "arrival-mark"
 #: Until 2026-08-27 tca held an independent copy (a ``!= "paper"`` literal
 #: inside a property) and the two were held together only by a behavioural pin
 #: in ``tests/test_executionquality_store.py``. That pin still runs and still
-#: earns its keep — the two modules NORMALISE differently (``execution_class``
-#: lowers and strips its input; ``informative`` does not), so a venue that reaches
-#: one path uncanonicalised can still be classed two ways.
+#: earns its keep — the two modules NORMALISE differently: ``execution_class``
+#: lowers and strips its input and ``informative`` does not, so a venue string
+#: that reaches one path uncanonicalised is still classed two ways.
 SIMULATED_VENUES = ("paper",)
 
 #: What a fill leg IS, for the purpose of averaging it with other fill legs.

@@ -131,8 +131,8 @@ class OrderCost:
         The venue list is READ from ``executionquality.SIMULATED_VENUES``,
         which owns it. Until 2026-08-27 this was an independent ``!= "paper"``
         literal, guarded only by a behavioural pin in
-        ``tests/test_executionquality_store.py`` — a guard that catches drift
-        after the fact where reading the list makes drift impossible.
+        ``tests/test_executionquality_store.py``. A pin catches drift after
+        somebody ships it; reading the list makes the drift impossible.
         """
         return (self.venue or "") not in SIMULATED_VENUES
 

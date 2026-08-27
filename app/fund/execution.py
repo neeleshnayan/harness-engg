@@ -33,10 +33,10 @@ from typing import Any
 
 from app.fund.events import EventStore, EventType
 from app.fund.money import D, f, money
-#: READ, not re-declared. This module and the attribution projection fold the
-#: SAME fills, and both bucket a fill with no ``strategy_id`` under this key.
-#: Two declarations of one bucket name is how the two folds would come to
-#: report two different discretionary ledgers from one event log.
+# READ, not re-declared. This module and the attribution projection fold the
+# SAME fills, and both bucket a fill with no ``strategy_id`` under this key.
+# Two declarations of one bucket name is how the two folds would come to report
+# two different discretionary ledgers out of one event log.
 from app.fund.projections.strategy import DISCRETIONARY
 
 #: A round-trip whose P&L is inside this band is a scratch, not a win or a loss.

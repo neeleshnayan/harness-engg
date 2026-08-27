@@ -84,7 +84,10 @@ from app.fund.money import D, f, money
 #: ``Decimal("1e-6")`` until 2026-08-27, held to the reconciler by a comment
 #: and nothing else — unlike ``autopolicy.MAX_POSITION_DRIFT_QTY``, which is a
 #: deliberate copy pinned by ``tests/test_autopolicy.py`` so a control's
-#: threshold cannot move without a human seeing it.
+#: threshold cannot move without a human seeing it. ``_TOL`` is private and
+#: reached anyway: it is the name the reconciler, autopolicy's comment and
+#: autopolicy's own test all already refer to, and renaming it is a wider
+#: change than this one.
 QTY_TOLERANCE = reconcile._TOL
 
 
