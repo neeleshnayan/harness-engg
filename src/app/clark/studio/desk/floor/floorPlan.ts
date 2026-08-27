@@ -543,11 +543,16 @@ export function litSeats(roster: DeskView["roster"] | null | undefined): string[
     .map((l) => l.seat);
 }
 
-/** How many jobs each lit seat is running, for the room's ×N marker.
+/** How many jobs each seat is running, where it is more than one.
  *
- *  Keyed by seat and holding only seats with MORE THAN ONE open job: a "×1"
- *  on every desk is chrome, and the marker exists to say "this is not the one
- *  job you assume". Absent from the map means one job or none. */
+ *  TWO CONSUMERS, both in `Floor.tsx`: the stacked lamps (capped at three, so
+ *  a busy desk reads as busier) and the "N jobs" chip that appears only PAST
+ *  that cap, where the lamps stop being countable at a glance.
+ *
+ *  Only seats with MORE THAN ONE open job are in the map: a marker on every
+ *  desk is chrome, and this one exists to say "this is not the one job you
+ *  assume". Absent from the map means one job or none — never "unknown", which
+ *  is `seatLamps`' `basis` to report and not this map's. */
 export function lampCounts(
   roster: DeskView["roster"] | null | undefined,
 ): Record<string, number> {
@@ -589,6 +594,13 @@ export function awaitingReviewSeats(
 export function reviewDetectionBlind(
   roster: DeskView["roster"] | null | undefined,
 ): string[] {
+  // A DELIBERATE BEHAVIOUR CHANGE, named because it is the only one in this
+  // delegation and it was silent until the read-through. The old predicate was
+  // `review_detectable === false`, so a working seat whose payload OMITS the
+  // key was reported as detectable — a confident "we looked and could tell"
+  // built on a field nobody sent. It now reads as BLIND, which is the same
+  // direction every other absence on this floor takes: absent is not a claim.
+  // The arm had no test; it does now.
   return floorLamps(roster)
     .filter((l) => l.lamps.some(
       (d) => d.state === "working" && !d.reviewDetectable))

@@ -598,3 +598,18 @@ test("an undetectable return is named, not hidden behind a confident WORKING", (
   ] as unknown as Parameters<typeof litSeats>[0];
   assert.deepEqual(reviewDetectionBlind(roster), ["pm"]);
 });
+
+test("a working seat with NO review_detectable key reads as BLIND, not as told", () => {
+  // THE ARM THE OLD PREDICATE GOT WRONG, and it had no test. `=== false` meant
+  // a payload that OMITS the key reported the seat as detectable — a confident
+  // "we looked and could tell" built on a field nobody sent. Absent is not a
+  // claim, on this floor or anywhere else in the studio.
+  const roster = [
+    { agent: "pm", activity: { status: "working" } },
+    { agent: "quant", activity: { status: "working", review_detectable: true } },
+  ] as unknown as Parameters<typeof litSeats>[0];
+  assert.deepEqual(reviewDetectionBlind(roster), ["pm"]);
+  // ...and the seat is still LIT: not knowing whether it came back is not the
+  // same as it not running.
+  assert.deepEqual(litSeats(roster), ["pm", "quant"]);
+});

@@ -367,12 +367,18 @@ function Seat({ seat }: { seat: SeatId }) {
           </section>
         ) : null}
 
-        {/* -------------------------------------------- 0. THE LATEST DELIVERY
+        {/* ------------------------------------------- 0b. THE LATEST DELIVERY
             THE BRIEFING CONTRACT (CEO-approved canvas, 2026-08-27): headline ->
             stat chips -> recommendation rows with who-moves-next -> the fold.
-            It goes FIRST because the page's question is "what did this seat
-            just tell me", and the old page answered it with a metrics strip
-            and made the reader scroll past the machinery to the output. */}
+
+            IT SITS AFTER THE METRIC STRIP AND BEFORE EVERYTHING ELSE, which is
+            not what the first draft of this comment claimed — it said "goes
+            FIRST", and it does not; the read-through caught the comment
+            describing a placement the code never had. The order it does have is
+            the design brief's: scoreboard (§3) then work artifacts (§4). The
+            strip is five figures on one line, which is not the "too much text"
+            the CEO named; the WALL it used to sit above was, and that wall is
+            now this card. */}
         {latestRun && (
           <section className="mb-8">
             <SectionHead
