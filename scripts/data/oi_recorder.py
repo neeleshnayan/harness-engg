@@ -397,11 +397,29 @@ def record_symbol(symbol: str, *, root: str, period: str, limit: int,
                 {**c, "detected_at": observed_at} for c in folded["conflicts"]])
     else:
         result["state"] = "dry_run"
+    # EVERY anomaly gets a sentence, not just a field. Both of these were
+    # computed and then visible only under --json, which is the quiet-absence
+    # pattern this codebase exists to refuse: a corrupt store line and a row the
+    # venue served that we could not read are integrity facts, and a scheduled
+    # job whose log does not mention them has not reported them.
+    notes = []
     if folded["conflicts"]:
-        result["note"] = (f"{len(folded['conflicts'])} point(s) came back with "
-                          f"a DIFFERENT value than the one already stored; the "
-                          f"stored value is kept and the disagreement is in "
-                          f"{os.path.basename(conflict_path(root, symbol))}")
+        notes.append(
+            f"{len(folded['conflicts'])} point(s) came back with a DIFFERENT "
+            f"value than the one already stored; the stored value is kept and "
+            f"the disagreement is in "
+            f"{os.path.basename(conflict_path(root, symbol))}")
+    if result["unusable"]:
+        notes.append(
+            f"{result['unusable']} of {len(raw)} served row(s) carried no "
+            f"readable timestamp and were NOT stored")
+    if result["unreadable_lines"]:
+        notes.append(
+            f"{result['unreadable_lines']} line(s) already in "
+            f"{os.path.basename(path)} could not be parsed; they are counted, "
+            f"not skipped, so the held total above is honest about them")
+    if notes:
+        result["note"] = "; ".join(notes)
     return result
 
 
@@ -532,6 +550,10 @@ def main(argv: Optional[list[str]] = None) -> int:
                          f"dup {r['duplicates']}  conflicts {r['conflicts']}")
                 if r.get("withheld_unsettled"):
                     line += f"  withheld {r['withheld_unsettled']}"
+                if r.get("unusable"):
+                    line += f"  UNUSABLE {r['unusable']}"
+                if r.get("unreadable_lines"):
+                    line += f"  CORRUPT-LINES {r['unreadable_lines']}"
             print(line)
             if r.get("note"):
                 print(f"           {r['note']}")

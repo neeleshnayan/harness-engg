@@ -194,6 +194,34 @@ class TestTheOutageIsFound:
         assert gap["trading_hours"] == pytest.approx(0.34, abs=0.01)
         assert gap["verdict"] == "ok"
 
+    def test_a_LONG_dark_period_caps_its_day_list_but_never_its_count(self):
+        """A fund dark for a year would otherwise put ~250 date strings inside
+        one gap row and paste every one of them into the sentence a human reads
+        — on a payload a dead-man switch polls with an 8-second timeout.
+
+        The COUNT is exact and uncapped; only the list is trimmed, and the row
+        says which it is. Read-through catch: the suite could not see it because
+        no fixture was long enough.
+        """
+        got = navgap.completeness(
+            _strikes("2026-02-02T14:00:00+00:00", "2026-06-01T14:00:00+00:00"),
+            now=_at("2026-06-01T14:30:00+00:00"), lookback_hours=24 * 365)
+        hole = got["holes"][0]
+        assert hole["trading_day_count"] > navgap.GAP_DAY_LIMIT
+        assert len(hole["trading_days"]) == navgap.GAP_DAY_LIMIT
+        assert hole["trading_days_capped"] is True
+        assert "more" in got["note"]
+        assert len(got["note"]) < 500
+
+    def test_a_short_gap_is_not_marked_capped(self):
+        """The null arm of the cap: below the limit, nothing is trimmed."""
+        got = navgap.completeness(
+            _strikes(OUTAGE_BEFORE, OUTAGE_AFTER),
+            now=_at("2026-08-26T14:00:00+00:00"))
+        hole = got["holes"][0]
+        assert hole["trading_days_capped"] is False
+        assert hole["trading_day_count"] == len(hole["trading_days"]) == 3
+
     def test_the_largest_wall_gap_is_reported_even_when_it_is_not_a_hole(self):
         """Both facts ride the payload. A reader asking "what is the biggest
         interval in this series" gets the weekend; a reader asking "what is

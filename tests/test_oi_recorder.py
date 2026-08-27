@@ -388,6 +388,43 @@ class TestStorage:
         assert side[0]["served"]["sumOpenInterest"] == "2.0"
         assert side[0]["detected_at"]
 
+    def test_an_unusable_served_row_gets_a_SENTENCE_not_just_a_field(
+            self, monkeypatch, tmp_path):
+        """Read-through catch: ``unusable`` was computed and then visible only
+        under ``--json``. This job's output is a scheduled task's log, and a row
+        the venue served that we could not read is an integrity fact — a field
+        nobody prints has not been reported.
+        """
+        monkeypatch.setattr(R, "fetch", lambda *a, **k: [
+            api_row(T0), {"symbol": "BTCUSDT", "timestamp": "not a number"}])
+        got = R.record_symbol("BTCUSDT", root=str(tmp_path), period="1h",
+                              limit=10, margin_seconds=0, known={"BTCUSDT"},
+                              dry_run=True)
+        assert got["unusable"] == 1
+        assert "no readable timestamp" in got["note"]
+
+    def test_a_corrupt_STORED_line_gets_a_sentence_too(self, monkeypatch,
+                                                       tmp_path):
+        path = R.store_path(str(tmp_path), "BTCUSDT")
+        R.append_jsonl(path, [stored(T0)])
+        with open(path, "a", encoding="utf-8") as fh:
+            fh.write("{not json\n")
+        monkeypatch.setattr(R, "fetch", lambda *a, **k: [api_row(T0 + H)])
+        got = R.record_symbol("BTCUSDT", root=str(tmp_path), period="1h",
+                              limit=10, margin_seconds=0, known={"BTCUSDT"},
+                              dry_run=True)
+        assert got["unreadable_lines"] == 1
+        assert "could not be parsed" in got["note"]
+
+    def test_a_clean_run_carries_no_note_at_all(self, monkeypatch, tmp_path):
+        """The null arm: no anomaly, no sentence. A note that is always present
+        is a note nobody reads."""
+        monkeypatch.setattr(R, "fetch", lambda *a, **k: [api_row(T0)])
+        got = R.record_symbol("BTCUSDT", root=str(tmp_path), period="1h",
+                              limit=10, margin_seconds=0, known={"BTCUSDT"},
+                              dry_run=True)
+        assert "note" not in got
+
     def test_the_store_is_utf8_regardless_of_the_host_default(self, tmp_path):
         """This host's default text encoding is cp1252 and it raises on bytes
         the API itself serves. Every read and write here states utf-8."""

@@ -230,6 +230,19 @@ def _iso(value: Optional[datetime]) -> Optional[str]:
     return None if value is None else value.astimezone(timezone.utc).isoformat()
 
 
+#: How many dates a single gap row LISTS. The counts beside them are exact and
+#: uncapped; only the lists are trimmed. A fund dark for a year would otherwise
+#: put ~250 date strings inside one gap row and paste every one of them into the
+#: sentence a human reads — and the payload rides `GET /fund/liveness`, which a
+#: dead-man switch polls on an 8-second timeout.
+GAP_DAY_LIMIT = 12
+
+
+def _trim(days: list[str]) -> tuple[list[str], bool]:
+    """First N dates and whether there were more. The count never trims."""
+    return days[:GAP_DAY_LIMIT], len(days) > GAP_DAY_LIMIT
+
+
 def _gap_row(frm: datetime, to: datetime, tol: Optional[float],
              label: str) -> dict[str, Any]:
     overlap = trading_overlap(frm, to)
@@ -244,6 +257,8 @@ def _gap_row(frm: datetime, to: datetime, tol: Optional[float],
         verdict = "hole"
     else:
         verdict = "ok"
+    shown_days, days_capped = _trim(overlap["trading_days"])
+    shown_uncovered, uncovered_capped = _trim(overlap["uncovered_days"])
     return {
         "kind": label,
         "from": _iso(frm),
@@ -251,9 +266,13 @@ def _gap_row(frm: datetime, to: datetime, tol: Optional[float],
         "hours": round(seconds / 3600.0, 4),
         "trading_seconds": round(trading, 1),
         "trading_hours": round(trading / 3600.0, 4),
-        "trading_days": overlap["trading_days"],
+        "trading_days": shown_days,
+        "trading_day_count": len(overlap["trading_days"]),
+        "trading_days_capped": days_capped,
         "calendar_covered": covered,
-        "uncovered_days": overlap["uncovered_days"],
+        "uncovered_days": shown_uncovered,
+        "uncovered_day_count": len(overlap["uncovered_days"]),
+        "uncovered_days_capped": uncovered_capped,
         "verdict": verdict,
     }
 
@@ -555,6 +574,9 @@ def _note(state: str, holes: list, undetermined: list, gaps: list,
     if state == STATE_HOLES:
         worst = holes[0]
         days = ", ".join(worst["trading_days"]) or "no whole session"
+        if worst["trading_days_capped"]:
+            days += (f", and {worst['trading_day_count'] - len(worst['trading_days'])}"
+                     f" more")
         return (f"{len(holes)} {_plural(len(holes), 'hole', 'holes')} in the "
                 f"struck-NAV record: the worst runs {worst['from']} to "
                 f"{worst['to']} and swallows {worst['trading_hours']:.2f}h of "
