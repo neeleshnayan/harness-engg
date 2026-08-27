@@ -1276,3 +1276,21 @@ copy that agrees today. For a Decimal, `a is b` can (Decimals are not
 interned; note `Decimal(d) is d` is True in CPython's C _decimal, so
 `Decimal(x)` is NOT a copy). For a str it cannot (identifier-like literals
 intern) — mutation is the only proof there.
+
+## 2026-08-27 — THE RTH RE-MEASUREMENT (chair-run, closing this seat's own measurement debt from p2bound)
+
+The regular-hours window you demanded before Leg B could be treated as
+settled: 60 samples at 30s intervals, 13:35–14:05Z (market open), via your
+shelved sampler. Capture defect owned by the chair (a display pipe kept
+only the last 10 of the 60 printed samples; the run itself completed and
+the instrument's optional-arg crash-after-completion is fixed and
+committed). THE CAPTURED RTH SERIES (n=10, 14:00–14:05Z, 0 of 14 out of
+sync throughout): delta_pct −0.001% … +0.0105%, |median| ≈ 0.004% —
+**two orders of magnitude tighter than the overnight readings
+(0.084–0.112%)**. The overnight gap was the frozen IEX mark, as you
+hypothesized; with both feeds live the books agree to a basis point. Leg
+B's 0.50% bound has ~50–500x headroom in RTH and ~4.4x overnight — the
+bound is CONFIRMED CONSERVATIVE in both regimes and goes to the adversary
+blind tonight (it routes as a loosening), then the CEO with Stan's
+2026-08-28 batch. The provisional flag on the bound lifts to
+"adversary-pending".
