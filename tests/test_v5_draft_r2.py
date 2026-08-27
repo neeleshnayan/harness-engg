@@ -854,3 +854,84 @@ class TestTheNumberReader:
     def test_it_inherits_every_absent_case_from_the_copy(self, v):
         assert V5._number(v) is None
         assert V5._as_float(v) is None
+
+
+class TestTheFreshnessSentenceDescribesTheLedgerItRead:
+    """FOUND BY THE LATE READ-THROUGH. The first version of
+    ``in_flight_orders_fresh`` printed **"oldest in-flight order is
+    unmeasurable old against a 30-min ceiling"** over a ledger that had been
+    read and held NOTHING — a sentence about a condition that does not exist,
+    which is exactly the absence-collapse this module's neighbours were
+    rewritten to prevent.
+
+    No test caught it because ``fresh`` was ``True`` and every assertion was on
+    the boolean. **The audit reads the detail, not the boolean.** So these
+    assert the three sentences apart, by a phrase each one alone contains.
+    """
+
+    def test_an_EMPTY_ledger_says_there_is_nothing_to_be_stale(self):
+        out = run(pending_approved=[])
+        assert "in_flight_orders_fresh" not in out["failed"]
+        d = detail(out, "in_flight_orders_fresh")
+        assert "nothing is in flight" in d
+        # ...and it does not describe an order it does not have.
+        assert "oldest" not in d
+        assert "UNMEASURABLE" not in d
+
+    def test_a_POPULATED_ledger_names_the_oldest_and_the_COUNT(self):
+        rows = [pending(qty=0.01, age=1.0, oid="a"),
+                pending(qty=0.01, age=7.25, oid="b")]
+        d = detail(run(pending_approved=rows), "in_flight_orders_fresh")
+        assert "the oldest of 2 in-flight order(s) is 7.2 min old" in d
+        assert "nothing is in flight" not in d
+
+    def test_an_UNMEASURABLE_age_on_a_REAL_order_says_so_and_refuses(self):
+        """The third sentence, and the one the empty case was stealing. There
+        IS an order; how old it is cannot be told; unknown is not fresh."""
+        row = pending(qty=0.01)
+        row["age_minutes"] = None
+        out = run(pending_approved=[row])
+        assert "in_flight_orders_fresh" in out["failed"]
+        d = detail(out, "in_flight_orders_fresh")
+        assert "the oldest of 1 in-flight order(s) is of an UNMEASURABLE age" in d
+        assert "nothing is in flight" not in d
+
+    def test_the_UNREADABLE_ledger_sentence_is_a_fourth_and_distinct_one(self):
+        d = detail(run(pending_approved=None), "in_flight_orders_fresh")
+        assert "could not be read" in d
+        assert "nothing is in flight" not in d
+        assert "the oldest of" not in d
+
+    def test_the_four_sentences_share_no_distinguishing_phrase(self):
+        """THE SHARED-WORD AUDIT, run as a test rather than by hand. Each
+        phrase below must appear in exactly ONE of the four details, or an
+        assertion above could be satisfied by the wrong branch."""
+        rows = [pending(qty=0.01, age=1.0)]
+        old = pending(qty=0.01)
+        old["age_minutes"] = None
+        details = {
+            "empty": detail(run(pending_approved=[]), "in_flight_orders_fresh"),
+            "populated": detail(run(pending_approved=rows),
+                                "in_flight_orders_fresh"),
+            "unmeasurable": detail(run(pending_approved=[old]),
+                                   "in_flight_orders_fresh"),
+            "unreadable": detail(run(pending_approved=None),
+                                 "in_flight_orders_fresh"),
+        }
+        for phrase, owner in (("nothing is in flight", "empty"),
+                              ("min old", "populated"),
+                              ("UNMEASURABLE age", "unmeasurable"),
+                              ("could not be read", "unreadable")):
+            holders = [k for k, v in details.items() if phrase in v]
+            assert holders == [owner], (phrase, holders)
+
+
+class TestTheCoherenceCheckHasNoDeadTerm:
+    def test_it_needs_BOTH_legs_and_says_so_when_it_has_one(self):
+        """``len(legs) == 2`` already implies non-empty; the first version also
+        wrote ``bool(legs)``, a conjunct no input can distinguish — which means
+        no test can either, which means it would survive its own mutant."""
+        assert "exposure_ledgers_coherent" in failed(gross_exposure_usd=None)
+        assert "exposure_ledgers_coherent" in failed(strategy_exposure_usd=None)
+        assert "exposure_ledgers_coherent" in failed(order_mark_usd=None)
+        assert "exposure_ledgers_coherent" not in failed()

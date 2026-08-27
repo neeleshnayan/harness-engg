@@ -1046,12 +1046,26 @@ def _evaluate_into(checks: list[dict[str, Any]], check: Any, order: Any,
         check("in_flight_orders_fresh", False,
               "the in-flight ledger could not be read, so how old its oldest "
               "order is cannot be known either — unknown is not fresh")
+    elif not flight["rows"]:
+        # AN EMPTY LEDGER HAS NO OLDEST ORDER, AND MUST NOT DESCRIBE ONE. The
+        # first version of this branch printed "oldest in-flight order is
+        # unmeasurable old against a 30-min ceiling" over a ledger that was
+        # read and held nothing — a sentence about a condition that does not
+        # exist, which is precisely the absence-collapse this module's
+        # neighbours were rewritten to prevent. Found by the read-through; no
+        # test covered it, because ``fresh`` was True and the assertion was on
+        # the boolean.
+        check("in_flight_orders_fresh", True,
+              "nothing is in flight, so there is no age to be stale — the "
+              "ledger was read and it is empty")
     else:
         oldest = flight["oldest_age_minutes"]
+        age_phrase = ("of an UNMEASURABLE age" if oldest is None
+                      else f"{oldest:.1f} min old")
         check("in_flight_orders_fresh", flight["fresh"],
-              f"oldest in-flight order is "
-              f"{'unmeasurable' if oldest is None else format(oldest, '.1f') + ' min'}"
-              f" old against a {MAX_PENDING_AGE_MINUTES:.0f}-min ceiling" +
+              f"the oldest of {flight['rows']} in-flight order(s) is "
+              f"{age_phrase}, against a {MAX_PENDING_AGE_MINUTES:.0f}-min "
+              f"ceiling" +
               ("" if flight["fresh"] else
                f" — {flight['stale_rows']} order(s) have gone that long without "
                f"a fill, a cancel or a rejection, which means the ledger has "
@@ -1070,6 +1084,7 @@ def _evaluate_into(checks: list[dict[str, Any]], check: Any, order: Any,
     # THE BOUND IS THE WORST IN-FLIGHT CORNER, not the netted one: every
     # pending buy fails, every pending sell fills. Two sells that each take a
     # long to exactly zero take it to twice negative together.
+    #
     # THE FILLED BOOK IS ANSWERED FIRST AND ON ITS OWN. An unreadable in-flight
     # ledger refuses this check too, and if that were the ONLY sentence it
     # could produce, an order that goes short on the settled book alone would
@@ -1184,7 +1199,11 @@ def _evaluate_into(checks: list[dict[str, Any]], check: Any, order: Any,
         legs.append(("strategy gross", strat_gross_before,
                      abs(strat_qty * mark)))
     bad = [(w, t, m) for (w, t, m) in legs if t + POSITION_EPS < m]
-    coherent = bool(legs) and not bad and len(legs) == 2
+    # ``len(legs) == 2`` ALREADY IMPLIES ``legs`` IS NON-EMPTY. The first
+    # version wrote ``bool(legs) and not bad and len(legs) == 2``, and the
+    # first conjunct is dead — no input can distinguish it, which means no test
+    # can either, which means it is a term that would survive its own mutant.
+    coherent = len(legs) == 2 and not bad
     check("exposure_ledgers_coherent", coherent,
           "fund and strategy gross each cover this symbol's own value"
           if coherent else
