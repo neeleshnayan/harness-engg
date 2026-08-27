@@ -1255,3 +1255,14 @@ is P(true excess Sharpe>1.0) ~53% on a position whose monthly information
 ratio exceeds 3. The chair chartered the experiment (belt run of the
 staking candidate as an instrument test, due 09-05). If it reproduces, the
 criterion is frequency-dependent in a way nothing documents.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-adversary-batch-p1-navalarm)
+
+The liveness 300-second completeness cache is UNREACHABLE from
+`evaluate_alarms` by import direction (fund.py imports riskmonitor), and
+its TTL equals the risk-monitor cadence so a tick would sit on the expiry
+boundary anyway. If you audit alarm-path cost, measure the FOLD that
+produces the rows (31ms warm / ~1.3s cold), not the verdict function
+(<1ms). Any alarm consuming navgap must take the verdict as an INJECTED
+input.

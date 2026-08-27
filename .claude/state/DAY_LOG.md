@@ -371,6 +371,29 @@ but what will be impressive is if can spot what others dont and quickly turn it 
   hook cannot map their subagent types to a parent seat; design the convention honestly or
   render worker counts at return, never fake live.
 
+### THE VERDICTS (adversary batch resolved, ~13:40Z) — one SURVIVES, one KILL, both earned
+
+- **P1 SURVIVES — the first crypto candidate through adversarial review, certified on
+  PRIMARY FILINGS**: the issuers' own quarter-end coin-per-share (no prices anywhere)
+  grew +1.51/+1.83/+1.98 %/yr across the three post-staking quarters vs +0.03% control;
+  the re-rating attack decomposed to a 10-20% sign-flipping residual; two unused
+  instruments (declared distributions at both peers) agree at ~1.65%/yr. THE HONEST
+  RE-LABEL ADOPTED: we hold no ETHA, so this is a NEW ~70%-vol ETH position with the
+  wrapper as ~1.9%/yr of free improvement — Stan prices it TOMORROW in the post-exit
+  batch, then Neelesh's click. Residual that matters: Grayscale changed the payout
+  plumbing 21 days before filing (monthly cash from 08-06), ORPHANING falsifier F1 —
+  Ed replaces it with the declared-distributions instrument (due 09-05); monitoring runs
+  on total return.
+- **THE CHAIR'S OWN ALARM DESIGN KILLED PRE-BUILD** (b0d07e67 stays open): with 11 holes
+  live, the level-triggered key saturates — a 12th hole would raise ZERO events, defeating
+  the design's stated purpose; "self-clears" was a 21-day calendar timer; and
+  `undetermined` (one of the reader's four states; the design named two) rendered as
+  silence. All briefed false-fire modes came back clean. Four redesign requirements
+  recorded in the filed doc. The kill-designs-before-builds rule paid on its FIRST
+  outing: ~220k tokens against a build that would have shipped saturated.
+- Probes promoted: the EDGAR wrapper-vs-wrapper instrument, the accrual-x-premium
+  decomposition, the four-state alarm grid, the saturation timeline.
+
 ### THE DROUGHT BREAKS (Ed batch 7 resolved, ~13:00Z)
 
 - **THE FIRST SURVIVING PROPOSAL IN FIVE BATCHES, and it needs nothing we don't have**:

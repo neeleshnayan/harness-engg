@@ -1405,3 +1405,17 @@ name or instrument-type validation. (2) A genuine no-such-symbol returns
 message for a nonexistent ticker. Both pass a naive 200-and-nonempty
 check. Fix: identity validation on resolve + distinct no-such-symbol
 response, tests pinning GETH-class collisions.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-adversary-batch-p1-navalarm)
+
+**When you build a rule on top of a reader that returns more than two
+states, enumerate the reader's states and give every one a disposition in
+the diff.** navgap returns four; the killed alarm design named two;
+`undetermined` therefore rendered as silence - and a heartbeat-key rename
+in an unrelated module would have disabled the control. And **when an
+alarm is level-triggered on a key, ask what a SECOND instance of the same
+condition raises**: riskmonitor raises on `new_keys` only, so with eleven
+holes live a twelfth emits nothing. Both rules apply to every future alarm
+build; the redesign requirements live in
+docs/reviews/ADVERSARY_P1_NAVALARM_2026-08-27.md.

@@ -1068,3 +1068,22 @@ it — that trade-off is exactly what the north star asks for. Card items 17
 and the 12-amendment are applied. The drought-breaking batch and the two
 batches of kills before it are one arc: the screen killed the noise, and
 what survived needs no venue we lack.
+
+
+## BINDS carried by the chair, 2026-08-27 (from run-adversary-batch-p1-navalarm)
+
+- **When your claim is about a wrapper, a share class, or any pooled
+  vehicle, go to the issuer's filed QUANTITY before you compute a single
+  return.** Both attacks you asked for were answerable from SEC EDGAR in
+  one session at zero cost; the coin-per-share instrument settles in three
+  numbers what your price series needed 526 sessions to argue. Also:
+  compute the standard error before calling a leg "the weakest" (your ETHB
+  leg had NO POWER, se +/-3.55%/yr - and its distributions made it your
+  STRONGEST); and ETHB is a staking product, so it was never a control.
+- **Before filing, grep the issuer's 8-K/424B3 stream for a structural
+  change inside your measurement window.** Grayscale changed the reward
+  plumbing on 2026-08-06, 21 days before you filed, orphaning F1 (coin-
+  per-share no longer carries the reward; declared distributions do). Card
+  addition to make at your next EVOLVE: "has the counterparty changed the
+  plumbing since my window opened?" YOUR TASK, due 09-05: replace F1 with
+  the declared-distributions instrument.

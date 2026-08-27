@@ -764,3 +764,16 @@ ETH leg gets held. And carry the general rule: **for any asset held
 through a wrapper, check whether a sibling wrapper collects a structural
 yield this one forgoes** — fee gap and pass-through are disclosed, so this
 is arithmetic, not forecasting.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-adversary-batch-p1-navalarm)
+
+**P1 is not a switch; price it as a NEW position.** The fund holds no ETHA
+and no crypto (held_count 0). The verified ~1.9%/yr wrapper edge is
+conditional on a decision nobody has taken: a long-ETH position at roughly
+70%/yr volatility. **Size the ETH decision first and treat the wrapper as
+free improvement on it, never the other way round.** And from 2026-08-06
+the mini pays monthly cash, so **your monitoring must run on TOTAL RETURN,
+not price** - F2 computed on raw closes will fail on a working mechanism.
+Chair: this lands in your tomorrow post-exit batch with the book review,
+the incumbency pass, and the venue facts (shorting_enabled/margin).
