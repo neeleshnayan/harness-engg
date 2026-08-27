@@ -527,3 +527,10 @@ def test_neither_live_rec_reader_keeps_its_own_status_tuple():
     hyg_src = inspect.getsource(deskhygiene)
     assert 'or "open") not in ("open", "accepted", "staged")' not in hyg_src
     assert 'or "open") not in LIVE_REC_STATUSES:' in hyg_src
+
+    # And the OWNER derives rather than lists. Restating the derivation as the
+    # equal literal is behaviour-identical today and re-creates the drift the
+    # whole change removes, so it is pinned on the statement too.
+    own_src = inspect.getsource(deskstore)
+    assert "LIVE_REC_STATUSES = tuple(s for s in REC_STATUSES" in own_src
+    assert "if s not in TERMINAL_REC_STATUSES)" in own_src
