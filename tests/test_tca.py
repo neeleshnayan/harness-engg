@@ -261,3 +261,55 @@ def test_the_worst_fill_is_the_most_expensive_one():
     st = summarise(TransactionCosts(s).costs())["total_bps"]
     assert st["worst"] == pytest.approx(50.0)
     assert st["best"] == pytest.approx(-50.0)
+
+
+# ---------------------------------------------------------------------------
+# JAN1 (2026-08-27): "which venues cannot measure cost" has one owner.
+#
+# ``OrderCost.informative`` used to carry its own ``!= "paper"`` literal while
+# ``executionquality.SIMULATED_VENUES`` carried the same judgement separately.
+# The behavioural pin in tests/test_executionquality_store.py iterates the very
+# list it checks against, so it could only ever catch the drift after someone
+# shipped it. These pin the READ: they fail if tca decides this for itself again.
+
+def _submitted_on(venue):
+    s = MemStore()
+    s.add("v1", EventType.ORDER_PROPOSED.value,
+          {"symbol": "SOFI", "side": "sell", "qty": 1.0,
+           "impact_preview": {"quote_price": 18.56}}, "2026-08-20T13:00:00+00:00")
+    s.add("v1", EventType.ORDER_SUBMITTED.value,
+          {"venue": venue, "venue_ref": "r", "arrival_price": 18.56},
+          "2026-08-20T13:00:01+00:00")
+    s.add("v1", EventType.ORDER_FILLED.value,
+          {"symbol": "SOFI", "side": "sell", "filled_qty": 1.0,
+           "avg_price": 18.60, "fees": 0.0}, "2026-08-20T13:00:02+00:00")
+    [row] = TransactionCosts(s).costs()
+    return row
+
+
+def test_tca_reads_the_simulated_venue_list_rather_than_keeping_one():
+    from app.fund import executionquality
+
+    # The list the OWNER publishes decides the verdict, venue by venue.
+    for venue in executionquality.SIMULATED_VENUES:
+        assert _submitted_on(venue).informative is False, venue
+    assert _submitted_on("alpaca").informative is True
+
+
+def test_informative_carries_no_venue_literal_of_its_own():
+    """Pinned on the STATEMENT with its indentation, not on the word.
+
+    The first version of this test scanned the whole function source for
+    ``"paper"`` and was failed by the docstring's own explanation of the
+    literal it had just removed. A bare substring of source is satisfiable by
+    prose in the same function; a whole statement is not.
+    """
+    import inspect
+
+    from app.fund.tca import OrderCost
+    src = inspect.getsource(OrderCost.informative.fget)
+    body = src.rsplit('"""', 1)[-1]     # code only, past the docstring
+    assert '"paper"' not in body and "'paper'" not in body, (
+        "informative names a venue itself again; "
+        "executionquality.SIMULATED_VENUES owns that list")
+    assert '        return (self.venue or "") not in SIMULATED_VENUES' in src
