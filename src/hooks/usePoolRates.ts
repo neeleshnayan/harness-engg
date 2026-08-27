@@ -34,22 +34,6 @@ export interface RateSummaryToken {
 
 // ── Hooks ──────────────────────────────────────────────────────────
 
-/** Current prices for every token tracked by the liquidity pool subgraph. Polls every 15 s. */
-export const useTokenPrices = () => {
-    return useQuery<TokenPrices, Error>({
-        queryKey: ['poolTokenPrices'],
-        queryFn: async () => {
-            const res = await fetch(`${API_BASE}/subgraph/token-prices`);
-            if (!res.ok) throw new Error(`Token prices fetch failed: ${res.status}`);
-            const data = await res.json();
-            return data.prices;
-        },
-        refetchInterval: 15_000,
-        staleTime: 10_000,
-        refetchOnWindowFocus: false,
-    });
-};
-
 /** Daily closing pool rates for a specific pool address. */
 export const usePoolClosingRates = (poolAddress?: string, limit = 60) => {
     return useQuery<ClosingRate[], Error>({

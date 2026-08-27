@@ -224,6 +224,20 @@ export function getStateLabel(state: string): string {
 /**
  * Progress tracker steps for UI display
  * Steps: Queued (0) -> Confirmed (1) -> Complete/Failed (2)
+ *
+ * NOT DELETED, THOUGH THE WHOLE CLUSTER IS UNREFERENCED (2026-08-27). This
+ * type, `getProgressStepIndex`, `getProgressStepLabel`, `getStateLabel`,
+ * `getStateCategoryLabel`, `isOngoingState`, `StateCategory`,
+ * `getStateCategory`, `ONGOING_STATES` and `PROGRESS_STEP_STATES` all have
+ * zero consumers outside this file, while `isErrorState` (2 consumers) and
+ * `isSuccessState` (1) are live — so this is not scattered accretion, it is
+ * ONE transaction-progress tracker that was built and never mounted.
+ *
+ * A dead helper is deletable; a dead FEATURE is a product decision, and
+ * deleting it would remove the evidence that somebody built a progress
+ * tracker and leave whatever was meant to mount it still unmounted. Reported
+ * rather than swept: either wire it to the transaction UI it was written for,
+ * or delete the cluster deliberately with that decision recorded.
  */
 export type ProgressStep = 'queued' | 'confirmed' | 'complete';
 

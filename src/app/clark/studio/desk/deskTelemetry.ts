@@ -47,13 +47,6 @@ export interface SpineSeatTelemetry {
   last_run_at: string | null;
 }
 
-export interface SpineTelemetryBlock {
-  day: string;
-  readable: boolean;
-  seats: Record<string, SpineSeatTelemetry>;
-  note: string;
-}
-
 export interface SeatTelemetry {
   seat: string;
   /** The UTC day the counts are for, or null when nothing could be read. */

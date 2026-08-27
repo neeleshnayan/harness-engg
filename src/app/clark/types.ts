@@ -1,11 +1,3 @@
-export interface BacktestRequest {
-  strategy: 'conservative' | 'aggressive'
-  start_date: string
-  end_date: string
-  initial_capital: number
-  rebalance_frequency: string
-}
-
 export interface BacktestMetrics {
   total_return: number
   annualized_return: number

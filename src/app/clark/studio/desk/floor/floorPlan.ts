@@ -426,13 +426,6 @@ export const CORRIDOR: readonly RoomPoint[] = Object.freeze([
   { x: 8, y: 12 },    // the corner office
 ]);
 
-/** The corridor index each station sits at, or -1. */
-export function stationIndex(id: string): number {
-  const s = spotById(id);
-  if (!s) return -1;
-  return CORRIDOR.findIndex((p) => p.x === s.at.x && p.y === s.at.y);
-}
-
 /**
  * Does the aisle connect any two stations that the constitution does not put
  * next to each other?
@@ -796,5 +789,25 @@ export const CAMERA_TRANSFORM = "rotateX(58deg) rotateZ(-45deg)";
 
 /** The counter-transform that stands a card back up to face the camera. Applied
  *  to every desk so the room is 2.5D — a 3D floor with flat, readable furniture
- *  — rather than 3D text nobody can read at 58 degrees. */
+ *  — rather than 3D text nobody can read at 58 degrees.
+ *
+ *  NOT DELETED THOUGH NOTHING IMPORTS IT — ITS DEATH IS THE DEFECT, and the
+ *  same is true of `CAMERA_TRANSFORM` above, which only a TEST reads.
+ *
+ *  MEASURED 2026-08-27: the room's geometry exists TWICE and nothing links the
+ *  copies. These two constants are the TypeScript copy; `studio-theme.css`
+ *  carries the literal `rotateX(58deg) rotateZ(-45deg)` at lines 287, 350 and
+ *  434 and `rotateZ(45deg) rotateX(-58deg)` at line 341 — and the CSS is what
+ *  actually draws the room. `floorPlan.test.ts` asserts properties of the
+ *  CONSTANT (no `perspective`, no `scale`, exactly two rotates), so a green
+ *  suite says nothing whatever about the stylesheet. Change one and the other
+ *  drifts silently; the `preserve-3d` measurement in that stylesheet's own
+ *  comment is what a drift here looks like when it lands.
+ *
+ *  TWO REPAIRS, neither taken here because both are floor work and this was a
+ *  desk dispatch: (1) emit the transforms as CSS custom properties from these
+ *  constants, so there is one copy; or (2) add a test that PARSES
+ *  `studio-theme.css` and asserts the four literals against these two strings
+ *  — the pattern `chartColors.test.ts` already uses for the palette, and for
+ *  exactly this reason ("a rule kept by a comment is not kept"). */
 export const BILLBOARD_TRANSFORM = "rotateZ(45deg) rotateX(-58deg)";

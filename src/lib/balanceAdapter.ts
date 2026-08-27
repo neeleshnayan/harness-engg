@@ -86,18 +86,6 @@ export function transformSubgraphBalanceToFrontend(
  * @param kryptonWeb3ApiBaseUrl - Base URL for Krypton Web3 API (e.g., process.env.NEXT_PUBLIC_KRYPTON_WEB3_API_URL)
  * @returns Balance data in frontend format
  */
-export async function fetchBalanceFromSubgraph(
-  walletAddress: string,
-  kryptonWeb3ApiBaseUrl: string
-): Promise<FrontendBalanceFormat> {
-  const response = await fetch(
-    `${kryptonWeb3ApiBaseUrl}/subgraph/user/${walletAddress}/balances`
-  );
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch balance: ${response.statusText}`);
-  }
-
-  const subgraphResponse: SubgraphBalanceResponse = await response.json();
-  return transformSubgraphBalanceToFrontend(subgraphResponse);
-}
+/* `fetchBalanceFromSubgraph` removed 2026-08-27: no consumer. It was the only
+   caller of `transformSubgraphBalanceToFrontend` from outside this module;
+   that transform stays, because it IS consumed here. */

@@ -361,7 +361,7 @@ export const useStrategySubgraphData = (strategyName: StrategyName, subgraphUrl?
   });
 };
 
-// Update legacy hook to accept optional address
-export const useYearnWETHSubgraphData = (subgraphUrl?: string, walletAddress?: string, strategyAddress?: string) =>
-  useStrategySubgraphData('YEARN_WETH', subgraphUrl, strategyAddress, walletAddress);
+/* `useYearnWETHSubgraphData` removed 2026-08-27: a one-line wrapper around
+   `useStrategySubgraphData('YEARN_WETH', …)` with no caller. Call the general
+   hook. */
 
