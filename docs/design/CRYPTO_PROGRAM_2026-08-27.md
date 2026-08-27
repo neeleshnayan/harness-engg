@@ -86,3 +86,18 @@ harness focus, not an exemption from the machinery.
   the identity amendment's own falsifier fires; the CEO re-decides.
 - Any control loosened "because crypto moves fast" → the one forbidden
   move, program or no program.
+
+
+## ADOPTED 2026-08-27 (same day): the starter universe
+
+**CEO approval, verbatim: "Hurrah! yes lets go!! great going!"** — given in
+direct response to the chair's close naming the universe as awaiting his
+word. **BTC/USD, ETH/USD, SOL/USD on Alpaca paper, daily bars, hold >= 2
+weeks, slow systematic rules only** is the adopted starter universe
+(dossier §4.5, with its four change-triggers standing). Recorded actor:
+neelesh. The ETH leg's WRAPPER question (staking ETP vs spot — P1, which
+SURVIVED the adversary the same day) goes to Stan's 2026-08-28 batch: if
+the book takes ETH exposure, the wrapper choice is ~1.9%/yr of free
+improvement, and that decision carries the CEO's click on any order as
+always. B1 (the engine-blocker batch: √252, the 16-coin hardcode, the
+GETH collision) FIRED the same hour.
