@@ -518,9 +518,18 @@ class TestTheWorkerTickCannotKillTheWorker:
         """``reconcile_every = 0`` is both the failure path and a supported
         setting. Without the guard, ``since_reconcile >= 0`` is true on every
         tick and a broken import would produce a reconciliation attempt every
-        thirty seconds."""
-        assert "if reconcile_every and since_reconcile >= reconcile_every:" \
-            in MAIN_SRC
+        thirty seconds.
+
+        AMENDED 2026-08-27 (CAD1): the comparison moved into
+        ``schedule.advance``, which treats a non-positive period as never due —
+        so the invariant is now guarded in TWO places and both are asserted
+        here. The explicit ``reconcile_every and`` is kept deliberately: a
+        reader should not have to open another module to see that zero means
+        off, and one guard is a guard, two is an invariant.
+        """
+        from app.fund import schedule as _sched
+        assert "if reconcile_every and reconcile_due:" in MAIN_SRC
+        assert _sched.advance(1e9, 1e9, 0) == (1e9, False)
 
     def test_the_ACTED_count_excludes_the_steady_state(self):
         """A live session's row and its container agree on EVERY pass, so a
