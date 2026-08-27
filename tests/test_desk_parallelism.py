@@ -273,3 +273,72 @@ def test_a_dispatch_with_no_seat_is_dropped_rather_than_grouped_under_None():
     ]), runs=[])
     assert a["builder"]["working_count"] == 1
     assert None not in a
+
+
+# ----------------------------------------- closed from the mutation pass ----
+#
+# Each test below was written because a MUTANT SURVIVED the first pass. The
+# defect it introduces is named in the docstring; without the test, that
+# defect ships.
+
+def test_the_two_counts_are_over_DIFFERENT_populations():
+    """M06: `awaiting_review_count` counting WORKING rows survived the first
+    pass, because the fixture had one of each and the two wrong answers were
+    the same number. An asymmetric population is what makes this assertion
+    mean anything."""
+    a = desk._activity(MemStore([
+        _dispatch("builder", "t1", "trace-1", at="2026-08-27T07:00:00+00:00"),
+        _dispatch("builder", "t2", "trace-2", at="2026-08-27T08:00:00+00:00"),
+        _dispatch("builder", "t3", "trace-3", at="2026-08-27T09:00:00+00:00"),
+    ]), runs=[_run("run-b-1", "trace-1")])
+    row = a["builder"]
+    assert row["working_count"] == 2
+    assert row["awaiting_review_count"] == 1
+    assert row["working_count"] + row["awaiting_review_count"] \
+        == len(row["open_dispatches"])
+
+
+def test_the_TRACE_id_is_matched_before_the_task_id():
+    """M10: reversing the identifier order survived, because no fixture had a
+    dispatch whose trace_id and task_id BOTH matched — different — runs.
+
+    The order is not arbitrary: measured over the live log, 17 of 24 dispatches
+    match on trace_id and 8 on task_id (the older convention where the two were
+    the same string). Where both resolve, the trace is this dispatch's own and
+    the task_id is the older, weaker key.
+    """
+    a = desk._activity(MemStore([_dispatch("builder", "t1", "trace-1")]),
+                       runs=[_run("run-by-trace", "trace-1"),
+                             _run("run-by-task", "t1")])
+    assert a["builder"]["returned_run_id"] == "run-by-trace"
+    assert a["builder"]["open_dispatches"][0]["returned_run_id"] \
+        == "run-by-trace"
+
+
+def test_a_roster_agent_OUTSIDE_the_kind_map_gets_the_FULL_envelope():
+    """M23: restoring the old four-key fallback survived, because nothing
+    reaches that branch — all eleven roster agents are in ``REQUEST_KINDS``,
+    verified against the live payload. The branch nobody exercises is the
+    branch nobody patches, so it is exercised here directly.
+
+    A seat added to ``ROSTER`` and not to ``REQUEST_KINDS`` must still serve
+    the same ten keys as every other seat; anything less and every consumer of
+    ``open_dispatches`` reads absent-as-undefined on that seat alone.
+    """
+    from app.fund import desk as desk_mod
+    seats = {r["agent"] for r in desk_mod.ROSTER}
+    kinds = set(desk_mod.REQUEST_KINDS.values())
+    stranger = "a_seat_with_no_request_kind"
+    assert stranger not in kinds
+    # The payload's own fallback, called the way the payload calls it.
+    fallback = desk_mod.idle_activity()
+    folded = desk_mod._activity(MemStore([]), runs=[])
+    any_seat = next(iter(kinds))
+    assert set(fallback) == set(folded[any_seat])
+    assert fallback["open_dispatches"] == []
+    assert fallback["working_count"] == 0
+    assert fallback["awaiting_review_count"] == 0
+    # And the roster/kind-map overlap is asserted so that ADDING a seat to one
+    # and not the other goes red here rather than on the CEO's floor.
+    assert seats <= kinds | {"ceo", "cto"}, (
+        f"roster agents with no request kind: {sorted(seats - kinds)}")

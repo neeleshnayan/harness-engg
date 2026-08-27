@@ -383,3 +383,36 @@ def test_a_document_that_is_PRESENT_and_UNREADABLE_is_a_FAULT_not_a_404(
     r = client.get("/api/v1/fund/library/GOLD_DOSSIER_V1_2026-08-24.pdf")
     assert r.status_code == 503
     assert "could not be read" in r.json()["detail"]
+
+
+# ----------------------------------------- closed from the mutation pass ----
+
+def test_a_REAL_non_pdf_FILE_on_the_shelf_is_refused(shelf: Path):
+    """M29: bypassing the suffix check survived, because the earlier refusal
+    test named files that did not EXIST — so ``is_file()`` refused them and the
+    suffix check was never the thing doing the work.
+
+    A refusal that happens for the wrong reason is a refusal that stops the day
+    the file appears.
+    """
+    (shelf / "data" / "library" / "notes.md").write_text("private")
+    (shelf / "data" / "library" / "keys.env").write_text("SECRET=1")
+    assert library.resolve_document("notes.md", str(shelf)) is None
+    assert library.resolve_document("keys.env", str(shelf)) is None
+
+
+def test_a_REAL_DIRECTORY_named_like_a_pdf_is_refused(shelf: Path):
+    """M30: relaxing ``is_file()`` to ``exists()`` survived, because no fixture
+    put a DIRECTORY behind a ``.pdf`` name where the resolver would meet it."""
+    (shelf / "data" / "library" / "trap.pdf").mkdir()
+    assert library.resolve_document("trap.pdf", str(shelf)) is None
+
+
+def test_MONTH_ZERO_does_not_render_as_DECEMBER(shelf: Path):
+    """M34 was retired as equivalent — ``_MONTHS[12]`` raises and is caught, so
+    widening the guard to 13 changes nothing. Chasing WHY it was equivalent
+    found the half of the guard that is genuinely load-bearing and untested:
+    ``_MONTHS[-1]`` is ``"Dec"``, so month ZERO returns a wrong answer rather
+    than an error, and no test covered it."""
+    assert library.title_of("X_2026-00-15.pdf")["date_display"] is None
+    assert library.title_of("X_2026-99-15.pdf")["date_display"] is None

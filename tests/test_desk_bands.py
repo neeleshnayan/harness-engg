@@ -291,3 +291,33 @@ def test_storage_still_carries_every_field_it_carried_before():
     assert out["trace_id"] == "tr"
     assert out["rec_id"] == 1
     assert out["status"] == "open"
+
+
+# ----------------------------------------- closed from the mutation pass ----
+
+@pytest.mark.parametrize("falsy", [0, 0.0, "", [], {}])
+def test_a_FALSY_NON_BOOLEAN_is_UNREADABLE_and_not_a_declared_no(falsy):
+    """M14: relaxing ``raw is False`` to ``raw == 0`` survived the first pass.
+
+    ``False == 0`` in Python, so the relaxed form reads a filer's ``0`` as a
+    deliberate "this blocks nothing". It is not: it is a filer who typed the
+    wrong kind of value, and the desk must be able to tell a considered NO from
+    a garbled answer — the first is a seat that thought about it and the second
+    is a defect in the filing.
+    """
+    b = desk.desk_band({"text": "x", "blocks": falsy})
+    assert b["band_basis"] == "unreadable"
+    assert b["band"] == "rest"
+
+
+def test_a_declared_FALSE_SURVIVES_STORAGE_as_False(monkeypatch):
+    """M27: narrowing the storage door from ``"blocks" in r`` to
+    ``r.get("blocks")`` survived, because no fixture filed a FALSE.
+
+    A dropped ``False`` reads downstream as "nobody said" — so the desk loses
+    its only measurement of how many rows have been thought about at all.
+    """
+    out = build_recommendations([{"text": "x", "blocks": False}],
+                                seat="builder", trace_id=None)[0]
+    assert out["blocks"] is False
+    assert desk.desk_band(out)["band_basis"] == "not_blocking"
