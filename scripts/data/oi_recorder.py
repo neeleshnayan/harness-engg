@@ -193,18 +193,21 @@ def merge(existing: Iterable[dict[str, Any]],
     new: list[dict[str, Any]] = []
     duplicates = 0
     conflicts: list[dict[str, Any]] = []
-    seen_this_run: set[int] = set()
     for row in incoming:
         ts = row.get("timestamp")
         if not isinstance(ts, int):
             continue
         prior = held.get(ts)
-        if prior is None and ts not in seen_this_run:
+        if prior is None:
+            # ``held`` is updated here, so a SECOND row for this instant inside
+            # the same response falls through to the comparison below and is
+            # counted as a duplicate (or a conflict) rather than appended
+            # twice. This used to carry a separate ``seen_this_run`` set as
+            # well; mutation proved it could never change an outcome, so it is
+            # gone. One structure deciding one thing.
             new.append(row)
-            seen_this_run.add(ts)
             held[ts] = row
             continue
-        prior = held[ts]
         if all(prior.get(f) == row.get(f) for f in VALUE_FIELDS):
             duplicates += 1
         else:

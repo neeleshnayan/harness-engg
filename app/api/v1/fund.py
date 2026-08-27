@@ -1165,10 +1165,33 @@ def _nav_completeness() -> dict[str, Any]:
             rows is not None and len(rows) >= NAV_COMPLETENESS_SCAN)
         return out
     except Exception as e:  # noqa: BLE001
+        detail = f"{type(e).__name__}: {e}"
+    try:
+        # The reader's own UNREADABLE payload, so the shape stays computed in
+        # one place. This path is short and branch-free — and "short and
+        # branch-free" is an assumption, which is why it is guarded too.
         return navgap.summary(
             navgap.completeness(None, now=datetime.now(timezone.utc))
         ) | {"scan_limit": NAV_COMPLETENESS_SCAN, "scan_limit_bound": None,
-             "reason": f"{type(e).__name__}: {e}"}
+             "reason": detail}
+    except Exception as e2:  # noqa: BLE001
+        # THE LAST RESORT, and it exists because a mutation-driven test proved
+        # the fallback above could recurse into the same failure. On any other
+        # route the honest answer would be to let this raise. Not here: this
+        # payload rides `GET /fund/liveness`, and the host watchdog restarts
+        # Docker, Postgres and the spine when that route stops answering 200 —
+        # so an unguarded reader bug does not surface as an error, it surfaces
+        # as a machine rebooting its own database every five minutes.
+        return {"version": None, "state": "unreadable", "readable": False,
+                "hole_count": None, "stale": None,
+                "scan_limit": NAV_COMPLETENESS_SCAN, "scan_limit_bound": None,
+                "reason": f"{detail}; and the fallback failed too: "
+                          f"{type(e2).__name__}: {e2}",
+                "note": "the NAV-record reader itself could not run, so this "
+                        "fund cannot say whether its NAV record has holes",
+                "warnings": [{"level": "warn", "key": "nav_record_unreadable",
+                              "message": "the NAV-record reader itself could "
+                                         "not run"}]}
 
 
 @router.get("/fund/nav/history")

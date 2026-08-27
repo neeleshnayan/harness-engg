@@ -228,6 +228,20 @@ class TestSettleMargin:
                                   margin_seconds=600)
         assert dropped == 0
 
+    def test_a_zero_margin_keeps_even_a_future_stamped_row(self):
+        """Mutant: ``margin_seconds <= 0`` to ``< 0``.
+
+        With the mutant, margin 0 still runs the cutoff and quietly withholds a
+        row stamped ahead of our clock. Withholding is the MARGIN's job; the
+        default's job is to record what the source served, including a stamp we
+        find surprising — a collector that silently drops the surprising row
+        destroys the evidence that the source produced one.
+        """
+        rows = [stored(T0 + H)]
+        kept, dropped = R.settled(rows, now_ms=T0, margin_seconds=0)
+        assert dropped == 0
+        assert len(kept) == 1
+
 
 # --------------------------------------------------------------- absence
 
@@ -386,3 +400,19 @@ class TestExitCodes:
         monkeypatch.setattr(R, "tradable_symbols", lambda: {"BTCUSDT"})
         monkeypatch.setattr(R, "fetch", lambda *a, **k: [api_row(T0)])
         assert R.main(["--symbols", "BTCUSDT", "--root", str(tmp_path)]) == 0
+
+    def test_a_run_that_recorded_a_CONFLICT_exits_nonzero(self, monkeypatch,
+                                                          tmp_path):
+        """Mutant: dropping ``or r.get("conflicts")`` from the failure test.
+
+        The run SUCCEEDED in the ordinary sense — it fetched, it appended
+        nothing, it wrote a sidecar — so ``state == "recorded"`` on its own
+        would exit 0 and the scheduled wrapper would log OK over a source that
+        restated a settled number. A conflict is the one thing here worth
+        waking someone for.
+        """
+        monkeypatch.setattr(R, "tradable_symbols", lambda: {"BTCUSDT"})
+        monkeypatch.setattr(R, "fetch", lambda *a, **k: [api_row(T0, oi="1.0")])
+        assert R.main(["--symbols", "BTCUSDT", "--root", str(tmp_path)]) == 0
+        monkeypatch.setattr(R, "fetch", lambda *a, **k: [api_row(T0, oi="2.0")])
+        assert R.main(["--symbols", "BTCUSDT", "--root", str(tmp_path)]) == 1

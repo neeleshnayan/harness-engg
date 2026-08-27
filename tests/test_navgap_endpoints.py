@@ -135,6 +135,81 @@ def test_the_scan_cap_is_named_and_says_whether_it_bound(monkeypatch):
     assert body["scan_limit_bound"] is False
 
 
+def test_the_bound_flag_flips_when_the_cap_ACTUALLY_binds(monkeypatch):
+    """Mutant: hardcoding ``scan_limit_bound`` False.
+
+    ``is False`` on today's data is satisfied by a constant. The day the cap
+    binds is the day this payload silently starts describing a shorter history
+    than it claims, so the flag is exercised on BOTH sides — the cap is moved
+    down until it bites rather than waiting five thousand strikes to find out.
+    """
+    from app.api.v1 import fund as fundapi
+    monkeypatch.setattr(fundapi, "NAV_COMPLETENESS_SCAN", 2)
+    client = _client(monkeypatch, FakeNav(OUTAGE))
+    body = client.get("/api/v1/fund/liveness").json()["nav_record"]
+    assert body["scan_limit"] == 2
+    assert body["scan_limit_bound"] is True
+
+
+def test_liveness_survives_a_fold_that_explodes_inside_navgap(monkeypatch):
+    """The second belt on the watchdog's route.
+
+    ``_nav_strike_history_or_none`` already swallows a store failure, so the
+    outer guard only ever fires if the READER itself raises — which is exactly
+    the case no store fixture can reach. Mutation found that gap: without this,
+    the outer ``except`` had no test at all and a bug in ``navgap`` would have
+    rebooted Docker, Postgres and the spine every five minutes.
+    """
+    from app.api.v1 import fund as fundapi
+
+    real = navgap.completeness
+    calls = {"n": 0}
+
+    def explode_once(rows, **kw):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise ZeroDivisionError("a bug in the reader")
+        return real(rows, **kw)
+
+    monkeypatch.setattr(fundapi, "_nav", FakeNav(OUTAGE))
+    monkeypatch.setattr(navgap, "completeness", explode_once)
+    app = FastAPI()
+    app.include_router(fundapi.router, prefix="/api/v1")
+    r = TestClient(app).get("/api/v1/fund/liveness")
+    assert r.status_code == 200
+    body = r.json()["nav_record"]
+    assert body["state"] == navgap.STATE_UNREADABLE
+    assert body["scan_limit_bound"] is None
+    assert "ZeroDivisionError" in body["reason"]
+
+
+def test_liveness_survives_a_reader_that_ALWAYS_explodes(monkeypatch):
+    """The last resort, and the reason it exists.
+
+    The first version of the guard above answered a reader failure by calling
+    the SAME reader again for its unreadable payload. Writing this test found
+    that the recovery path recursed straight back into the failure it was
+    recovering from — a safety net that fails exactly when it is needed, on the
+    one route whose non-200 reboots the host's database.
+    """
+    from app.api.v1 import fund as fundapi
+
+    def always_explode(*a, **kw):
+        raise ZeroDivisionError("the reader is comprehensively broken")
+
+    monkeypatch.setattr(fundapi, "_nav", FakeNav(OUTAGE))
+    monkeypatch.setattr(navgap, "completeness", always_explode)
+    app = FastAPI()
+    app.include_router(fundapi.router, prefix="/api/v1")
+    r = TestClient(app).get("/api/v1/fund/liveness")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["nav_record"]["state"] == "unreadable"
+    assert body["nav_record"]["hole_count"] is None
+    assert "the fallback failed too" in body["nav_record"]["reason"]
+    assert [w["key"] for w in body["warnings"]] == ["nav_record_unreadable"]
+
+
 # --- the warnings -----------------------------------------------------------
 
 def test_a_healthy_record_produces_an_empty_measured_warning_list(monkeypatch):

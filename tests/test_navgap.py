@@ -107,6 +107,30 @@ class TestCalendar:
         assert got == {"seconds": 0.0, "uncovered_days": [], "covered": True,
                        "trading_days": []}
 
+    def test_an_empty_interval_on_an_UNCOVERED_date_is_still_covered(self):
+        """Mutant M05: ``end <= start`` to ``end < start``.
+
+        A zero-length interval spans no days at all, so there is nothing the
+        calendar needed to know — reporting it as uncovered would put an
+        UNDETERMINED verdict on a gap of no duration.
+        """
+        got = navgap.trading_overlap(_at("2025-06-02T15:00:00+00:00"),
+                                     _at("2025-06-02T15:00:00+00:00"))
+        assert got["covered"] is True
+        assert got["uncovered_days"] == []
+
+    def test_a_day_touched_with_zero_overlap_is_not_a_trading_day_of_the_gap(self):
+        """Mutant M07: ``hi > lo`` to ``hi >= lo``.
+
+        An interval ending exactly at the opening bell contains none of that
+        session. Listing the date anyway would put a day in the note that the
+        gap did not actually swallow — and the note is what a human reads.
+        """
+        got = navgap.trading_overlap(_at("2026-08-25T12:00:00+00:00"),
+                                     _at("2026-08-25T13:30:00+00:00"))
+        assert got["seconds"] == 0.0
+        assert got["trading_days"] == []
+
 
 # ------------------------------------------------------------ the real outage
 
@@ -391,13 +415,67 @@ class TestTheWindow:
         assert got["leading_anchor"] is None
 
     def test_an_unsorted_history_is_sorted_before_folding(self):
-        """Mutant: dropping the sort makes every out-of-order pair a negative
-        gap and the fold reports a clean series over a broken one."""
+        """Mutant M16: dropping ``parsed.sort()``.
+
+        THIS TEST USED TO PASS AGAINST THAT MUTANT, and the mutation pass is
+        what caught it. Unsorted, the pair folds to a zero-length backwards gap
+        plus a SINCE-NEWEST leg from the older stamp — which is also 42 hours
+        and also a hole, so ``hole_count == 1`` and ``holes[0]['from']`` were
+        both satisfied by the defect. The assertions that separate the two are
+        ``newest_strike_at`` (the LATEST stamp, not the last element) and the
+        hole's KIND: correct is one between-strikes gap, broken is a
+        since-newest one.
+        """
         got = navgap.completeness(
             _strikes(OUTAGE_AFTER, OUTAGE_BEFORE),
             now=_at("2026-08-26T14:00:00+00:00"))
+        assert got["newest_strike_at"] == OUTAGE_AFTER
         assert got["hole_count"] == 1
         assert got["holes"][0]["from"] == OUTAGE_BEFORE
+        assert got["holes"][0]["to"] == OUTAGE_AFTER
+        assert got["holes"][0]["kind"] == "between-strikes"
+
+    def test_a_strike_exactly_at_the_window_start_is_inside_the_window(self):
+        """Mutant M17: ``>=`` to ``>``. One strike, at the boundary, either
+        counted or silently demoted to the anchor."""
+        start = _at("2026-08-25T14:00:00+00:00")
+        got = navgap.completeness(
+            _strikes(start.isoformat()),
+            now=_at("2026-08-25T15:00:00+00:00"), lookback_hours=1.0)
+        assert got["window_start"] == start.isoformat()
+        assert got["strikes_in_window"] == 1
+        assert got["leading_anchor"] is None
+
+    def test_the_anchor_is_the_LAST_strike_before_the_window(self):
+        """Mutant M18: ``before[-1]`` to ``before[0]``.
+
+        With two strikes before the window, the wrong one makes the leading gap
+        far larger than it was and invents a hole out of a healthy stretch.
+        """
+        got = navgap.completeness(
+            _strikes("2026-08-25T13:35:00+00:00",
+                     "2026-08-25T14:30:00+00:00",
+                     "2026-08-25T15:10:00+00:00"),
+            now=_at("2026-08-25T15:20:00+00:00"), lookback_hours=0.5)
+        assert got["leading_anchor"] == "2026-08-25T14:30:00+00:00"
+        assert got["hole_count"] == 0
+
+    def test_holes_are_ordered_worst_first(self):
+        """Mutant M22: dropping ``reverse=True``.
+
+        The note names ``holes[0]``, so the order decides which hole a human is
+        told about. Two holes here, deliberately different sizes.
+        """
+        got = navgap.completeness(
+            _strikes("2026-08-25T13:30:00+00:00",   # then a 2h hole
+                     "2026-08-25T15:30:00+00:00",
+                     "2026-08-25T19:59:00+00:00",   # then a 4.5h hole
+                     "2026-08-26T13:31:00+00:00"),
+            now=_at("2026-08-26T13:32:00+00:00"))
+        assert got["hole_count"] == 2
+        seconds = [h["trading_seconds"] for h in got["holes"]]
+        assert seconds == sorted(seconds, reverse=True)
+        assert got["holes"][0]["from"] == "2026-08-25T15:30:00+00:00"
 
     def test_a_naive_timestamp_is_read_as_utc(self):
         """The log is UTC-only. Reading a naive stamp as host-local would move
@@ -473,3 +551,17 @@ class TestSummaryAndWarnings:
             now=_at("2026-08-27T06:00:00+00:00"))
         keys = [w["key"] for w in navgap.warnings(report)]
         assert "nav_strike_staleness_unknown" in keys
+
+    def test_an_undetermined_record_warns_by_its_own_name(self):
+        """Mutant M33: dropping the UNDETERMINED warning.
+
+        A gap the calendar cannot judge must not leave the liveness payload
+        silent — silence there is indistinguishable from a clean record, which
+        is the exact collapse this module exists to prevent.
+        """
+        report = navgap.completeness(
+            _strikes("2025-06-02T13:00:00+00:00", "2025-06-04T13:00:00+00:00"),
+            now=_at("2025-06-04T13:30:00+00:00"))
+        assert report["state"] == navgap.STATE_UNDETERMINED
+        keys = [w["key"] for w in navgap.warnings(report)]
+        assert "nav_record_undetermined" in keys
