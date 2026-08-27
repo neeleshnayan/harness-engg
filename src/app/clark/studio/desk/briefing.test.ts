@@ -262,3 +262,37 @@ test("an empty fold is absent fields, never empty strings", () => {
   assert.equal(b.fold.model, null);
   assert.equal(b.fold.tokens, null);
 });
+
+/* --------------------------------------- boundaries the Gauntlet found bare */
+
+test("the token shortener is probed AT each boundary, not around it", () => {
+  assert.equal(fmtTokensShort(999), "999");
+  assert.equal(fmtTokensShort(1000), "1k", "the k boundary is inclusive");
+  assert.equal(fmtTokensShort(999_999), "1000k");
+  assert.equal(fmtTokensShort(1_000_000), "1.0M", "the M boundary is inclusive");
+});
+
+test("the money chip's FOUR-FIGURE branch is exercised at all", () => {
+  // The Gauntlet's finding: every money test used a figure under $1,000, so
+  // the comma-formatting branch had never run. A branch no test reaches is a
+  // branch the suite cannot defend.
+  const rows = briefingRows([
+    REC({ money_at_stake: 999.5 }), REC({ rec_id: 2, money_at_stake: 0.5 }),
+  ]);
+  assert.equal(briefingChips(rows, RUN()).find((c) => c.label === "at stake")!.value,
+    "$1,000", "1000 exactly takes the rounded, comma-formatted form");
+  const under = briefingRows([REC({ money_at_stake: 999.99 })]);
+  assert.equal(briefingChips(under, RUN()).find((c) => c.label === "at stake")!.value,
+    "$999.99", "under a thousand keeps its cents");
+  const big = briefingRows([REC({ money_at_stake: 1885.74 })]);
+  assert.equal(briefingChips(big, RUN()).find((c) => c.label === "at stake")!.value,
+    "$1,886");
+});
+
+test("the duration boundary is probed at 59, 60 and 61 minutes", () => {
+  assert.equal(fmtDuration(59), "59m");
+  assert.equal(fmtDuration(60), "1h", "the hour boundary is inclusive");
+  assert.equal(fmtDuration(61), "1h 1m");
+  assert.equal(fmtDuration(1), "1m", "and the <1m boundary is exclusive");
+  assert.equal(fmtDuration(0.999), "<1m");
+});

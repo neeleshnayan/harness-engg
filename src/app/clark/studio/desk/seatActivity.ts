@@ -226,8 +226,23 @@ export function benchFlight(rows: SeatLamps[]): BenchFlight {
   for (const r of rows) {
     if (r.basis === "unreadable") { unreadable.push(r.seat); floor = true; continue; }
     if (r.basis === "headline_only") floor = true;
-    working += r.lamps.filter((l) => l.state === "working").length;
-    awaiting += r.lamps.filter((l) => l.state === "awaiting_review").length;
+    // THE SEAT'S OWN COUNTS FIRST — the rule this file states one function up
+    // and the first version of this loop broke: it re-filtered `lamps`, which
+    // is a SECOND implementation of the same count in the same file. They
+    // agree on a healthy record and diverge on exactly the case that matters:
+    // a seat whose payload carried an unreadable row has more jobs than it has
+    // drawable lamps, and the bench total would have quietly under-reported it
+    // relative to what that seat says about itself. Found by the Gauntlet.
+    // The lamp filter remains as the FALLBACK for a payload that states no
+    // counts, and taking it sets the floor, because a fallback is not a count.
+    if (r.workingCount !== null && r.awaitingCount !== null) {
+      working += r.workingCount;
+      awaiting += r.awaitingCount;
+    } else {
+      working += r.lamps.filter((l) => l.state === "working").length;
+      awaiting += r.lamps.filter((l) => l.state === "awaiting_review").length;
+      floor = true;
+    }
   }
   // NAMED WHILE NAMING HELPS, COUNTED WHEN IT DOES NOT. On the dead-spine arm
   // every seat is unreadable, and the first version produced eleven names

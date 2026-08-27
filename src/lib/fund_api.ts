@@ -1120,6 +1120,21 @@ export interface DeskView {
     note: string | null;
   }[];
   requests: {
+    /** THE CEO'S PRIORITY BAND, stamped by `desk.desk_band` on BOTH
+     *  populations (spine 2026-08-27). Typed here for the same reason
+     *  `open_dispatches` above is: the same file, the same diff, added one
+     *  and not the other, and a wire contract with five untyped fields is
+     *  five fields a rename can break in silence.
+     *  `band_label` is the EMPTY STRING for a row nobody judged — the chip is
+     *  then not drawn at all, which is not the same as a chip that says
+     *  "normal". Optional because a record that predates the fold sends none;
+     *  `consoleQueue.bandOf` is the one place that decides what to do then. */
+    band?: 'blocker' | 'time_sensitive' | 'rest';
+    band_rank?: number;
+    band_label?: string;
+    band_basis?: 'declared' | 'not_blocking' | 'due_date' | 'undeclared'
+      | 'unreadable';
+    band_note?: string;
     request_id: string; kind: string; serves: string; subject: string;
     note?: string; at?: string;
     /** FOUR states since 2026-08-21. `declined` is TERMINAL — a resolve cannot

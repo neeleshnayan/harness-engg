@@ -19,7 +19,7 @@
  *      one-line version of the brief.
  *   2. THE ASKS IT SERVED, in full. A job's record can name the desk requests
  *      it was fired against, and those requests carry the brief VERBATIM — the
- *      SLICE 3 charter on the live record is 2,000 characters of instruction
+ *      SLICE 3 charter on the live record is 1,693 characters of instruction
  *      sitting in a field nothing rendered. That IS what the seat was told.
  *   3. WHETHER A PACK WAS RECORDED. Today: never. It reads *"no pack
  *      recorded"* — a stated absence, never an empty pane.
@@ -104,7 +104,7 @@ export function contextOf(
       requestId: id,
       subject: str(q.subject) ?? str(q.task) ?? str(q.headline),
       // `note` is where the chair files the brief verbatim. Measured on the
-      // live record 2026-08-27: the SLICE 3 charter is ~2,000 characters of
+      // live record 2026-08-27: the SLICE 3 charter is 1,693 characters of
       // instruction in this field, and nothing rendered it.
       brief: str(q.note),
       missing: false,

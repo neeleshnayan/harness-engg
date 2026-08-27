@@ -224,3 +224,48 @@ test("an empty bench is zero and says so without claiming a floor", () => {
   assert.deepEqual([b.working, b.awaiting, b.isFloor], [0, 0, false]);
   assert.deepEqual(b.unreadable, []);
 });
+
+/* --------------------------------------- boundaries the Gauntlet found bare */
+
+test("the bench names up to THREE unreadable seats and counts beyond that", () => {
+  // The Gauntlet's finding: the naming rule was only ever tested at one seat,
+  // so its boundary — where a roll call becomes a count — was never probed.
+  const dead = (n: number) => benchFlight(
+    Array.from({ length: n }, (_, i) => seatLamps(`seat${i}`, null)));
+  assert.match(dead(1).note, /^We could not read what seat0 is doing/);
+  assert.match(dead(2).note, /seat0 and seat1 are doing/);
+  assert.match(dead(3).note, /seat0, seat1 and seat2 are doing/);
+  assert.match(dead(4).note, /4 of the seats are doing/,
+    "past three the SET is the point, not the roll call");
+  assert.equal(dead(11).unreadable.length, 11,
+    "every seat is still NAMED in the data, only the sentence summarises");
+});
+
+test("the bench total reads each seat's OWN counts, not a recount of its lamps", () => {
+  // The Gauntlet's finding: benchFlight re-filtered `lamps`, a second
+  // implementation of a count this file states must come from the spine. They
+  // agree on a healthy record and diverge on exactly the case that matters —
+  // a seat whose payload carried a row that could not be drawn.
+  const withDropped = seatLamps("builder", NEW({
+    open_dispatches: [
+      { status: "working", task: "drawable", task_id: "t1", since: null,
+        returned_run_id: null, review_detectable: true },
+      { status: "nonsense", task: "not drawable", task_id: "t2" },
+    ],
+    working_count: 2, awaiting_review_count: 0,
+  }));
+  assert.equal(withDropped.drawn, 1, "one lamp can be drawn");
+  assert.equal(withDropped.workingCount, 2, "the seat says TWO are running");
+  const b = benchFlight([withDropped]);
+  assert.equal(b.working, 2,
+    "the bench agrees with the seat, not with the lamps it could draw");
+});
+
+test("a seat with NO counts falls back to its lamps and sets the FLOOR", () => {
+  const noCounts = seatLamps("builder", NEW({
+    working_count: undefined, awaiting_review_count: undefined,
+  }));
+  const b = benchFlight([noCounts]);
+  assert.equal(b.working, 2, "the lamps are the fallback");
+  assert.equal(b.isFloor, true, "and a fallback is not a count");
+});

@@ -254,3 +254,55 @@ test("bandOf on a bare object is `unbanded` with no chip and no note", () => {
     bandNote: null,
   });
 });
+
+/* --------------------------------------- boundaries the Gauntlet found bare */
+//
+// Every test below probes an inequality the first pass tested only in the
+// middle of its range. A cap tested with a twelve-row margin proves the cap
+// exists; it does not prove it is off by nothing.
+
+test("the age label's DAY boundary is probed at 23, 24 and 25 hours", () => {
+  assert.equal(ageLabelOf(23), "23h");
+  assert.equal(ageLabelOf(23.6), "24h", "still hours, rounded — not a day");
+  assert.equal(ageLabelOf(24), "1.0d", "the boundary is exclusive on hours");
+  assert.equal(ageLabelOf(25), "1.0d");
+});
+
+test("the tail appears at SHOWN+1 and NOT at exactly SHOWN", () => {
+  const at = (n: number) => consoleQueue(
+    Array.from({ length: n }, (_, i) =>
+      REQ({ request_id: `r${String(i).padStart(2, "0")}` })), [], { now: NOW });
+  const exact = at(SHOWN);
+  assert.equal(exact.rows.length, SHOWN);
+  assert.equal(exact.hidden, 0);
+  assert.equal(exact.tailNote, null, "nothing is hidden at exactly the cap");
+  const over = at(SHOWN + 1);
+  assert.equal(over.rows.length, SHOWN);
+  assert.equal(over.hidden, 1);
+  assert.match(over.tailNote!, /^1 more, ranked the same way/);
+  const under = at(SHOWN - 1);
+  assert.equal(under.rows.length, SHOWN - 1);
+  assert.equal(under.tailNote, null);
+});
+
+test("an UNRECOGNISED band is `unreadable`, not `absent` — they are different", () => {
+  // The record sent a judgement this client cannot read (a newer spine, or a
+  // malformed row). Reporting it as "nobody judged this" is the absence-vs-
+  // unreadable conflation the rest of this module exists against.
+  const unknown = consoleQueue([], [REC({ band: "urgent", band_rank: 0 })],
+    { now: NOW }).rows[0];
+  assert.equal(unknown.band, "unbanded");
+  assert.equal(unknown.bandBasis, "unreadable");
+  assert.equal(unknown.bandLabel, "", "still no chip — we cannot read it");
+
+  const missing = consoleQueue([], [REC({
+    band: undefined, band_rank: undefined, band_label: undefined,
+    band_basis: undefined, band_note: undefined,
+  })], { now: NOW }).rows[0];
+  assert.equal(missing.band, "unbanded");
+  assert.equal(missing.bandBasis, "absent");
+
+  // ...and both still sort behind every judged row, because neither has been
+  // placed in the order.
+  assert.equal(unknown.bandRank, missing.bandRank);
+});

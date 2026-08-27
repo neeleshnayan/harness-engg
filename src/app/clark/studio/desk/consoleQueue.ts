@@ -185,7 +185,23 @@ export function bandOf(raw: Record<string, unknown>): {
     // has not been judged, and mixing it into the lowest judged band would
     // claim it had.
     bandRank: BANDS.length + 1,
-    bandLabel: "", bandBasis: "absent", bandNote: null,
+    bandLabel: "",
+    // ABSENT AND UNREADABLE ARE DIFFERENT FACTS, and the first version of this
+    // reader collapsed them — every unknown value, including a band word the
+    // record actually sent, reported as `absent`. That is the exact conflation
+    // the rest of this diff is built against, at the one seam where the two
+    // repos meet. Found by the Gauntlet, not by 28 tests.
+    //   `absent`     the row carried no band (`undefined` — an older record,
+    //                and also what a JS spread leaves behind, which is why
+    //                this keys on the VALUE and not on `"band" in raw`: the
+    //                two disagree for a spread and agree for parsed JSON, and
+    //                the read site cannot tell them apart anyway).
+    //   `unreadable` the row carried SOMETHING this client cannot read — a
+    //                newer band word, or a malformed one. The reader should
+    //                be told a judgement EXISTS and could not be read, rather
+    //                than that none was made.
+    bandBasis: b === undefined ? "absent" : "unreadable",
+    bandNote: null,
   };
 }
 
