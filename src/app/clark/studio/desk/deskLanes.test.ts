@@ -195,8 +195,18 @@ test("the dispatch lane is the chair's, and every row says so", () => {
   // v1 predicate left 13 live open asks in zero of five lanes on the CEO's
   // page, measured by the adversary (run-adversary-night2).
   assert.equal(d.rows.length, 2, "approved AND open asks are the chair's");
-  const approvedRow = d.rows.find((r) => r.detail.startsWith("approved by"));
-  const openRow = d.rows.find((r) => r.detail.startsWith("open"));
+  /* `LaneRow.detail` is `string | null` — a lane row can legitimately carry
+     no detail (`deskLanes.ts:352`), and these two lines called `.startsWith`
+     on it directly. That is the repo's ONLY tsc error outside the broken
+     `@assistant-ui/react` install, and it made the type checker unusable as a
+     gate: two known reds train a reader to skim the output.
+
+     `?? ""` rather than `!`: a non-null assertion would silence the checker
+     and still throw at runtime the day a null detail reaches this lane. An
+     empty string simply does not start with either prefix, so the row is not
+     found and the assertion below fails LOUDLY with a useful message. */
+  const approvedRow = d.rows.find((r) => (r.detail ?? "").startsWith("approved by"));
+  const openRow = d.rows.find((r) => (r.detail ?? "").startsWith("open"));
   assert.ok(approvedRow && openRow, "both statuses render, each labeled");
   assert.equal(approvedRow!.actor, "chair");
   assert.equal(approvedRow!.detail, "approved by ceo");

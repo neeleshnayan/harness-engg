@@ -774,8 +774,14 @@ export function productionShelf(runs: DeskRun[], artifacts: DeskArtifact[]): She
 
 /* ------------------------------------------------------------ formatting -- */
 
-export const fmtTokens = (n: number | null | undefined): string =>
-  n == null ? "—" : n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : `${n}`;
+/** RE-EXPORTED, NOT REIMPLEMENTED (2026-08-27). This body printed `18863k`
+ *  where a person says `18.9M` — it had no branch above a thousand at all —
+ *  and it was one of THREE token formatters in this directory, each wrong in
+ *  its own way. The scale now lives in `tokenScale.ts`; the name stays here
+ *  because ten call sites import it from this module and a rename would be
+ *  churn with no reader benefit. */
+import { fmtTokens } from "./tokenScale.ts";
+export { fmtTokens };
 
 export const fmtUsd = (n: number | null | undefined): string =>
   n == null ? "—" : `$${n.toFixed(n < 10 ? 2 : 0)}`;

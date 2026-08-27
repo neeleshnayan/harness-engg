@@ -142,13 +142,14 @@ export function fmtDuration(minutes: number | null): string | null {
 }
 
 /** `540438` -> `540k`. Whole thousands only: a token count's last three
- *  digits are noise and printing them is chrome that pays no rent. */
-export function fmtTokensShort(n: number | null): string | null {
-  if (n == null) return null;
-  if (n < 1000) return String(n);
-  if (n < 1_000_000) return `${Math.round(n / 1000)}k`;
-  return `${(n / 1_000_000).toFixed(1)}M`;
-}
+ *  digits are noise and printing them is chrome that pays no rent.
+ *
+ *  RE-EXPORTED FROM `tokenScale.ts` (2026-08-27), where the `1000k` carry is
+ *  fixed. `null` for absent is this function's OWN contract and it survives
+ *  the move: `cto/page.tsx` substitutes the clause "no token totals filed",
+ *  which an em dash cannot say. */
+import { fmtTokensShort } from "./tokenScale.ts";
+export { fmtTokensShort };
 
 function fmtMoney(n: number): string {
   return n >= 1000 ? `$${Math.round(n).toLocaleString("en-US")}`

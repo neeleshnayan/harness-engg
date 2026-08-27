@@ -73,6 +73,7 @@
  */
 
 import type { Ticket, TicketState } from "@/lib/fund_api";
+import { isTerminal } from "./ticketCard.ts";
 
 /* -------------------------------------------------------- the constants --- */
 
@@ -416,8 +417,17 @@ export function ceoExceptions(
   // fold's own `YYYY-MM-DD` due dates — `desk._overdue`'s comparison exactly.
   const today = nowIso.slice(0, 10);
 
-  const working = tickets.filter((t) => !t.terminal);
-  const record = tickets.filter((t) => t.terminal);
+  /* THROUGH THE SHARED PREDICATE, NOT THE RAW FIELD (kp6-R1, request
+     170dbaeb). These two lines read `t.terminal` directly while every other
+     consumer on this desk routes through `isTerminal`, which prefers the
+     spine's flag and falls back to the five terminal STATES when the flag is
+     missing. The difference is not cosmetic and it runs the wrong way: a row
+     whose payload predates the flag — or any hand-built row — has
+     `terminal === undefined`, so `!t.terminal` is true and a DONE ticket
+     landed in `working`. Every rule below then ran on it, which is how a
+     closed row earns a button. */
+  const working = tickets.filter((t) => !isTerminal(t));
+  const record = tickets.filter((t) => isTerminal(t));
 
   // --- rule 1: whose move is it. The spine's answer, read not re-derived.
   //     An UNREADABLE actor counts toward him: this desk's oldest rule, and

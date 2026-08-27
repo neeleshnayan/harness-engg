@@ -5,7 +5,7 @@ import Link from "next/link";
 import { AlertTriangle, Flame, OctagonX } from "lucide-react";
 import {
   fundApiClient, ArchiveMemo, CeoDeskView, DeskSupersessionEdge, DeskView,
-  PendingOrder, RiskMonitorResponse, SpineEvent,
+  NavResponse, NavSnapshot, PendingOrder, RiskMonitorResponse, SpineEvent,
 } from "@/lib/fund_api";
 import { KT } from "../../theme";
 import { ReadingRoom } from "../ReadingRoom";
@@ -16,9 +16,9 @@ import { SeatFace } from "../SeatFace";
 import { fmtAt } from "../seatLib";
 import {
   CooMemo, DeskItem, QueuedAsk, asksForCeo, contractDrift, cooMemos,
-  decisionVelocity, memoDayLabel, moneyGap, orderItems, queuedAsks,
-  rankCoverage, rankDeskItems, rankReason, recItems, splitDeskItems,
-  unwrapMemoMarkdown,
+  decisionVelocity, deskItemFacts, memoDayLabel, moneyGap, orderItems,
+  queuedAsks, rankCoverage, rankDeskItems, rankReason, recItems,
+  splitDeskItems, unwrapMemoMarkdown,
 } from "../execDesk";
 import type { Decision, DecisionGroup } from "../decisionList";
 import {
@@ -51,6 +51,13 @@ import { StageRail } from "../CardRail";
 import type { LineageSources } from "../lineage";
 import { LaneBlock, LineageInline } from "../DeskLaneViews";
 import { RequestCardBody } from "../RequestCard";
+import { bookStrip } from "../../book/bookStrip";
+import { sparkline } from "../../book/sparkline";
+import {
+  BookStripView, NavSparkline, StatFigure,
+} from "../../book/BookViews";
+import { type CardScale, cardGeometry, moneyScale } from "../cardGeometry";
+import { CardFigure, CardSpine } from "../CardFigure";
 
 /**
  * The CEO's desk — A DECISION LIST, and everything else behind a named door.
@@ -137,6 +144,17 @@ export default function CeoDeskPage() {
   const [edges, setEdges] = useState<DeskSupersessionEdge[] | null>(null);
   const [edgesTruncated, setEdgesTruncated] = useState<
     { shown: number; total: number } | null>(null);
+  /* THE FUND ITSELF — what it is worth and what it holds. Added 2026-08-27 on
+     the CEO's *"I still dont quite like it... like visually how it
+     represents"*: this desk showed him 39 rows of decisions and never once
+     showed him the fund the decisions are about. `null` on either is
+     UNREADABLE and both surfaces say so in words — a header that renders an
+     outage as a flat line is the absence-as-zero rule drawn instead of
+     written. */
+  const [nav, setNav] = useState<NavResponse | null>(null);
+  const [navErr, setNavErr] = useState(false);
+  const [navHistory, setNavHistory] = useState<NavSnapshot[] | null>(null);
+  const [navHistoryErr, setNavHistoryErr] = useState(false);
   /* The client's own last visit, so the greeting can say what changed. Stamped
      by the BROWSER, never by the spine: a GET that writes is a GET that lies
      about being safe. Read once on mount, before this visit overwrites it. */
@@ -154,7 +172,7 @@ export default function CeoDeskPage() {
   }, []);
 
   const load = useCallback(async () => {
-    const [d, p, ev, rk, mm, en, sp] = await Promise.allSettled([
+    const [d, p, ev, rk, mm, en, sp, nv, nh] = await Promise.allSettled([
       fundApiClient.getDesk(),
       fundApiClient.getPending(),
       fundApiClient.getEvents(1000, 0),
@@ -162,6 +180,12 @@ export default function CeoDeskPage() {
       fundApiClient.getArchiveMemo(),
       fundApiClient.getCeoDesk(since, false),
       fundApiClient.getDeskSupersessions(),
+      fundApiClient.getNav(),
+      /* THE WHOLE STRUCK SERIES. The endpoint caps `limit` at 365 and the
+         fund's entire life is 76 strikes, so this asks for the cap and gets
+         everything — and the day it stops doing so, `sparkline` reports
+         `drawn` beside `offered` rather than presenting a window as a life. */
+      fundApiClient.getNavHistory(365),
     ]);
     if (d.status === "fulfilled") { setDesk(d.value); setErr(null); }
     else { setDesk(null); setErr(readError(d.reason)); }
@@ -182,6 +206,12 @@ export default function CeoDeskPage() {
       setEdgesTruncated(sp.value.truncated === true
         ? { shown: sp.value.shown, total: sp.value.total } : null);
     } else { setEdges(null); setEdgesTruncated(null); }
+    if (nv.status === "fulfilled") { setNav(nv.value); setNavErr(false); }
+    else { setNav(null); setNavErr(true); }
+    if (nh.status === "fulfilled") {
+      setNavHistory(nh.value.history ?? []);
+      setNavHistoryErr(false);
+    } else { setNavHistory(null); setNavHistoryErr(true); }
   }, [since]);
 
   useEffect(() => {
@@ -322,6 +352,30 @@ export default function CeoDeskPage() {
   const gap = useMemo(() => moneyGap(cardItems), [cardItems]);
   const coverage = useMemo(() => rankCoverage(cardItems), [cardItems]);
 
+  /* ── THE FUND, AS THREE PICTURES ──────────────────────────────────────
+     `null` is threaded through, never substituted. `bookStrip(null)` and
+     `sparkline(null)` each return their own UNREADABLE state with a
+     sentence, which is what makes a dead spine render as words rather than
+     as an empty track and a flat line. */
+  const book = useMemo(
+    /* THE LIVE BLOCK, not the last struck one — the CEO is deciding NOW and
+       the freshest marks are the right ones for a weight picture. The stamp
+       rides the strip (`asOf`) and the header prints it, so a reader is never
+       guessing how old the shape is. */
+    () => bookStrip(navErr ? null : nav?.live ?? null),
+    [nav, navErr]);
+  const spark = useMemo(
+    () => sparkline(navHistoryErr ? null : navHistory),
+    [navHistory, navHistoryErr]);
+
+  /* THE MONEY BAR'S DENOMINATOR, computed ONCE for the whole decision list.
+     Per card it would be a different scale on every row, which is a bar chart
+     with a moving axis — the one thing a proportional encoding may not do. */
+  const cardScale = useMemo(
+    () => ({ now: deskNow,
+             ...moneyScale(cardItems.map((it) => deskItemFacts(it, deskNow))) }),
+    [cardItems, deskNow]);
+
   /* THE ONE STEERING SENTENCE. Reads the spine's own ranking — `decisions`
      is already ordered by due date then money, absent last on both — and
      refuses to name a "most urgent" row when the top of that ranking states
@@ -446,6 +500,73 @@ export default function CeoDeskPage() {
                 {headline.note}
               </p>
             )}
+            {/* ── THE FUND ITSELF, AS A PICTURE ────────────────────────────
+                CEO, 2026-08-27: *"I still dont quite like it... like visually
+                how it represents."* This desk asked him to make 39 decisions
+                about a fund it never showed him. Three graphics, in the order
+                the questions are asked:
+
+                  what is it worth   -> the figure, and the struck line beside
+                                        it (is it going anywhere)
+                  what does it hold  -> the strip (is it concentrated, how
+                                        much is idle cash)
+
+                WHAT HE LEARNS BEFORE READING A WORD: whether NAV is trending,
+                whether one position dominates, and how much of the fund is
+                sitting in cash. All three were previously a different page.
+
+                TWO BASES ARE SHOWN WHERE THEY DISAGREE. The line is the
+                STRUCK series — folded from the event log, durable — and the
+                figure is the LIVE mark, computed at request time. They are
+                different claims and the sub-line names both, per the
+                illumination principle's third clause: a surface that picked
+                the prettier number teaches the reader to distrust whichever
+                they saw elsewhere. */}
+            <div className={`${KT.panel} mt-4 flex flex-wrap items-start gap-x-10 gap-y-5 p-4`}>
+              <div className="flex items-start gap-6">
+                <StatFigure
+                  label="net asset value"
+                  tone={navErr || !nav ? "absent" : "measured"}
+                  value={navErr ? "unreadable"
+                    : !nav ? "…"
+                    : money(nav.live.total_nav_usd)}
+                  sub={navErr
+                    ? "the fund's NAV could not be read"
+                    : !nav ? null
+                    : `live mark · ${fmtAt(nav.live.ts)}`}
+                  title={navErr
+                    ? "GET /fund/nav did not answer, so what the fund is worth "
+                      + "is UNKNOWN — not zero"
+                    : "the live mark: positions valued at current quotes. The "
+                      + "line beside it is the STRUCK series, folded from the "
+                      + "event log — two different bases, both shown"} />
+                <div className="pt-1">
+                  <p className={KT.label}>struck nav, all time</p>
+                  <div className="mt-2">
+                    <NavSparkline spark={spark} />
+                  </div>
+                  {spark.state === "line" && (
+                    <p className={`mt-1 font-mono text-[10px] tabular-nums ${KT.muted}`}>
+                      {spark.note}
+                      {nav && !navErr && spark.lastUsd != null
+                        && Math.abs(nav.live.total_nav_usd - spark.lastUsd) >= 0.01
+                        && ` · live is ${money(nav.live.total_nav_usd)}, `
+                           + `${money(nav.live.total_nav_usd - spark.lastUsd)} off the last strike`}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="min-w-[16rem] flex-1">
+                <p className={KT.label}>
+                  what the fund holds
+                  {book.asOf ? ` · ${fmtAt(book.asOf)}` : ""}
+                </p>
+                <div className="mt-2">
+                  <BookStripView strip={book} />
+                </div>
+              </div>
+            </div>
+
             {/* ── THE EXCEPTIONS DESK, LINKED AND NOT SUBSTITUTED ────────────
                 The ticket highway's exceptions view splits the decisions you
                 owe from the executions you owe and states the rule behind
@@ -695,7 +816,8 @@ export default function CeoDeskPage() {
               <div className="space-y-7">
                 {list.groups.map((g) => (
                   <DecisionGroupBlock key={g.key} group={g} onChanged={load}
-                                      sources={lineageSources} now={deskNow} />
+                                      sources={lineageSources} now={deskNow}
+                                      scale={cardScale} />
                 ))}
                 <RankingNote gap={gap} coverage={coverage} batches={list.batches}
                              hazard={orderingHazard(list.all)} />
@@ -957,11 +1079,12 @@ export default function CeoDeskPage() {
  * three decisions at 13px — which is how an already-read summary came to
  * outrank the thing it was summarising.
  */
-function DecisionGroupBlock({ group, onChanged, sources, now }: {
+function DecisionGroupBlock({ group, onChanged, sources, now, scale }: {
   group: DecisionGroup;
   onChanged: () => Promise<void> | void;
   sources: LineageSources;
   now: string;
+  scale: CardScale;
 }) {
   /* Only rows the spine will actually accept: open recommendations. An order
      is approved on Monitor and an ask has its own control, so neither can be
@@ -1003,7 +1126,7 @@ function DecisionGroupBlock({ group, onChanged, sources, now }: {
 
       <div className="space-y-2">
         {group.decisions.map((d) => (
-          <DecisionCard key={d.key} d={d} onChanged={onChanged}
+          <DecisionCard key={d.key} d={d} onChanged={onChanged} scale={scale}
                         sources={sources} now={now} />
         ))}
       </div>
@@ -1016,18 +1139,43 @@ function DecisionGroupBlock({ group, onChanged, sources, now }: {
 }
 
 /** One decision: the first sentence, why it is where it is, and the buttons. */
-function DecisionCard({ d, onChanged, sources, now }: {
+function DecisionCard({ d, onChanged, sources, now, scale }: {
   d: Decision;
   onChanged: () => Promise<void> | void;
   sources: LineageSources;
   now: string;
+  /* THE MONEY BAR'S DENOMINATOR, computed once for the whole list and
+     threaded. Per card it would be a different scale on every row — a bar
+     chart with a moving axis, which is the one thing a proportional encoding
+     may not be. */
+  scale: CardScale;
 }) {
   if (d.kind === "ask") {
     return <AskRow ask={d.ask} onDecided={onChanged} sources={sources} />;
   }
-  if (d.kind === "order") return <OrderCard item={d.item} />;
+  if (d.kind === "order") return <OrderCard item={d.item} scale={scale} />;
   return <RecCard item={d.item} onDecide={onChanged} sources={sources}
-                  now={now} />;
+                  now={now} scale={scale} />;
+}
+
+/**
+ * THE CARD'S OUTER SHELL — the spine, and the card beside it.
+ *
+ * The spine is a SIBLING of the padded box rather than a child, and that is
+ * geometry rather than preference: a stripe inside `p-4` floats in a margin,
+ * and the entire read of a spine is that it is the card's own edge.
+ * `items-stretch` makes it exactly the card's height whatever the card does.
+ */
+function CardShell({ geo, children }: {
+  geo: ReturnType<typeof cardGeometry>;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-stretch gap-3">
+      <CardSpine geo={geo} />
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  );
 }
 
 /**
@@ -1073,13 +1221,14 @@ function DueChip({ date }: { date: string }) {
  * at the page. The whose-move line went to `RecRow` instead, where the
  * question genuinely had no answer.
  */
-function RecCard({ item, onDecide, sources, now }: {
+function RecCard({ item, onDecide, sources, now, scale }: {
   item: DeskItem;
   onDecide: () => Promise<void> | void;
   sources: LineageSources;
   /** The FUND's clock, threaded rather than read from the browser — the same
    *  rule `deskLanes` follows, and the reason the rail's age is testable. */
   now: string;
+  scale: CardScale;
 }) {
   const r = item.rec!;
   /* THE DISPLAY LINE, NOT THE STORED ONE. Two rows on his live desk were
@@ -1093,7 +1242,11 @@ function RecCard({ item, onDecide, sources, now }: {
      prose to see the provenance. */
   const [chain, setChain] = useState(false);
   const [feedback, setFeedback] = useState<ClickFeedback>({ state: "idle" });
-  const scale = cardStyle(item.reversibility);
+  const type = cardStyle(item.reversibility);
+  /* THE FOUR ENCODINGS, FROM ONE CALL. Priority, age, money and kind are one
+     row's facts; computed here field by field they would be four opinions
+     able to disagree with no owner. See `cardGeometry`. */
+  const geo = cardGeometry(deskItemFacts(item, now), scale);
   const adj = adjudicationOf(r);
   const superseded = supersededBy(r);
   const cascade = cascadeOf(r);
@@ -1102,7 +1255,7 @@ function RecCard({ item, onDecide, sources, now }: {
   /* The budget follows the TYPE SCALE, measured per size — see
      `CardStyle.headlineMax`. A single number clamped the 16px card to two
      lines, which is the thing the clamp exists to stop. */
-  const face = clampLine(parts.headline, scale.headlineMax);
+  const face = clampLine(parts.headline, type.headlineMax);
   const rail = recLifecycle(r, now);
   /* The detail behind the toggle: whatever the spine extracted from a dict
      payload, else the rest of the prose. Never both — a card that showed the
@@ -1137,10 +1290,18 @@ function RecCard({ item, onDecide, sources, now }: {
   };
 
   return (
-    <div className={scale.container}>
+    <CardShell geo={geo}>
+    <div className={type.container}>
       <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
+        {/* THE GLYPH AND THE MONEY BAR LEAD THE ROW. Both are pre-verbal: the
+            glyph says what species of thing this is and the bar says which of
+            these is the big one, before a word of the headline is read. The
+            date chip stays — a dated commitment is the one ranking key that
+            does not wait for a click, and the spine's tone says "late" while
+            the chip says WHEN. */}
+        <CardFigure geo={geo} />
         {item.dueDate && <DueChip date={item.dueDate} />}
-        <p className={`min-w-0 flex-1 ${scale.text}`}>{face.line}</p>
+        <p className={`min-w-0 flex-1 ${type.text}`}>{face.line}</p>
         <span className="flex shrink-0 items-center gap-2">
           {lamp.showButtons ? (
             <>
@@ -1283,6 +1444,7 @@ function RecCard({ item, onDecide, sources, now }: {
           sources={sources} />
       )}
     </div>
+    </CardShell>
   );
 }
 
@@ -1294,16 +1456,27 @@ function RecCard({ item, onDecide, sources, now }: {
  * irreversible thing on this page and the type scale says so — and because the
  * headline number counts it, so it must be one of the N.
  */
-function OrderCard({ item }: { item: DeskItem }) {
+function OrderCard({ item, scale }: { item: DeskItem; scale: CardScale }) {
   const o = item.order!;
   const m = memoParts(o.rationale);
   const age = o.age_minutes;
   const expiresIn = age != null ? Math.max(0, 120 - age) : null;
-  const scale = cardStyle(item.reversibility);
+  const type = cardStyle(item.reversibility);
+  /* THE AGE HERE IS THE ORDER'S OWN CLOCK, not the desk's. `age_minutes` is
+     server-computed and a pending order expires at 120 of them, so the row
+     has a minute-scale life where every other row on this page has a
+     day-scale one. Passing `waitingSince` would draw a two-hour-old order
+     with the same spine as a two-hour-old recommendation, which is true and
+     useless: for this row the fill should be running out, not starting. */
+  const geo = cardGeometry(
+    { ...deskItemFacts(item, scale.now), ageHours: age == null ? null : age / 60 },
+    scale);
   return (
-    <div className={scale.container}>
+    <CardShell geo={geo}>
+    <div className={type.container}>
       <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
-        <p className={`min-w-0 flex-1 ${scale.text}`}>
+        <CardFigure geo={geo} />
+        <p className={`min-w-0 flex-1 ${type.text}`}>
           <span className="font-semibold uppercase">{o.side}</span>{" "}
           <span className="font-mono tabular-nums">{o.qty}</span>{" "}
           <span className="font-semibold">{o.symbol}</span>
@@ -1326,6 +1499,7 @@ function OrderCard({ item }: { item: DeskItem }) {
         {expiresIn != null ? `expires in ~${Math.round(expiresIn)}m` : "age unknown"}
       </p>
     </div>
+    </CardShell>
   );
 }
 

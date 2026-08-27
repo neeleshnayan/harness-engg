@@ -137,12 +137,15 @@ export interface DeskItem {
   /** A DATED COMMITMENT (YYYY-MM-DD), not an arrival time — the day something
    *  happens whether or not anybody clicks. The top ranking key.
    *
-   *  Null on every row today, and that is the honest state rather than an
-   *  oversight: the fund's one live example (a 2026-09-08 auto-close) states
-   *  its date in PROSE, and reading a deadline out of English is the same
-   *  class of mistake as the "EXECUTED" text-grep this desk is being repaired
-   *  from. The field is here, the ranking key is wired, and `rankCoverage()`
-   *  prints the zero until a seat fills it in. */
+   *  READ FROM THE SPINE'S `due_date`, NEVER PARSED OUT OF `text`: reading a
+   *  deadline out of English is the same class of mistake as the "EXECUTED"
+   *  text-grep this desk was repaired from.
+   *
+   *  This comment previously said "null on every row today". It is no longer
+   *  true and had gone stale silently — measured against the live payload
+   *  2026-08-27, 12 of 39 decision rows carry a date, the earliest three
+   *  already past. `rankCoverage()` prints the live count either way, which
+   *  is why the number belongs there and not in this sentence. */
   dueDate: string | null;
   /** Whose move it is, as the SPINE resolved it — never re-derived here. Two
    *  implementations of one predicate is how this page came to show 11 and 6
@@ -976,4 +979,64 @@ export function unwrapMemoMarkdown(md: string | null | undefined): string {
     out.push(line);
   }
   return out.join("\n");
+}
+
+
+/* ------------------------------------------- the card's geometric facts --- */
+
+/**
+ * A desk row, as the four things its PICTURE is drawn from.
+ *
+ * The adapter exists so the geometry module can stay ignorant of `DeskItem`.
+ * `cardGeometry` is consumed by the CEO desk, the chair desk, the seat pages
+ * and the ticket board, whose row types agree about nothing — a geometry
+ * module that imported one of them would have to be forked for the next.
+ *
+ * TWO FIELDS ARE COMPUTED HERE AND BOTH ARE ABSENCE-CRITICAL:
+ *
+ *   * `ageHours` from `waitingSince`. An unreadable or missing stamp gives
+ *     `null`, NOT `0`: a row whose age nobody can read is not a fresh row,
+ *     and the spine drawn for one must not look like the spine drawn for the
+ *     other.
+ *   * `kind` from the recommendation, when there is one. An ORDER has no
+ *     `kind` in the record and gets `"order"` — a literal this function
+ *     supplies knowingly rather than an absence, because the item type IS the
+ *     answer for an order and pretending otherwise would put the
+ *     "kind not recognised" mark on the only irreversible row on the desk.
+ */
+export function deskItemFacts(item: DeskItem, now: string): {
+  dueDate: string | null;
+  moneyAtStake: number | null;
+  ageHours: number | null;
+  kind: string | null;
+  reversibility: string;
+} {
+  return {
+    dueDate: item.dueDate,
+    moneyAtStake: item.moneyUsd,
+    ageHours: hoursBetween(item.waitingSince, now),
+    kind: item.kind === "order" ? "order" : (item.rec?.kind ?? null),
+    reversibility: item.reversibility,
+  };
+}
+
+/**
+ * Hours from `then` to `now`, or `null` when either cannot be read.
+ *
+ * `null` on an unparseable stamp rather than `0` or `NaN`. `NaN` would
+ * propagate into a width; `0` would claim the row is new. Both are worse than
+ * saying the age is unknown, which the spine renders as a drawn nothing and a
+ * sentence.
+ */
+export function hoursBetween(then: string | null | undefined,
+                             now: string): number | null {
+  if (!then) return null;
+  const a = Date.parse(then);
+  const b = Date.parse(now);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+  const h = (b - a) / 3_600_000;
+  // A stamp in the FUTURE is not a negative age; it is a clock disagreement,
+  // and reporting it as unknown is the honest reading. `cardAge` refuses
+  // negatives for the same reason and this keeps the refusal in one place.
+  return h < 0 ? null : h;
 }

@@ -1,0 +1,3375 @@
+{
+ "nav_live": {
+  "ts": "2026-08-27T13:00:42.581575+00:00",
+  "total_nav_usd": 2003.5,
+  "units_outstanding": 2000.0,
+  "nav_per_unit": 1.00175,
+  "breakdown": {
+   "positions": 1419.03,
+   "cash": 584.47
+  },
+  "positions": [
+   {
+    "symbol": "SPY",
+    "qty": 0.346119,
+    "mark": 769.01,
+    "usd_value": 266.16897219
+   },
+   {
+    "symbol": "DBC",
+    "qty": 8.122157,
+    "mark": 30.525,
+    "usd_value": 247.928842425
+   },
+   {
+    "symbol": "TLT",
+    "qty": 3.019871,
+    "mark": 83.09,
+    "usd_value": 250.92108139
+   },
+   {
+    "symbol": "DBA",
+    "qty": 5.314306,
+    "mark": 28.605,
+    "usd_value": 152.01572313
+   },
+   {
+    "symbol": "IWM",
+    "qty": 0.558,
+    "mark": 298.93,
+    "usd_value": 166.80294
+   },
+   {
+    "symbol": "QQQ",
+    "qty": 0.235,
+    "mark": 716.94,
+    "usd_value": 168.4809
+   },
+   {
+    "symbol": "XLF",
+    "qty": 2.862,
+    "mark": 58.25,
+    "usd_value": 166.7115
+   }
+  ]
+ },
+ "nav_last_struck": {
+  "ts": "2026-08-26T17:28:19.060139+00:00",
+  "breakdown": {
+   "cash": 584.47,
+   "positions": 1417.52
+  },
+  "positions": [
+   {
+    "qty": 0.346119,
+    "mark": 765.675,
+    "symbol": "SPY",
+    "usd_value": 265.014665325
+   },
+   {
+    "qty": 8.122157,
+    "mark": 30.65,
+    "symbol": "DBC",
+    "usd_value": 248.94411205
+   },
+   {
+    "qty": 3.019871,
+    "mark": 83.2,
+    "symbol": "TLT",
+    "usd_value": 251.2532672
+   },
+   {
+    "qty": 5.314306,
+    "mark": 28.58,
+    "symbol": "DBA",
+    "usd_value": 151.88286548
+   },
+   {
+    "qty": 0.558,
+    "mark": 298.74,
+    "symbol": "IWM",
+    "usd_value": 166.69692
+   },
+   {
+    "qty": 0.235,
+    "mark": 710.58,
+    "symbol": "QQQ",
+    "usd_value": 166.9863
+   },
+   {
+    "qty": 2.862,
+    "mark": 58.26,
+    "symbol": "XLF",
+    "usd_value": 166.74012
+   }
+  ],
+  "nav_per_unit": 1.000994,
+  "total_nav_usd": 2001.99,
+  "units_outstanding": 2000.0
+ },
+ "history": [
+  {
+   "ts": "2026-08-13T13:16:57.783661+00:00",
+   "breakdown": {
+    "cash": 2000.0,
+    "positions": 0.0
+   },
+   "positions": [],
+   "nav_per_unit": 1.0,
+   "total_nav_usd": 2000.0,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-13T13:47:52.329777+00:00",
+   "breakdown": {
+    "cash": 699.39,
+    "positions": 1320.26
+   },
+   "positions": [
+    {
+     "qty": 16.0,
+     "mark": 18.11,
+     "symbol": "SOFI",
+     "usd_value": 289.76
+    },
+    {
+     "qty": 24.0,
+     "mark": 13.9,
+     "symbol": "F",
+     "usd_value": 333.6
+    },
+    {
+     "qty": 6.7,
+     "mark": 104.015,
+     "symbol": "INTC",
+     "usd_value": 696.9005
+    }
+   ],
+   "nav_per_unit": 1.009824,
+   "total_nav_usd": 2019.65,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-13T14:54:41.745518+00:00",
+   "breakdown": {
+    "cash": 699.39,
+    "positions": 1329.56
+   },
+   "positions": [
+    {
+     "qty": 16.0,
+     "mark": 17.945,
+     "symbol": "SOFI",
+     "usd_value": 287.12
+    },
+    {
+     "qty": 24.0,
+     "mark": 13.955,
+     "symbol": "F",
+     "usd_value": 334.92
+    },
+    {
+     "qty": 6.7,
+     "mark": 105.6,
+     "symbol": "INTC",
+     "usd_value": 707.52
+    }
+   ],
+   "nav_per_unit": 1.014474,
+   "total_nav_usd": 2028.95,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-13T15:54:49.213463+00:00",
+   "breakdown": {
+    "cash": 699.39,
+    "positions": 1326.75
+   },
+   "positions": [
+    {
+     "qty": 16.0,
+     "mark": 18.0,
+     "symbol": "SOFI",
+     "usd_value": 288.0
+    },
+    {
+     "qty": 24.0,
+     "mark": 13.885,
+     "symbol": "F",
+     "usd_value": 333.24
+    },
+    {
+     "qty": 6.7,
+     "mark": 105.3,
+     "symbol": "INTC",
+     "usd_value": 705.51
+    }
+   ],
+   "nav_per_unit": 1.013069,
+   "total_nav_usd": 2026.14,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-13T16:55:43.615274+00:00",
+   "breakdown": {
+    "cash": 699.39,
+    "positions": 1325.65
+   },
+   "positions": [
+    {
+     "qty": 16.0,
+     "mark": 18.18,
+     "symbol": "SOFI",
+     "usd_value": 290.88
+    },
+    {
+     "qty": 24.0,
+     "mark": 13.895,
+     "symbol": "F",
+     "usd_value": 333.48
+    },
+    {
+     "qty": 6.7,
+     "mark": 104.67,
+     "symbol": "INTC",
+     "usd_value": 701.289
+    }
+   ],
+   "nav_per_unit": 1.012519,
+   "total_nav_usd": 2025.04,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-13T17:56:46.262781+00:00",
+   "breakdown": {
+    "cash": 699.39,
+    "positions": 1335.13
+   },
+   "positions": [
+    {
+     "qty": 16.0,
+     "mark": 18.45,
+     "symbol": "SOFI",
+     "usd_value": 295.2
+    },
+    {
+     "qty": 24.0,
+     "mark": 13.845,
+     "symbol": "F",
+     "usd_value": 332.28
+    },
+    {
+     "qty": 6.7,
+     "mark": 105.62,
+     "symbol": "INTC",
+     "usd_value": 707.654
+    }
+   ],
+   "nav_per_unit": 1.017261,
+   "total_nav_usd": 2034.52,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-13T18:57:43.921762+00:00",
+   "breakdown": {
+    "cash": 699.39,
+    "positions": 1334.31
+   },
+   "positions": [
+    {
+     "qty": 16.0,
+     "mark": 18.485,
+     "symbol": "SOFI",
+     "usd_value": 295.76
+    },
+    {
+     "qty": 24.0,
+     "mark": 13.885,
+     "symbol": "F",
+     "usd_value": 333.24
+    },
+    {
+     "qty": 6.7,
+     "mark": 105.27,
+     "symbol": "INTC",
+     "usd_value": 705.309
+    }
+   ],
+   "nav_per_unit": 1.016849,
+   "total_nav_usd": 2033.7,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-14T14:14:27.957041+00:00",
+   "breakdown": {
+    "cash": 846.92,
+    "positions": 1189.43
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.485,
+     "symbol": "SOFI",
+     "usd_value": 169.84369215
+    },
+    {
+     "qty": 1.608762,
+     "mark": 105.48,
+     "symbol": "INTC",
+     "usd_value": 169.69221576
+    },
+    {
+     "qty": 0.340051,
+     "mark": 497.69,
+     "symbol": "MSFT",
+     "usd_value": 169.23998219
+    },
+    {
+     "qty": 0.217757,
+     "mark": 778.59,
+     "symbol": "SPY",
+     "usd_value": 169.54342263
+    },
+    {
+     "qty": 0.424471,
+     "mark": 402.93,
+     "symbol": "GLD",
+     "usd_value": 171.03210003
+    },
+    {
+     "qty": 0.749886,
+     "mark": 226.27,
+     "symbol": "NVDA",
+     "usd_value": 169.67670522
+    },
+    {
+     "qty": 2.749912,
+     "mark": 61.965,
+     "symbol": "XLE",
+     "usd_value": 170.39829708
+    }
+   ],
+   "nav_per_unit": 1.018173,
+   "total_nav_usd": 2036.35,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-14T15:17:57.265616+00:00",
+   "breakdown": {
+    "cash": 846.92,
+    "positions": 1184.64
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.355,
+     "symbol": "SOFI",
+     "usd_value": 168.64922745
+    },
+    {
+     "qty": 1.608762,
+     "mark": 103.9,
+     "symbol": "INTC",
+     "usd_value": 167.1503718
+    },
+    {
+     "qty": 0.340051,
+     "mark": 497.88,
+     "symbol": "MSFT",
+     "usd_value": 169.30459188
+    },
+    {
+     "qty": 0.217757,
+     "mark": 776.575,
+     "symbol": "SPY",
+     "usd_value": 169.104642275
+    },
+    {
+     "qty": 0.424471,
+     "mark": 402.81,
+     "symbol": "GLD",
+     "usd_value": 170.98116351
+    },
+    {
+     "qty": 0.749886,
+     "mark": 225.95,
+     "symbol": "NVDA",
+     "usd_value": 169.4367417
+    },
+    {
+     "qty": 2.749912,
+     "mark": 61.825,
+     "symbol": "XLE",
+     "usd_value": 170.0133094
+    }
+   ],
+   "nav_per_unit": 1.015779,
+   "total_nav_usd": 2031.56,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-14T17:22:45.687010+00:00",
+   "breakdown": {
+    "cash": 846.92,
+    "positions": 1183.1
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.43,
+     "symbol": "SOFI",
+     "usd_value": 169.3383417
+    },
+    {
+     "qty": 1.608762,
+     "mark": 103.0,
+     "symbol": "INTC",
+     "usd_value": 165.702486
+    },
+    {
+     "qty": 0.340051,
+     "mark": 496.14,
+     "symbol": "MSFT",
+     "usd_value": 168.71290314
+    },
+    {
+     "qty": 0.217757,
+     "mark": 776.125,
+     "symbol": "SPY",
+     "usd_value": 169.006651625
+    },
+    {
+     "qty": 0.424471,
+     "mark": 402.035,
+     "symbol": "GLD",
+     "usd_value": 170.652198485
+    },
+    {
+     "qty": 0.749886,
+     "mark": 225.35,
+     "symbol": "NVDA",
+     "usd_value": 168.9868101
+    },
+    {
+     "qty": 2.749912,
+     "mark": 62.075,
+     "symbol": "XLE",
+     "usd_value": 170.7007874
+    }
+   ],
+   "nav_per_unit": 1.015009,
+   "total_nav_usd": 2030.02,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-14T18:27:21.290145+00:00",
+   "breakdown": {
+    "cash": 846.92,
+    "positions": 1181.44
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.415,
+     "symbol": "SOFI",
+     "usd_value": 169.20051885
+    },
+    {
+     "qty": 1.608762,
+     "mark": 102.65,
+     "symbol": "INTC",
+     "usd_value": 165.1394193
+    },
+    {
+     "qty": 0.340051,
+     "mark": 495.75,
+     "symbol": "MSFT",
+     "usd_value": 168.58028325
+    },
+    {
+     "qty": 0.217757,
+     "mark": 776.155,
+     "symbol": "SPY",
+     "usd_value": 169.013184335
+    },
+    {
+     "qty": 0.424471,
+     "mark": 401.705,
+     "symbol": "GLD",
+     "usd_value": 170.512123055
+    },
+    {
+     "qty": 0.749886,
+     "mark": 224.925,
+     "symbol": "NVDA",
+     "usd_value": 168.66810855
+    },
+    {
+     "qty": 2.749912,
+     "mark": 61.94,
+     "symbol": "XLE",
+     "usd_value": 170.32954928
+    }
+   ],
+   "nav_per_unit": 1.014181,
+   "total_nav_usd": 2028.36,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-14T19:31:40.444380+00:00",
+   "breakdown": {
+    "cash": 846.92,
+    "positions": 1182.08
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.465,
+     "symbol": "SOFI",
+     "usd_value": 169.65992835
+    },
+    {
+     "qty": 1.608762,
+     "mark": 102.92,
+     "symbol": "INTC",
+     "usd_value": 165.57378504
+    },
+    {
+     "qty": 0.340051,
+     "mark": 495.49,
+     "symbol": "MSFT",
+     "usd_value": 168.49186999
+    },
+    {
+     "qty": 0.217757,
+     "mark": 776.14,
+     "symbol": "SPY",
+     "usd_value": 169.00991798
+    },
+    {
+     "qty": 0.424471,
+     "mark": 401.53,
+     "symbol": "GLD",
+     "usd_value": 170.43784063
+    },
+    {
+     "qty": 0.749886,
+     "mark": 225.21,
+     "symbol": "NVDA",
+     "usd_value": 168.88182606
+    },
+    {
+     "qty": 2.749912,
+     "mark": 61.83,
+     "symbol": "XLE",
+     "usd_value": 170.02705896
+    }
+   ],
+   "nav_per_unit": 1.014501,
+   "total_nav_usd": 2029.0,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-15T07:10:41.433861+00:00",
+   "breakdown": {
+    "cash": 846.92,
+    "positions": 1179.94
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.29,
+     "symbol": "SOFI",
+     "usd_value": 168.0519951
+    },
+    {
+     "qty": 1.608762,
+     "mark": 102.53,
+     "symbol": "INTC",
+     "usd_value": 164.94636786
+    },
+    {
+     "qty": 0.340051,
+     "mark": 495.35,
+     "symbol": "MSFT",
+     "usd_value": 168.44426285
+    },
+    {
+     "qty": 0.217757,
+     "mark": 776.03,
+     "symbol": "SPY",
+     "usd_value": 168.98596471
+    },
+    {
+     "qty": 0.424471,
+     "mark": 401.45,
+     "symbol": "GLD",
+     "usd_value": 170.40388295
+    },
+    {
+     "qty": 0.749886,
+     "mark": 225.16,
+     "symbol": "NVDA",
+     "usd_value": 168.84433176
+    },
+    {
+     "qty": 2.749912,
+     "mark": 61.915,
+     "symbol": "XLE",
+     "usd_value": 170.26080148
+    }
+   ],
+   "nav_per_unit": 1.013428,
+   "total_nav_usd": 2026.86,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-15T10:08:54.610202+00:00",
+   "breakdown": {
+    "cash": 846.92,
+    "positions": 1179.97
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.290000915527344,
+     "symbol": "SOFI",
+     "usd_value": 168.0520035120392
+    },
+    {
+     "qty": 1.608762,
+     "mark": 102.5,
+     "symbol": "INTC",
+     "usd_value": 164.898105
+    },
+    {
+     "qty": 0.340051,
+     "mark": 495.3999938964844,
+     "symbol": "MSFT",
+     "usd_value": 168.46126332449342
+    },
+    {
+     "qty": 0.217757,
+     "mark": 776.3400268554688,
+     "symbol": "SPY",
+     "usd_value": 169.05347522796632
+    },
+    {
+     "qty": 0.424471,
+     "mark": 401.4800109863281,
+     "symbol": "GLD",
+     "usd_value": 170.41662174337768
+    },
+    {
+     "qty": 0.749886,
+     "mark": 225.16000366210938,
+     "symbol": "NVDA",
+     "usd_value": 168.84433450616456
+    },
+    {
+     "qty": 2.749912,
+     "mark": 61.90999984741211,
+     "symbol": "XLE",
+     "usd_value": 170.24705150039674
+    }
+   ],
+   "nav_per_unit": 1.013446,
+   "total_nav_usd": 2026.89,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-15T11:09:13.088378+00:00",
+   "breakdown": {
+    "cash": 846.92,
+    "positions": 1179.97
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.290000915527344,
+     "symbol": "SOFI",
+     "usd_value": 168.0520035120392
+    },
+    {
+     "qty": 1.608762,
+     "mark": 102.5,
+     "symbol": "INTC",
+     "usd_value": 164.898105
+    },
+    {
+     "qty": 0.340051,
+     "mark": 495.3999938964844,
+     "symbol": "MSFT",
+     "usd_value": 168.46126332449342
+    },
+    {
+     "qty": 0.217757,
+     "mark": 776.3400268554688,
+     "symbol": "SPY",
+     "usd_value": 169.05347522796632
+    },
+    {
+     "qty": 0.424471,
+     "mark": 401.4800109863281,
+     "symbol": "GLD",
+     "usd_value": 170.41662174337768
+    },
+    {
+     "qty": 0.749886,
+     "mark": 225.16000366210938,
+     "symbol": "NVDA",
+     "usd_value": 168.84433450616456
+    },
+    {
+     "qty": 2.749912,
+     "mark": 61.90999984741211,
+     "symbol": "XLE",
+     "usd_value": 170.24705150039674
+    }
+   ],
+   "nav_per_unit": 1.013446,
+   "total_nav_usd": 2026.89,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-15T12:09:31.955673+00:00",
+   "breakdown": {
+    "cash": 846.92,
+    "positions": 1179.97
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.290000915527344,
+     "symbol": "SOFI",
+     "usd_value": 168.0520035120392
+    },
+    {
+     "qty": 1.608762,
+     "mark": 102.5,
+     "symbol": "INTC",
+     "usd_value": 164.898105
+    },
+    {
+     "qty": 0.340051,
+     "mark": 495.3999938964844,
+     "symbol": "MSFT",
+     "usd_value": 168.46126332449342
+    },
+    {
+     "qty": 0.217757,
+     "mark": 776.3400268554688,
+     "symbol": "SPY",
+     "usd_value": 169.05347522796632
+    },
+    {
+     "qty": 0.424471,
+     "mark": 401.4800109863281,
+     "symbol": "GLD",
+     "usd_value": 170.41662174337768
+    },
+    {
+     "qty": 0.749886,
+     "mark": 225.16000366210938,
+     "symbol": "NVDA",
+     "usd_value": 168.84433450616456
+    },
+    {
+     "qty": 2.749912,
+     "mark": 61.90999984741211,
+     "symbol": "XLE",
+     "usd_value": 170.24705150039674
+    }
+   ],
+   "nav_per_unit": 1.013446,
+   "total_nav_usd": 2026.89,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-17T07:29:43.666538+00:00",
+   "breakdown": {
+    "cash": 846.92,
+    "positions": 1179.97
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.290000915527344,
+     "symbol": "SOFI",
+     "usd_value": 168.0520035120392
+    },
+    {
+     "qty": 1.608762,
+     "mark": 102.5,
+     "symbol": "INTC",
+     "usd_value": 164.898105
+    },
+    {
+     "qty": 0.340051,
+     "mark": 495.3999938964844,
+     "symbol": "MSFT",
+     "usd_value": 168.46126332449342
+    },
+    {
+     "qty": 0.217757,
+     "mark": 776.3400268554688,
+     "symbol": "SPY",
+     "usd_value": 169.05347522796632
+    },
+    {
+     "qty": 0.424471,
+     "mark": 401.4800109863281,
+     "symbol": "GLD",
+     "usd_value": 170.41662174337768
+    },
+    {
+     "qty": 0.749886,
+     "mark": 225.16000366210938,
+     "symbol": "NVDA",
+     "usd_value": 168.84433450616456
+    },
+    {
+     "qty": 2.749912,
+     "mark": 61.90999984741211,
+     "symbol": "XLE",
+     "usd_value": 170.24705150039674
+    }
+   ],
+   "nav_per_unit": 1.013446,
+   "total_nav_usd": 2026.89,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-17T10:49:30.198782+00:00",
+   "breakdown": {
+    "cash": 846.92,
+    "positions": 1179.97
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.290000915527344,
+     "symbol": "SOFI",
+     "usd_value": 168.0520035120392
+    },
+    {
+     "qty": 1.608762,
+     "mark": 102.5,
+     "symbol": "INTC",
+     "usd_value": 164.898105
+    },
+    {
+     "qty": 0.340051,
+     "mark": 495.3999938964844,
+     "symbol": "MSFT",
+     "usd_value": 168.46126332449342
+    },
+    {
+     "qty": 0.217757,
+     "mark": 776.3400268554688,
+     "symbol": "SPY",
+     "usd_value": 169.05347522796632
+    },
+    {
+     "qty": 0.424471,
+     "mark": 401.4800109863281,
+     "symbol": "GLD",
+     "usd_value": 170.41662174337768
+    },
+    {
+     "qty": 0.749886,
+     "mark": 225.16000366210938,
+     "symbol": "NVDA",
+     "usd_value": 168.84433450616456
+    },
+    {
+     "qty": 2.749912,
+     "mark": 61.90999984741211,
+     "symbol": "XLE",
+     "usd_value": 170.24705150039674
+    }
+   ],
+   "nav_per_unit": 1.013446,
+   "total_nav_usd": 2026.89,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-17T11:50:51.392556+00:00",
+   "breakdown": {
+    "cash": 846.92,
+    "positions": 1179.97
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.290000915527344,
+     "symbol": "SOFI",
+     "usd_value": 168.0520035120392
+    },
+    {
+     "qty": 1.608762,
+     "mark": 102.5,
+     "symbol": "INTC",
+     "usd_value": 164.898105
+    },
+    {
+     "qty": 0.340051,
+     "mark": 495.3999938964844,
+     "symbol": "MSFT",
+     "usd_value": 168.46126332449342
+    },
+    {
+     "qty": 0.217757,
+     "mark": 776.3400268554688,
+     "symbol": "SPY",
+     "usd_value": 169.05347522796632
+    },
+    {
+     "qty": 0.424471,
+     "mark": 401.4800109863281,
+     "symbol": "GLD",
+     "usd_value": 170.41662174337768
+    },
+    {
+     "qty": 0.749886,
+     "mark": 225.16000366210938,
+     "symbol": "NVDA",
+     "usd_value": 168.84433450616456
+    },
+    {
+     "qty": 2.749912,
+     "mark": 61.90999984741211,
+     "symbol": "XLE",
+     "usd_value": 170.24705150039674
+    }
+   ],
+   "nav_per_unit": 1.013446,
+   "total_nav_usd": 2026.89,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-17T13:40:22.030198+00:00",
+   "breakdown": {
+    "cash": 846.92,
+    "positions": 1181.76
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.65999984741211,
+     "symbol": "SOFI",
+     "usd_value": 171.45162399799347
+    },
+    {
+     "qty": 1.608762,
+     "mark": 102.22000122070312,
+     "symbol": "INTC",
+     "usd_value": 164.44765360382078
+    },
+    {
+     "qty": 0.340051,
+     "mark": 489.2950134277344,
+     "symbol": "MSFT",
+     "usd_value": 166.38525861111452
+    },
+    {
+     "qty": 0.217757,
+     "mark": 775.5900268554688,
+     "symbol": "SPY",
+     "usd_value": 168.8901574779663
+    },
+    {
+     "qty": 0.424471,
+     "mark": 402.510009765625,
+     "symbol": "GLD",
+     "usd_value": 170.8538263552246
+    },
+    {
+     "qty": 0.749886,
+     "mark": 225.57000732421875,
+     "symbol": "NVDA",
+     "usd_value": 169.15179051232911
+    },
+    {
+     "qty": 2.749912,
+     "mark": 62.029998779296875,
+     "symbol": "XLE",
+     "usd_value": 170.57703800317384
+    }
+   ],
+   "nav_per_unit": 1.014338,
+   "total_nav_usd": 2028.68,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-17T14:42:15.887211+00:00",
+   "breakdown": {
+    "cash": 846.92,
+    "positions": 1182.51
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.350000381469727,
+     "symbol": "SOFI",
+     "usd_value": 168.60329000501633
+    },
+    {
+     "qty": 1.608762,
+     "mark": 103.97000122070312,
+     "symbol": "INTC",
+     "usd_value": 167.2629871038208
+    },
+    {
+     "qty": 0.340051,
+     "mark": 483.3599853515625,
+     "symbol": "MSFT",
+     "usd_value": 164.36704637878418
+    },
+    {
+     "qty": 0.217757,
+     "mark": 775.1799926757812,
+     "symbol": "SPY",
+     "usd_value": 168.8008696651001
+    },
+    {
+     "qty": 0.424471,
+     "mark": 405.4200134277344,
+     "symbol": "GLD",
+     "usd_value": 172.08903851968384
+    },
+    {
+     "qty": 0.749886,
+     "mark": 226.94000244140625,
+     "symbol": "NVDA",
+     "usd_value": 170.17913067077637
+    },
+    {
+     "qty": 2.749912,
+     "mark": 62.2599983215332,
+     "symbol": "XLE",
+     "usd_value": 171.20951650436402
+    }
+   ],
+   "nav_per_unit": 1.014715,
+   "total_nav_usd": 2029.43,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-17T18:08:53.851100+00:00",
+   "breakdown": {
+    "cash": 846.92,
+    "positions": 1177.39
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.25,
+     "symbol": "SOFI",
+     "usd_value": 167.6844675
+    },
+    {
+     "qty": 1.608762,
+     "mark": 102.7300033569336,
+     "symbol": "INTC",
+     "usd_value": 165.26812566050722
+    },
+    {
+     "qty": 0.340051,
+     "mark": 479.75,
+     "symbol": "MSFT",
+     "usd_value": 163.13946725
+    },
+    {
+     "qty": 0.217757,
+     "mark": 773.4193725585938,
+     "symbol": "SPY",
+     "usd_value": 168.41748231024172
+    },
+    {
+     "qty": 0.424471,
+     "mark": 404.6199951171875,
+     "symbol": "GLD",
+     "usd_value": 171.7494539473877
+    },
+    {
+     "qty": 0.749886,
+     "mark": 225.55499267578125,
+     "symbol": "NVDA",
+     "usd_value": 169.1405312376709
+    },
+    {
+     "qty": 2.749912,
+     "mark": 62.54499816894531,
+     "symbol": "XLE",
+     "usd_value": 171.99324100476073
+    }
+   ],
+   "nav_per_unit": 1.012156,
+   "total_nav_usd": 2024.31,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-17T22:59:10.551710+00:00",
+   "breakdown": {
+    "cash": 846.92,
+    "positions": 1179.26
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.309999465942383,
+     "symbol": "SOFI",
+     "usd_value": 168.23575399297715
+    },
+    {
+     "qty": 1.608762,
+     "mark": 103.48999786376953,
+     "symbol": "INTC",
+     "usd_value": 166.4907759433136
+    },
+    {
+     "qty": 0.340051,
+     "mark": 480.3500061035156,
+     "symbol": "MSFT",
+     "usd_value": 163.3434999255066
+    },
+    {
+     "qty": 0.217757,
+     "mark": 772.6699829101562,
+     "symbol": "SPY",
+     "usd_value": 168.25429746856688
+    },
+    {
+     "qty": 0.424471,
+     "mark": 405.489990234375,
+     "symbol": "GLD",
+     "usd_value": 172.11874164477538
+    },
+    {
+     "qty": 0.749886,
+     "mark": 225.00999450683594,
+     "symbol": "NVDA",
+     "usd_value": 168.7318447407532
+    },
+    {
+     "qty": 2.749912,
+     "mark": 62.58000183105469,
+     "symbol": "XLE",
+     "usd_value": 172.08949799523927
+    }
+   ],
+   "nav_per_unit": 1.013092,
+   "total_nav_usd": 2026.18,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-18T00:45:32.196894+00:00",
+   "breakdown": {
+    "cash": 846.92,
+    "positions": 1179.26
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.309999465942383,
+     "symbol": "SOFI",
+     "usd_value": 168.23575399297715
+    },
+    {
+     "qty": 1.608762,
+     "mark": 103.48999786376953,
+     "symbol": "INTC",
+     "usd_value": 166.4907759433136
+    },
+    {
+     "qty": 0.340051,
+     "mark": 480.3500061035156,
+     "symbol": "MSFT",
+     "usd_value": 163.3434999255066
+    },
+    {
+     "qty": 0.217757,
+     "mark": 772.6699829101562,
+     "symbol": "SPY",
+     "usd_value": 168.25429746856688
+    },
+    {
+     "qty": 0.424471,
+     "mark": 405.489990234375,
+     "symbol": "GLD",
+     "usd_value": 172.11874164477538
+    },
+    {
+     "qty": 0.749886,
+     "mark": 225.00999450683594,
+     "symbol": "NVDA",
+     "usd_value": 168.7318447407532
+    },
+    {
+     "qty": 2.749912,
+     "mark": 62.58000183105469,
+     "symbol": "XLE",
+     "usd_value": 172.08949799523927
+    }
+   ],
+   "nav_per_unit": 1.013092,
+   "total_nav_usd": 2026.18,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-18T01:48:53.579387+00:00",
+   "breakdown": {
+    "cash": 846.92,
+    "positions": 1179.26
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.309999465942383,
+     "symbol": "SOFI",
+     "usd_value": 168.23575399297715
+    },
+    {
+     "qty": 1.608762,
+     "mark": 103.48999786376953,
+     "symbol": "INTC",
+     "usd_value": 166.4907759433136
+    },
+    {
+     "qty": 0.340051,
+     "mark": 480.3500061035156,
+     "symbol": "MSFT",
+     "usd_value": 163.3434999255066
+    },
+    {
+     "qty": 0.217757,
+     "mark": 772.6699829101562,
+     "symbol": "SPY",
+     "usd_value": 168.25429746856688
+    },
+    {
+     "qty": 0.424471,
+     "mark": 405.489990234375,
+     "symbol": "GLD",
+     "usd_value": 172.11874164477538
+    },
+    {
+     "qty": 0.749886,
+     "mark": 225.00999450683594,
+     "symbol": "NVDA",
+     "usd_value": 168.7318447407532
+    },
+    {
+     "qty": 2.749912,
+     "mark": 62.58000183105469,
+     "symbol": "XLE",
+     "usd_value": 172.08949799523927
+    }
+   ],
+   "nav_per_unit": 1.013092,
+   "total_nav_usd": 2026.18,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-18T02:52:46.628784+00:00",
+   "breakdown": {
+    "cash": 846.92,
+    "positions": 1179.26
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.309999465942383,
+     "symbol": "SOFI",
+     "usd_value": 168.23575399297715
+    },
+    {
+     "qty": 1.608762,
+     "mark": 103.48999786376953,
+     "symbol": "INTC",
+     "usd_value": 166.4907759433136
+    },
+    {
+     "qty": 0.340051,
+     "mark": 480.3500061035156,
+     "symbol": "MSFT",
+     "usd_value": 163.3434999255066
+    },
+    {
+     "qty": 0.217757,
+     "mark": 772.6699829101562,
+     "symbol": "SPY",
+     "usd_value": 168.25429746856688
+    },
+    {
+     "qty": 0.424471,
+     "mark": 405.489990234375,
+     "symbol": "GLD",
+     "usd_value": 172.11874164477538
+    },
+    {
+     "qty": 0.749886,
+     "mark": 225.00999450683594,
+     "symbol": "NVDA",
+     "usd_value": 168.7318447407532
+    },
+    {
+     "qty": 2.749912,
+     "mark": 62.58000183105469,
+     "symbol": "XLE",
+     "usd_value": 172.08949799523927
+    }
+   ],
+   "nav_per_unit": 1.013092,
+   "total_nav_usd": 2026.18,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-18T03:56:28.717869+00:00",
+   "breakdown": {
+    "cash": 846.92,
+    "positions": 1179.26
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.309999465942383,
+     "symbol": "SOFI",
+     "usd_value": 168.23575399297715
+    },
+    {
+     "qty": 1.608762,
+     "mark": 103.48999786376953,
+     "symbol": "INTC",
+     "usd_value": 166.4907759433136
+    },
+    {
+     "qty": 0.340051,
+     "mark": 480.3500061035156,
+     "symbol": "MSFT",
+     "usd_value": 163.3434999255066
+    },
+    {
+     "qty": 0.217757,
+     "mark": 772.6699829101562,
+     "symbol": "SPY",
+     "usd_value": 168.25429746856688
+    },
+    {
+     "qty": 0.424471,
+     "mark": 405.489990234375,
+     "symbol": "GLD",
+     "usd_value": 172.11874164477538
+    },
+    {
+     "qty": 0.749886,
+     "mark": 225.00999450683594,
+     "symbol": "NVDA",
+     "usd_value": 168.7318447407532
+    },
+    {
+     "qty": 2.749912,
+     "mark": 62.58000183105469,
+     "symbol": "XLE",
+     "usd_value": 172.08949799523927
+    }
+   ],
+   "nav_per_unit": 1.013092,
+   "total_nav_usd": 2026.18,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-18T05:00:11.321001+00:00",
+   "breakdown": {
+    "cash": 846.92,
+    "positions": 1179.97
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.290000915527344,
+     "symbol": "SOFI",
+     "usd_value": 168.0520035120392
+    },
+    {
+     "qty": 1.608762,
+     "mark": 102.5,
+     "symbol": "INTC",
+     "usd_value": 164.898105
+    },
+    {
+     "qty": 0.340051,
+     "mark": 495.3999938964844,
+     "symbol": "MSFT",
+     "usd_value": 168.46126332449342
+    },
+    {
+     "qty": 0.217757,
+     "mark": 776.3400268554688,
+     "symbol": "SPY",
+     "usd_value": 169.05347522796632
+    },
+    {
+     "qty": 0.424471,
+     "mark": 401.4800109863281,
+     "symbol": "GLD",
+     "usd_value": 170.41662174337768
+    },
+    {
+     "qty": 0.749886,
+     "mark": 225.16000366210938,
+     "symbol": "NVDA",
+     "usd_value": 168.84433450616456
+    },
+    {
+     "qty": 2.749912,
+     "mark": 61.90999984741211,
+     "symbol": "XLE",
+     "usd_value": 170.24705150039674
+    }
+   ],
+   "nav_per_unit": 1.013446,
+   "total_nav_usd": 2026.89,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-18T06:03:58.329186+00:00",
+   "breakdown": {
+    "cash": 846.92,
+    "positions": 1179.97
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.290000915527344,
+     "symbol": "SOFI",
+     "usd_value": 168.0520035120392
+    },
+    {
+     "qty": 1.608762,
+     "mark": 102.5,
+     "symbol": "INTC",
+     "usd_value": 164.898105
+    },
+    {
+     "qty": 0.340051,
+     "mark": 495.3999938964844,
+     "symbol": "MSFT",
+     "usd_value": 168.46126332449342
+    },
+    {
+     "qty": 0.217757,
+     "mark": 776.3400268554688,
+     "symbol": "SPY",
+     "usd_value": 169.05347522796632
+    },
+    {
+     "qty": 0.424471,
+     "mark": 401.4800109863281,
+     "symbol": "GLD",
+     "usd_value": 170.41662174337768
+    },
+    {
+     "qty": 0.749886,
+     "mark": 225.16000366210938,
+     "symbol": "NVDA",
+     "usd_value": 168.84433450616456
+    },
+    {
+     "qty": 2.749912,
+     "mark": 61.90999984741211,
+     "symbol": "XLE",
+     "usd_value": 170.24705150039674
+    }
+   ],
+   "nav_per_unit": 1.013446,
+   "total_nav_usd": 2026.89,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-18T07:07:41.107458+00:00",
+   "breakdown": {
+    "cash": 846.92,
+    "positions": 1179.97
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.290000915527344,
+     "symbol": "SOFI",
+     "usd_value": 168.0520035120392
+    },
+    {
+     "qty": 1.608762,
+     "mark": 102.5,
+     "symbol": "INTC",
+     "usd_value": 164.898105
+    },
+    {
+     "qty": 0.340051,
+     "mark": 495.3999938964844,
+     "symbol": "MSFT",
+     "usd_value": 168.46126332449342
+    },
+    {
+     "qty": 0.217757,
+     "mark": 776.3400268554688,
+     "symbol": "SPY",
+     "usd_value": 169.05347522796632
+    },
+    {
+     "qty": 0.424471,
+     "mark": 401.4800109863281,
+     "symbol": "GLD",
+     "usd_value": 170.41662174337768
+    },
+    {
+     "qty": 0.749886,
+     "mark": 225.16000366210938,
+     "symbol": "NVDA",
+     "usd_value": 168.84433450616456
+    },
+    {
+     "qty": 2.749912,
+     "mark": 61.90999984741211,
+     "symbol": "XLE",
+     "usd_value": 170.24705150039674
+    }
+   ],
+   "nav_per_unit": 1.013446,
+   "total_nav_usd": 2026.89,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-19T19:50:01.988716+00:00",
+   "breakdown": {
+    "cash": 346.92,
+    "positions": 1665.39
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.52050018310547,
+     "symbol": "SOFI",
+     "usd_value": 170.16987457740785
+    },
+    {
+     "qty": 1.608762,
+     "mark": 93.20999908447266,
+     "symbol": "INTC",
+     "usd_value": 149.9527045471344
+    },
+    {
+     "qty": 0.340051,
+     "mark": 483.54998779296875,
+     "symbol": "MSFT",
+     "usd_value": 164.43165689898683
+    },
+    {
+     "qty": 0.217757,
+     "mark": 768.8499755859375,
+     "symbol": "SPY",
+     "usd_value": 167.422464133667
+    },
+    {
+     "qty": 0.424471,
+     "mark": 413.3949890136719,
+     "symbol": "GLD",
+     "usd_value": 175.47418438162234
+    },
+    {
+     "qty": 0.749886,
+     "mark": 218.31629943847656,
+     "symbol": "NVDA",
+     "usd_value": 163.71233652072144
+    },
+    {
+     "qty": 2.749912,
+     "mark": 63.470001220703125,
+     "symbol": "XLE",
+     "usd_value": 174.53691799682616
+    },
+    {
+     "qty": 8.122157,
+     "mark": 30.69499969482422,
+     "symbol": "DBC",
+     "usd_value": 249.3096066363144
+    },
+    {
+     "qty": 3.019871,
+     "mark": 82.91000366210938,
+     "symbol": "TLT",
+     "usd_value": 250.3775156690979
+    }
+   ],
+   "nav_per_unit": 1.006153,
+   "total_nav_usd": 2012.31,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-19T20:53:28.624370+00:00",
+   "breakdown": {
+    "cash": 346.92,
+    "positions": 1664.89
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.420000076293945,
+     "symbol": "SOFI",
+     "usd_value": 169.24646050100327
+    },
+    {
+     "qty": 1.608762,
+     "mark": 92.80000305175781,
+     "symbol": "INTC",
+     "usd_value": 149.293118509552
+    },
+    {
+     "qty": 0.340051,
+     "mark": 484.30999755859375,
+     "symbol": "MSFT",
+     "usd_value": 164.69009897979737
+    },
+    {
+     "qty": 0.217757,
+     "mark": 769.0599975585938,
+     "symbol": "SPY",
+     "usd_value": 167.46819788836672
+    },
+    {
+     "qty": 0.424471,
+     "mark": 413.8399963378906,
+     "symbol": "GLD",
+     "usd_value": 175.66307708554075
+    },
+    {
+     "qty": 0.749886,
+     "mark": 217.55999755859375,
+     "symbol": "NVDA",
+     "usd_value": 163.14519632922364
+    },
+    {
+     "qty": 2.749912,
+     "mark": 63.58000183105469,
+     "symbol": "XLE",
+     "usd_value": 174.83940999523927
+    },
+    {
+     "qty": 8.122157,
+     "mark": 30.760000228881836,
+     "symbol": "DBC",
+     "usd_value": 249.8375511790142
+    },
+    {
+     "qty": 3.019871,
+     "mark": 83.0199966430664,
+     "symbol": "TLT",
+     "usd_value": 250.70968028249357
+    }
+   ],
+   "nav_per_unit": 1.005906,
+   "total_nav_usd": 2011.81,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-19T21:57:15.501047+00:00",
+   "breakdown": {
+    "cash": 346.92,
+    "positions": 1664.89
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.420000076293945,
+     "symbol": "SOFI",
+     "usd_value": 169.24646050100327
+    },
+    {
+     "qty": 1.608762,
+     "mark": 92.80000305175781,
+     "symbol": "INTC",
+     "usd_value": 149.293118509552
+    },
+    {
+     "qty": 0.340051,
+     "mark": 484.30999755859375,
+     "symbol": "MSFT",
+     "usd_value": 164.69009897979737
+    },
+    {
+     "qty": 0.217757,
+     "mark": 769.0599975585938,
+     "symbol": "SPY",
+     "usd_value": 167.46819788836672
+    },
+    {
+     "qty": 0.424471,
+     "mark": 413.8399963378906,
+     "symbol": "GLD",
+     "usd_value": 175.66307708554075
+    },
+    {
+     "qty": 0.749886,
+     "mark": 217.55999755859375,
+     "symbol": "NVDA",
+     "usd_value": 163.14519632922364
+    },
+    {
+     "qty": 2.749912,
+     "mark": 63.58000183105469,
+     "symbol": "XLE",
+     "usd_value": 174.83940999523927
+    },
+    {
+     "qty": 8.122157,
+     "mark": 30.760000228881836,
+     "symbol": "DBC",
+     "usd_value": 249.8375511790142
+    },
+    {
+     "qty": 3.019871,
+     "mark": 83.0199966430664,
+     "symbol": "TLT",
+     "usd_value": 250.70968028249357
+    }
+   ],
+   "nav_per_unit": 1.005906,
+   "total_nav_usd": 2011.81,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-20T00:26:07.965281+00:00",
+   "breakdown": {
+    "cash": 346.92,
+    "positions": 1664.89
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.420000076293945,
+     "symbol": "SOFI",
+     "usd_value": 169.24646050100327
+    },
+    {
+     "qty": 1.608762,
+     "mark": 92.80000305175781,
+     "symbol": "INTC",
+     "usd_value": 149.293118509552
+    },
+    {
+     "qty": 0.340051,
+     "mark": 484.30999755859375,
+     "symbol": "MSFT",
+     "usd_value": 164.69009897979737
+    },
+    {
+     "qty": 0.217757,
+     "mark": 769.0599975585938,
+     "symbol": "SPY",
+     "usd_value": 167.46819788836672
+    },
+    {
+     "qty": 0.424471,
+     "mark": 413.8399963378906,
+     "symbol": "GLD",
+     "usd_value": 175.66307708554075
+    },
+    {
+     "qty": 0.749886,
+     "mark": 217.55999755859375,
+     "symbol": "NVDA",
+     "usd_value": 163.14519632922364
+    },
+    {
+     "qty": 2.749912,
+     "mark": 63.58000183105469,
+     "symbol": "XLE",
+     "usd_value": 174.83940999523927
+    },
+    {
+     "qty": 8.122157,
+     "mark": 30.760000228881836,
+     "symbol": "DBC",
+     "usd_value": 249.8375511790142
+    },
+    {
+     "qty": 3.019871,
+     "mark": 83.0199966430664,
+     "symbol": "TLT",
+     "usd_value": 250.70968028249357
+    }
+   ],
+   "nav_per_unit": 1.005906,
+   "total_nav_usd": 2011.81,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-20T01:30:28.198357+00:00",
+   "breakdown": {
+    "cash": 346.92,
+    "positions": 1664.89
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.420000076293945,
+     "symbol": "SOFI",
+     "usd_value": 169.24646050100327
+    },
+    {
+     "qty": 1.608762,
+     "mark": 92.80000305175781,
+     "symbol": "INTC",
+     "usd_value": 149.293118509552
+    },
+    {
+     "qty": 0.340051,
+     "mark": 484.30999755859375,
+     "symbol": "MSFT",
+     "usd_value": 164.69009897979737
+    },
+    {
+     "qty": 0.217757,
+     "mark": 769.0599975585938,
+     "symbol": "SPY",
+     "usd_value": 167.46819788836672
+    },
+    {
+     "qty": 0.424471,
+     "mark": 413.8399963378906,
+     "symbol": "GLD",
+     "usd_value": 175.66307708554075
+    },
+    {
+     "qty": 0.749886,
+     "mark": 217.55999755859375,
+     "symbol": "NVDA",
+     "usd_value": 163.14519632922364
+    },
+    {
+     "qty": 2.749912,
+     "mark": 63.58000183105469,
+     "symbol": "XLE",
+     "usd_value": 174.83940999523927
+    },
+    {
+     "qty": 8.122157,
+     "mark": 30.760000228881836,
+     "symbol": "DBC",
+     "usd_value": 249.8375511790142
+    },
+    {
+     "qty": 3.019871,
+     "mark": 83.0199966430664,
+     "symbol": "TLT",
+     "usd_value": 250.70968028249357
+    }
+   ],
+   "nav_per_unit": 1.005906,
+   "total_nav_usd": 2011.81,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-20T02:34:35.125622+00:00",
+   "breakdown": {
+    "cash": 346.92,
+    "positions": 1664.89
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.420000076293945,
+     "symbol": "SOFI",
+     "usd_value": 169.24646050100327
+    },
+    {
+     "qty": 1.608762,
+     "mark": 92.80000305175781,
+     "symbol": "INTC",
+     "usd_value": 149.293118509552
+    },
+    {
+     "qty": 0.340051,
+     "mark": 484.30999755859375,
+     "symbol": "MSFT",
+     "usd_value": 164.69009897979737
+    },
+    {
+     "qty": 0.217757,
+     "mark": 769.0599975585938,
+     "symbol": "SPY",
+     "usd_value": 167.46819788836672
+    },
+    {
+     "qty": 0.424471,
+     "mark": 413.8399963378906,
+     "symbol": "GLD",
+     "usd_value": 175.66307708554075
+    },
+    {
+     "qty": 0.749886,
+     "mark": 217.55999755859375,
+     "symbol": "NVDA",
+     "usd_value": 163.14519632922364
+    },
+    {
+     "qty": 2.749912,
+     "mark": 63.58000183105469,
+     "symbol": "XLE",
+     "usd_value": 174.83940999523927
+    },
+    {
+     "qty": 8.122157,
+     "mark": 30.760000228881836,
+     "symbol": "DBC",
+     "usd_value": 249.8375511790142
+    },
+    {
+     "qty": 3.019871,
+     "mark": 83.0199966430664,
+     "symbol": "TLT",
+     "usd_value": 250.70968028249357
+    }
+   ],
+   "nav_per_unit": 1.005906,
+   "total_nav_usd": 2011.81,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-20T04:18:50.848242+00:00",
+   "breakdown": {
+    "cash": 346.92,
+    "positions": 1664.89
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.420000076293945,
+     "symbol": "SOFI",
+     "usd_value": 169.24646050100327
+    },
+    {
+     "qty": 1.608762,
+     "mark": 92.80000305175781,
+     "symbol": "INTC",
+     "usd_value": 149.293118509552
+    },
+    {
+     "qty": 0.340051,
+     "mark": 484.30999755859375,
+     "symbol": "MSFT",
+     "usd_value": 164.69009897979737
+    },
+    {
+     "qty": 0.217757,
+     "mark": 769.0599975585938,
+     "symbol": "SPY",
+     "usd_value": 167.46819788836672
+    },
+    {
+     "qty": 0.424471,
+     "mark": 413.8399963378906,
+     "symbol": "GLD",
+     "usd_value": 175.66307708554075
+    },
+    {
+     "qty": 0.749886,
+     "mark": 217.55999755859375,
+     "symbol": "NVDA",
+     "usd_value": 163.14519632922364
+    },
+    {
+     "qty": 2.749912,
+     "mark": 63.58000183105469,
+     "symbol": "XLE",
+     "usd_value": 174.83940999523927
+    },
+    {
+     "qty": 8.122157,
+     "mark": 30.760000228881836,
+     "symbol": "DBC",
+     "usd_value": 249.8375511790142
+    },
+    {
+     "qty": 3.019871,
+     "mark": 83.0199966430664,
+     "symbol": "TLT",
+     "usd_value": 250.70968028249357
+    }
+   ],
+   "nav_per_unit": 1.005906,
+   "total_nav_usd": 2011.81,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-20T05:23:09.629524+00:00",
+   "breakdown": {
+    "cash": 346.92,
+    "positions": 1664.89
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.420000076293945,
+     "symbol": "SOFI",
+     "usd_value": 169.24646050100327
+    },
+    {
+     "qty": 1.608762,
+     "mark": 92.80000305175781,
+     "symbol": "INTC",
+     "usd_value": 149.293118509552
+    },
+    {
+     "qty": 0.340051,
+     "mark": 484.30999755859375,
+     "symbol": "MSFT",
+     "usd_value": 164.69009897979737
+    },
+    {
+     "qty": 0.217757,
+     "mark": 769.0599975585938,
+     "symbol": "SPY",
+     "usd_value": 167.46819788836672
+    },
+    {
+     "qty": 0.424471,
+     "mark": 413.8399963378906,
+     "symbol": "GLD",
+     "usd_value": 175.66307708554075
+    },
+    {
+     "qty": 0.749886,
+     "mark": 217.55999755859375,
+     "symbol": "NVDA",
+     "usd_value": 163.14519632922364
+    },
+    {
+     "qty": 2.749912,
+     "mark": 63.58000183105469,
+     "symbol": "XLE",
+     "usd_value": 174.83940999523927
+    },
+    {
+     "qty": 8.122157,
+     "mark": 30.760000228881836,
+     "symbol": "DBC",
+     "usd_value": 249.8375511790142
+    },
+    {
+     "qty": 3.019871,
+     "mark": 83.0199966430664,
+     "symbol": "TLT",
+     "usd_value": 250.70968028249357
+    }
+   ],
+   "nav_per_unit": 1.005906,
+   "total_nav_usd": 2011.81,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-20T06:27:38.081448+00:00",
+   "breakdown": {
+    "cash": 346.92,
+    "positions": 1664.89
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.420000076293945,
+     "symbol": "SOFI",
+     "usd_value": 169.24646050100327
+    },
+    {
+     "qty": 1.608762,
+     "mark": 92.80000305175781,
+     "symbol": "INTC",
+     "usd_value": 149.293118509552
+    },
+    {
+     "qty": 0.340051,
+     "mark": 484.30999755859375,
+     "symbol": "MSFT",
+     "usd_value": 164.69009897979737
+    },
+    {
+     "qty": 0.217757,
+     "mark": 769.0599975585938,
+     "symbol": "SPY",
+     "usd_value": 167.46819788836672
+    },
+    {
+     "qty": 0.424471,
+     "mark": 413.8399963378906,
+     "symbol": "GLD",
+     "usd_value": 175.66307708554075
+    },
+    {
+     "qty": 0.749886,
+     "mark": 217.55999755859375,
+     "symbol": "NVDA",
+     "usd_value": 163.14519632922364
+    },
+    {
+     "qty": 2.749912,
+     "mark": 63.58000183105469,
+     "symbol": "XLE",
+     "usd_value": 174.83940999523927
+    },
+    {
+     "qty": 8.122157,
+     "mark": 30.760000228881836,
+     "symbol": "DBC",
+     "usd_value": 249.8375511790142
+    },
+    {
+     "qty": 3.019871,
+     "mark": 83.0199966430664,
+     "symbol": "TLT",
+     "usd_value": 250.70968028249357
+    }
+   ],
+   "nav_per_unit": 1.005906,
+   "total_nav_usd": 2011.81,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-20T07:31:39.303117+00:00",
+   "breakdown": {
+    "cash": 346.92,
+    "positions": 1664.89
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.420000076293945,
+     "symbol": "SOFI",
+     "usd_value": 169.24646050100327
+    },
+    {
+     "qty": 1.608762,
+     "mark": 92.80000305175781,
+     "symbol": "INTC",
+     "usd_value": 149.293118509552
+    },
+    {
+     "qty": 0.340051,
+     "mark": 484.30999755859375,
+     "symbol": "MSFT",
+     "usd_value": 164.69009897979737
+    },
+    {
+     "qty": 0.217757,
+     "mark": 769.0599975585938,
+     "symbol": "SPY",
+     "usd_value": 167.46819788836672
+    },
+    {
+     "qty": 0.424471,
+     "mark": 413.8399963378906,
+     "symbol": "GLD",
+     "usd_value": 175.66307708554075
+    },
+    {
+     "qty": 0.749886,
+     "mark": 217.55999755859375,
+     "symbol": "NVDA",
+     "usd_value": 163.14519632922364
+    },
+    {
+     "qty": 2.749912,
+     "mark": 63.58000183105469,
+     "symbol": "XLE",
+     "usd_value": 174.83940999523927
+    },
+    {
+     "qty": 8.122157,
+     "mark": 30.760000228881836,
+     "symbol": "DBC",
+     "usd_value": 249.8375511790142
+    },
+    {
+     "qty": 3.019871,
+     "mark": 83.0199966430664,
+     "symbol": "TLT",
+     "usd_value": 250.70968028249357
+    }
+   ],
+   "nav_per_unit": 1.005906,
+   "total_nav_usd": 2011.81,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-20T12:11:11.798929+00:00",
+   "breakdown": {
+    "cash": 743.51,
+    "positions": 1135.09
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.420000076293945,
+     "symbol": "SOFI",
+     "usd_value": 169.24646050100327
+    },
+    {
+     "qty": 0.16554,
+     "mark": 769.0599975585938,
+     "symbol": "SPY",
+     "usd_value": 127.31019199584962
+    },
+    {
+     "qty": 0.749886,
+     "mark": 217.55999755859375,
+     "symbol": "NVDA",
+     "usd_value": 163.14519632922364
+    },
+    {
+     "qty": 2.749912,
+     "mark": 63.58000183105469,
+     "symbol": "XLE",
+     "usd_value": 174.83940999523927
+    },
+    {
+     "qty": 8.122157,
+     "mark": 30.760000228881836,
+     "symbol": "DBC",
+     "usd_value": 249.8375511790142
+    },
+    {
+     "qty": 3.019871,
+     "mark": 83.0199966430664,
+     "symbol": "TLT",
+     "usd_value": 250.70968028249357
+    }
+   ],
+   "nav_per_unit": 0.939298,
+   "total_nav_usd": 1878.6,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-20T13:14:44.407909+00:00",
+   "breakdown": {
+    "cash": 743.51,
+    "positions": 1135.09
+   },
+   "positions": [
+    {
+     "qty": 9.18819,
+     "mark": 18.420000076293945,
+     "symbol": "SOFI",
+     "usd_value": 169.24646050100327
+    },
+    {
+     "qty": 0.16554,
+     "mark": 769.0599975585938,
+     "symbol": "SPY",
+     "usd_value": 127.31019199584962
+    },
+    {
+     "qty": 0.749886,
+     "mark": 217.55999755859375,
+     "symbol": "NVDA",
+     "usd_value": 163.14519632922364
+    },
+    {
+     "qty": 2.749912,
+     "mark": 63.58000183105469,
+     "symbol": "XLE",
+     "usd_value": 174.83940999523927
+    },
+    {
+     "qty": 8.122157,
+     "mark": 30.760000228881836,
+     "symbol": "DBC",
+     "usd_value": 249.8375511790142
+    },
+    {
+     "qty": 3.019871,
+     "mark": 83.0199966430664,
+     "symbol": "TLT",
+     "usd_value": 250.70968028249357
+    }
+   ],
+   "nav_per_unit": 0.939298,
+   "total_nav_usd": 1878.6,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-20T15:49:21.732449+00:00",
+   "breakdown": {
+    "cash": 1383.46,
+    "positions": 500.85
+   },
+   "positions": [
+    {
+     "qty": 8.122157,
+     "mark": 31.110000610351562,
+     "symbol": "DBC",
+     "usd_value": 252.68030922737123
+    },
+    {
+     "qty": 3.019871,
+     "mark": 82.18000030517578,
+     "symbol": "TLT",
+     "usd_value": 248.1729997015915
+    }
+   ],
+   "nav_per_unit": 0.942155,
+   "total_nav_usd": 1884.31,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-20T16:52:23.029882+00:00",
+   "breakdown": {
+    "cash": 1383.46,
+    "positions": 500.9
+   },
+   "positions": [
+    {
+     "qty": 8.122157,
+     "mark": 31.05500030517578,
+     "symbol": "DBC",
+     "usd_value": 252.23358811368558
+    },
+    {
+     "qty": 3.019871,
+     "mark": 82.34500122070312,
+     "symbol": "TLT",
+     "usd_value": 248.67128118136594
+    }
+   ],
+   "nav_per_unit": 0.94218,
+   "total_nav_usd": 1884.36,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-20T17:55:23.532389+00:00",
+   "breakdown": {
+    "cash": 1383.46,
+    "positions": 501.1
+   },
+   "positions": [
+    {
+     "qty": 8.122157,
+     "mark": 31.089799880981445,
+     "symbol": "DBC",
+     "usd_value": 252.51623573191262
+    },
+    {
+     "qty": 3.019871,
+     "mark": 82.31500244140625,
+     "symbol": "TLT",
+     "usd_value": 248.58068873773195
+    }
+   ],
+   "nav_per_unit": 0.942277,
+   "total_nav_usd": 1884.55,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-20T20:11:44.161760+00:00",
+   "breakdown": {
+    "cash": 1383.46,
+    "positions": 501.3
+   },
+   "positions": [
+    {
+     "qty": 8.122157,
+     "mark": 31.104999542236328,
+     "symbol": "DBC",
+     "usd_value": 252.6396897669716
+    },
+    {
+     "qty": 3.019871,
+     "mark": 82.33999633789062,
+     "symbol": "TLT",
+     "usd_value": 248.6561670809021
+    }
+   ],
+   "nav_per_unit": 0.942376,
+   "total_nav_usd": 1884.75,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-20T21:15:07.144740+00:00",
+   "breakdown": {
+    "cash": 1383.46,
+    "positions": 501.34
+   },
+   "positions": [
+    {
+     "qty": 8.122157,
+     "mark": 31.110000610351562,
+     "symbol": "DBC",
+     "usd_value": 252.68030922737123
+    },
+    {
+     "qty": 3.019871,
+     "mark": 82.33999633789062,
+     "symbol": "TLT",
+     "usd_value": 248.6561670809021
+    }
+   ],
+   "nav_per_unit": 0.942396,
+   "total_nav_usd": 1884.79,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-20T22:43:17.219001+00:00",
+   "breakdown": {
+    "cash": 1383.46,
+    "positions": 501.34
+   },
+   "positions": [
+    {
+     "qty": 8.122157,
+     "mark": 31.110000610351562,
+     "symbol": "DBC",
+     "usd_value": 252.68030922737123
+    },
+    {
+     "qty": 3.019871,
+     "mark": 82.33999633789062,
+     "symbol": "TLT",
+     "usd_value": 248.6561670809021
+    }
+   ],
+   "nav_per_unit": 0.942396,
+   "total_nav_usd": 1884.79,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-20T23:46:35.124776+00:00",
+   "breakdown": {
+    "cash": 1383.46,
+    "positions": 501.34
+   },
+   "positions": [
+    {
+     "qty": 8.122157,
+     "mark": 31.110000610351562,
+     "symbol": "DBC",
+     "usd_value": 252.68030922737123
+    },
+    {
+     "qty": 3.019871,
+     "mark": 82.33999633789062,
+     "symbol": "TLT",
+     "usd_value": 248.6561670809021
+    }
+   ],
+   "nav_per_unit": 0.942396,
+   "total_nav_usd": 1884.79,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-21T00:50:15.926224+00:00",
+   "breakdown": {
+    "cash": 1383.46,
+    "positions": 501.34
+   },
+   "positions": [
+    {
+     "qty": 8.122157,
+     "mark": 31.110000610351562,
+     "symbol": "DBC",
+     "usd_value": 252.68030922737123
+    },
+    {
+     "qty": 3.019871,
+     "mark": 82.33999633789062,
+     "symbol": "TLT",
+     "usd_value": 248.6561670809021
+    }
+   ],
+   "nav_per_unit": 0.942396,
+   "total_nav_usd": 1884.79,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-21T01:54:16.601644+00:00",
+   "breakdown": {
+    "cash": 1383.46,
+    "positions": 501.34
+   },
+   "positions": [
+    {
+     "qty": 8.122157,
+     "mark": 31.110000610351562,
+     "symbol": "DBC",
+     "usd_value": 252.68030922737123
+    },
+    {
+     "qty": 3.019871,
+     "mark": 82.33999633789062,
+     "symbol": "TLT",
+     "usd_value": 248.6561670809021
+    }
+   ],
+   "nav_per_unit": 0.942396,
+   "total_nav_usd": 1884.79,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-21T02:57:38.166240+00:00",
+   "breakdown": {
+    "cash": 1383.46,
+    "positions": 501.34
+   },
+   "positions": [
+    {
+     "qty": 8.122157,
+     "mark": 31.110000610351562,
+     "symbol": "DBC",
+     "usd_value": 252.68030922737123
+    },
+    {
+     "qty": 3.019871,
+     "mark": 82.33999633789062,
+     "symbol": "TLT",
+     "usd_value": 248.6561670809021
+    }
+   ],
+   "nav_per_unit": 0.942396,
+   "total_nav_usd": 1884.79,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-21T04:00:49.113571+00:00",
+   "breakdown": {
+    "cash": 1383.46,
+    "positions": 501.34
+   },
+   "positions": [
+    {
+     "qty": 8.122157,
+     "mark": 31.110000610351562,
+     "symbol": "DBC",
+     "usd_value": 252.68030922737123
+    },
+    {
+     "qty": 3.019871,
+     "mark": 82.33999633789062,
+     "symbol": "TLT",
+     "usd_value": 248.6561670809021
+    }
+   ],
+   "nav_per_unit": 0.942396,
+   "total_nav_usd": 1884.79,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-21T05:04:00.357947+00:00",
+   "breakdown": {
+    "cash": 1383.46,
+    "positions": 501.34
+   },
+   "positions": [
+    {
+     "qty": 8.122157,
+     "mark": 31.110000610351562,
+     "symbol": "DBC",
+     "usd_value": 252.68030922737123
+    },
+    {
+     "qty": 3.019871,
+     "mark": 82.33999633789062,
+     "symbol": "TLT",
+     "usd_value": 248.6561670809021
+    }
+   ],
+   "nav_per_unit": 0.942396,
+   "total_nav_usd": 1884.79,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-21T06:07:15.257495+00:00",
+   "breakdown": {
+    "cash": 1383.46,
+    "positions": 501.34
+   },
+   "positions": [
+    {
+     "qty": 8.122157,
+     "mark": 31.110000610351562,
+     "symbol": "DBC",
+     "usd_value": 252.68030922737123
+    },
+    {
+     "qty": 3.019871,
+     "mark": 82.33999633789062,
+     "symbol": "TLT",
+     "usd_value": 248.6561670809021
+    }
+   ],
+   "nav_per_unit": 0.942396,
+   "total_nav_usd": 1884.79,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-21T08:32:49.645296+00:00",
+   "breakdown": {
+    "cash": 968.69,
+    "positions": 916.11
+   },
+   "positions": [
+    {
+     "qty": 0.346119,
+     "mark": 762.5999755859375,
+     "symbol": "SPY",
+     "usd_value": 263.9503409498291
+    },
+    {
+     "qty": 8.122157,
+     "mark": 31.110000610351562,
+     "symbol": "DBC",
+     "usd_value": 252.68030922737123
+    },
+    {
+     "qty": 3.019871,
+     "mark": 82.33999633789062,
+     "symbol": "TLT",
+     "usd_value": 248.6561670809021
+    },
+    {
+     "qty": 5.314306,
+     "mark": 28.3799991607666,
+     "symbol": "DBA",
+     "usd_value": 150.81999982005692
+    }
+   ],
+   "nav_per_unit": 0.942396,
+   "total_nav_usd": 1884.79,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-21T09:59:47.333992+00:00",
+   "breakdown": {
+    "cash": 968.69,
+    "positions": 916.11
+   },
+   "positions": [
+    {
+     "qty": 0.346119,
+     "mark": 762.5999755859375,
+     "symbol": "SPY",
+     "usd_value": 263.9503409498291
+    },
+    {
+     "qty": 8.122157,
+     "mark": 31.110000610351562,
+     "symbol": "DBC",
+     "usd_value": 252.68030922737123
+    },
+    {
+     "qty": 3.019871,
+     "mark": 82.33999633789062,
+     "symbol": "TLT",
+     "usd_value": 248.6561670809021
+    },
+    {
+     "qty": 5.314306,
+     "mark": 28.3799991607666,
+     "symbol": "DBA",
+     "usd_value": 150.81999982005692
+    }
+   ],
+   "nav_per_unit": 0.942396,
+   "total_nav_usd": 1884.79,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-21T11:03:16.578351+00:00",
+   "breakdown": {
+    "cash": 968.69,
+    "positions": 916.11
+   },
+   "positions": [
+    {
+     "qty": 0.346119,
+     "mark": 762.5999755859375,
+     "symbol": "SPY",
+     "usd_value": 263.9503409498291
+    },
+    {
+     "qty": 8.122157,
+     "mark": 31.110000610351562,
+     "symbol": "DBC",
+     "usd_value": 252.68030922737123
+    },
+    {
+     "qty": 3.019871,
+     "mark": 82.33999633789062,
+     "symbol": "TLT",
+     "usd_value": 248.6561670809021
+    },
+    {
+     "qty": 5.314306,
+     "mark": 28.3799991607666,
+     "symbol": "DBA",
+     "usd_value": 150.81999982005692
+    }
+   ],
+   "nav_per_unit": 0.942396,
+   "total_nav_usd": 1884.79,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-21T12:07:10.186914+00:00",
+   "breakdown": {
+    "cash": 968.69,
+    "positions": 916.11
+   },
+   "positions": [
+    {
+     "qty": 0.346119,
+     "mark": 762.5999755859375,
+     "symbol": "SPY",
+     "usd_value": 263.9503409498291
+    },
+    {
+     "qty": 8.122157,
+     "mark": 31.110000610351562,
+     "symbol": "DBC",
+     "usd_value": 252.68030922737123
+    },
+    {
+     "qty": 3.019871,
+     "mark": 82.33999633789062,
+     "symbol": "TLT",
+     "usd_value": 248.6561670809021
+    },
+    {
+     "qty": 5.314306,
+     "mark": 28.3799991607666,
+     "symbol": "DBA",
+     "usd_value": 150.81999982005692
+    }
+   ],
+   "nav_per_unit": 0.942396,
+   "total_nav_usd": 1884.79,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-21T15:21:39.246369+00:00",
+   "breakdown": {
+    "cash": 968.69,
+    "positions": 916.55
+   },
+   "positions": [
+    {
+     "qty": 0.346119,
+     "mark": 765.63,
+     "symbol": "SPY",
+     "usd_value": 264.99908997
+    },
+    {
+     "qty": 8.122157,
+     "mark": 31.22,
+     "symbol": "DBC",
+     "usd_value": 253.57374154
+    },
+    {
+     "qty": 3.019871,
+     "mark": 82.045,
+     "symbol": "TLT",
+     "usd_value": 247.765316195
+    },
+    {
+     "qty": 5.314306,
+     "mark": 28.265,
+     "symbol": "DBA",
+     "usd_value": 150.20885909
+    }
+   ],
+   "nav_per_unit": 0.942616,
+   "total_nav_usd": 1885.23,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-21T16:27:59.410896+00:00",
+   "breakdown": {
+    "cash": 968.69,
+    "positions": 917.47
+   },
+   "positions": [
+    {
+     "qty": 0.346119,
+     "mark": 766.43,
+     "symbol": "SPY",
+     "usd_value": 265.27598517
+    },
+    {
+     "qty": 8.122157,
+     "mark": 31.28,
+     "symbol": "DBC",
+     "usd_value": 254.06107096
+    },
+    {
+     "qty": 3.019871,
+     "mark": 82.01,
+     "symbol": "TLT",
+     "usd_value": 247.65962071
+    },
+    {
+     "qty": 5.314306,
+     "mark": 28.315,
+     "symbol": "DBA",
+     "usd_value": 150.47457439
+    }
+   ],
+   "nav_per_unit": 0.943078,
+   "total_nav_usd": 1886.16,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-21T17:33:45.703496+00:00",
+   "breakdown": {
+    "cash": 968.69,
+    "positions": 917.28
+   },
+   "positions": [
+    {
+     "qty": 0.346119,
+     "mark": 765.75,
+     "symbol": "SPY",
+     "usd_value": 265.04062425
+    },
+    {
+     "qty": 8.122157,
+     "mark": 31.325,
+     "symbol": "DBC",
+     "usd_value": 254.426568025
+    },
+    {
+     "qty": 3.019871,
+     "mark": 81.99,
+     "symbol": "TLT",
+     "usd_value": 247.59922329
+    },
+    {
+     "qty": 5.314306,
+     "mark": 28.265,
+     "symbol": "DBA",
+     "usd_value": 150.20885909
+    }
+   ],
+   "nav_per_unit": 0.942981,
+   "total_nav_usd": 1885.96,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-21T19:32:49.548584+00:00",
+   "breakdown": {
+    "cash": 968.69,
+    "positions": 917.39
+   },
+   "positions": [
+    {
+     "qty": 0.346119,
+     "mark": 766.125,
+     "symbol": "SPY",
+     "usd_value": 265.170418875
+    },
+    {
+     "qty": 8.122157,
+     "mark": 31.285,
+     "symbol": "DBC",
+     "usd_value": 254.101681745
+    },
+    {
+     "qty": 3.019871,
+     "mark": 81.97,
+     "symbol": "TLT",
+     "usd_value": 247.53882587
+    },
+    {
+     "qty": 5.314306,
+     "mark": 28.335,
+     "symbol": "DBA",
+     "usd_value": 150.58086051
+    }
+   ],
+   "nav_per_unit": 0.943039,
+   "total_nav_usd": 1886.08,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-21T20:39:12.135773+00:00",
+   "breakdown": {
+    "cash": 968.69,
+    "positions": 917.06
+   },
+   "positions": [
+    {
+     "qty": 0.346119,
+     "mark": 765.55,
+     "symbol": "SPY",
+     "usd_value": 264.97140045
+    },
+    {
+     "qty": 8.122157,
+     "mark": 31.25,
+     "symbol": "DBC",
+     "usd_value": 253.81740625
+    },
+    {
+     "qty": 3.019871,
+     "mark": 82.045,
+     "symbol": "TLT",
+     "usd_value": 247.765316195
+    },
+    {
+     "qty": 5.314306,
+     "mark": 28.32,
+     "symbol": "DBA",
+     "usd_value": 150.50114592
+    }
+   ],
+   "nav_per_unit": 0.942871,
+   "total_nav_usd": 1885.74,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-24T13:50:10.719943+00:00",
+   "breakdown": {
+    "cash": 1700.53,
+    "positions": 299.75
+   },
+   "positions": [
+    {
+     "qty": 1.558762,
+     "mark": 85.69,
+     "symbol": "INTC",
+     "usd_value": 133.57031578
+    },
+    {
+     "qty": 0.217757,
+     "mark": 763.125,
+     "symbol": "SPY",
+     "usd_value": 166.175810625
+    }
+   ],
+   "nav_per_unit": 1.00014,
+   "total_nav_usd": 2000.28,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-24T13:52:06.017733+00:00",
+   "breakdown": {
+    "cash": 1833.93,
+    "positions": 166.14
+   },
+   "positions": [
+    {
+     "qty": 0.217757,
+     "mark": 762.95,
+     "symbol": "SPY",
+     "usd_value": 166.13770315
+    }
+   ],
+   "nav_per_unit": 1.000035,
+   "total_nav_usd": 2000.07,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-24T15:03:17.572171+00:00",
+   "breakdown": {
+    "cash": 1735.98,
+    "positions": 264.18
+   },
+   "positions": [
+    {
+     "qty": 0.346119,
+     "mark": 763.27,
+     "symbol": "SPY",
+     "usd_value": 264.18224913
+    }
+   ],
+   "nav_per_unit": 1.00008,
+   "total_nav_usd": 2000.16,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-24T15:21:58.224578+00:00",
+   "breakdown": {
+    "cash": 1735.98,
+    "positions": 263.94
+   },
+   "positions": [
+    {
+     "qty": 0.346119,
+     "mark": 762.58,
+     "symbol": "SPY",
+     "usd_value": 263.94342702
+    }
+   ],
+   "nav_per_unit": 0.99996,
+   "total_nav_usd": 1999.92,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-24T15:52:15.070868+00:00",
+   "breakdown": {
+    "cash": 1085.11,
+    "positions": 915.52
+   },
+   "positions": [
+    {
+     "qty": 0.346119,
+     "mark": 764.37,
+     "symbol": "SPY",
+     "usd_value": 264.56298003
+    },
+    {
+     "qty": 8.122157,
+     "mark": 30.95,
+     "symbol": "DBC",
+     "usd_value": 251.38075915
+    },
+    {
+     "qty": 3.019871,
+     "mark": 82.645,
+     "symbol": "TLT",
+     "usd_value": 249.577238795
+    },
+    {
+     "qty": 5.314306,
+     "mark": 28.225,
+     "symbol": "DBA",
+     "usd_value": 149.99628685
+    }
+   ],
+   "nav_per_unit": 1.000315,
+   "total_nav_usd": 2000.63,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-24T16:58:46.608263+00:00",
+   "breakdown": {
+    "cash": 1085.11,
+    "positions": 916.42
+   },
+   "positions": [
+    {
+     "qty": 0.346119,
+     "mark": 764.15,
+     "symbol": "SPY",
+     "usd_value": 264.48683385
+    },
+    {
+     "qty": 8.122157,
+     "mark": 31.0,
+     "symbol": "DBC",
+     "usd_value": 251.786867
+    },
+    {
+     "qty": 3.019871,
+     "mark": 82.72,
+     "symbol": "TLT",
+     "usd_value": 249.80372912
+    },
+    {
+     "qty": 5.314306,
+     "mark": 28.29,
+     "symbol": "DBA",
+     "usd_value": 150.34171674
+    }
+   ],
+   "nav_per_unit": 1.000766,
+   "total_nav_usd": 2001.53,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-24T18:06:16.477789+00:00",
+   "breakdown": {
+    "cash": 1085.11,
+    "positions": 915.11
+   },
+   "positions": [
+    {
+     "qty": 0.346119,
+     "mark": 763.685,
+     "symbol": "SPY",
+     "usd_value": 264.325888515
+    },
+    {
+     "qty": 8.122157,
+     "mark": 30.905,
+     "symbol": "DBC",
+     "usd_value": 251.015262085
+    },
+    {
+     "qty": 3.019871,
+     "mark": 82.63,
+     "symbol": "TLT",
+     "usd_value": 249.53194073
+    },
+    {
+     "qty": 5.314306,
+     "mark": 28.27,
+     "symbol": "DBA",
+     "usd_value": 150.23543062
+    }
+   ],
+   "nav_per_unit": 1.000111,
+   "total_nav_usd": 2000.22,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-24T19:14:46.808135+00:00",
+   "breakdown": {
+    "cash": 1085.11,
+    "positions": 915.57
+   },
+   "positions": [
+    {
+     "qty": 0.346119,
+     "mark": 764.13,
+     "symbol": "SPY",
+     "usd_value": 264.47991147
+    },
+    {
+     "qty": 8.122157,
+     "mark": 30.945,
+     "symbol": "DBC",
+     "usd_value": 251.340148365
+    },
+    {
+     "qty": 3.019871,
+     "mark": 82.615,
+     "symbol": "TLT",
+     "usd_value": 249.486642665
+    },
+    {
+     "qty": 5.314306,
+     "mark": 28.275,
+     "symbol": "DBA",
+     "usd_value": 150.26200215
+    }
+   ],
+   "nav_per_unit": 1.000341,
+   "total_nav_usd": 2000.68,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-26T13:52:04.644736+00:00",
+   "breakdown": {
+    "cash": 584.47,
+    "positions": 1414.07
+   },
+   "positions": [
+    {
+     "qty": 0.346119,
+     "mark": 765.99,
+     "symbol": "SPY",
+     "usd_value": 265.12369281
+    },
+    {
+     "qty": 8.122157,
+     "mark": 30.4,
+     "symbol": "DBC",
+     "usd_value": 246.9135728
+    },
+    {
+     "qty": 3.019871,
+     "mark": 83.12,
+     "symbol": "TLT",
+     "usd_value": 251.01167752
+    },
+    {
+     "qty": 5.314306,
+     "mark": 28.31,
+     "symbol": "DBA",
+     "usd_value": 150.44800286
+    },
+    {
+     "qty": 0.558,
+     "mark": 299.415,
+     "symbol": "IWM",
+     "usd_value": 167.07357
+    },
+    {
+     "qty": 0.235,
+     "mark": 710.79,
+     "symbol": "QQQ",
+     "usd_value": 167.03565
+    },
+    {
+     "qty": 2.862,
+     "mark": 58.165,
+     "symbol": "XLF",
+     "usd_value": 166.46823
+    }
+   ],
+   "nav_per_unit": 0.999272,
+   "total_nav_usd": 1998.54,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-26T15:04:56.338914+00:00",
+   "breakdown": {
+    "cash": 584.47,
+    "positions": 1414.86
+   },
+   "positions": [
+    {
+     "qty": 0.346119,
+     "mark": 766.17,
+     "symbol": "SPY",
+     "usd_value": 265.18599423
+    },
+    {
+     "qty": 8.122157,
+     "mark": 30.495,
+     "symbol": "DBC",
+     "usd_value": 247.685177715
+    },
+    {
+     "qty": 3.019871,
+     "mark": 83.255,
+     "symbol": "TLT",
+     "usd_value": 251.419360105
+    },
+    {
+     "qty": 5.314306,
+     "mark": 28.3,
+     "symbol": "DBA",
+     "usd_value": 150.3948598
+    },
+    {
+     "qty": 0.558,
+     "mark": 298.635,
+     "symbol": "IWM",
+     "usd_value": 166.63833
+    },
+    {
+     "qty": 0.235,
+     "mark": 710.46,
+     "symbol": "QQQ",
+     "usd_value": 166.9581
+    },
+    {
+     "qty": 2.862,
+     "mark": 58.205,
+     "symbol": "XLF",
+     "usd_value": 166.58271
+    }
+   ],
+   "nav_per_unit": 0.999668,
+   "total_nav_usd": 1999.34,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-26T16:16:17.781309+00:00",
+   "breakdown": {
+    "cash": 584.47,
+    "positions": 1415.67
+   },
+   "positions": [
+    {
+     "qty": 0.346119,
+     "mark": 765.03,
+     "symbol": "SPY",
+     "usd_value": 264.79141857
+    },
+    {
+     "qty": 8.122157,
+     "mark": 30.62,
+     "symbol": "DBC",
+     "usd_value": 248.70044734
+    },
+    {
+     "qty": 3.019871,
+     "mark": 83.135,
+     "symbol": "TLT",
+     "usd_value": 251.056975585
+    },
+    {
+     "qty": 5.314306,
+     "mark": 28.455,
+     "symbol": "DBA",
+     "usd_value": 151.21857723
+    },
+    {
+     "qty": 0.558,
+     "mark": 298.405,
+     "symbol": "IWM",
+     "usd_value": 166.50999
+    },
+    {
+     "qty": 0.235,
+     "mark": 709.08,
+     "symbol": "QQQ",
+     "usd_value": 166.6338
+    },
+    {
+     "qty": 2.862,
+     "mark": 58.265,
+     "symbol": "XLF",
+     "usd_value": 166.75443
+    }
+   ],
+   "nav_per_unit": 1.000068,
+   "total_nav_usd": 2000.14,
+   "units_outstanding": 2000.0
+  },
+  {
+   "ts": "2026-08-26T17:28:19.060139+00:00",
+   "breakdown": {
+    "cash": 584.47,
+    "positions": 1417.52
+   },
+   "positions": [
+    {
+     "qty": 0.346119,
+     "mark": 765.675,
+     "symbol": "SPY",
+     "usd_value": 265.014665325
+    },
+    {
+     "qty": 8.122157,
+     "mark": 30.65,
+     "symbol": "DBC",
+     "usd_value": 248.94411205
+    },
+    {
+     "qty": 3.019871,
+     "mark": 83.2,
+     "symbol": "TLT",
+     "usd_value": 251.2532672
+    },
+    {
+     "qty": 5.314306,
+     "mark": 28.58,
+     "symbol": "DBA",
+     "usd_value": 151.88286548
+    },
+    {
+     "qty": 0.558,
+     "mark": 298.74,
+     "symbol": "IWM",
+     "usd_value": 166.69692
+    },
+    {
+     "qty": 0.235,
+     "mark": 710.58,
+     "symbol": "QQQ",
+     "usd_value": 166.9863
+    },
+    {
+     "qty": 2.862,
+     "mark": 58.26,
+     "symbol": "XLF",
+     "usd_value": 166.74012
+    }
+   ],
+   "nav_per_unit": 1.000994,
+   "total_nav_usd": 2001.99,
+   "units_outstanding": 2000.0
+  }
+ ]
+}

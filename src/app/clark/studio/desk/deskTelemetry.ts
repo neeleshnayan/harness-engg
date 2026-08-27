@@ -234,13 +234,14 @@ export function seatTelemetry(
 
 /** Compact token rendering: `480k`, `1.2M`, `900`. A dash for absent — never a
  *  zero, because "no figure" and "measured zero tokens" mean opposite things
- *  about whether the seat ran. */
-export function fmtTokensCompact(n: number | null | undefined): string {
-  if (n == null || !Number.isFinite(n)) return "—";
-  if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(n) >= 1_000) return `${Math.round(n / 1_000)}k`;
-  return `${n}`;
-}
+ *  about whether the seat ran.
+ *
+ *  RE-EXPORTED FROM `tokenScale.ts` (2026-08-27). This body was the closest of
+ *  the three to right and still rendered 999,999 as `1000k`: it tested the RAW
+ *  value against the million boundary instead of the ROUNDED one, so a figure
+ *  that had already carried into millions was spoken in four-digit thousands. */
+import { fmtTokensCompact } from "./tokenScale.ts";
+export { fmtTokensCompact };
 
 /** The floor marker. A sum missing one run's figure is "≥", and the reason is
  *  put in the caller's title attribute rather than implied. */

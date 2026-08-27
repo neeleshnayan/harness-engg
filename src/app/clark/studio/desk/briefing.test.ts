@@ -268,8 +268,22 @@ test("an empty fold is absent fields, never empty strings", () => {
 test("the token shortener is probed AT each boundary, not around it", () => {
   assert.equal(fmtTokensShort(999), "999");
   assert.equal(fmtTokensShort(1000), "1k", "the k boundary is inclusive");
-  assert.equal(fmtTokensShort(999_999), "1000k");
+  // CHANGED 2026-08-27, AND THE OLD ASSERTION WAS BLESSING THE BUG. This line
+  // read `"1000k"` — a four-digit thousands figure, which is the same defect
+  // as the `18863k` the CEO called out, at one twentieth the size. The
+  // boundary table was right to probe here and wrong about the answer: a
+  // value that ROUNDS to 1000 thousands has reached a million and is spoken
+  // in millions. All three of this directory's token formatters made the
+  // identical mistake, testing the RAW value against the boundary rather than
+  // the ROUNDED one.
+  assert.equal(fmtTokensShort(999_999), "1.0M",
+               "999,999 rounds to 1000k, which carries into 1.0M");
   assert.equal(fmtTokensShort(1_000_000), "1.0M", "the M boundary is inclusive");
+  // The value that started this: `18863k` is not a number anybody reads.
+  assert.equal(fmtTokensShort(18_863_000), "18.9M");
+  // ...and the largest figure below the carry still speaks in thousands, so
+  // the fix did not simply move every number into millions.
+  assert.equal(fmtTokensShort(999_499), "999k");
 });
 
 test("the money chip's FOUR-FIGURE branch is exercised at all", () => {

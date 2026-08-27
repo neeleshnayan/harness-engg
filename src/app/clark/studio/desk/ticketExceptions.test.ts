@@ -587,3 +587,71 @@ test("every level lies inside the band where it can discriminate", () => {
       + "discriminate in: it either admits everything or can never fire");
   }
 });
+
+/* ------------------------------------- kp6-R1: ONE terminal predicate ------ */
+
+test("a DONE ticket with no `terminal` flag is in the RECORD, not the queue", () => {
+  /* kp6-R1 (approved request 170dbaeb). These two filters read `t.terminal`
+   * raw while every other consumer on this desk routes through `isTerminal`,
+   * which prefers the spine's flag and falls back to the five terminal STATES
+   * when the flag is absent.
+   *
+   * THE DIFFERENCE RUNS THE WRONG WAY. `!undefined` is `true`, so a payload
+   * predating the flag — or any hand-built row — put a DONE ticket into
+   * `working`, where every rule below then ran on it. That is the "like WTF"
+   * incident's exact shape: an already-finished row rendering a decision
+   * control.
+   *
+   * ABSENCE IS BUILT BY `delete`, NOT BY SPREADING `undefined`. A JSON payload
+   * that omits the key parses WITHOUT it; `{...t, terminal: undefined}` has
+   * the key. `isTerminal` reads the VALUE so both work here, but a fixture
+   * that cannot represent the production shape is the wrong fixture. */
+  const noFlag = tk({ ticket_id: "no-flag", state: "done",
+                      next_actor: "ceo", money_at_stake: 5000 });
+  delete (noFlag as Partial<Ticket>).terminal;
+  assert.equal("terminal" in noFlag, false, "the fixture omits the key");
+
+  const live = tk({ ticket_id: "live-one", state: "filed", next_actor: "ceo" });
+  const out = ceoExceptions([noFlag, live], NOW)!;
+
+  const surfaced = [...out.decisionOwed, ...out.executionOwed, ...out.escalated]
+    .map((x) => x.ticket.ticket_id);
+  assert.ok(!surfaced.includes("no-flag"),
+            "a done ticket must never reach a rule, flag or no flag");
+  assert.ok(!out.board.some((t) => t.ticket_id === "no-flag"),
+            "nor the board he visits by choice");
+  assert.ok(out.record.some((t) => t.ticket_id === "no-flag"),
+            "it belongs in the record");
+  assert.ok(surfaced.includes("live-one"), "and the live one still surfaces");
+  assert.equal(out.totals.terminal, 1);
+  assert.equal(out.totals.working, 1);
+});
+
+test("the spine's `terminal` flag still WINS over the state list", () => {
+  /* The precedence is the whole reason `isTerminal` exists rather than a bare
+   * state lookup: two derivations of one fact is how this desk once read 11
+   * where the spine read 6. A row the SPINE calls terminal is terminal even
+   * if its state is one this build's list does not know. */
+  const spineSaysDone = tk({ ticket_id: "spine-done", state: "filed",
+                             terminal: true, next_actor: "ceo" });
+  const out = ceoExceptions([spineSaysDone], NOW)!;
+  assert.equal(out.totals.terminal, 1);
+  assert.equal(out.totals.working, 0);
+  assert.equal(out.decisionOwed.length + out.executionOwed.length
+               + out.escalated.length + out.board.length, 0);
+});
+
+test("the split stays exhaustive and disjoint across the flagless shape", () => {
+  // The structural guard, re-run on the input that used to break it: a filter
+  // change that drops a row looks exactly like a tidier desk.
+  const rows = [
+    tk({ state: "done" }), tk({ state: "filed" }), tk({ state: "declined" }),
+    tk({ state: "in_flight" }), tk({ state: "merged" }),
+  ];
+  for (const r of rows) delete (r as Partial<Ticket>).terminal;
+  const out = ceoExceptions(rows, NOW)!;
+  assert.equal(out.totals.working + out.totals.terminal, rows.length);
+  assert.equal(out.totals.all, rows.length);
+  assert.equal(out.totals.terminal, 3, "done, declined, merged");
+  assert.equal(out.totals.working, 2, "filed, in_flight");
+});
