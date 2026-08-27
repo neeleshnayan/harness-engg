@@ -336,3 +336,82 @@ def test_the_reconcile_tick_can_still_be_disabled_by_zero():
     body = _scheduler_body()
     assert "if reconcile_every and reconcile_due:" in body
     assert S.advance(1e9, 1e9, 0) == (1e9, False)
+
+
+# ================================================== the reader, in a subprocess
+#: ``app.main`` is imported in a CLEAN INTERPRETER, never in-process.
+#: ``tests/test_executionquality_store.py`` enforces that rule with an AST scan
+#: and it is not decoration: constructing the app runs its lifespan hook, which
+#: seeds demo events into the shared Firestore fake and hands every later module
+#: a pre-seeded log — measured at 39 downstream failures the one time it
+#: happened. So the reader is exercised the way the archive-memo route is.
+_READER_PROBE = r'''
+import json, os, sys
+os.environ.setdefault("FUND_STORE", "firestore")
+os.environ.setdefault("FUND_MODE", "test")
+os.environ.setdefault("FUND_MODE_FILE", os.path.join("tests", ".fund_mode.absent"))
+sys.path.insert(0, "tests")
+import conftest  # installs the in-memory Firestore fake before any app import
+import app.main as M
+from app.fund import schedule
+
+
+class _Raises:
+    def latest(self):
+        raise RuntimeError("postgres is on fire")
+
+
+class _Returns:
+    def __init__(self, value):
+        self.value = value
+
+    def latest(self):
+        return self.value
+
+
+out = {}
+M.fund_router._nav = _Raises()
+out["raises"] = M._newest_strike()
+M.fund_router._nav = _Returns(None)
+out["none"] = M._newest_strike()
+M.fund_router._nav = _Returns({"ts": "2026-08-27T11:00:00+00:00", "total_nav_usd": 1885.0})
+out["payload"] = M._newest_strike()
+out["UNREADABLE"] = schedule.UNREADABLE
+sys.stdout.write("PROBE" + json.dumps(out) + "PROBE")
+'''
+
+
+@pytest.fixture(scope="module")
+def reader_probe():
+    import json as _json
+    import subprocess
+    import sys as _sys
+    repo = pathlib.Path(__file__).resolve().parents[1]
+    r = subprocess.run([_sys.executable, "-c", _READER_PROBE],
+                       capture_output=True, text=True, cwd=str(repo), timeout=300)
+    assert r.returncode == 0, (
+        f"the reader probe could not run:\n{r.stdout[-3000:]}\n{r.stderr[-3000:]}")
+    assert "PROBE" in r.stdout, f"probe produced no result:\n{r.stdout[-2000:]}"
+    return _json.loads(r.stdout.split("PROBE")[1])
+
+
+def test_a_read_that_raises_returns_UNREADABLE_and_never_propagates(reader_probe):
+    """The reader runs inside a coroutine started with ``asyncio.create_task``.
+    An exception there surfaces only when awaited — at shutdown — so the whole
+    deterministic worker goes quiet with nothing in the log."""
+    assert reader_probe["raises"] == reader_probe["UNREADABLE"]
+
+
+def test_a_readable_log_with_no_strike_is_NOT_reported_as_unreadable(reader_probe):
+    """ABSENCE DISCIPLINE AT THE SOURCE. A young fund and a broken store must
+    not arrive at the resume logic as the same input, or the note an operator
+    reads is a coin toss."""
+    assert reader_probe["none"] is None
+    assert reader_probe["none"] != reader_probe["UNREADABLE"]
+
+
+def test_the_reader_hands_the_payload_over_uninterpreted(reader_probe):
+    """One place interprets the payload — ``resume_strike_clock`` — so there is
+    no second place for the interpretation to drift."""
+    assert reader_probe["payload"] == {
+        "ts": "2026-08-27T11:00:00+00:00", "total_nav_usd": 1885.0}
