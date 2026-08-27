@@ -350,12 +350,19 @@ def refusal_predicates(source: str) -> dict[str, Any]:
     ``_UBIQUITOUS_NAMES`` — are what the refusal depends on; and the function's
     own line range is the region a diff cannot touch invisibly.
 
-    MEASURED on ``app/api/v1/fund.py`` (2026-08-27): 38 refusal regions, 61
-    guarding names, 20.6% of the file inside a refusing function. That last
-    figure is the one that decides whether this is a check or a nuisance —
-    flagging the whole 7,760-line file would tell nobody anything, which is
-    why the content pattern above exists in the first place. Reproduce by
-    folding the file through this function and unioning the region ranges.
+    MEASURED on ``app/api/v1/fund.py`` (2026-08-27): **60 refusal regions, 61
+    guarding names, 1,972 of 7,760 lines — 25.4% of the file** inside a
+    refusing function. That last figure is the one that decides whether this is
+    a check or a nuisance: flagging the whole file would tell nobody anything,
+    which is why the content pattern above exists in the first place.
+    Reproduce by folding the file through this function and unioning the region
+    ranges.
+
+    The first version of that measurement read 38 regions and 20.6%, and the
+    difference is not drift — it is 22 functions that were INVISIBLE because
+    the ubiquitous-name filter ran before the region test, so a refusal guarded
+    entirely on names like ``req``, ``ok`` or ``abs`` produced an empty guard
+    set and was recorded as no refusal at all.
 
     THE BOUNDARY, stated rather than left to be discovered: this is
     WITHIN-FILE. A predicate defined in another module and merely called here

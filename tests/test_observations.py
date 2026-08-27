@@ -10,7 +10,7 @@ import os
 
 import pytest
 
-from app.fund.observations import CATEGORIES, _parse, verify_quote
+from app.fund.observations import _parse, verify_quote
 from _testdb import scratch_database
 
 pytestmark_pg = pytest.mark.skipif(

@@ -9,7 +9,6 @@ rediscovered every few weeks with fresh enthusiasm.
 
 import os
 import time
-import uuid
 
 import pytest
 from _testdb import scratch_database

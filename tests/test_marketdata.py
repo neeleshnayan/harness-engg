@@ -1,6 +1,5 @@
 """Offline tests for the free bars provider (no network)."""
 
-import io
 import json
 
 import pytest

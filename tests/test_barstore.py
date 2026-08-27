@@ -9,7 +9,7 @@ archive exists to prevent.
 
 import os
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 import pytest
 from _testdb import scratch_database

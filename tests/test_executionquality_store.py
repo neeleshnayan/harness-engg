@@ -14,7 +14,6 @@ the whole of ``fund_execution_quotes`` in almost every assertion.
 
 from __future__ import annotations
 
-import os
 
 import pytest
 

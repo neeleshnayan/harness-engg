@@ -5,7 +5,6 @@ exist because ignoring either produces a screen full of names we cannot hold.
 """
 
 import os
-import uuid
 
 import pytest
 from _testdb import scratch_database
