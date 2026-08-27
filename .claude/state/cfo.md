@@ -467,3 +467,13 @@ validator's CHALLENGE to D2's METHOD (not to shipping the evaluator) was
 accepted — the quantile population turned out to be 71 fenced events
 carrying quantity only; the replacement spec is in
 docs/validator/VALIDATOR_P2BOUND_2026-08-27.md §5.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-builder-slice3)
+
+The chair's queue is now ONE ranked list over both populations
+(approved-undispatched asks and chair-routed recommendations), ranked
+band -> date -> money -> age, with an exact tail. When you rank items for
+the CEO, say which of the three bands you believe a row is in and on what
+DECLARED fact — a ranking that disagrees with the desk's is now visible
+rather than merely different.

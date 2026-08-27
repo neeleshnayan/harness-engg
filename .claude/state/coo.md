@@ -572,3 +572,13 @@ The `## TICKETS` and `## BINDS` parsers now exist and the chair's queue is a SEL
 ## BINDS carried by the co-CTO 2026-08-26 (from run-builder-eng1; chair reviewed at resolve, none struck)
 
 - **from builder, run-builder-eng1** — One item for **THE JOINS**, and it is a decision the CEO already has: `venue="paper"` at the external-signal intake means an approved engine signal fills against a SIMULATOR and never reaches the broker. That was previously invisible; it is now a sentence on the Engine page. **Rank it as a JOIN, not a defect** — the page does not change it, and the decision is his.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-builder-slice3)
+
+The chair's queue is now ONE ranked list over both populations
+(approved-undispatched asks and chair-routed recommendations), ranked
+band -> date -> money -> age, with an exact tail. When you rank items for
+the CEO, say which of the three bands you believe a row is in and on what
+DECLARED fact — a ranking that disagrees with the desk's is now visible
+rather than merely different.

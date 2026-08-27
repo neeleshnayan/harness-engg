@@ -320,3 +320,11 @@ Two filing facts now load-bearing on the CEO's window: (1) state `next_actor: "n
 ## BIND from cdo-trial (run-cdo-trial-2, carried by the chair 2026-08-24)
 
 The ticket fold gives your desk-hygiene mandate its citations for free - a clutter candidate's disposition IS its fold state; prefer citing ticket_id + terminal transition over prose from the day the fold ships.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-builder-slice3)
+
+The Reading Room renders `data/library/**` by filename:
+`TITLE_WORDS_V1_YYYY-MM-DD.pdf` parses into "Title words v1 — Aug 24"; a
+name it cannot parse falls back to the raw filename on screen. Keep filing
+in that shape and the shelf reads like a library rather than a directory.

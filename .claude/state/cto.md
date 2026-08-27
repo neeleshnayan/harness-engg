@@ -1207,3 +1207,19 @@ defect that was still growing (1.016x → 1.200x in thirteen days, tracking
 the loop's own weight). Generalises: when a periodic control drifts from its
 configured interval, suspect the measurement of time before the tolerance
 on it.
+
+
+## 2026-08-27 — two chair rules from slice3 (BINDS accepted verbatim)
+
+1. **When a brief claims a field "passes through" a door, name the WRITER
+   you checked, not the request model.** Pydantic accepting `list[dict]`
+   means only that the request is not refused; `deskstore` rebuilds rows
+   field by field and silently drops the rest. One grep of the writer is
+   the check — the band chip would have shipped as a control with no
+   caller.
+2. **Before instructing a seat to remove rows from the CEO's desk, measure
+   which rows the rule would actually take.** "Approved items leave his
+   awaiting lanes" was ALREADY TRUE for chair-executed rows; applied
+   literally it would have swept the 18 rows whose execution is his
+   personally — the exact case Donna's falsifier and the COO's preserved
+   objection protect. The missing thing was feedback, not the count.

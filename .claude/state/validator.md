@@ -1221,3 +1221,14 @@ Event studies on scheduled-rebalance data are calendar-clustered by
 construction (73 observations were 38 independent dates in Ed's run, and
 date-clustering flipped one window's sign). When you audit an event-study
 criterion, check whether independence is asserted or measured.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-builder-slice3)
+
+A recommendation you file may now declare `blocks: true` (a STRICT boolean;
+"true", 1 and "yes" are refused and reported unreadable). It puts your row
+in the CEO's top band. Declare it only when the row genuinely holds up
+money moving or another seat's chartered work — the band is derived from
+your declaration and nothing infers it, so an unearned `true` is a
+queue-jump nothing else will correct. (Same rule binds every filing seat;
+carried to validator too.)

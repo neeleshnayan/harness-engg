@@ -1362,3 +1362,32 @@ instrument-repair batch (B1) per the desk sweep; the ephemeral-port hazard
 is noted as a merge-gate flake source. The per-day stretch table — the
 defect GROWING with every job added — is the finding of the dispatch: a
 budget change would have hidden a still-compounding fault.
+
+
+## 2026-08-27 — STATE from run-builder-slice3 (the work surfaces), appended by the chair
+
+**builder — after dispatch SLICE3 (2026-08-27), the work surfaces**
+
+- **Base was RIGHT and I made both worktrees myself.** The ClarkHarness live head advanced to `34058bbd` mid-dispatch (the cad1/ops1 merges, 20 files); **one file overlapped** (`app/api/v1/fund.py`, hunks ~2,000 lines apart) and a real `git merge --no-commit --no-ff` in a throwaway was clean, 6379 green on the merged tree. Check the overlap AND run the merged suite — the first is two commands and the second is the only thing that proves it.
+- **KryptonPay has no vitest.** `node --experimental-strip-types --test "src/app/clark/**/*.test.ts"` (quoted — node expands it). `tsc` is **red on the base** (2 errors in `deskLanes.test.ts`), so it is not a gate today; measure base and branch or you will inherit someone's red.
+- **`{...x, key: undefined}` HAS THE KEY; parsed JSON without the key does not.** `"key" in raw` disagrees with `raw.key === undefined` for a spread and agrees for a payload — so a presence check written against a JS fixture is not the check you get in production. Key absence/unreadable predicates on the VALUE.
+- **A brief premise about pass-through is a claim about the STORAGE layer, not the request model.** Pydantic `list[dict]` accepting a key means only that the request is not refused; `deskstore.build_recommendations` rebuilds every row field by field. Grep the writer before believing any "it already passes through".
+- **The CEO desk already excludes chair-executed approvals** and always did; all 18 decided rows there are `execution_yours: true` — HIS execution. The missing thing was never the count, it was the FEEDBACK. Measure which half of an instruction is already true before building either.
+- **Verified live shapes (2026-08-27):** roster rows key `agent` not `seat`; runs carry `status` in {`delivered`,`aborted`}; `meta.fanout` exists on exactly ONE run and is an OBJECT; 272 open recommendations, 200 priced and **124 of those are 0.0**; 55 approved-undispatched requests, oldest 142.1h; the longest request `note` is 1,693 chars; `data/library/` holds 6 PDFs.
+- **New surfaces:** `desk.idle_activity`/`_dispatch_state`/`desk_band`/`band_sort_key`/`rank_desk_rows`/`BANDS`/`BAND_LABELS`/`_SORT_FLOOR`; `app/fund/library.py` (`shelf`/`resolve_document`/`title_of`/`library_dir`/`ACRONYMS`/`SUFFIX`); `GET /fund/library` + `/fund/library/{name}`; activity gains `open_dispatches`/`working_count`/`awaiting_review_count`; every recommendation and request gains `band`/`band_rank`/`band_label`/`band_basis`/`band_note`. KP: `seatActivity.ts`, `briefing.ts`, `consoleQueue.ts`, `contextInspector.ts`, `justDecided.ts`, `plainEnglish.ts`, `QueueRow.tsx`, `BriefingCard.tsx`, `OpenJobs.tsx`, `ReadingRoom.tsx`, `floorPlan.floorLamps`/`lampCounts`.
+- **A `.pdf` route's uniform-refusal claim is false and I proved it three times before believing it.** Any name whose decoded form holds a slash — literal, `%2F`, or `%252F` — never reaches the handler; Starlette's router answers its own `{"detail":"Not Found"}`. Left alone: a catch-all route added to make a sentence true would be a second door onto the same directory.
+- **The look-pass found six defects in code I had written that hour, and the read-through found nine more** (six spine, three KP), including three comments claiming things the code did not do. **Every one was a comment or a placement, not logic** — logic had tests; prose did not.
+- **Open, mine:** (a) `seat_telemetry.running_now` inherits the headline understatement — pinned, unrepaired; (b) seat-page sections 1/3/6/7/8 and the ONE ticket component unbuilt; (c) `fmtTokens` prints `18863k`; (d) no live worker-state store, so real-time fan-out remains from-the-record; (e) `deskLanes.test.ts`'s 2 tsc errors; (f) everything from ENG3/MACH1.
+- **Fitness:** production **+3,129 / -274 = 11.4:1** (tests +2,534/-1; contract +172/-2). Deletions are real: three unranked card stacks and their row component off the console, the four-key duplicate activity constructor, three `roster.filter` reimplementations of one lamp rule, and a `benchFlight` recount. **Against the fitness question: the diff moved measured numbers** — a seat's reported job count from 1-of-2 to 2-of-2 on a permitted parallel state; the chair's queue from 3 unranked stacks to 1 ranked list with an exact tail over 240 rows; six research documents from unreachable to one click; and it survived 35 mutants at 32 killed with all three survivors retired with proof.
+
+**CTO note at resolve (Fable chair, 2026-08-27)**: merged — spine at 328204dd
+(the builder's own throwaway 3-way had shown 6379 green; the chair's
+merged-tree suite verdict recorded in the day log), KP fast-forward to
+c098ff8f (1204/1204 + the worktree production build green; the chair KILLED
+its own live-tree `next build` mid-flight before it touched .next — the
+runbook rule held by seconds). The deskstore ownership deviation is
+ACCEPTED with the reason quoted. Both your chair-addressed BINDS are
+adopted into cto.md verbatim — the second one (measure which rows a
+desk-removal rule would take) prevented a constitution-falsifier trip and
+is the best brief-review catch a seat has made. Both EVOLVEs applied.
+Spine restart activates the day's four merges together.

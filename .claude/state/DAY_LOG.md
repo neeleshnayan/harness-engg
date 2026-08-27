@@ -371,6 +371,35 @@ but what will be impressive is if can spot what others dont and quickly turn it 
   hook cannot map their subagent types to a parent seat; design the convention honestly or
   render worker counts at return, never fake live.
 
+### SHIPPED LIVE + THE CRYPTO-FIRST SWEEP (~12:00Z)
+
+- **SLICE3 MERGED AND THE SPINE CYCLED — the whole day is live.** Spine merge 328204dd,
+  merged-tree suite **6380 passed / 0 failed**; KP fast-forward c098ff8f (1204/1204).
+  Runbook followed exactly: session 2f3492903246 stopped first (container kill verified),
+  spine restarted on the merged tree, liveness 200, session RELAUNCHED as df1f8ebbe60e
+  (same algorithm/strategy, registry uniqueness). Verified flowing: nav_record on liveness
+  (11 holes, worst 12.83h), /fund/library with parsed titles, activity
+  open_dispatches/working_count, band fields with honest 'undeclared' basis. The CEO's
+  four decisions render from the live spine now — his "builder didnt do much" read was
+  the OLD spine still serving; flagged back to him with the correction.
+- **Near-miss recorded (chair's own)**: a live-tree `next build` was launched by the chair
+  and KILLED seconds before it touched .next — the known clobber class. The worktree
+  build was already green; the rule held by reflex, not by design. Standing: KP
+  production builds NEVER on the live tree, no exceptions, even in a merge hurry.
+- **THE CRYPTO-FIRST QUEUE SWEEP (CEO: "close off queued items... defer what doesnt map
+  to our crypto program roadmap")**: **22 approved/open requests DEFERRED to the
+  post-crypto-program shelf** with per-item citations (actor neelesh-via-cto): the four
+  data-fabric items, META 144, ETH prediction ledger, fidelity ledger, team metric,
+  corpus deepening + persistence, price-taker, market-closed replay, price anchor, KG
+  v1.1, nocturnal adversary, R8 close, and the FIVE equity gate-v5 round items
+  (4698dee7/8e2c799a/5b18fd7d/739b5ac9/58c4fff5) + open-universe. NOT cancelled — parked
+  revivable with the charter cited. KEPT: B1 instrument repairs (now carrying sqrt252 +
+  16-coin as top items), desk-machinery core, the v5 fold, belt-integrity items that
+  judge crypto, EventStore.stream cap (systemic). FLAG FOR THE CEO'S SECOND LOOK:
+  395335c8 (sleeve v2 phase 2, DATED Sep 2-5 on the equity first-real-dollar path) was
+  NOT auto-deferred — a dated commitment tied to 2026-09-08 real dollars needs his word,
+  not a sweep.
+
 ### DECIDED — CRYPTO IS THE CORE BUSINESS OBJECTIVE (CEO, ~11:20Z, constitution amended)
 
 - **CEO, verbatim: "we gotta focus on crypto... run our team e2e... demonstrate something

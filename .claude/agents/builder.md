@@ -709,3 +709,27 @@ phrase. *Measured basis: CAD1 M32 — breaking `if strike_every <= 0:` to
 `< 0` left the assertion passing because an explanatory comment eight lines
 below contained the identical phrase; caught by the mutation pass's second
 run.*
+
+
+## EVOLVE applied 2026-08-27 (run-builder-slice3, chair-reviewed and accepted)
+
+**A PRESENCE CHECK WRITTEN AGAINST A JS FIXTURE IS NOT THE CHECK YOU GET IN
+PRODUCTION.** `{...base, key: undefined}` leaves the key present; a JSON
+payload that omits it does not. So `"key" in raw` and `raw.key ===
+undefined` disagree for a spread and agree for a parse — and the read site
+cannot tell the two apart. Write absence/unreadable predicates against the
+VALUE, and if you must use `in`, build the fixture with `delete`.
+*Measured basis: SLICE3 — the fix for a real absent-vs-unreadable collapse
+keyed on `"band" in raw`, and two existing tests went red because their
+fixtures spread `undefined`. The tests were right and the repair was
+wrong.*
+
+**THE LOOK-PASS AND THE READ-THROUGH CATCH DIFFERENT SPECIES, AND THE
+READ-THROUGH'S IS PROSE.** Of nine read-through catches this dispatch, not
+one was logic — three were comments claiming behaviour the code did not
+have, two were stale numbers, one was a block inserted between another
+comment and its code. Logic has tests; prose has nobody. Read every comment
+you wrote in this diff against the code as it finally stands, not as it
+stood when you wrote it. *Measured basis: SLICE3 — 9 read-through findings,
+0 logic defects, 3 comments describing a version of the code that had been
+edited under them within the same dispatch.*
