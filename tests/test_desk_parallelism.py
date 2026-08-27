@@ -145,14 +145,17 @@ def test_counts_are_zero_and_the_list_empty_for_a_seat_with_nothing_open():
 # ------------------------------------------- surface, and it can understate --
 
 def test_the_headline_reads_idle_while_an_older_dispatch_is_STILL_OPEN():
-    """THE DISAGREEMENT, PINNED ON PURPOSE.
+    """THE DISAGREEMENT, PINNED ON PURPOSE — and now HALF of it is repaired.
 
-    ``working_on`` is retired when the NEWEST dispatch resolves — so a seat
-    holding an older open dispatch reports ``status: "idle"``. That is the
-    pre-existing behaviour of a field other surfaces read, and this diff does
-    not change it. This test exists so the divergence cannot go quiet: the
-    LIST is the truth, the headline is the compatibility surface, and the day
-    someone repairs ``seat_telemetry.running_now`` this test is the map.
+    ``working_on`` is retired when the NEWEST dispatch resolves, so a seat
+    holding an older open dispatch reports ``status: "idle"``. That headline
+    behaviour is a compatibility surface and it still does not move; this test
+    is what makes the word "unchanged" mean something.
+
+    WHAT DID MOVE, 2026-08-27 (B2): ``seat_telemetry.running_now`` no longer
+    reads this headline. It reads the LIST, so the seat below is reported as
+    running — see ``test_running_now_reads_the_LIST_not_the_headline``, which
+    is the destination this docstring used to call a map.
     """
     a = desk._activity(MemStore([
         _dispatch("builder", "t-old", at="2026-08-27T07:00:00+00:00"),
@@ -373,3 +376,142 @@ def test_the_PAYLOAD_serves_the_full_envelope_to_a_seat_the_fold_never_saw(
     # And it is the SAME envelope a folded seat gets — the whole point of one
     # constructor is that these two cannot drift.
     assert set(rows["newcomer"]) == set(rows["builder"])
+
+
+# ------------------------------------------------------ seat_telemetry, the
+# ------------------------------------------------------ headline understatement
+
+def _telemetry(store_events, seat="builder"):
+    """The live-state half of a telemetry row, folded exactly as the payload
+    folds it — ``_activity`` first, then ``seat_telemetry`` over its output.
+    Building the activity dict by hand here would test a shape the spine never
+    produces, which is the fixture-classification trap."""
+    act = desk._activity(MemStore(store_events), runs=[])
+    return desk.seat_telemetry([], act, "2026-08-27")["seats"][seat]
+
+
+def test_running_now_reads_the_LIST_not_the_headline():
+    """THE REPAIR, AND THE DEFECT IT CLOSES.
+
+    Filed by the diff that created it (slice3, ``_activity``'s docstring:
+    *"``seat_telemetry``'s ``running_now`` — which reads the headline —
+    inherits the understatement and is NOT repaired here"*). The shape: two
+    dispatches, the NEWER one resolved, an OLDER one still running. The
+    headline is ``idle`` because ``working_on`` was retired with the newer
+    one; the seat is running.
+
+    Before this repair ``running_now`` was False here — the chair reading the
+    payload to see whether a parallel builder slot was free was told the bench
+    was empty while a builder was mid-dispatch. That is the CEO's own floor
+    observation (*"1 builder working but 2 in reality"*) one field downstream
+    of where it was fixed.
+    """
+    t = _telemetry([
+        _dispatch("builder", "t-old", at="2026-08-27T07:00:00+00:00",
+                  task="the older one, still running"),
+        _dispatch("builder", "t-new", at="2026-08-27T08:00:00+00:00"),
+        _resolved("t-new"),
+    ])
+    assert t["running_now"] is True
+    assert t["live_basis"] == desk.LIVE_FROM_LIST
+    # AND THE ROW DOES NOT CONTRADICT ITSELF. `running_now: true` beside
+    # `running_task: null` is the shape this repair had to avoid: five fields
+    # describing one condition, computed in one place, from one input.
+    assert t["running_task"] == "the older one, still running"
+    assert t["running_since"] == "2026-08-27T07:00:00+00:00"
+
+
+def test_running_now_is_FALSE_when_the_only_open_dispatch_has_RETURNED():
+    """The third state survives the repair.
+
+    A returned dispatch is an obligation on the chair, NOT a running seat —
+    the distinction the COO measured (``running_now: true`` for two seats 21
+    and 19 hours after both had returned). Reading the list must not undo it:
+    the list is filtered by STATE, never counted whole.
+    """
+    t = _telemetry([
+        _dispatch("builder", "t1", at="2026-08-27T07:00:00+00:00"),
+    ], seat="builder")
+    # A dispatch with no run back is WORKING; add the run to make it returned.
+    act = desk._activity(
+        MemStore([_dispatch("builder", "t1", trace_id="tr-1",
+                            at="2026-08-27T07:00:00+00:00")]),
+        runs=[_run("run-1", trace_id="tr-1")])
+    back = desk.seat_telemetry([], act, "2026-08-27")["seats"]["builder"]
+    assert act["builder"]["awaiting_review_count"] == 1
+    assert act["builder"]["working_count"] == 0
+    assert back["running_now"] is False
+    assert back["awaiting_review"] is True
+    assert back["returned_run_id"] == "run-1"
+    # ...and the working case above is genuinely the other answer, so this
+    # test cannot pass by both arms being False.
+    assert t["running_now"] is True
+
+
+def test_a_seat_running_AND_awaiting_review_reports_both():
+    """Two open dispatches in two different states. Both facts are true at
+    once and the row says so — the pair of booleans is not an enum, and a
+    telemetry block that picked one would hide either a busy slot or a review
+    the chair owes."""
+    act = desk._activity(MemStore([
+        _dispatch("builder", "t-back", trace_id="tr-1",
+                  at="2026-08-27T07:00:00+00:00"),
+        _dispatch("builder", "t-live", at="2026-08-27T08:00:00+00:00",
+                  task="the one still running"),
+    ]), runs=[_run("run-1", trace_id="tr-1")])
+    t = desk.seat_telemetry([], act, "2026-08-27")["seats"]["builder"]
+    assert t["running_now"] is True
+    assert t["awaiting_review"] is True
+    assert t["returned_run_id"] == "run-1"
+    # The RUNNING dispatch owns the task line: "what is this seat doing" and
+    # "what does the chair owe" are different questions.
+    assert t["running_task"] == "the one still running"
+
+
+def test_an_ABSENT_dispatch_list_falls_back_to_the_headline_AND_SAYS_SO():
+    """ABSENT IS NOT EMPTY, and this is the input that proves it.
+
+    A hand-built activity dict — no ``open_dispatches`` key at all — is a
+    different input from a seat with an empty list, and it gets a different
+    answer: the headline, plus ``live_basis`` stating in words that this row
+    can understate. A silent fallback would have re-created the exact defect
+    the repair closes, on the one path no fold produces and therefore no
+    payload test covers.
+    """
+    hand = {"builder": {"status": "working", "task": "hand-built",
+                        "since": "2026-08-27T07:00:00+00:00"}}
+    t = desk.seat_telemetry([], hand, "2026-08-27")["seats"]["builder"]
+    assert t["running_now"] is True
+    assert t["running_task"] == "hand-built"
+    assert t["live_basis"] == desk.LIVE_FROM_HEADLINE
+    assert "UNDERSTATE" in t["live_basis"]
+
+    # An EMPTY list is the other input and it is a MEASUREMENT: the fold ran
+    # and found nothing open.
+    empty = {"builder": {"status": "working", "task": "hand-built",
+                         "open_dispatches": []}}
+    e = desk.seat_telemetry([], empty, "2026-08-27")["seats"]["builder"]
+    assert e["running_now"] is False
+    assert e["running_task"] is None
+    assert e["live_basis"] == desk.LIVE_FROM_LIST
+
+
+def test_the_ordinary_path_did_not_move():
+    """A seat whose NEWEST dispatch is open reports exactly what it always
+    did. The repair is a behaviour change on ONE shape (an older dispatch
+    outliving a newer one) and this asserts it is not a behaviour change on
+    the common one."""
+    t = _telemetry([
+        _dispatch("builder", "t1", at="2026-08-27T07:00:00+00:00",
+                  task="the only one"),
+    ])
+    assert t["running_now"] is True
+    assert t["awaiting_review"] is False
+    assert t["running_task"] == "the only one"
+    assert t["running_since"] == "2026-08-27T07:00:00+00:00"
+    assert t["returned_run_id"] is None
+
+    idle = _telemetry([], seat="quant")
+    assert idle["running_now"] is False
+    assert idle["awaiting_review"] is False
+    assert idle["running_task"] is None

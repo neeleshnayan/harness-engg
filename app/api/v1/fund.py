@@ -33,7 +33,10 @@ _log = logging.getLogger(__name__)
 
 from app.fund.custody import CustodyIngest
 from app.fund.signals import SignalRunner
-from app.fund.marketdata import BarsError, fetch_daily_bars
+from app.fund.marketdata import (
+    BASIS_ARCHIVE, BASIS_LIVE, BASIS_PINNED, BarsError, bars_payload,
+    fetch_daily_bars,
+)
 from app.fund import barcache
 from app.fund import navgap
 from app.fund.events import EventStore, store_backend
@@ -6353,7 +6356,16 @@ def get_bars(symbol: str = Query(..., min_length=1, max_length=12),
         if format == "csv":
             lines = "\n".join(f"{d},{c}" for d, c in zip(pit["dates"], pit["closes"]))
             return Response(content=lines, media_type="text/csv")
-        return pit
+        # THROUGH THE SHARED BUILDER, and the archive's own extra keys ride on
+        # top rather than replacing the shape. Returning `pit` raw is what made
+        # this branch's key set differ from the other two.
+        return bars_payload(
+            BASIS_ARCHIVE, symbol=pit.get("symbol", symbol),
+            source=pit.get("source"), dates=pit.get("dates"),
+            closes=pit.get("closes"),
+            extra={k: v for k, v in pit.items()
+                   if k not in ("symbol", "source", "dates", "closes",
+                                "start", "end")})
 
     # THE BELT'S DATA PATH. When a candidate is running, its legs were fetched
     # ONCE at one instant and every LEAN container of that candidate is served
@@ -6375,11 +6387,12 @@ def get_bars(symbol: str = Query(..., min_length=1, max_length=12),
             return Response(content=lines, media_type="text/csv")
         # Same keys as the live branch below, so no consumer can tell the two
         # apart by shape — plus one honest extra saying where this came from.
-        return {"symbol": pinned.symbol, "source": pinned.source,
-                "closes": pinned.closes, "dates": pinned.dates,
-                "start": pinned.dates[0] if pinned.dates else None,
-                "end": pinned.dates[-1] if pinned.dates else None,
-                "snapshot": True}
+        # The key EQUALITY is now structural rather than hoped for: both go
+        # through `bars_payload`, which is the only place the shape is written.
+        return bars_payload(
+            BASIS_PINNED, symbol=pinned.symbol, source=pinned.source,
+            dates=pinned.dates, closes=pinned.closes,
+            extra={"snapshot": True})
 
     try:
         bars = fetch_daily_bars(symbol, lookback_days=lookback_days, start=start_date, end=end_date)
@@ -6401,9 +6414,22 @@ def get_bars(symbol: str = Query(..., min_length=1, max_length=12),
         dates = bars.dates or []
         lines = "\n".join(f"{d},{c}" for d, c in zip(dates, bars.closes))
         return Response(content=lines, media_type="text/csv")
-    return {"symbol": bars.symbol, "source": bars.source,
-            "closes": bars.closes, "dates": bars.dates,
-            "start": bars.start, "end": bars.end}
+    # THE IDENTITY AND FRESHNESS FIELDS REACH THE WIRE HERE, and this line is
+    # the whole of B1's unfinished half: `Bars` has carried
+    # `instrument_name`/`instrument_type`/`exchange`/`identity_note` and the
+    # three freshness fields since the GETH collision was measured, and this
+    # endpoint dropped every one of them. A caller asking for a bare `GETH`
+    # now SEES "Green EnviroTech Holdings Corp." on the payload instead of
+    # inferring an identity from the string it typed.
+    return bars_payload(
+        BASIS_LIVE, symbol=bars.symbol, source=bars.source,
+        dates=bars.dates, closes=bars.closes, bars=bars,
+        # `Bars.start`/`.end` are the fetcher's own bounds and can differ from
+        # the first/last DATE (a source may report a requested window wider
+        # than the bars it returned). The builder derives start/end from the
+        # dates; the fetcher's pair overrides it here so this branch's numbers
+        # do not move.
+        extra={"start": bars.start, "end": bars.end})
 
 
 @router.post("/fund/research/backtest")

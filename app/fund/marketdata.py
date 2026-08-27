@@ -299,6 +299,132 @@ def series_freshness(dates: list[str] | None, asof: str | None = None,
     return out
 
 
+#: WHERE A SERVED SERIES CAME FROM, and what that path can say about it.
+#:
+#: Three bases, because this endpoint has three return paths and only one of
+#: them ever knew the instrument's identity. Naming them is the point: a
+#: consumer that reads ``instrument_name: null`` off a pinned or archived
+#: series would otherwise conclude "the source said nothing about identity",
+#: when the truth is "this path never records identity and never has". Those
+#: are different facts about the world and they get different words.
+BASIS_LIVE = "live"          #: fetched from the vendor now; identity is whatever it said
+BASIS_PINNED = "pinned"      #: the belt's snapshot cache; stores dates/closes only
+BASIS_ARCHIVE = "archive"    #: the point-in-time store; stores dates/closes only
+
+#: What each non-live basis says in place of an identity it never had. Written
+#: once, here, so the two callers cannot drift into two different sentences
+#: about the same limitation.
+_IDENTITY_UNRECORDED = {
+    BASIS_PINNED: (
+        "this series came from the belt's pinned snapshot, which stores dates "
+        "and closes only — the vendor's own name for this instrument was never "
+        "recorded, so it is UNKNOWN here rather than absent at the source"
+    ),
+    BASIS_ARCHIVE: (
+        "this series came from the point-in-time archive, which stores dates "
+        "and closes only — the vendor's own name for this instrument was never "
+        "recorded, so it is UNKNOWN here rather than absent at the source"
+    ),
+}
+
+
+def bars_payload(basis: str, *, symbol: str, source: str | None,
+                 dates: list[str] | None, closes: list[float] | None,
+                 bars: "Bars | None" = None,
+                 extra: dict[str, Any] | None = None) -> dict[str, Any]:
+    """The ONE shape ``GET /fund/marketdata/bars`` returns, from ONE function.
+
+    WHY THIS IS A FUNCTION AND NOT THREE DICT LITERALS. The endpoint had three
+    return sites building the same payload by hand, and when the identity and
+    freshness fields landed on ``Bars`` (B1) not one of the three grew them —
+    a caller asking for ``GETH`` got HTTP 200, real bars for *Green EnviroTech
+    Holdings Corp.* at $0.0001, and no name anywhere on the wire, because the
+    fields existed on the dataclass and the endpoint dropped them. Several
+    fields describing ONE condition are computed once from one input, or the
+    day one of them changes is the day the other two are forgotten.
+
+    THE KEY SET IS THE SAME ON EVERY BASIS, and that is the whole safety
+    property. A pinned series omitting ``instrument_name`` and a live series
+    whose vendor gave no name are indistinguishable to a consumer doing
+    ``payload.get("instrument_name")`` — so the pinned path states, in words,
+    that it never recorded one. Absence at the source and absence in our own
+    storage are different findings with different fixes.
+
+    ``basis`` is REQUIRED and unvalidated-values raise: a typo that fell
+    through to a default would silently claim a live identity for an archived
+    series, which is the one wrong answer this function exists to prevent.
+    """
+    if basis not in (BASIS_LIVE, BASIS_PINNED, BASIS_ARCHIVE):
+        raise ValueError(
+            f"unknown bars basis {basis!r} — expected one of "
+            f"{BASIS_LIVE!r}, {BASIS_PINNED!r}, {BASIS_ARCHIVE!r}")
+
+    ds = list(dates or [])
+    out: dict[str, Any] = {
+        "symbol": symbol,
+        "source": source,
+        "closes": list(closes or []),
+        "dates": ds,
+        "start": ds[0] if ds else None,
+        "end": ds[-1] if ds else None,
+        #: WHICH OF THE THREE PATHS SERVED THIS. On the wire because a reader
+        #: who cannot tell a live fetch from a two-hour-old pinned leg cannot
+        #: interpret the freshness block underneath it either.
+        "basis": basis,
+    }
+
+    if basis == BASIS_LIVE:
+        # The vendor answered, so every identity field is the vendor's answer
+        # — including its silence, which is a real fact about the vendor.
+        out.update({
+            "instrument_name": getattr(bars, "instrument_name", None),
+            "instrument_type": getattr(bars, "instrument_type", None),
+            "exchange": getattr(bars, "exchange", None),
+            "identity_note": getattr(bars, "identity_note", None),
+            "freshness": getattr(bars, "freshness", None),
+            "latest_bar_age_days": getattr(bars, "latest_bar_age_days", None),
+            "freshness_note": getattr(bars, "freshness_note", None),
+        })
+    else:
+        # Identity: never recorded by this path, and it says so.
+        note = _IDENTITY_UNRECORDED[basis]
+        out.update({
+            "instrument_name": None,
+            "instrument_type": None,
+            "exchange": None,
+            "identity_note": note,
+            # Freshness IS computable from the dates we hold — it needs no
+            # vendor metadata — so it is computed rather than blanked. The
+            # asof is the series' own end for the archive (a point-in-time
+            # view of 2025 is not stale, it is what was asked for) and today
+            # for a pinned leg (the belt wants live bars and a stale pinned
+            # leg is a defect).
+            **_freshness_fields(ds, asof=(ds[-1] if (ds and basis == BASIS_ARCHIVE)
+                                          else None)),
+        })
+
+    if extra:
+        out.update(extra)
+    return out
+
+
+def _freshness_fields(dates: list[str] | None,
+                      asof: str | None = None) -> dict[str, Any]:
+    """``series_freshness`` flattened onto the three payload keys.
+
+    Its own function so the mapping from the freshness block's key names to
+    the payload's lives in one place — the live branch above takes the same
+    three values off ``Bars``, where ``_from_yahoo`` and friends already
+    flattened them the same way.
+    """
+    fresh = series_freshness(dates, asof=asof)
+    return {
+        "freshness": fresh["state"],
+        "latest_bar_age_days": fresh["age_days"],
+        "freshness_note": fresh["note"],
+    }
+
+
 def crypto_pair(symbol: str) -> tuple[str, str] | None:
     """``('BTC', 'USD')`` for BTC/USD, BTC-USD or BTC/USDT; None for a bare ticker.
 
