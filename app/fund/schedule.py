@@ -158,7 +158,6 @@ def advance(seconds_served: float, elapsed: float,
     return seconds_served, False
 
 
-
 def resume_strike_clock(latest: Any, interval: float,
                         now: datetime) -> ResumedClock:
     """Where a fresh worker's strike clock should start, from the durable record.
