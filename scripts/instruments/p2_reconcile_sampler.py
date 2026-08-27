@@ -18,4 +18,5 @@ for i in range(N):
         out.append({"i": i, "wall": time.strftime("%H:%M:%SZ", time.gmtime()), "error": repr(e)})
     print(json.dumps(out[-1]), flush=True)
     time.sleep(max(0.0, GAP - (time.time() - t0)))
-json.dump(out, open(sys.argv[3], "w"), indent=1)
+if len(sys.argv) > 3:  # optional dump path - the run's stdout is the record either way
+    json.dump(out, open(sys.argv[3], "w"), indent=1)
