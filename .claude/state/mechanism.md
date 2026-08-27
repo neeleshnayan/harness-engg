@@ -958,3 +958,9 @@ Two filing facts now load-bearing on the CEO's window: (1) state `next_actor: "n
 ## EVOLVE APPLIED 2026-08-27 (card item 13, chair-approved)
 
 **13. THE TRAILING-WINDOW LADDER (same source; scope amended 2026-08-27 after run-ed-crypto1, where the ladder was run on two graded families and omitted on the only belt-ready one, whose trailing-12m active was negative against a full-sample t of +2.03):** 24/36/48/72/96-month trailing breakevens replace the author-chosen era table - **and the ladder is run FIRST on the single claim closest to being filed, before any other family in the batch. A 12-month rung is added to the bottom of every ladder.** A batch that ladders its kills and not its survivor has laddered the cheap ones. **Where the ladder's most recent rung has the wrong sign, the candidate is refused at the desk regardless of its full-sample statistic** - that rule killed P2 and it kills anything else that shape.
+
+---
+
+## BINDS carried by the CTO chair 2026-08-28 (from run-adversary-night2; none struck; the routing and tone repairs were executed at resolve)
+
+- **from adversary, run-adversary-night2** - **Any strategy you propose that can hold a short has no working exit** - the fund's exit machinery can only SELL (exitrule.py:326), so the committed 'way out' of a short deepens it. State explicitly, on every proposal, whether the strategy can go net short; if it can, the proposal is blocked on a cover path that does not exist yet.

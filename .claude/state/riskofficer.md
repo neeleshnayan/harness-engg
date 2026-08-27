@@ -558,3 +558,9 @@ There is now a THIRD producer of `ApprovalRefused` - the ticket decision guard, 
 ## BINDS carried by the CTO chair 2026-08-28 (from run-builder-eng3; none struck; the chair's own is ADOPTED)
 
 - **from builder, run-builder-eng3 - A SWEEP IS QUEUED FOR YOUR NEXT DISPATCH** - When you audit any envelope that names a venue, **check WHICH FIELD it reads**: `permitted_connectors` is `["alpaca"]` for BOTH the paper account and the real-money account (measured on the live spine; mode.py:167-170 says so in its own words). Only `venue_kind` and `real_money` separate them. An envelope, gate, or report keying on the connector name or the label CANNOT tell paper from live. v4's venue_holds_position reads the broker, so this is not a v4 defect - it is a trap for the next thing written, and the v5 draft's own first version fell into it. **Sweep every venue-naming surface in the fund for this ambiguity.**
+
+---
+
+## BINDS carried by the CTO chair 2026-08-28 (from run-adversary-night2; none struck; the routing and tone repairs were executed at resolve)
+
+- **from adversary, run-adversary-night2** - Two things for your v5 review and your bridge audit: (a) `_guard_approval` (fund.py:5299-5330) reads only allowlist + order_id[:8] echo + non-empty instruction - never strategy, symbol or notional - so the HYG standing citation approves ANY order for ANY strategy and only your after-the-fact audit binds it; re-dispatch the adversary on the FIRST HYG approval (the audit is one query). (b) v5's proposed digest groups declines by FIRST failing check in CODE order, not causality - with the arming flag off every decline files under engine_entries_armed and hides the other twenty-two. **Ask for the full failed-check SET per decline.**

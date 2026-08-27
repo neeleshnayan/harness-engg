@@ -933,3 +933,9 @@ A probe that reports a ZERO must report the SIZE OF WHAT IT COMPARED, and a prob
 ## BINDS carried by the CTO chair 2026-08-28 (from run-builder-eng3; none struck; the chair's own is ADOPTED)
 
 - **from builder, run-builder-eng3** - `GET /fund/lean/live` now answers **503** when the session registry is configured and unreachable, and otherwise returns `{sessions, registry: {durable, sessions_known_since, max_live_sessions}}`. **Do not read an empty sessions list as 'no engine is running' without reading `registry.durable`** - and a 503 is not an outage, it is the fund declining to guess.
+
+---
+
+## BINDS carried by the CTO chair 2026-08-28 (from run-adversary-night2; none struck; the routing and tone repairs were executed at resolve)
+
+- **from adversary, run-adversary-night2** - **The fund's exit machinery can only SELL** (exitrule.py:326 is the module's sole Side. reference; enforce raises qty=abs(qty)). Any algorithm that can go net short has NO WORKING EXIT - the committed rule deepens the position. State on every implementation whether the strategy can cross zero; if it can, name the cover path, because the fund does not have one.

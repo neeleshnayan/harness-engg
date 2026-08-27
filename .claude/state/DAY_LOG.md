@@ -391,6 +391,39 @@ but what will be impressive is if can spot what others dont and quickly turn it 
 
 ---
 
+### THE ADVERSARY'S NIGHT BATCH RESOLVED (~01:30Z) - two kills, both acted on within the hour
+
+- **AUTOPOLICY v5 DRAFT: KILLED, and that is the system working.** Two structural grounds,
+  both EXECUTED against the shipped module: (1) every exposure bound reads the FILLED book, so
+  N approved-unfilled orders stack invisibly - two orders each certified "14.9% inside a 20%
+  ceiling" build 29.8% in one name, five build 74.5% - and the naive repair is forbidden by the
+  envelope's own book==venue check; (2) the class admits sells crossing zero while the fund's
+  exit machinery CAN ONLY SELL (exitrule.py:326) - a short's certified "way out" deepens it.
+  $0 today (shorting_enabled false). The draft stays UNWIRED; the redesign is chartered
+  (`e1d0fdf4`): a specified in-flight-aware exposure quantity + the zero-crossing exclusion.
+  **The largest loosening this fund has contemplated was killed at zero dollars and zero
+  wiring - the draft-then-attack sequence bought exactly what it was designed to buy.**
+- **ROUTING v2: KILLED AS MERGED (the decision itself SURVIVES) - and REPAIRED same session.**
+  The spine's router moved and two KP predicates didn't: 13 open asks rendered in ZERO of five
+  lanes on the CEO's page. The chair's-queue lane now renders open AND approved asks (each
+  labeled; an open row can never wear "approved - no actor", pinned by name); 1,097/1,097; the
+  adversary's own measurement re-run as the refutation: 13 rows render, 0 false-approved.
+- **ENG2 fence and KP9 tone partition: SURVIVE** (direction proven over 168 cells; the one
+  unpinned tone now pinned and the adversary's exact mutant dies). Sixth-basis residual filed
+  ($0, frozen population, `5d002985`).
+- **HYG bridge: CANNOT TELL - zero approvals ever to audit - with the code answer the CEO
+  should read verbatim:** `_guard_approval` never reads strategy, symbol or notional, so the
+  standing citation would approve ANY order; the bridge is v5's loosening with none of v5's
+  checks. Interim mitigation on the record: the chair hand-verifies strategy+symbol before any
+  bridge approval; the riskofficer audits the first firing; v5's redesign is the real fix.
+- The adversary refuted TWO of its own derived kills by execution before filing; its EVOLVE
+  ("a kill that exists only as a derivation is a hypothesis") is applied verbatim - and its
+  lesson landed on the chair within minutes: the chair's first two refutation probes measured
+  their own wrong inputs before the third measured the repair.
+
+
+---
+
 ## 2026-08-24 (UTC)
 
 The Monday of the click sheet (~12:30Z) and the first real-venue fills
