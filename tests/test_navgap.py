@@ -541,6 +541,57 @@ class TestSummaryAndWarnings:
         assert got["holes_capped"] is True
         assert got["hole_count"] == report["hole_count"]
 
+    def test_the_cap_flag_is_false_at_EXACTLY_the_limit(self):
+        """The boundary the 12-hole fixture above cannot see.
+
+        Found by the Gauntlet: flipping ``>`` to ``>=`` in ``holes_capped`` left
+        the whole suite green, because every fixture sat well above the limit.
+        Ten holes shown out of ten held is not a capped list.
+        """
+        many = []
+        for day in range(1, 15):        # 2026-06-01 Mon; 6/7 and 13/14 weekends
+            many.append(f"2026-06-{day:02d}T13:30:00+00:00")
+            many.append(f"2026-06-{day:02d}T19:59:00+00:00")
+        report = navgap.completeness(_strikes(*many),
+                                     now=_at("2026-06-14T20:00:00+00:00"),
+                                     lookback_hours=24 * 30)
+        assert report["hole_count"] == navgap.SUMMARY_HOLE_LIMIT
+        got = navgap.summary(report)
+        assert got["holes_shown"] == navgap.SUMMARY_HOLE_LIMIT
+        assert got["holes_capped"] is False
+
+    def test_the_blank_shape_and_the_real_shape_carry_THE_SAME_KEYS(self):
+        """A payload whose shape depends on which branch produced it hands every
+        consumer two contracts wearing one name.
+
+        Found by the Gauntlet: the last-resort payload carried 10 keys where
+        every other path carried 19, so eleven fields were ABSENT rather than
+        null on the one path a reader most needs to interpret.
+        """
+        real = navgap.summary(navgap.completeness(
+            _strikes(OUTAGE_BEFORE, OUTAGE_AFTER),
+            now=_at("2026-08-26T14:00:00+00:00")))
+        blank = navgap.blank_summary("the reader could not run")
+        assert set(blank) == set(real) == set(navgap.SUMMARY_KEYS)
+
+    def test_the_blank_shape_can_never_be_read_as_clean(self):
+        blank = navgap.blank_summary("the reader could not run")
+        assert blank["state"] == navgap.STATE_UNREADABLE
+        assert blank["readable"] is False
+        assert blank["hole_count"] is None
+        assert blank["stale"] is None
+        assert [w["key"] for w in blank["warnings"]] == ["nav_record_unreadable"]
+
+    def test_the_blank_shape_computes_nothing(self, monkeypatch):
+        """It exists for the case where the reader raised, so it must not call
+        the reader. Poison every function it could reach and it still returns."""
+        def poison(*a, **k):
+            raise AssertionError("blank_summary must not compute anything")
+        monkeypatch.setattr(navgap, "completeness", poison)
+        monkeypatch.setattr(navgap, "trading_overlap", poison)
+        monkeypatch.setattr(navgap, "tolerance_seconds", poison)
+        assert navgap.blank_summary("x")["state"] == navgap.STATE_UNREADABLE
+
     def test_a_clean_record_warns_about_nothing(self):
         """An EMPTY warnings list is a measured zero — it looked."""
         report = navgap.completeness(

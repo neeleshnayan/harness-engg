@@ -226,17 +226,31 @@ def coverage(rows: list[dict[str, Any]], period: str) -> dict[str, Any]:
 
     A gap is REPORTED, never inferred away. The expected step is the period, so
     any interval longer than one step is a run of missing points and is listed
-    with how many are missing. ``rows`` empty is not "complete" — it is a series
-    with nothing in it, and it says so.
+    with how many are missing.
+
+    ``complete`` IS THREE-VALUED AND ``pairs_compared`` IS WHY. Completeness is
+    a statement about the intervals BETWEEN points, so a series of one point has
+    made no comparison at all and a series of none has made no comparison at
+    all — and "no gaps found over zero comparisons" is the shape of every
+    vacuous pass this firm has shipped. Both cases return ``complete: None``
+    with the domain beside it, never ``True``.
     """
     stamps = sorted({r["timestamp"] for r in rows
                      if isinstance(r.get("timestamp"), int)})
     step_ms = PERIOD_SECONDS.get(period, 0) * 1000
-    if not stamps:
-        return {"rows": len(rows), "points": 0, "first": None, "last": None,
+    pairs = max(0, len(stamps) - 1)
+    if not stamps or pairs == 0:
+        return {"rows": len(rows), "points": len(stamps),
+                "first": (datetime.fromtimestamp(stamps[0] / 1000, timezone.utc)
+                          .isoformat() if stamps else None),
+                "last": (datetime.fromtimestamp(stamps[-1] / 1000, timezone.utc)
+                         .isoformat() if stamps else None),
                 "period": period, "expected_step_seconds": step_ms // 1000,
                 "gaps": [], "missing_points": None, "complete": None,
-                "note": "no points stored — nothing to be complete or incomplete"}
+                "pairs_compared": pairs,
+                "note": (f"{len(stamps)} point(s) stored, so {pairs} interval(s) "
+                         f"were compared - nothing here can be complete or "
+                         f"incomplete")}
     gaps = []
     missing = 0
     if step_ms:
@@ -260,8 +274,11 @@ def coverage(rows: list[dict[str, Any]], period: str) -> dict[str, Any]:
         "gaps": gaps,
         "missing_points": missing if step_ms else None,
         "complete": (not gaps) if step_ms else None,
-        "note": ("no gaps in the sampling grid" if step_ms and not gaps else
-                 f"{len(gaps)} gap(s), {missing} point(s) missing" if step_ms
+        "pairs_compared": pairs,
+        "note": (f"no gaps across {pairs} interval(s) in the sampling grid"
+                 if step_ms and not gaps else
+                 f"{len(gaps)} gap(s), {missing} point(s) missing across "
+                 f"{pairs} interval(s)" if step_ms
                  else f"period {period!r} has no declared step, so gaps cannot "
                       f"be counted"),
     }
@@ -394,7 +411,7 @@ def verify_symbol(symbol: str, *, root: str, period: str) -> dict[str, Any]:
     path = store_path(root, symbol)
     if not os.path.exists(path):
         return {"symbol": symbol, "state": "absent",
-                "note": f"no store at {path} — nothing has ever been recorded"}
+                "note": f"no store at {path} - nothing has ever been recorded"}
     rows = read_jsonl(path)
     unreadable = sum(1 for r in rows if "_unreadable" in r)
     good = [r for r in rows if "_unreadable" not in r]
@@ -437,8 +454,8 @@ def selftest(symbol: str = "BTCUSDT", period: str = "5m",
             "mutated": mutated,
             "note": (f"{mutated} of {len(seen)} points changed across {polls} "
                      f"polls of {symbol} {period}"
-                     + (" — the settled-row claim HOLDS" if not mutated
-                        else " — the settled-row claim is FALSIFIED; set "
+                     + (" - the settled-row claim HOLDS" if not mutated
+                        else " - the settled-row claim is FALSIFIED; set "
                              "--settle-margin"))}
 
 

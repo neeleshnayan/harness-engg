@@ -183,6 +183,33 @@ class TestCoverageReportsGaps:
         assert got["complete"] is None
         assert got["points"] == 0
         assert got["missing_points"] is None
+        assert got["pairs_compared"] == 0
+
+    def test_a_SINGLE_point_is_not_complete_either(self):
+        """Found by the Gauntlet: one stored point returned
+        ``complete: True, "no gaps in the sampling grid"`` — a clean pass over
+        ZERO interval comparisons.
+
+        Completeness is a statement about the intervals BETWEEN points, so one
+        point has compared nothing. This is the vacuous-pass shape, and the rule
+        it breaks is the firm's own: a null result reports its domain size or it
+        is not a result.
+        """
+        got = R.coverage([stored(T0)], "1h")
+        assert got["points"] == 1
+        assert got["pairs_compared"] == 0
+        assert got["complete"] is None
+        assert got["missing_points"] is None
+        assert got["first"] == got["last"]
+
+    def test_every_coverage_note_states_how_many_intervals_it_compared(self):
+        """The domain rides the sentence a human reads, on all three paths."""
+        for rows, n in (([], 0), ([stored(T0)], 0),
+                        ([stored(T0), stored(T0 + H)], 1),
+                        ([stored(T0), stored(T0 + 5 * H)], 1)):
+            got = R.coverage(rows, "1h")
+            assert got["pairs_compared"] == n
+            assert f"{n} interval" in got["note"], got["note"]
 
     def test_an_unsorted_store_is_sorted_before_measuring(self):
         rows = [stored(T0 + 3 * H), stored(T0), stored(T0 + H)]

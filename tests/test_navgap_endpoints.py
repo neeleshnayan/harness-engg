@@ -37,6 +37,17 @@ class FakeNav:
         return list(self._rows or [])
 
 
+@pytest.fixture(autouse=True)
+def _cold_cache(monkeypatch):
+    """Every test in this file starts with an empty verdict cache.
+
+    Without this, one test's cached payload is served to the next and the file
+    measures its own ordering rather than the code.
+    """
+    from app.api.v1 import fund as fundapi
+    monkeypatch.setattr(fundapi, "_nav_completeness_cache", None)
+
+
 def _client(monkeypatch, nav):
     from app.api.v1 import fund as fundapi
     monkeypatch.setattr(fundapi, "_nav", nav)
@@ -184,13 +195,14 @@ def test_liveness_survives_a_fold_that_explodes_inside_navgap(monkeypatch):
 
 
 def test_liveness_survives_a_reader_that_ALWAYS_explodes(monkeypatch):
-    """The last resort, and the reason it exists.
+    """The recovery path must not run the code it is recovering from.
 
-    The first version of the guard above answered a reader failure by calling
-    the SAME reader again for its unreadable payload. Writing this test found
-    that the recovery path recursed straight back into the failure it was
-    recovering from — a safety net that fails exactly when it is needed, on the
-    one route whose non-200 reboots the host's database.
+    The first version of this guard answered a reader failure by calling the
+    SAME reader again for its unreadable payload, and recursed straight back
+    into the failure — a safety net that fails exactly when it is needed, on the
+    one route whose non-200 reboots the host's database. ``blank_summary`` is a
+    literal with no computation, which is why the reader here explodes on EVERY
+    call and the route still answers.
     """
     from app.api.v1 import fund as fundapi
 
@@ -206,7 +218,8 @@ def test_liveness_survives_a_reader_that_ALWAYS_explodes(monkeypatch):
     body = r.json()
     assert body["nav_record"]["state"] == "unreadable"
     assert body["nav_record"]["hole_count"] is None
-    assert "the fallback failed too" in body["nav_record"]["reason"]
+    assert body["nav_record"]["scan_limit_bound"] is None
+    assert "ZeroDivisionError" in body["nav_record"]["reason"]
     assert [w["key"] for w in body["warnings"]] == ["nav_record_unreadable"]
 
 
@@ -240,6 +253,95 @@ def test_the_outage_is_visible_through_the_endpoint(monkeypatch):
     assert body["hole_count"] >= 1
     assert body["holes"][0]["from"] == "2026-08-24T19:14:46.808135+00:00"
     assert "2026-08-25" in body["holes"][0]["trading_days"]
+
+
+# --- the cache, which exists for the watchdog ------------------------------
+
+def test_liveness_serves_a_CACHED_verdict_and_says_how_old_it_is(monkeypatch):
+    """The watchdog polls this route every five minutes with an 8s timeout and
+    restarts Docker, Postgres and the spine when it does not get a 200.
+
+    Found by the Gauntlet: the guards in this diff catch a fold that RAISES and
+    do nothing for one that is merely SLOW — and to a dead-man switch those are
+    the same event. Caching for longer than the watchdog's cadence makes the
+    steady state one fold per cache miss instead of one per poll. A cached
+    answer served as a live one would be a lie about freshness inside a module
+    whose entire subject is freshness, so the age rides the payload.
+    """
+    nav = FakeNav(OUTAGE)
+    client = _client(monkeypatch, nav)
+    first = client.get("/api/v1/fund/liveness").json()["nav_record"]
+    second = client.get("/api/v1/fund/liveness").json()["nav_record"]
+    assert first["cached"] is False
+    assert second["cached"] is True
+    assert second["age_seconds"] >= 0.0
+    assert len(nav.calls) == 1, "the second poll must not refold the event log"
+    assert second["ttl_seconds"] == 300.0
+    assert second["compute_seconds"] >= 0.0
+    assert second["watchdog_timeout_seconds"] == 8.0
+
+
+def test_the_history_route_forces_a_FRESH_verdict(monkeypatch):
+    """A human looking at the chart is asking about the record now, and this
+    route already pays the event-log fold for its own series."""
+    nav = FakeNav(OUTAGE)
+    client = _client(monkeypatch, nav)
+    client.get("/api/v1/fund/liveness")
+    body = client.get("/api/v1/fund/nav/history").json()["completeness"]
+    assert body["cached"] is False
+    assert body["age_seconds"] == 0.0
+
+
+def test_an_expired_cache_is_refolded(monkeypatch):
+    """Mutant: comparing age the wrong way round serves a verdict forever."""
+    from app.api.v1 import fund as fundapi
+    nav = FakeNav(OUTAGE)
+    client = _client(monkeypatch, nav)
+    client.get("/api/v1/fund/liveness")
+    monkeypatch.setattr(fundapi, "NAV_COMPLETENESS_TTL_SECONDS", -1.0)
+    again = client.get("/api/v1/fund/liveness").json()["nav_record"]
+    assert again["cached"] is False
+    assert len(nav.calls) == 2
+
+
+def test_the_bound_flag_is_UNKNOWN_when_the_record_is_unreadable(monkeypatch):
+    """Found by the Gauntlet: a concrete ``scan_limit_bound: false`` sat beside
+    ``state: unreadable`` and three null fields — a confident answer inside a
+    payload that had just said it cannot say. That is the exact collapse this
+    module exists to prevent, reproduced inside the module."""
+    unreadable = [{"ts": "not a timestamp"}]
+    client = _client(monkeypatch, FakeNav(unreadable))
+    body = client.get("/api/v1/fund/liveness").json()["nav_record"]
+    assert body["state"] == navgap.STATE_UNREADABLE
+    assert body["readable"] is False
+    assert body["scan_limit_bound"] is None
+    assert body["scan_limit"] == 5_000
+
+
+def test_every_failure_tier_carries_the_same_key_set(monkeypatch):
+    """Three paths reach this payload — readable, unreadable-input, and
+    reader-broke — and a consumer must not have to ask which one it holds."""
+    from app.api.v1 import fund as fundapi
+    keys = set(navgap.SUMMARY_KEYS) | {
+        "scan_limit", "scan_limit_bound", "compute_seconds",
+        "watchdog_timeout_seconds", "ttl_seconds", "computed_at",
+        "age_seconds", "cached"}
+
+    ok = _client(monkeypatch, FakeNav(OUTAGE)).get(
+        "/api/v1/fund/liveness").json()["nav_record"]
+    monkeypatch.setattr(fundapi, "_nav_completeness_cache", None)
+    unread = _client(monkeypatch, FakeNav(raises=OSError("no db"))).get(
+        "/api/v1/fund/liveness").json()["nav_record"]
+    monkeypatch.setattr(fundapi, "_nav_completeness_cache", None)
+    monkeypatch.setattr(navgap, "completeness",
+                        lambda *a, **k: (_ for _ in ()).throw(
+                            ZeroDivisionError("broken")))
+    broke = _client(monkeypatch, FakeNav(OUTAGE)).get(
+        "/api/v1/fund/liveness").json()["nav_record"]
+
+    assert set(ok) == keys
+    assert set(unread) == keys
+    assert set(broke) == keys | {"reason"}
 
 
 def test_an_empty_history_is_readable_and_not_silently_clean(monkeypatch):

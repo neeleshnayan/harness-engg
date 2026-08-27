@@ -14,6 +14,7 @@ is built and structurally locked. Neither dimension has a default.
 import logging
 import os
 import re
+import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -1147,51 +1148,75 @@ def _nav_strike_history_or_none() -> list[dict[str, Any]] | None:
         return None
 
 
-def _nav_completeness() -> dict[str, Any]:
+#: How long a computed NAV-record verdict may be served before it is refolded.
+#:
+#: THIS EXISTS FOR THE WATCHDOG, NOT FOR SPEED. `scripts/host_watchdog.ps1`
+#: polls `GET /fund/liveness` every five minutes with an 8-second timeout and
+#: RESTARTS Docker, Postgres and the spine when it does not get a 200. Before
+#: this fold existed that route was pure in-memory. It now reads the event log,
+#: and a fold that is merely SLOW — never raising, so no guard catches it — is
+#: indistinguishable to the watchdog from a dead spine. Measured on this host
+#: at 1,612 events: ~1.3s on the first call in a process, ~50ms after
+#: (`events._STREAM_CACHE` accumulates per process). Caching for longer than the
+#: watchdog's own cadence means the steady state is one fold per cache miss
+#: rather than one per poll, and the payload publishes what it cost so the day
+#: the headroom disappears is visible on the very payload the watchdog reads.
+#:
+#: The verdict describes a series that changes at most once an hour
+#: (STRIKE_INTERVAL_SECONDS), so serving one up to five minutes old costs
+#: nothing real — and `computed_at`/`age_seconds` ride the payload, because a
+#: cached answer presented as a live one is a lie about freshness in a module
+#: whose whole subject is freshness.
+NAV_COMPLETENESS_TTL_SECONDS = 300.0
+#: The watchdog's own timeout, restated here ONLY so the payload can publish the
+#: headroom. It is not a control: nothing here enforces it, and the number that
+#: matters lives in the .ps1.
+NAV_COMPLETENESS_WATCHDOG_TIMEOUT = 8.0
+#: (monotonic_at, payload)
+_nav_completeness_cache: tuple[float, dict[str, Any]] | None = None
+
+
+def _nav_completeness(force: bool = False) -> dict[str, Any]:
     """The gap verdict over the fund's own NAV record, never raising.
 
-    Deliberately total. ``GET /fund/liveness`` carries this, and the host
-    watchdog restarts Docker, Postgres and the spine when that route stops
-    answering 200 — so an exception here would not surface a bug, it would
-    bounce the stack every five minutes. Any failure becomes the UNREADABLE
-    input, which is the honest answer and the one the reader is built for.
+    Deliberately total. Any failure becomes the UNREADABLE input, which is the
+    honest answer and the one the reader is built for — an exception here would
+    not surface a bug, it would bounce the whole stack every five minutes.
     """
+    global _nav_completeness_cache
+    hit = _nav_completeness_cache
+    if hit is not None and not force:
+        age = time.monotonic() - hit[0]
+        if age < NAV_COMPLETENESS_TTL_SECONDS:
+            return hit[1] | {"age_seconds": round(age, 1), "cached": True}
+
+    started = time.monotonic()
     try:
         rows = _nav_strike_history_or_none()
         report = navgap.completeness(rows, now=datetime.now(timezone.utc))
         out = navgap.summary(report)
         out["scan_limit"] = NAV_COMPLETENESS_SCAN
-        out["scan_limit_bound"] = bool(
-            rows is not None and len(rows) >= NAV_COMPLETENESS_SCAN)
-        return out
+        # Gated on READABILITY. A concrete boolean sitting beside a state of
+        # "unreadable" and three null fields is a confident answer inside a
+        # payload that has just said it cannot say — which is the collapse this
+        # whole module exists to stop, reproduced inside it.
+        out["scan_limit_bound"] = (
+            bool(len(rows) >= NAV_COMPLETENESS_SCAN)
+            if rows is not None and out.get("readable") else None)
     except Exception as e:  # noqa: BLE001
-        detail = f"{type(e).__name__}: {e}"
-    try:
-        # The reader's own UNREADABLE payload, so the shape stays computed in
-        # one place. This path is short and branch-free — and "short and
-        # branch-free" is an assumption, which is why it is guarded too.
-        return navgap.summary(
-            navgap.completeness(None, now=datetime.now(timezone.utc))
-        ) | {"scan_limit": NAV_COMPLETENESS_SCAN, "scan_limit_bound": None,
-             "reason": detail}
-    except Exception as e2:  # noqa: BLE001
-        # THE LAST RESORT, and it exists because a mutation-driven test proved
-        # the fallback above could recurse into the same failure. On any other
-        # route the honest answer would be to let this raise. Not here: this
-        # payload rides `GET /fund/liveness`, and the host watchdog restarts
-        # Docker, Postgres and the spine when that route stops answering 200 —
-        # so an unguarded reader bug does not surface as an error, it surfaces
-        # as a machine rebooting its own database every five minutes.
-        return {"version": None, "state": "unreadable", "readable": False,
-                "hole_count": None, "stale": None,
-                "scan_limit": NAV_COMPLETENESS_SCAN, "scan_limit_bound": None,
-                "reason": f"{detail}; and the fallback failed too: "
-                          f"{type(e2).__name__}: {e2}",
-                "note": "the NAV-record reader itself could not run, so this "
-                        "fund cannot say whether its NAV record has holes",
-                "warnings": [{"level": "warn", "key": "nav_record_unreadable",
-                              "message": "the NAV-record reader itself could "
-                                         "not run"}]}
+        out = navgap.blank_summary(
+            "the NAV-record reader itself could not run, so this fund cannot "
+            "say whether its NAV record has holes")
+        out["scan_limit"] = NAV_COMPLETENESS_SCAN
+        out["scan_limit_bound"] = None
+        out["reason"] = f"{type(e).__name__}: {e}"
+
+    out["compute_seconds"] = round(time.monotonic() - started, 3)
+    out["watchdog_timeout_seconds"] = NAV_COMPLETENESS_WATCHDOG_TIMEOUT
+    out["ttl_seconds"] = NAV_COMPLETENESS_TTL_SECONDS
+    out["computed_at"] = datetime.now(timezone.utc).isoformat()
+    _nav_completeness_cache = (time.monotonic(), out)
+    return out | {"age_seconds": 0.0, "cached": False}
 
 
 @router.get("/fund/nav/history")
@@ -1209,8 +1234,12 @@ def get_nav_history(limit: int = Query(90, ge=1, le=365)):
     how much series a chart draws, and a hole outside the drawn window is still
     a hole in the record.
     """
+    # ``force``: this route already pays the event-log fold for the series
+    # itself, so a fresh verdict here is nearly free — and a human looking at
+    # the chart is asking about the record NOW. The liveness route serves the
+    # cached one instead, because that route is polled by the dead-man switch.
     return {"history": _nav.history(limit=limit),
-            "completeness": _nav_completeness()}
+            "completeness": _nav_completeness(force=True)}
 
 
 @router.get("/fund/positions")

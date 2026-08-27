@@ -84,7 +84,7 @@ def main() -> int:
               f"{args.spine} ({type(e).__name__}: {e}). This is not a pass.")
         return 2
     if not dates:
-        print(f"UNREADABLE: {args.symbol} returned zero bars — nothing to "
+        print(f"UNREADABLE: {args.symbol} returned zero bars - nothing to "
               f"compare against, which is not agreement.")
         return 2
 

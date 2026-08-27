@@ -434,6 +434,41 @@ def completeness(strikes: Optional[Iterable[dict[str, Any]]],
 SUMMARY_HOLE_LIMIT = 10
 
 
+#: Every key a summary carries. ONE list, so the blank form below and the real
+#: form below that cannot drift apart — a payload whose shape depends on which
+#: branch produced it makes every consumer guess.
+SUMMARY_KEYS = (
+    "version", "state", "readable", "note", "lookback_hours",
+    "strikes_in_window", "gaps_measured", "hole_count", "holes_shown",
+    "holes_capped", "holes", "largest_gap", "newest_strike_at",
+    "staleness_seconds", "staleness_trading_seconds", "stale",
+    "tolerance_seconds", "tolerance_source", "warnings",
+)
+
+
+def blank_summary(note: str) -> dict[str, Any]:
+    """The full summary shape with nothing in it, for a reader that broke.
+
+    Deliberately a literal with no computation and no calls: it exists for the
+    case where ``completeness`` itself raised, and a recovery path that runs the
+    code it is recovering from is not a recovery path. That is not a
+    hypothetical — the first version of this diff's fallback did exactly that
+    and recursed straight back into the failure.
+
+    Every key is present and null rather than absent, because a consumer that
+    must ask "does this payload have a hole_count field" has been handed two
+    different contracts wearing one name.
+    """
+    out: dict[str, Any] = {k: None for k in SUMMARY_KEYS}
+    out["state"] = STATE_UNREADABLE
+    out["readable"] = False
+    out["holes"] = []
+    out["note"] = note
+    out["warnings"] = [{"level": "warn", "key": "nav_record_unreadable",
+                        "message": note}]
+    return out
+
+
 def summary(report: dict[str, Any]) -> dict[str, Any]:
     """The small block, DERIVED from a completeness report — never recomputed.
 
