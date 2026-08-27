@@ -112,7 +112,13 @@ SENSITIVE_PATHS: tuple[str, ...] = (
 #: printed since: UNPROVEN, not clear.
 SENSITIVE_GLOBS: tuple[str, ...] = (
     "app/fund/*guard*.py",
-    "app/fund/autopolicy*.py",      # autopolicy_v5_draft.py and its successors
+    # Every autopolicy module, drafts included. NAMED BY SHAPE ONLY, and that
+    # is load-bearing: the draft envelope's own test module greps `app/**` and
+    # `scripts/**` for any reference to the draft BY NAME, because a draft
+    # something references is not a draft. Writing that filename in this
+    # comment made THIS file an offender against that guard — twice, because
+    # the first repair named the test module instead.
+    "app/fund/autopolicy*.py",
     "app/api/v1/*guard*.py",
     "app/fund/projections/nav.py",  # the fold the whole ledger rests on
 )
@@ -430,29 +436,33 @@ def refusal_predicates(source: str) -> dict[str, Any]:
                          if isinstance(n, ast.Raise)
                          and _raised_name(n) in REFUSAL_EXCEPTIONS]
             if reachable:
-                # BUILTINS AND UNIVERSAL METHOD NAMES DROPPED. `isinstance`,
-                # `get`, `str` and `len` appear in almost every guard and in
-                # almost every other line of the file, so keeping them turns
-                # the predicate leg into a full-text match on the diff.
-                #
-                # ...and names of two characters or fewer with them, for the
-                # same reason and not a different one: `s`, `n` and `x` are
-                # loop variables everywhere. The cost is a two-character guard
-                # name going unwatched by the PREDICATE leg — the REGION leg
-                # still covers every line of the function it guards, which is
-                # where such a name would be assigned.
-                guards |= {n for n in _names_in(branch.test)
-                           if n not in _UBIQUITOUS_NAMES and len(n) > 2}
+                guards |= _names_in(branch.test)
         if not guards:
             # It raises, but not from a condition — an unconditional raise is
             # not a control this gate can be loosened through, and calling it
             # one would flood the report.
             continue
-        out["names"] |= guards
+        # THE FILTER APPLIES TO THE PREDICATE LEG ONLY, NEVER TO REGION-HOOD.
+        # `isinstance`, `get`, `str` and `len` appear in almost every guard AND
+        # in almost every other line, and short names like `ok` or `id` are
+        # loop variables everywhere, so a text match on them is a full-text
+        # match on the diff. But whether a function REFUSES has nothing to do
+        # with what its variables are called.
+        #
+        # The first version filtered before the region test, so a refusal
+        # gated entirely on a two-character name — `if not ok: raise
+        # HTTPException(...)` — was invisible to BOTH legs. A test written to
+        # prove the region leg still covered that case is what found it.
+        useful = {n for n in guards
+                  if n not in _UBIQUITOUS_NAMES and len(n) > 2}
+        out["names"] |= useful
         out["regions"].append({
             "function": fn.name,
             "first_line": fn.lineno,
             "last_line": getattr(fn, "end_lineno", fn.lineno) or fn.lineno,
+            # EVERY guarding name, filtered or not — this is what a human reads
+            # to see why the function was flagged, and hiding `ok` from that
+            # sentence would make the flag unexplainable.
             "guards": sorted(guards),
         })
     return out

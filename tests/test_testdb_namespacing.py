@@ -207,6 +207,20 @@ def test_a_name_past_postgres_identifier_limit_REFUSES_rather_than_shortens():
     assert str(MAX_IDENTIFIER) in str(e.value)
 
 
+def test_the_identifier_limit_is_probed_AT_the_boundary_and_on_both_sides(monkeypatch):
+    """Found by the Gauntlet: the first pass tested 39 characters and 82, and
+    nothing at 63 or 64 — so a `>` becoming `>=` would have survived and every
+    name of exactly 63 characters would have been refused for no reason."""
+    monkeypatch.setenv("KF_TEST_DB_SUFFIX", "x" * 8)
+    # base + "_" + 8 == n, so the base carries n - 9 characters.
+    at_limit = "k" * (MAX_IDENTIFIER - 9)
+    assert len(scratch_database(at_limit)) == MAX_IDENTIFIER
+    one_under = "k" * (MAX_IDENTIFIER - 10)
+    assert len(scratch_database(one_under)) == MAX_IDENTIFIER - 1
+    with pytest.raises(UnsafeDatabaseName):
+        scratch_database("k" * (MAX_IDENTIFIER - 8))     # exactly one over
+
+
 def test_a_legitimate_name_is_comfortably_inside_the_limit():
     """The other half: the refusal above must not be firing on real names."""
     longest = "krypton_fund_ticketstagingtest"      # the longest base in the suite
@@ -229,6 +243,8 @@ def test_no_destructive_test_module_still_hardcodes_a_scratch_database_name():
     `test_fund_mode.py` is the ledger scanner and forges module text on
     purpose, and this file quotes the names it asserts about.
     """
+    import ast
+
     excluded = {"test_fund_mode.py", Path(__file__).name}
     offenders = []
     scanned = 0
@@ -239,12 +255,36 @@ def test_no_destructive_test_module_still_hardcodes_a_scratch_database_name():
         if "psycopg" not in text:
             continue
         scanned += 1
-        for line in text.splitlines():
-            stripped = line.strip()
-            if stripped.startswith("#") or "scratch_database(" in stripped:
-                continue
-            if '"krypton_fund_' in stripped or "'krypton_fund_" in stripped:
-                offenders.append(f"{path.name}: {stripped[:90]}")
+        tree = ast.parse(text)
+        # DOCSTRINGS ARE NOT DATABASE NAMES. The first version of this scan was
+        # line-based and skipped `#` comments only, so a docstring quoting the
+        # error message *database "krypton_fund_kgtest..." does not exist* was
+        # reported as a module hardcoding its database. The mirror image of the
+        # "a comment can satisfy a source-scan assertion" defect: here prose
+        # made an honest module fail. Reading the parse tree removes both.
+        exempt = {
+            id(node.body[0].value)
+            for node in [tree, *(n for n in ast.walk(tree)
+                                 if isinstance(n, (ast.FunctionDef,
+                                                   ast.AsyncFunctionDef,
+                                                   ast.ClassDef)))]
+            if node.body and isinstance(node.body[0], ast.Expr)
+            and isinstance(node.body[0].value, ast.Constant)
+            and isinstance(node.body[0].value.value, str)}
+        # ...and so is the BASE handed to the namer: that is the input the
+        # namer exists to take, not a module naming its own database. Only a
+        # literal used ANYWHERE ELSE is the defect.
+        exempt |= {
+            id(arg)
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+            and node.func.id == "scratch_database"
+            for arg in node.args}
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Constant) and isinstance(node.value, str)
+                    and node.value.startswith("krypton_fund_")
+                    and id(node) not in exempt):
+                offenders.append(f"{path.name}:{node.lineno}: {node.value}")
     assert not offenders, ("a scratch database name is hardcoded again: "
                            + "; ".join(offenders))
     # DOMAIN. A pass over nothing proves nothing, and the glob is exactly the

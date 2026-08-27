@@ -212,6 +212,47 @@ def test_ubiquitous_names_are_not_treated_as_refusal_predicates():
         assert noise not in names
 
 
+@pytest.mark.parametrize("guard,kept", [
+    ("ok", False), ("id", False),        # two characters: dropped
+    ("live", True), ("cfg", True),       # three or more: kept
+])
+def test_the_short_name_filter_is_probed_at_its_boundary(guard, kept):
+    """Found by the Gauntlet: neither side of `len(n) > 2` was tested, so the
+    cost of that filter was unmeasured."""
+    src = (f"def f({guard}):\n"
+           f"    if not {guard}:\n"
+           f"        raise HTTPException(status_code=403)\n"
+           f"    return 1\n")
+    names = refusal_predicates(src)["names"]
+    assert (guard in names) is kept
+
+
+@pytest.mark.parametrize("guard", ["ok", "id", "live"])
+def test_a_SHORT_guard_name_still_makes_the_function_a_REFUSAL_REGION(guard):
+    """AND THIS ONE FOUND A DEFECT WHILE BEING WRITTEN TO CONFIRM ONE.
+
+    The filter used to run BEFORE the region test, so a function guarded
+    entirely on a two-character name produced an empty guard set, failed the
+    `if not guards` test, and was recorded as no region at all — invisible to
+    the predicate leg AND the region leg. `if not ok: raise HTTPException(...)`
+    is an ordinary shape and it was a hole straight through the scan.
+
+    Whether a function REFUSES has nothing to do with what its variables are
+    called; only the TEXT MATCH needs names worth matching on.
+    """
+    src = (f"def f({guard}):\n"
+           f"    if not {guard}:\n"
+           f"        raise HTTPException(status_code=403)\n"
+           f"    return 1\n")
+    info = refusal_predicates(src)
+    assert [r["function"] for r in info["regions"]] == ["f"]
+    # ...and the human-readable reason names the guard whatever its length —
+    # a flag nobody can explain is a flag nobody acts on.
+    assert guard in info["regions"][0]["guards"]
+    got = scan_control_flow({"app/x.py": {2}}, lambda p: src)
+    assert got["hits"] and "inside f()" in got["hits"][0]["why"]
+
+
 def test_a_name_MENTIONED_in_a_comment_is_not_a_change_to_it():
     """Most of the 289 were prose. The ask was "alters a boolean used in a
     refusal", and altering means assigning or defining."""

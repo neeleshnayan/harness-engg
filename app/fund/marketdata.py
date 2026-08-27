@@ -15,6 +15,16 @@ A ticker is not an identity, so what a source SERVED travels with the bars
 (`instrument_name` / `instrument_type` / `exchange`) and how old the newest bar
 is travels as a state (`freshness`), never as a number a caller must interpret.
 
+**THOSE FIELDS ARE NOT YET SURFACED OVER HTTP, and saying so is part of
+shipping them.** `GET /fund/marketdata/bars` returns
+`{symbol, source, closes, dates, start, end}` and nothing else, so a caller
+asking that endpoint for `GETH` still gets bars with no sign that the source
+served an OTC penny stock. The REFUSALS below do reach it — every one is a
+`BarsError` and the endpoint already maps that to 422 — but the CAVEATS reach
+only a Python caller of `fetch_daily_bars`. Wiring the two note fields into
+that endpoint is one line in a file this dispatch does not own; until it
+happens, this module's guarantee is to the fund's own code, not to its API.
+
 Returns a plain list of close prices (oldest first) — exactly what
 ``SimpleBacktester`` / ``sma_crossover_signals`` consume. Network/parse failures
 raise ``BarsError`` with a readable message; the caller maps it to HTTP 422.
@@ -506,6 +516,17 @@ def resolve_namespace(symbol: str) -> dict[str, Any]:
                 "note": None}
 
     base = raw
+    # A SYMBOL THAT CANNOT BE A TICKER IS NOT WORTH A NETWORK CALL. The equity
+    # path refuses these outright a few lines later, and no crypto base at this
+    # venue is longer than five alphanumeric characters, so asking the venue
+    # about `TOO-LONG-SYM` buys nothing and costs a round trip. Found by the
+    # Gauntlet, which showed `fetch_daily_bars("TOO-LONG-SYM")` reaching Alpaca
+    # before refusing.
+    if not base.replace(".", "").isalnum() or len(base) > 6:
+        return {"crypto": False, "base": base, "quote": None,
+                "basis": "unlisted", "universe_readable": None,
+                "note": None}
+
     universe = crypto_universe()
     readable = bool(universe.get("readable"))
     listed = readable and base in (universe.get("bases") or frozenset())
@@ -518,9 +539,16 @@ def resolve_namespace(symbol: str) -> dict[str, Any]:
                          "ticker absent from the coin-id map is being read as "
                          "an equity WITHOUT having checked the crypto "
                          "namespace: " + str(universe.get("note")))}
-    # ASKED ONLY OF A PLAUSIBLE CRYPTO TICKER, never of every symbol. `AAPL`
-    # must not pay for an EDGAR round trip to learn it is not a coin, and the
-    # old code never charged it one either.
+    # THE EDGAR LOOKUP is asked only of a plausible crypto ticker, never of
+    # every symbol: `AAPL` must not pay for that round trip to learn it is not
+    # a coin, and the old code never charged it one either.
+    #
+    # THE VENUE LIST ABOVE IS DIFFERENT AND IT IS PAID BY EVERY BARE TICKER,
+    # which the first version of this comment obscured by sitting here and
+    # reading as if it covered the whole block. There is no cheap negative — a
+    # crypto base and an equity ticker are the same shape — so the honest
+    # statement is the cost: one bounded read per process per hour (1.03 s
+    # measured), cached, degrading to the coin-id map when it fails.
     if _has_edgar_cik(base):
         return {"crypto": False, "base": base, "quote": None,
                 "basis": "equity_filer", "universe_readable": readable,
@@ -828,8 +856,11 @@ def _from_yahoo(symbol: str, lookback_days: int,
     # real daily bars — on OTC Markets, at $0.0001 — and every check the fund
     # had was "did we get a 200 and some rows". Named, not refused: an OTC
     # listing is not by itself wrong, and what this fund may hold is a mandate
-    # question a data module does not get to decide. What it can do is stop the
-    # answer from arriving silently.
+    # question a data module does not get to decide.
+    #
+    # AND THE NAMING IS CURRENTLY TO PYTHON CALLERS ONLY — `GET
+    # /fund/marketdata/bars` does not return this field yet (see the module
+    # docstring). Half-wired, and said so rather than left to be discovered.
     identity = (f"{symbol.upper()} resolved to {who!r} on {venue!r} — an "
                 f"off-exchange venue; confirm this is the instrument you meant"
                 if any(t in str(venue or "").upper()

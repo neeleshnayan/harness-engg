@@ -71,5 +71,24 @@ def test_too_few_bars_raises(monkeypatch):
 
 
 def test_invalid_symbol_rejected(monkeypatch):
+    """THIS FILE SAYS "no network" AT THE TOP AND THIS TEST DID NOT ENFORCE IT.
+
+    Its four siblings all go through `_patch_urlopen`, which deletes the Alpaca
+    credentials; this one took a `monkeypatch` fixture and never used it. That
+    was harmless while routing was a dictionary lookup, and stopped being
+    harmless when routing gained a venue read: with real credentials in the
+    ambient environment — which `app/main.py`'s `load_dotenv()` puts there —
+    the refusal path could reach live Alpaca before refusing. Found by the
+    Gauntlet, by execution.
+
+    The assertion is unchanged; what is added is the proof that reaching it
+    costs nothing.
+    """
+    monkeypatch.delenv("ALPACA_API_KEY", raising=False)
+    monkeypatch.delenv("ALPACA_SECRET_KEY", raising=False)
+    reached = []
+    monkeypatch.setattr(marketdata.urllib.request, "urlopen",
+                        lambda *a, **k: reached.append(1) or _FakeResp(b"{}"))
     with pytest.raises(BarsError):
         fetch_daily_bars("TOO-LONG-SYM")
+    assert reached == [], "an invalid symbol reached the network before refusing"
