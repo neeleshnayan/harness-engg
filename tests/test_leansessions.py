@@ -635,39 +635,39 @@ class TestRunnerReconciliation:
                  if MAIN_SRC.startswith("reconcile_containers(", i)]
         assert len(sites) == 2, "a third caller appeared; give it its own arm"
 
-        worker = MAIN_SRC.index('trigger="worker"')
-        # The start-up call is the one that is NOT the worker call. Found by
-        # exclusion rather than by ordinal, so re-ordering the file cannot
-        # silently swap which one each arm below is about.
-        startup = next(i for i in sites
-                       if not (i <= worker <= i + 200))
-        assert startup != worker
+        # EACH SITE IS BOUNDED BY ITS ENCLOSING FUNCTION, NOT BY A CHARACTER
+        # COUNT. The first version of this repair used a measured window (700
+        # back, 1,400 forward) and went red the same afternoon when a comment
+        # grew — a test whose bound is a magic number measured once is a test
+        # that fails on prose. ``async def lifespan`` splits the file: the
+        # worker tick lives in ``_scheduler`` above it, the start-up pass
+        # inside ``lifespan`` below it, and neither half can see the other.
+        split = MAIN_SRC.index("async def lifespan")
+        halves = {"worker": MAIN_SRC[:split], "start-up": MAIN_SRC[split:]}
+        for label, half in halves.items():
+            n = sum(1 for i in range(len(half))
+                    if half.startswith("reconcile_containers(", i))
+            assert n == 1, f"{label} half holds {n} call sites, expected 1"
+            i = half.index("reconcile_containers(")
+            # The nearest ``try:`` BEFORE it and the nearest ``except`` AFTER
+            # it, so an unrelated statement's handler cannot satisfy either.
+            t = half.rfind("try:", 0, i)
+            e = half.index("except Exception", i)
+            assert t != -1, label
+            assert "\n" in half[t:i], label       # they are on different lines
+            assert e > i, label
+            assert "_log.warning" in half[e:e + 400], label
 
-        # THE WINDOW IS BOUNDED SO IT CANNOT REACH THE OTHER SITE. Measured
-        # 2026-08-27: the two calls are 4,540 characters apart; the furthest
-        # either one's own ``try:`` sits before it is 435 and the furthest its
-        # ``except`` sits after it is 1,037 (both the worker's, which carries
-        # the longer comment). 700 back and 1,400 forward covers both, and the
-        # pair is under half the gap — a window that could see its sibling
-        # would prove nothing about either, which is the failure this whole
-        # test just had.
-        BACK, FWD = 700, 1400
-        assert sites[1] - sites[0] > BACK + FWD, (
-            "the two call sites have moved close enough that each window could "
-            "see the other; tighten the window or anchor differently")
-        for label, i in (("start-up", startup), ("worker", worker)):
-            window = MAIN_SRC[max(0, i - BACK):i + FWD]
-            assert "try:" in window, label
-            assert "except Exception" in window, label
-            assert "_log.warning" in window, label
+        # THE ONE DIFFERENCE, asserted where it belongs: only the worker's call
+        # names itself and passes a grace.
+        assert 'trigger="worker"' in halves["worker"]
+        assert 'trigger="worker"' not in halves["start-up"]
 
         # THE START-UP CALL RUNS BEFORE THE SCHEDULER, not after: a
         # reconciliation that happens once the strike/exit ticks are already
         # firing would be acting on a book those ticks had begun to move.
+        startup = split + halves["start-up"].index("reconcile_containers(")
         assert startup < MAIN_SRC.index("asyncio.create_task(_scheduler())")
-        # ...and the WORKER call is inside the scheduler, which is defined
-        # earlier in the file. Asserted so the two can never be confused again.
-        assert worker < MAIN_SRC.index("async def lifespan")
 
     def test_the_worker_tick_passes_a_GRACE_and_the_start_up_pass_does_not(self):
         """THE ONE DIFFERENCE BETWEEN THE TWO CALLS, and it is the difference
