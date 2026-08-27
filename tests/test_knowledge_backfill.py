@@ -34,6 +34,7 @@ What each test pins is a way the ingestion could quietly lie:
 import os
 
 import pytest
+from _testdb import scratch_database
 
 pytestmark = pytest.mark.skipif(
     os.getenv("SKIP_PG_TESTS") == "1", reason="Postgres tests disabled")
@@ -41,7 +42,7 @@ pytestmark = pytest.mark.skipif(
 #: THIS MODULE'S OWN SCRATCH DATABASE. See the module docstring for the
 #: measured reason; the short version is that this module reads the WHOLE of
 #: fund_candidates and two other modules own rows in it.
-TEST_DB = "krypton_fund_kgtest"
+TEST_DB = scratch_database("krypton_fund_kgtest")
 
 #: The fixture's own dates. The fence's real cohort is 2026-08-20/21; the
 #: fixture puts exactly ONE candidate on 2026-08-20, so a run with

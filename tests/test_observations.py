@@ -11,6 +11,7 @@ import os
 import pytest
 
 from app.fund.observations import CATEGORIES, _parse, verify_quote
+from _testdb import scratch_database
 
 pytestmark_pg = pytest.mark.skipif(
     os.getenv("SKIP_PG_TESTS") == "1", reason="Postgres tests disabled")
@@ -99,16 +100,20 @@ def _store():
     import psycopg
     from app.fund.pgstore import dsn
     head, _, _ = dsn().rpartition("/")
-    test_dsn = f"{head}/krypton_fund_test"
+    # ONE name, computed once. This module inlined the literal three times —
+    # in the DSN, in the existence query and in CREATE DATABASE — which is
+    # three chances for two of them to agree and the third to drift.
+    test_db = scratch_database("krypton_fund_test")
+    test_dsn = f"{head}/{test_db}"
     try:
         conn = psycopg.connect(dsn(), connect_timeout=3, autocommit=True)
     except Exception as e:  # noqa: BLE001
         pytest.skip(f"no Postgres reachable: {e}")
     with conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT 1 FROM pg_database WHERE datname = 'krypton_fund_test'")
+            cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (test_db,))
             if not cur.fetchone():
-                cur.execute('CREATE DATABASE "krypton_fund_test"')
+                cur.execute(f'CREATE DATABASE "{test_db}"')
     from app.fund.observations import Observations
     o = Observations(test_dsn)
     with psycopg.connect(test_dsn) as c:

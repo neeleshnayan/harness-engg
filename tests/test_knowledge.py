@@ -30,13 +30,14 @@ private database means the guarantee does not rest on that alone.
 import os
 
 import pytest
+from _testdb import scratch_database
 
 pytestmark = pytest.mark.skipif(
     os.getenv("SKIP_PG_TESTS") == "1", reason="Postgres tests disabled")
 
 #: THIS MODULE'S OWN SCRATCH DATABASE. See the module docstring: this module
 #: DROPs the kg_* tables, and a drop in a shared store is somebody else's flake.
-TEST_DB = "krypton_fund_kgunit"
+TEST_DB = scratch_database("krypton_fund_kgunit")
 
 
 def _dsn() -> str:

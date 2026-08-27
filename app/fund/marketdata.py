@@ -335,16 +335,37 @@ def crypto_universe(refresh: bool = False) -> dict[str, Any]:
         # this code, 2026-08-27: 1.34 s cold, 0.003 ms warm from the cache, 73
         # pairs. A borrowed figure from a sibling call would not have been the
         # cost of THIS one.
-        host = ("https://paper-api.alpaca.markets"
-                if (os.getenv("ALPACA_PAPER", "true").strip().lower()
-                    not in ("false", "0", "no"))
-                else "https://api.alpaca.markets")
-        req = urllib.request.Request(
-            host + "/v2/assets?asset_class=crypto&status=active",
-            headers={"APCA-API-KEY-ID": key, "APCA-API-SECRET-KEY": secret,
-                     "User-Agent": "ClarkHarness"})
-        with urllib.request.urlopen(req, timeout=_UNIVERSE_TIMEOUT_S) as r:
-            assets = json.loads(r.read().decode("utf-8", "replace"))
+        # THE HOST FOLLOWS THE CREDENTIALS, and it is NOT read from a flag.
+        # `ALPACA_PAPER` is a retired switch: `AlpacaConnector` refuses to be
+        # built without an explicit `paper=`, because an environment variable
+        # living beside a CORS list had become the thing deciding whether real
+        # money could move (adversary review of builder D11, finding K8), and
+        # `tests/test_fund_mode.py` asserts nothing in the shipped tree reads
+        # it. Asking the mode instead would make naming a coin depend on a
+        # declared fund mode, which is a heavier coupling than a READ of an
+        # asset list deserves. So: try the paper host, and fall back only on a
+        # 401 — the credentials themselves say which account this is, and
+        # MEASURED 2026-08-27 the paper host answers 73 tradable pairs while
+        # the live host answers 401 to these keys.
+        assets = None
+        for host in ("https://paper-api.alpaca.markets",
+                     "https://api.alpaca.markets"):
+            req = urllib.request.Request(
+                host + "/v2/assets?asset_class=crypto&status=active",
+                headers={"APCA-API-KEY-ID": key, "APCA-API-SECRET-KEY": secret,
+                         "User-Agent": "ClarkHarness"})
+            try:
+                with urllib.request.urlopen(req, timeout=_UNIVERSE_TIMEOUT_S) as r:
+                    assets = json.loads(r.read().decode("utf-8", "replace"))
+                break
+            except urllib.error.HTTPError as e:
+                if getattr(e, "code", None) != 401:
+                    raise
+                logger.info("alpaca assets: %s rejected these credentials; "
+                            "trying the other account host", host)
+        if assets is None:
+            raise PermissionError(
+                "neither Alpaca host accepted these credentials")
         pairs = {str(a.get("symbol", "")).upper() for a in assets
                  if isinstance(a, dict) and a.get("tradable")}
         pairs.discard("")

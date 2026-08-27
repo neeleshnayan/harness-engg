@@ -9,6 +9,7 @@ events it had already sent, would spend the quota it exists to conserve.
 import os
 
 import pytest
+from _testdb import scratch_database
 
 pytestmark = pytest.mark.skipif(
     os.getenv("SKIP_PG_TESTS") == "1", reason="Postgres tests disabled")
@@ -81,7 +82,7 @@ def _snapshotter(fail_after=None):
     import psycopg
     from app.fund.pgstore import PostgresEventStore, dsn
 
-    test_db = "krypton_fund_test"
+    test_db = scratch_database("krypton_fund_test")
     head, _, _ = dsn().rpartition("/")
     test_dsn = f"{head}/{test_db}"
     try:

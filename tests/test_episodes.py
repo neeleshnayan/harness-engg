@@ -34,12 +34,13 @@ import os
 import pathlib
 
 import pytest
+from _testdb import scratch_database
 
 pytestmark = pytest.mark.skipif(
     os.getenv("SKIP_PG_TESTS") == "1", reason="Postgres tests disabled")
 
 #: THIS MODULE'S OWN SCRATCH DATABASE. See the module docstring.
-TEST_DB = "krypton_fund_epitest"
+TEST_DB = scratch_database("krypton_fund_epitest")
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 

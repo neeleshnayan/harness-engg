@@ -19,11 +19,12 @@ matters is `..._a_decided_recommendation_makes_the_run_stale`.
 import os
 
 import pytest
+from _testdb import scratch_database
 
 pytestmark = pytest.mark.skipif(
     os.getenv("SKIP_PG_TESTS") == "1", reason="Postgres tests disabled")
 
-TEST_DB = "krypton_fund_test"
+TEST_DB = scratch_database("krypton_fund_test")
 
 
 class _FakeBatch:
