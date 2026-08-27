@@ -368,7 +368,34 @@ def build_recommendations(recommendations: Any, *, seat: str,
                         else {}),
                      **({"routing_rules_version": r["routing_rules_version"]}
                         if isinstance(r, dict)
-                        and r.get("routing_rules_version") else {})})
+                        and r.get("routing_rules_version") else {}),
+                     # THE PRIORITY BAND'S ONLY INPUT (CEO 2026-08-27: *"can
+                     # we add ordering to my desk say high-priority to low;
+                     # time-sensitive or not; blocker or not?"*). A
+                     # filer-declared boolean: does this hold up money moving
+                     # or another seat's chartered work.
+                     #
+                     # THIS ROW IS REBUILT FIELD BY FIELD, so a key with no
+                     # line here is SILENTLY DROPPED — measured while building
+                     # the band fold, against a brief that stated the opposite
+                     # ("recommendation dicts pass arbitrary keys through").
+                     # Pydantic accepting `list[dict]` is not pass-through;
+                     # it only means the request is not refused. Without this
+                     # line the band could never be `blocker` for any row ever
+                     # filed, and the chip would have been a control with no
+                     # caller.
+                     #
+                     # STORED VERBATIM, INCLUDING A GARBLED ONE. The strict
+                     # read lives in `desk.desk_band`, which refuses the
+                     # string "true", the integer 1 and the word "yes" — all
+                     # truthy, all of which would promote a typo into the
+                     # loudest band on the CEO's desk. Coercing or dropping it
+                     # HERE would turn a filer's garbled answer into "nobody
+                     # said", and those are different facts with different
+                     # fixes. Presence is what is preserved; meaning is read
+                     # once, in one place.
+                     **({"blocks": r["blocks"]}
+                        if isinstance(r, dict) and "blocks" in r else {})})
     return recs
 
 

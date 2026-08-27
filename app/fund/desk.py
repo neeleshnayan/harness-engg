@@ -718,6 +718,90 @@ def _within_window(dispatched_at: Any, window_floor: Any) -> bool:
     return a >= b
 
 
+#: The instant an UNREADABLE dispatch stamp sorts at. Module level and named,
+#: because it was being rebuilt inside the per-seat loop — eleven identical
+#: datetimes per payload — and because a magic year-1 literal buried in a sort
+#: key is the kind of thing a later reader deletes.
+_SORT_FLOOR = _ts("0001-01-01T00:00:00+00:00")
+
+
+def idle_activity() -> dict[str, Any]:
+    """The activity envelope for a seat the fold produced no row for.
+
+    ONE constructor, because there were two and they disagreed. Before this
+    diff ``_activity`` emitted SEVEN keys per seat and the desk payload's
+    fallback for a roster agent the fold never reached emitted FOUR (it is ten
+    and ten now, and a test asserts the two sets are equal rather than
+    restating either number here, because a count in a comment goes stale on
+    the next field and this one already had) — so adding a seat to ``ROSTER``
+    without adding it to ``REQUEST_KINDS`` silently served an activity object
+    missing ``task_id``, ``returned_run_id`` and ``review_detectable``, and
+    every consumer of those keys would have read absent-as-undefined on that
+    seat alone. Nothing hits it today (all eleven roster agents are in
+    ``REQUEST_KINDS``, verified against the live payload 2026-08-27), which is
+    exactly why it would have stayed wrong: the branch nobody exercises is the
+    branch nobody patches.
+
+    The counts are ZERO here and that is a measurement, not an absence: this
+    seat appears in the roster and the dispatch fold found no open dispatch
+    for it. "The fold could not be read" does not exist as a state — the fold
+    is over the event stream, which either streams or raises.
+    """
+    return {
+        "status": "idle",
+        "task": None,
+        "since": None,
+        "task_id": None,
+        "returned_run_id": None,
+        "review_detectable": None,
+        "open_dispatches": [],
+        "working_count": 0,
+        "awaiting_review_count": 0,
+        "last_delivered": None,
+    }
+
+
+def _dispatch_state(w: dict[str, Any], run_by_key: dict[str, str],
+                    recorder_read: bool, window_floor: Any) -> dict[str, Any]:
+    """One OPEN dispatch, resolved to its state — the unit the seat fold is
+    built from.
+
+    Extracted so that the seat's headline dispatch and every other open
+    dispatch it holds are computed by the SAME code from the SAME inputs. They
+    were not: the headline was computed inline and there was nothing else, so
+    "the builder is working" was a claim about one dispatch presented as a
+    claim about a seat. See ``_activity``'s parallelism note.
+    """
+    # EXACT identifiers only, in the order that matches most on the live
+    # log: the dispatch's own trace first (17 of 24), its task_id second
+    # (8 of 24, the older convention where the two were the same string).
+    keys = [k for k in (w.get("trace_id"), w.get("task_id")) if k]
+    back = None
+    for k in keys:
+        back = run_by_key.get(k)
+        if back:
+            break
+    return {
+        "status": "awaiting_review" if back else "working",
+        "task": w.get("task"),
+        "since": w.get("at"),
+        "task_id": w.get("task_id"),
+        # The run that came back, so the chair can open it and review.
+        "returned_run_id": back,
+        # Whether the spine could TELL a returned dispatch from a running
+        # one FOR THIS DISPATCH. Per-dispatch and not per-payload: a
+        # dispatch carrying no identifier is undetectable even with a
+        # fully readable recorder, and reporting it as detectable would
+        # dress "we never looked" as "nothing came back". A positive match is
+        # its own proof, so it short-circuits every other condition.
+        "review_detectable": (
+            True if back else
+            (recorder_read and bool(keys)
+             and _within_window(w.get("at"), window_floor))
+        ),
+    }
+
+
 def _activity(store: Any, runs: Optional[list[dict[str, Any]]] = None,
               runs_limit: Optional[int] = None) -> dict[str, dict[str, Any]]:
     """What each seat is doing RIGHT NOW, folded from dispatch/resolve events.
@@ -763,6 +847,41 @@ def _activity(store: Any, runs: Optional[list[dict[str, Any]]] = None,
 
     ``runs_limit`` is the cap ``runs`` was fetched under, so a truncated list
     can be told from a complete one. See ``window_floor`` below.
+
+    A SEAT CAN HOLD MORE THAN ONE OPEN DISPATCH, AND THIS FOLD USED TO REPORT
+    THE LAST ONE AS THOUGH IT WERE THE SEAT (added 2026-08-27, from the CEO's
+    own observation on the floor, verbatim: *"1 builder working but 2 in
+    reality"*). Two builders concurrently is a versioned permission — the
+    constitution allows it on disjoint write scopes — so the payload has been
+    describing a permitted state falsely, not an impossible one. The event
+    loop already accumulated every open dispatch in ``open_by_task``;
+    ``working_on`` was a lossy projection of it that kept only the newest.
+
+    THE ADDITIVE FIELDS, and what each one is for:
+
+      ``open_dispatches``       every dispatch for this seat with no recorded
+                                resolution, NEWEST FIRST, each carrying its own
+                                ``status``/``task``/``since``/``task_id``/
+                                ``returned_run_id``/``review_detectable``.
+      ``working_count``         how many of those are WORKING.
+      ``awaiting_review_count`` how many have RETURNED and await the chair.
+
+    Both counts are folded here rather than left to each caller's
+    ``filter(...).length``, because several fields describing one condition
+    must be computed once from one input — a consumer that recounts is a
+    second implementation of the rule, and the two drift.
+
+    THE HEADLINE FIELDS ARE UNCHANGED AND THEY CAN NOW BE READ AS UNDERSTATING.
+    ``status``/``task``/``since``/``task_id``/``returned_run_id``/
+    ``review_detectable`` still describe ``working_on`` exactly as before, so
+    no existing consumer moves. But ``working_on`` is retired when the NEWEST
+    dispatch resolves, so a seat holding an older open dispatch reports
+    ``status: "idle"`` while ``working_count`` is 1. **The list is the truth
+    and the headline is the compatibility surface.** A test pins that exact
+    disagreement so it cannot go quiet, and ``seat_telemetry``'s
+    ``running_now`` — which reads the headline — inherits the understatement
+    and is NOT repaired here; that is a behaviour change to a field other
+    surfaces read, and it is filed rather than smuggled into an additive diff.
     """
     from app.fund.events import EventType
 
@@ -833,39 +952,62 @@ def _activity(store: Any, runs: Optional[list[dict[str, Any]]] = None,
         dated = [(t, s) for s in resolved if (t := _ts(s)) is not None]
         window_floor = min(dated)[1] if dated else None
 
+    # EVERY still-open dispatch, grouped by seat. `open_by_task` is the fold's
+    # own accumulator — a dispatch enters on DESK_DISPATCHED and is popped on
+    # its resolution — so this is the same population `working_on` was drawn
+    # from, read without the projection that threw the rest of it away.
+    open_by_seat: dict[str, list[tuple[Any, int, dict[str, Any]]]] = {}
+    for i, d in enumerate(open_by_task.values()):
+        seat = d.get("seat")
+        # `if seat` IS NOT A BEHAVIOUR FIX and the mutation pass proved it:
+        # removing it changes no output, because the loop below reads only the
+        # keys in `REQUEST_KINDS` and never touches a `None` group. It is kept
+        # because the next reader of this dict may iterate it rather than index
+        # it, and a seat named `None` would then be a row on the floor. Stated
+        # rather than left as a guard that looks load-bearing and is not.
+        if seat:
+            open_by_seat.setdefault(seat, []).append((_ts(d.get("at")), i, d))
+
     out = {}
     for seat in list(REQUEST_KINDS.values()):
         row = seats.get(seat, {})
         w = row.get("working_on")
-        # EXACT identifiers only, in the order that matches most on the live
-        # log: the dispatch's own trace first (17 of 24), its task_id second
-        # (8 of 24, the older convention where the two were the same string).
-        keys = [k for k in ((w or {}).get("trace_id"), (w or {}).get("task_id"))
-                if k]
-        back = None
-        for k in keys:
-            back = run_by_key.get(k)
-            if back:
-                break
+        headline = _dispatch_state(w, run_by_key, recorder_read,
+                                   window_floor) if w else None
+        # NEWEST FIRST, with an EXPLICIT tie-break. Two dispatches fired in the
+        # same session can carry the same stamp, and a sort on the stamp alone
+        # then returns whatever order the stream happened to give — which is a
+        # contract nobody wrote down. The second key is the position in the
+        # event stream, so equal stamps break toward the later EVENT. A
+        # dispatch whose `at` cannot be parsed sorts oldest rather than
+        # raising: `None` and a datetime are not orderable in Python, and a
+        # payload builder is the worst place to discover that.
+        ordered = sorted(open_by_seat.get(seat, []),
+                         key=lambda t: (t[0] or _SORT_FLOOR, t[1]), reverse=True)
+        opens = [_dispatch_state(d, run_by_key, recorder_read, window_floor)
+                 for _, _, d in ordered]
         out[seat] = {
-            "status": ("awaiting_review" if back else "working") if w else "idle",
-            "task": (w or {}).get("task"),
-            "since": (w or {}).get("at"),
-            "task_id": (w or {}).get("task_id"),
+            **idle_activity(),
+            # EVERY headline field from the SAME place. `task`, `since` and
+            # `task_id` were still being read straight off `w` while the three
+            # beside them came from `headline` — two sources describing one
+            # row, which is the shape that drifts the moment one of them gains
+            # a rule. The values are identical; the sourcing is not.
+            "status": headline["status"] if headline else "idle",
+            "task": headline["task"] if headline else None,
+            "since": headline["since"] if headline else None,
+            "task_id": headline["task_id"] if headline else None,
             # The run that came back, so the chair can open it and review.
-            "returned_run_id": back,
-            # Whether the spine could TELL a returned dispatch from a running
-            # one FOR THIS DISPATCH. Per-dispatch and not per-payload: a
-            # dispatch carrying no identifier is undetectable even with a
-            # fully readable recorder, and reporting it as detectable would
-            # dress "we never looked" as "nothing came back". None when the
-            # seat is idle — there is nothing to detect. A positive match is
-            # its own proof, so it short-circuits every other condition.
+            "returned_run_id": headline["returned_run_id"] if headline else None,
+            # None when the seat's HEADLINE is idle — there is nothing to
+            # detect. Per-dispatch detectability for the rest lives on each
+            # row of `open_dispatches`, where it belongs.
             "review_detectable": (
-                True if back else
-                (recorder_read and bool(keys)
-                 and _within_window((w or {}).get("at"), window_floor))
-            ) if w else None,
+                headline["review_detectable"] if headline else None),
+            "open_dispatches": opens,
+            "working_count": sum(1 for o in opens if o["status"] == "working"),
+            "awaiting_review_count": sum(
+                1 for o in opens if o["status"] == "awaiting_review"),
             "last_delivered": row.get("last_delivered"),
         }
     return out
@@ -1714,6 +1856,16 @@ def _annotated_request(req: Any, dispatched_ids: Any = ()) -> Any:
     row = {**req, "dispatched": str(req.get("request_id")) in dispatched}
     card = deskcard.request_card(req)
     return {**row,
+            # THE SAME BAND FOLD AS A RECOMMENDATION, and deliberately the
+            # same function rather than a request-shaped copy of it: the
+            # console merges both populations into one ranked list, and two
+            # implementations of one priority rule is two priority rules.
+            # A desk request carries neither `blocks` nor `due_date` on the
+            # wire today (measured against the live record 2026-08-27), so
+            # every request lands in band 3 with basis `undeclared` — which
+            # is the truthful reading, not a gap: nobody has been asked to
+            # declare it yet.
+            **desk_band(req),
             "next_actor_resolved": open_request_actor(req.get("status")),
             "next_actor_basis": "request_lifecycle",
             "headline": card["headline"],
@@ -1745,6 +1897,137 @@ def status_index(open_recommendations: Any = (), requests: Any = ()) -> dict[str
     return out
 
 
+# ------------------------------------------------- the desk's priority bands
+#
+# CEO DECISION 2026-08-27, verbatim: *"can we add ordering to my desk say
+# high-priority to low; time-sensitive or not; blocker or not?"*
+#
+# THREE BANDS, top to bottom:
+#
+#   1 BLOCKER         stops money moving, or stops another seat's chartered
+#                     work. Declared by the filer, never decided here.
+#   2 TIME-SENSITIVE  carries a dated commitment — it happens on that date
+#                     whether or not anybody clicks.
+#   3 THE REST        ranked by money at risk, absent-money LAST and labelled
+#                     absent rather than sorted as zero.
+#
+# THE HONESTY RULE, AND IT IS THE WHOLE DESIGN: **a band is derived from
+# DECLARED FACTS and never inferred.** A renderer that read urgency out of a
+# sentence would be manufacturing priority — the same class of mistake as
+# reading a deadline out of prose, which this desk has been repaired from
+# twice. A row that declares nothing lands in band 3 wearing NO chip, which
+# is an honest "nobody said", not a quiet "not urgent".
+#
+# WHY THIS IS ONE FUNCTION AND NOT A SORT IN THE CLIENT: the CEO desk, the
+# chair's console and the seat pages all show slices of the same queue. Three
+# copies of a priority rule is three priority rules, and the day they disagree
+# the disagreement is invisible — each surface looks internally consistent.
+# The payload carries the band; nothing re-derives it.
+
+#: Ordered worst-first, so ``BANDS.index`` is the sort key. APPENDING a band
+#: leaves every existing rank where it was; INSERTING one renumbers everything
+#: below it, which is the correct behaviour for a priority order and is stated
+#: because "adding cannot renumber" — what this comment said first — is only
+#: true of one of the two.
+BANDS = ("blocker", "time_sensitive", "rest")
+
+#: What the reader sees on the chip. Plain English, per the CEO's instruction
+#: the same day that memos and surfaces be written in it. Band 3 has NO chip —
+#: an empty string here would render an empty pill, which reads as a fourth
+#: state nobody defined.
+BAND_LABELS = {"blocker": "blocker", "time_sensitive": "dated", "rest": ""}
+
+
+def desk_band(row: Any) -> dict[str, Any]:
+    """Which priority band this row sits in, and on whose authority.
+
+    ``blocks`` is a FILER-DECLARED BOOLEAN and it is read strictly. A string
+    ``"true"``, the integer 1 and the word ``"yes"`` are all REFUSED — they
+    report ``basis: "unreadable"`` and land in band 3 with the reason stated,
+    rather than being coerced into the loudest band on the desk. The reason is
+    direction: coercion here only ever promotes, and a filer who typos a flag
+    should not be able to jump the CEO's queue by accident. (Same argument as
+    ``routing_version``'s StrictInt, one layer out.)
+
+    FOUR BASES, because collapsing any two of them tells the reader something
+    false about the record:
+
+      ``declared``    the filer said this blocks. Band 1.
+      ``not_blocking``the filer said it does NOT. Band 2 or 3 on its merits,
+                      and the desk can report how many rows have been thought
+                      about at all.
+      ``due_date``    nobody spoke to blocking; it carries a date. Band 2.
+      ``undeclared``  nobody said anything. Band 3, no chip.
+      ``unreadable``  a ``blocks`` key exists and is not a boolean. Band 3,
+                      and the note says so — an unreadable declaration must
+                      not read as an absent one.
+    """
+    if not isinstance(row, dict):
+        return {"band": "rest", "band_rank": BANDS.index("rest") + 1,
+                "band_label": "", "band_basis": "undeclared",
+                "band_note": "This row could not be read, so nothing is "
+                             "claimed about how urgent it is."}
+
+    raw = row.get("blocks")
+    due = row.get("due_date")
+    has_due = isinstance(due, str) and due.strip() != ""
+
+    if raw is True:
+        band, basis = "blocker", "declared"
+        note = ("The seat that filed this says it is holding something up "
+                "until it is decided.")
+    elif raw is False:
+        band = "time_sensitive" if has_due else "rest"
+        basis = "not_blocking"
+        note = ("The seat that filed this says nothing is held up by it"
+                + (", and it has a date." if has_due else "."))
+    elif raw is None and "blocks" not in row:
+        band = "time_sensitive" if has_due else "rest"
+        basis = "due_date" if has_due else "undeclared"
+        note = ("This has a date on it, so it happens whether or not anyone "
+                "clicks." if has_due else
+                "Nobody said whether this holds anything up.")
+    else:
+        # Present and not a boolean — including an explicit `null`, which is
+        # a filer writing the key and saying nothing with it.
+        band, basis = "rest", "unreadable"
+        note = ("Whoever filed this tried to say whether it holds something "
+                "up, and we could not read the answer. Treat it as unknown, "
+                "not as no.")
+
+    return {"band": band, "band_rank": BANDS.index(band) + 1,
+            "band_label": BAND_LABELS[band], "band_basis": basis,
+            "band_note": note}
+
+
+def band_sort_key(row: Any) -> tuple:
+    """The desk's order, as one key so every surface sorts identically.
+
+    Band first. Then, WITHIN a band, the tie-breaks the CEO named: date, then
+    money. A missing date sorts after every present one and a missing figure
+    after every present one — absent is LAST, never zero. The final element is
+    a stable identifier so two otherwise-identical rows do not shuffle between
+    renders (the machine-timestamp tie lesson, one layer up).
+    """
+    b = desk_band(row)
+    r = row if isinstance(row, dict) else {}
+    due = r.get("due_date")
+    due_key = (0, due) if isinstance(due, str) and due.strip() else (1, "")
+    money = r.get("money_at_stake")
+    # Negated so that LARGER money sorts first under an ascending sort, and
+    # bucketed so that absent lands behind a stated $0 rather than beside it.
+    money_key = ((0, -float(money)) if isinstance(money, (int, float))
+                 and not isinstance(money, bool) else (1, 0.0))
+    ident = str(r.get("rec_id") or r.get("request_id") or r.get("run_id") or "")
+    return (b["band_rank"], due_key, money_key, ident)
+
+
+def rank_desk_rows(rows: Any) -> list:
+    """Every row in the CEO's order. Pure; the one caller of ``band_sort_key``
+    that surfaces are expected to use."""
+    return sorted(list(rows or []), key=band_sort_key)
+
+
 def _annotated(rec: Any, status_by_ref: Optional[dict[str, Any]] = None) -> Any:
     """One recommendation with its resolved next actor and its card fields.
 
@@ -1771,7 +2054,7 @@ def _annotated(rec: Any, status_by_ref: Optional[dict[str, Any]] = None) -> Any:
         return rec
     v = next_actor(rec)
     parts = deskcard.card_text(rec.get("text"))
-    out = {**rec, "next_actor_resolved": v["actor"],
+    out = {**rec, **desk_band(rec), "next_actor_resolved": v["actor"],
            "next_actor_basis": v["basis"], "next_actor_why": v["why"],
            # THE REPAIR FOR ROWS ALREADY IN THE DATABASE. Fixing the filing
            # door cannot reach a repr that was written last week; this can, and
@@ -1862,10 +2145,12 @@ def view(store: Any, deskstore: Any = None,
     open_recs = [_annotated(r, index) for r in open_recs]
     killed = [a for a in artifacts if a["status"] == "killed"]
     return {
-        "roster": [{**r, "activity": activity.get(r["agent"],
-                                             {"status": "idle", "task": None,
-                                              "since": None,
-                                              "last_delivered": None})}
+        # `idle_activity()` and not a literal: the literal here was four keys
+        # against the fold's ten, so a roster agent outside `REQUEST_KINDS`
+        # served a differently-shaped activity object to the same consumers.
+        # Called per row rather than hoisted — each seat must own its dict, or
+        # a caller that annotates one annotates them all.
+        "roster": [{**r, "activity": activity.get(r["agent"], idle_activity())}
                    for r in ROSTER],
         "protocol": [
             "every artifact is falsifiable or it is rejected",

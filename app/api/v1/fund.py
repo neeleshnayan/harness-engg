@@ -2547,6 +2547,76 @@ def desk_archives():
     return desk_mod.archives()
 
 
+@router.get("/fund/library")
+def fund_library():
+    """THE READING ROOM's shelf — every finished research document, newest first.
+
+    CEO 2026-08-27, verbatim: *"I thought we gave dedicated reading rooms aka
+    like a file vault to teams generating research or actual work product that
+    I could go in and read"*. He was right that it was promised and right that
+    it was not there: six house-styled PDFs had been rendering to
+    ``data/library/`` since 2026-08-23 and nothing in the studio linked to one.
+
+    Same contract as ``/fund/desk/archives`` and for the same reason: the spine
+    owns what is on disk, the browser owns what is on screen, and a page that
+    stats files breaks the moment it is served from anywhere but this machine.
+
+    Always 200. ``readable`` is DATA, not a status code — an unreadable shelf
+    and an empty one are different facts, and an HTTP error can only say "no".
+    """
+    from app.fund import library
+    return library.shelf()
+
+
+@router.get("/fund/library/{name}")
+def fund_library_document(name: str):
+    """One document's bytes, if it is this room's to serve.
+
+    THE FENCE IS A RESOLVE, NOT A PATTERN (``library.resolve_document``): the
+    name is joined to the library directory, resolved, and required to land
+    INSIDE it. A blocklist of ``..`` is a guess about every encoding of every
+    escape; a resolve is an answer, and it also catches a symlink pointing out
+    of the tree, which no string check can see.
+
+    ONE REFUSAL, NOT TWO — as far as THIS HANDLER reaches. Everything it sees
+    and will not serve — outside the fence, not a ``.pdf``, not a regular file,
+    absent — returns the same 404 with the same sentence, because a 403 that is
+    distinguishable from a 404 is a directory listing for anyone patient.
+
+    THE MEASURED LIMIT, stated because the first version of this docstring said
+    "everything" and the tests then proved it false three times: a name whose
+    decoded form contains a SLASH never arrives here at all. Literal
+    (``....//....//``), single-encoded (``..%2F``) and double-encoded
+    (``..%252F``) all become multi-segment paths, so Starlette's router answers
+    its own ``{"detail": "Not Found"}`` — a distinguishable refusal. It leaks
+    that the path had a slash, which the sender already knows, and it is left
+    alone rather than papered over with a catch-all route that would add a
+    second door onto the same directory to make a sentence true.
+
+    ``inline`` rather than ``attachment``: the room is for reading, and a
+    browser tab is the reading surface. The filename still rides the header so
+    a save keeps its name.
+    """
+    from app.fund import library
+    path = library.resolve_document(name)
+    if path is None:
+        raise HTTPException(status_code=404,
+                            detail="No such document on the reading room's shelf.")
+    try:
+        data = path.read_bytes()
+    except OSError:
+        # Present and unreadable is a FAULT, not an absence, and the two must
+        # not return the same code — a 404 here would report a permissions
+        # problem as a missing file and send the reader looking for the wrong
+        # thing.
+        raise HTTPException(
+            status_code=503,
+            detail="That document is on the shelf and could not be read.")
+    return Response(
+        content=data, media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{path.name}"'})
+
+
 @router.get("/fund/desk/archives/memo")
 def desk_archive_memo(date: Optional[str] = None):
     """The secretary's Daily, parsed for the memo card on the CEO's desk.
