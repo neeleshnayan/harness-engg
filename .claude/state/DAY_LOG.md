@@ -141,6 +141,15 @@ active and directing throughout.*
   read-through catches that make the seat valuable come from the lessons, not the
   volume. Splitting lessons from map is proposed, not done.
 
+### ALSO THIS MORNING
+- KP dev server was serving Aug-26 code (pre-B2) - the scheduled npm ci ran and
+  the server cycled; the decided-rows-carry-no-buttons fix is actually rendering
+  now. Spine cycled for the action-tag fold (session stopped first per runbook,
+  relaunched after: 9a310f14aff5, primed 1,379, ready_on_first_bar=True).
+- HYG v2 DEPLOYED on the CEO's click ("yes go for it") - session 9a310f14aff5,
+  strategy e545c8ca, $50 cap confirmed in the launch log. First bar ~00:00 ET;
+  the delivery-contract falsifier check is the chair's 08-29 work.
+
 ### ON FIRE
 
 - **Friday 2026-08-28: three Stage A time exits fire** — the first-ever
@@ -358,6 +367,28 @@ but what will be impressive is if can spot what others dont and quickly turn it 
 ## 2026-08-28 (UTC) — Fable chair
 
 ### DECIDED
+- **THE CLOSURE SWEEP (CEO's morning complaint, verbatim: "many items that are
+  marked executed but still ask me to approve/reject lol" + "how is 253 waiting
+  on you?").** The 253 on the chair's console was real and mostly bookkeeping
+  debt: 263 chair-routed recommendations, 130 of them CEO-accepted 08-20..24 and
+  executed that week but never marked. Swept in two passes as neelesh-via-cto:
+  14 self-citing rows first, then a FIVE-GROUP VALIDATION SWEEP (read-only
+  agents over DAY_LOG/queue/seat memories/git/live code; 158 rows dispositioned:
+  89 done with citations, 14 superseded, 54 genuinely still owed, 1 cannot-tell;
+  chair spot-checked 8 cited commits + the autopolicy version before executing).
+  **104 marked (done/noted), 0 failures; chair queue 263 -> 147.** STAYS and
+  CANNOT-TELL untouched. ~17 of the stays are AWAITS-CEO-PERSONALLY (halt/resume
+  drill accepted never performed; R25-R31 programme clicks; shorting_enabled
+  question due 08-28; R20/R21/R22 + drift-severity signatures; reversibility
+  table; RELIABLE_SAMPLE bound; emerald design pair; confirmEcho pre-prod).
+- **THE FIVE ACTION TAGS (CEO, verbatim: "I want simpler action oriented tags.
+  Pending, In FLight, Executed, Deprioritised, Completed").** Folded once on the
+  spine (`deskcard.action_tag`, rides both annotation paths beside the band
+  fold), rendered as the queue chip in place of the retired DATED chip (it
+  duplicated the date column); only the blocker band still draws a chip. 12 new
+  pins; stage contract regenerated (digest 4159620c) and re-pinned in KP; suites
+  green both repos (spine desk set, KP 1281/1281, tsc clean). Commits a5151365 +
+  78c3898e.
 - **v1's HYG live session STOPPED and v2 staged (chair call as neelesh-via-cto,
   second-look flagged).** The quant's dispatch #8 proved v1's silence was a LEAN
   engine defect, not a slow rule — and worse, v1's only possible future signal
