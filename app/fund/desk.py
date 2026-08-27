@@ -1836,6 +1836,16 @@ def _annotated_request(req: Any, dispatched_ids: Any = ()) -> Any:
     row = {**req, "dispatched": str(req.get("request_id")) in dispatched}
     card = deskcard.request_card(req)
     return {**row,
+            # THE SAME BAND FOLD AS A RECOMMENDATION, and deliberately the
+            # same function rather than a request-shaped copy of it: the
+            # console merges both populations into one ranked list, and two
+            # implementations of one priority rule is two priority rules.
+            # A desk request carries neither `blocks` nor `due_date` on the
+            # wire today (measured against the live record 2026-08-27), so
+            # every request lands in band 3 with basis `undeclared` — which
+            # is the truthful reading, not a gap: nobody has been asked to
+            # declare it yet.
+            **desk_band(req),
             "next_actor_resolved": open_request_actor(req.get("status")),
             "next_actor_basis": "request_lifecycle",
             "headline": card["headline"],
@@ -1867,6 +1877,134 @@ def status_index(open_recommendations: Any = (), requests: Any = ()) -> dict[str
     return out
 
 
+# ------------------------------------------------- the desk's priority bands
+#
+# CEO DECISION 2026-08-27, verbatim: *"can we add ordering to my desk say
+# high-priority to low; time-sensitive or not; blocker or not?"*
+#
+# THREE BANDS, top to bottom:
+#
+#   1 BLOCKER         stops money moving, or stops another seat's chartered
+#                     work. Declared by the filer, never decided here.
+#   2 TIME-SENSITIVE  carries a dated commitment — it happens on that date
+#                     whether or not anybody clicks.
+#   3 THE REST        ranked by money at risk, absent-money LAST and labelled
+#                     absent rather than sorted as zero.
+#
+# THE HONESTY RULE, AND IT IS THE WHOLE DESIGN: **a band is derived from
+# DECLARED FACTS and never inferred.** A renderer that read urgency out of a
+# sentence would be manufacturing priority — the same class of mistake as
+# reading a deadline out of prose, which this desk has been repaired from
+# twice. A row that declares nothing lands in band 3 wearing NO chip, which
+# is an honest "nobody said", not a quiet "not urgent".
+#
+# WHY THIS IS ONE FUNCTION AND NOT A SORT IN THE CLIENT: the CEO desk, the
+# chair's console and the seat pages all show slices of the same queue. Three
+# copies of a priority rule is three priority rules, and the day they disagree
+# the disagreement is invisible — each surface looks internally consistent.
+# The payload carries the band; nothing re-derives it.
+
+#: Ordered worst-first, so ``BANDS.index`` is the sort key and adding a band
+#: cannot silently renumber the others.
+BANDS = ("blocker", "time_sensitive", "rest")
+
+#: What the reader sees on the chip. Plain English, per the CEO's instruction
+#: the same day that memos and surfaces be written in it. Band 3 has NO chip —
+#: an empty string here would render an empty pill, which reads as a fourth
+#: state nobody defined.
+BAND_LABELS = {"blocker": "blocker", "time_sensitive": "dated", "rest": ""}
+
+
+def desk_band(row: Any) -> dict[str, Any]:
+    """Which priority band this row sits in, and on whose authority.
+
+    ``blocks`` is a FILER-DECLARED BOOLEAN and it is read strictly. A string
+    ``"true"``, the integer 1 and the word ``"yes"`` are all REFUSED — they
+    report ``basis: "unreadable"`` and land in band 3 with the reason stated,
+    rather than being coerced into the loudest band on the desk. The reason is
+    direction: coercion here only ever promotes, and a filer who typos a flag
+    should not be able to jump the CEO's queue by accident. (Same argument as
+    ``routing_version``'s StrictInt, one layer out.)
+
+    FOUR BASES, because collapsing any two of them tells the reader something
+    false about the record:
+
+      ``declared``    the filer said this blocks. Band 1.
+      ``not_blocking``the filer said it does NOT. Band 2 or 3 on its merits,
+                      and the desk can report how many rows have been thought
+                      about at all.
+      ``due_date``    nobody spoke to blocking; it carries a date. Band 2.
+      ``undeclared``  nobody said anything. Band 3, no chip.
+      ``unreadable``  a ``blocks`` key exists and is not a boolean. Band 3,
+                      and the note says so — an unreadable declaration must
+                      not read as an absent one.
+    """
+    if not isinstance(row, dict):
+        return {"band": "rest", "band_rank": BANDS.index("rest") + 1,
+                "band_label": "", "band_basis": "undeclared",
+                "band_note": "This row could not be read, so nothing is "
+                             "claimed about how urgent it is."}
+
+    raw = row.get("blocks")
+    due = row.get("due_date")
+    has_due = isinstance(due, str) and due.strip() != ""
+
+    if raw is True:
+        band, basis = "blocker", "declared"
+        note = ("The seat that filed this says it is holding something up "
+                "until it is decided.")
+    elif raw is False:
+        band = "time_sensitive" if has_due else "rest"
+        basis = "not_blocking"
+        note = ("The seat that filed this says nothing is held up by it"
+                + (", and it has a date." if has_due else "."))
+    elif raw is None and "blocks" not in row:
+        band = "time_sensitive" if has_due else "rest"
+        basis = "due_date" if has_due else "undeclared"
+        note = ("This has a date on it, so it happens whether or not anyone "
+                "clicks." if has_due else
+                "Nobody said whether this holds anything up.")
+    else:
+        # Present and not a boolean — including an explicit `null`, which is
+        # a filer writing the key and saying nothing with it.
+        band, basis = "rest", "unreadable"
+        note = ("Whoever filed this tried to say whether it holds something "
+                "up, and we could not read the answer. Treat it as unknown, "
+                "not as no.")
+
+    return {"band": band, "band_rank": BANDS.index(band) + 1,
+            "band_label": BAND_LABELS[band], "band_basis": basis,
+            "band_note": note}
+
+
+def band_sort_key(row: Any) -> tuple:
+    """The desk's order, as one key so every surface sorts identically.
+
+    Band first. Then, WITHIN a band, the tie-breaks the CEO named: date, then
+    money. A missing date sorts after every present one and a missing figure
+    after every present one — absent is LAST, never zero. The final element is
+    a stable identifier so two otherwise-identical rows do not shuffle between
+    renders (the machine-timestamp tie lesson, one layer up).
+    """
+    b = desk_band(row)
+    r = row if isinstance(row, dict) else {}
+    due = r.get("due_date")
+    due_key = (0, due) if isinstance(due, str) and due.strip() else (1, "")
+    money = r.get("money_at_stake")
+    # Negated so that LARGER money sorts first under an ascending sort, and
+    # bucketed so that absent lands behind a stated $0 rather than beside it.
+    money_key = ((0, -float(money)) if isinstance(money, (int, float))
+                 and not isinstance(money, bool) else (1, 0.0))
+    ident = str(r.get("rec_id") or r.get("request_id") or r.get("run_id") or "")
+    return (b["band_rank"], due_key, money_key, ident)
+
+
+def rank_desk_rows(rows: Any) -> list:
+    """Every row in the CEO's order. Pure; the one caller of ``band_sort_key``
+    that surfaces are expected to use."""
+    return sorted(list(rows or []), key=band_sort_key)
+
+
 def _annotated(rec: Any, status_by_ref: Optional[dict[str, Any]] = None) -> Any:
     """One recommendation with its resolved next actor and its card fields.
 
@@ -1893,7 +2031,7 @@ def _annotated(rec: Any, status_by_ref: Optional[dict[str, Any]] = None) -> Any:
         return rec
     v = next_actor(rec)
     parts = deskcard.card_text(rec.get("text"))
-    out = {**rec, "next_actor_resolved": v["actor"],
+    out = {**rec, **desk_band(rec), "next_actor_resolved": v["actor"],
            "next_actor_basis": v["basis"], "next_actor_why": v["why"],
            # THE REPAIR FOR ROWS ALREADY IN THE DATABASE. Fixing the filing
            # door cannot reach a repr that was written last week; this can, and
