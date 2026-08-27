@@ -355,9 +355,33 @@ but what will be impressive is if can spot what others dont and quickly turn it 
 
 ---
 
-## 2026-08-28 (UTC)
+## 2026-08-27 (UTC) — the overnight program
+### MORNING (CEO live, ~06:00Z)
 
-*Written live by the CTO chair (Fable), opening as the night's last builds land.*
+- **Two repair crews away** (auto-lamps lit by the hook - its first real firings): mach1
+  (the v5 REDESIGN per the adversary's kill charter - pending-approved ledger for in-flight
+  exposure, zero-crossing sells out of the class, all four residuals; + periodic session
+  reconcile; + the fence sixth-basis) and ops1 (the NAV-gap completeness reader - detect the
+  42.6h hole class, no second alarm raiser; + the forward OI recorder before more history
+  burns). Disjoint file ownership stated in both briefs.
+- **THE CONTEXT ENGINE chartered** (CEO: "managing context is king"). Design at
+  docs/design/CONTEXT_ENGINE_2026-08-27.md: context PACKS (a POST /fund/context assembler
+  federating guide claims, kg ledgers, working memory, unconsumed BINDS, tickets, and
+  AUTO-CURLED live payload samples - the field-name defect class retired mechanically),
+  WORKING MEMORY per seat (bounded present-tense distillation of the STATE files, stored as
+  seat-tagged guide claims), the UI (seat-page working-memory panel + a per-dispatch context
+  inspector - "what this seat was told"), and the measurement (pack hit rate, unblock rate;
+  falsifier: any payload-shape brief defect after auto-curl ships reopens the design).
+  Slices CE-1..3; fires when a builder slot frees.
+- Dating correction recorded at the top of this section (the night was Aug 27 UTC, not 28).
+
+
+*Written live by the CTO chair (Fable). DATING CORRECTION, recorded rather than
+hidden: this section was first titled 2026-08-28 — the chair stamped the local
+night as the next UTC day, the exact error the day-log rules warn about. The
+spine's clock at the adversary batch read 2026-08-27T00:23Z; every entry below
+belongs to Aug 27 UTC. Several resolve notes in seat STATEs carry the same
+wrong stamp; the run records' timestamps are the authoritative ones.*
 
 ### BUILT / MEASURED (carried from the deep night)
 
