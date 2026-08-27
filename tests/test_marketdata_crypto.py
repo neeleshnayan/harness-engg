@@ -608,3 +608,266 @@ def test_the_equity_path_still_prefers_the_venue_and_still_refuses_junk(monkeypa
     with pytest.raises(BarsError) as e:
         fetch_daily_bars("TOO-LONG-SYM")
     assert "Invalid symbol" in str(e.value)
+
+
+# --------------------------------------------------------------------------
+# bars_payload — the endpoint's ONE shape, and B1's unfinished half
+# --------------------------------------------------------------------------
+
+def test_the_live_basis_carries_the_identity_the_endpoint_used_to_DROP():
+    """INCIDENT 2, ALL THE WAY TO THE WIRE.
+
+    ``Bars`` has carried ``instrument_name``/``instrument_type``/``exchange``/
+    ``identity_note`` since the GETH collision was measured. The endpoint
+    built its response as a six-key dict literal and dropped every one of
+    them, so the fix stopped one function short of the only reader that
+    matters: *a caller asking for a bare GETH must SEE "Green EnviroTech
+    Holdings Corp." rather than infer an identity from the string it typed.*
+    """
+    bars = md.Bars(
+        symbol="GETH", closes=[1e-4, 1e-4], source="yahoo",
+        dates=["2026-08-25", "2026-08-26"],
+        instrument_name="Green EnviroTech Holdings Corp.",
+        instrument_type="EQUITY", exchange="OTC Markets",
+        identity_note="asked for GETH; the source served an EQUITY on OTC Markets",
+        freshness="live", latest_bar_age_days=1.0,
+        freshness_note="the newest bar is 2026-08-26, 1 day(s) before 2026-08-27")
+
+    out = md.bars_payload(
+        md.BASIS_LIVE, symbol=bars.symbol, source=bars.source,
+        dates=bars.dates, closes=bars.closes, bars=bars)
+
+    assert out["instrument_name"] == "Green EnviroTech Holdings Corp."
+    assert out["instrument_type"] == "EQUITY"
+    assert out["exchange"] == "OTC Markets"
+    assert "EQUITY on OTC Markets" in out["identity_note"]
+    assert out["freshness"] == "live"
+    assert out["latest_bar_age_days"] == 1.0
+    assert out["basis"] == md.BASIS_LIVE
+
+
+def test_a_live_source_that_said_NOTHING_about_identity_reports_None():
+    """The vendor's SILENCE is a real fact and it is reported as itself.
+
+    This is the arm that must not be confused with the pinned/archive arms
+    below: here the source was asked and answered nothing; there the path
+    never records identity at all. Same ``None`` on ``instrument_name``,
+    different ``identity_note``, and that note is the only thing separating
+    them for a reader.
+    """
+    bars = md.Bars(symbol="SPY", closes=[1.0], source="yahoo",
+                           dates=["2026-08-26"])
+    out = md.bars_payload(
+        md.BASIS_LIVE, symbol="SPY", source="yahoo",
+        dates=["2026-08-26"], closes=[1.0], bars=bars)
+    assert out["instrument_name"] is None
+    assert out["identity_note"] is None
+    assert out["basis"] == md.BASIS_LIVE
+
+
+def test_the_pinned_and_archive_bases_SAY_they_never_recorded_an_identity():
+    """ABSENCE AT THE SOURCE AND ABSENCE IN OUR OWN STORAGE ARE DIFFERENT
+    FINDINGS WITH DIFFERENT FIXES.
+
+    The belt's snapshot cache and the point-in-time archive both store dates,
+    closes and a source string — nothing else. A consumer doing
+    ``payload.get("instrument_name")`` on either would read ``None`` and
+    conclude the vendor said nothing, which is false: the vendor was never
+    asked to say anything that survived. The note says so, in words, on the
+    payload.
+    """
+    for basis in (md.BASIS_PINNED, md.BASIS_ARCHIVE):
+        out = md.bars_payload(
+            basis, symbol="SPY", source="yahoo",
+            dates=["2026-08-25", "2026-08-26"], closes=[1.0, 2.0])
+        assert out["instrument_name"] is None, basis
+        assert out["instrument_type"] is None, basis
+        assert out["exchange"] is None, basis
+        assert out["identity_note"] is not None, basis
+        assert "never recorded" in out["identity_note"], basis
+        assert "UNKNOWN" in out["identity_note"], basis
+        assert out["basis"] == basis
+    # And the two notes NAME their own path, so a reader knows which store to
+    # go and fix. Identical sentences here would make the field decoration.
+    pin = md.bars_payload(md.BASIS_PINNED, symbol="S",
+                                  source="y", dates=["2026-08-26"], closes=[1.0])
+    arc = md.bars_payload(md.BASIS_ARCHIVE, symbol="S",
+                                  source="y", dates=["2026-08-26"], closes=[1.0])
+    assert "pinned snapshot" in pin["identity_note"]
+    assert "point-in-time archive" in arc["identity_note"]
+    assert pin["identity_note"] != arc["identity_note"]
+
+
+def test_every_basis_returns_the_SAME_KEY_SET():
+    """THE SAFETY PROPERTY, ASSERTED DIRECTLY.
+
+    Three return paths that used to be three dict literals; the comment on
+    one of them asserted "same keys as the live branch below, so no consumer
+    can tell the two apart by shape" and nothing checked it — which is how
+    seven fields landed on one branch and none on the other two. The equality
+    is now structural, and this is the test that says so.
+    """
+    bars = md.Bars(symbol="SPY", closes=[1.0], source="yahoo",
+                           dates=["2026-08-26"], instrument_name="SPDR S&P 500")
+    keys = {
+        b: set(md.bars_payload(
+            b, symbol="SPY", source="yahoo", dates=["2026-08-26"],
+            closes=[1.0], bars=bars if b == md.BASIS_LIVE else None))
+        for b in (md.BASIS_LIVE, md.BASIS_PINNED,
+                  md.BASIS_ARCHIVE)
+    }
+    assert (keys[md.BASIS_LIVE] == keys[md.BASIS_PINNED]
+            == keys[md.BASIS_ARCHIVE]), keys
+    # ...and the set is the one the endpoint's consumers read.
+    assert keys[md.BASIS_LIVE] == {
+        "symbol", "source", "closes", "dates", "start", "end", "basis",
+        "instrument_name", "instrument_type", "exchange", "identity_note",
+        "freshness", "latest_bar_age_days", "freshness_note"}
+
+
+def test_freshness_is_COMPUTED_on_the_non_live_bases_not_blanked():
+    """The archive and the cache hold the dates, so how old the series is
+    needs no vendor metadata. Blanking it would report "unreadable" for a
+    question we can answer from what we already have.
+
+    THE `stale` ASSERTION ON SPY WAS PINNING A DEFECT and is corrected here.
+    ``CRYPTO_QUOTE_STALE_DAYS`` is a 24/7 clock and its own docstring says
+    *"Deliberately NOT applied to equities"*; the first version of
+    ``_freshness_fields`` called ``series_freshness`` with the default bound
+    and so called a six-day-old SPY leg *"a tape that stopped"*, which an
+    ordinary holiday week produces. An equity now reports its AGE with the
+    verdict ``undetermined`` — strictly more than the nothing these branches
+    used to carry, and strictly less than a bound that does not apply.
+    """
+    pin = md.bars_payload(
+        md.BASIS_PINNED, symbol="SPY", source="yahoo",
+        dates=["2020-01-02", "2020-01-03"], closes=[1.0, 2.0])
+    assert pin["freshness"] == md.FRESHNESS_UNDETERMINED
+    assert pin["latest_bar_age_days"] is not None
+    assert pin["latest_bar_age_days"] > 2000, "the AGE is still a fact"
+    assert "2020-01-03" in pin["freshness_note"]
+    assert "exchange calendar" in pin["freshness_note"]
+
+    # A CRYPTO PAIR still gets the verdict — this is the population the bound
+    # was measured on (TRX 3.4 years, MATIC and NEAR 3.2, MKR 0.98).
+    coin = md.bars_payload(
+        md.BASIS_PINNED, symbol="TRX/USD", source="alpaca-crypto",
+        dates=["2023-04-18", "2023-04-19"], closes=[1.0, 2.0])
+    assert coin["freshness"] == "stale"
+    assert "it stopped" in coin["freshness_note"]
+    # ...and a CURRENT pair is live, so the crypto arm is not simply always
+    # stale — a test where both answers are the same answer proves nothing.
+    fresh = md.bars_payload(
+        md.BASIS_PINNED, symbol="BTC/USD", source="alpaca-crypto",
+        dates=[_today(), _today()], closes=[1.0, 2.0])
+    assert fresh["freshness"] == "live"
+
+    # A point-in-time view is judged against ITS OWN end date. Bars from 2020
+    # served under `as_of=2020-01-03` are exactly what was asked for; calling
+    # them stale would put a warning on a correct answer.
+    arc = md.bars_payload(
+        md.BASIS_ARCHIVE, symbol="BTC/USD", source="yahoo",
+        dates=["2020-01-02", "2020-01-03"], closes=[1.0, 2.0])
+    assert arc["freshness"] == "live"
+    assert arc["latest_bar_age_days"] == 0.0
+    # The equity archive arm reports age 0 too, and still declines the verdict
+    # — the two facts are independent.
+    arc_eq = md.bars_payload(
+        md.BASIS_ARCHIVE, symbol="SPY", source="yahoo",
+        dates=["2020-01-02", "2020-01-03"], closes=[1.0, 2.0])
+    assert arc_eq["latest_bar_age_days"] == 0.0
+    assert arc_eq["freshness"] == md.FRESHNESS_UNDETERMINED
+
+
+def _today() -> str:
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).date().isoformat()
+
+
+def test_the_CRYPTO_STALE_BOUND_never_judges_an_equity():
+    """FOUND BY THE GAUNTLET, and it is a defect this dispatch INTRODUCED.
+
+    Before this diff the pinned and archive branches carried no freshness
+    fields at all, so wiring them up is what newly exposed every equity leg to
+    a bound built for a 24/7 market. Every position in the fund's own book is
+    an equity ETF (SPY, DBC, TLT, DBA, IWM, QQQ, XLF), and a Friday-to-
+    Thursday holiday week is already past three days.
+
+    The rule is asserted by BOUNDARY, not by one example: no equity, at any
+    age, may be called `stale` on this path.
+    """
+    for age_days in (0, 1, 3, 4, 7, 30, 400, 3000):
+        from datetime import date, timedelta
+        d = (date.today() - timedelta(days=age_days)).isoformat()
+        out = md.bars_payload(md.BASIS_PINNED, symbol="SPY", source="yahoo",
+                              dates=[d], closes=[1.0])
+        assert out["freshness"] != "stale", f"{age_days}d equity called stale"
+        assert out["freshness"] != "live", (
+            f"{age_days}d equity called LIVE — this path cannot know that "
+            "either; the verdict is unavailable, not favourable")
+        assert out["freshness"] == md.FRESHNESS_UNDETERMINED
+        assert out["latest_bar_age_days"] == float(age_days)
+
+    # The SAME ages on a crypto pair DO get a verdict, and the verdict turns
+    # at the bound. Without this arm the test above passes on a function that
+    # always returns `undetermined`.
+    from datetime import date, timedelta
+    for age_days, expected in ((0, "live"), (3, "live"), (4, "stale")):
+        d = (date.today() - timedelta(days=age_days)).isoformat()
+        out = md.bars_payload(md.BASIS_PINNED, symbol="BTC/USD",
+                              source="alpaca-crypto", dates=[d], closes=[1.0])
+        assert out["freshness"] == expected, f"BTC/USD at {age_days}d"
+    assert md.CRYPTO_QUOTE_STALE_DAYS == 3.0
+
+
+def test_an_EMPTY_series_is_unreadable_freshness_not_live():
+    """Absence is never zero, and a series with no dates has an age nobody
+    can read — not an age of nothing."""
+    out = md.bars_payload(md.BASIS_PINNED, symbol="SPY",
+                                  source="yahoo", dates=[], closes=[])
+    assert out["freshness"] == "unreadable"
+    assert out["latest_bar_age_days"] is None
+    assert out["start"] is None and out["end"] is None
+    assert "unknown, not current" in out["freshness_note"]
+
+
+def test_an_unknown_basis_RAISES_rather_than_defaulting():
+    """A typo must not fall through to a default that claims a live identity
+    for an archived series — the one wrong answer this function exists to
+    prevent, and the direction a default would fail in."""
+    with pytest.raises(ValueError, match="unknown bars basis"):
+        md.bars_payload("guess", symbol="SPY", source="y",
+                                dates=["2026-08-26"], closes=[1.0])
+
+
+def test_extra_keys_ride_ON_TOP_and_cannot_silently_drop_a_field():
+    """``snapshot: True`` and the archive's own extras are additions, not
+    replacements. The pinned branch's honest "where this came from" flag has
+    to survive the move into the shared builder."""
+    out = md.bars_payload(
+        md.BASIS_PINNED, symbol="SPY", source="yahoo",
+        dates=["2026-08-26"], closes=[1.0], extra={"snapshot": True})
+    assert out["snapshot"] is True
+    assert out["basis"] == md.BASIS_PINNED
+    assert out["symbol"] == "SPY"
+
+
+def test_start_and_end_are_the_FIRST_and_LAST_date_not_the_same_one():
+    """M57 SURVIVED the first mutation pass.
+
+    Every existing arm either had ONE date (so first and last coincide) or
+    overrode both keys through ``extra`` on the live branch — so the builder's
+    own derivation was never asserted with a series long enough to tell the
+    two apart. A payload whose ``end`` equals its ``start`` tells a LEAN
+    container the history is one day long.
+    """
+    out = md.bars_payload(md.BASIS_ARCHIVE, symbol="SPY", source="yahoo",
+                          dates=["2026-08-24", "2026-08-25", "2026-08-26"],
+                          closes=[1.0, 2.0, 3.0])
+    assert out["start"] == "2026-08-24"
+    assert out["end"] == "2026-08-26"
+    assert out["start"] != out["end"]
+    # The pinned branch derives them the same way, from the same function.
+    pin = md.bars_payload(md.BASIS_PINNED, symbol="SPY", source="yahoo",
+                          dates=["2020-01-02", "2020-01-03"], closes=[1.0, 2.0])
+    assert (pin["start"], pin["end"]) == ("2020-01-02", "2020-01-03")

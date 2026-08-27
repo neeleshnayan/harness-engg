@@ -878,10 +878,14 @@ def _activity(store: Any, runs: Optional[list[dict[str, Any]]] = None,
     dispatch resolves, so a seat holding an older open dispatch reports
     ``status: "idle"`` while ``working_count`` is 1. **The list is the truth
     and the headline is the compatibility surface.** A test pins that exact
-    disagreement so it cannot go quiet, and ``seat_telemetry``'s
-    ``running_now`` — which reads the headline — inherits the understatement
-    and is NOT repaired here; that is a behaviour change to a field other
-    surfaces read, and it is filed rather than smuggled into an additive diff.
+    disagreement so it cannot go quiet.
+
+    ``seat_telemetry``'s ``running_now`` USED to inherit that understatement
+    and no longer does (B2, 2026-08-27): it reads the list through
+    ``_live_state`` and publishes ``live_basis`` saying which side it read.
+    The headline fields here are still the compatibility surface and still do
+    not move — what changed is the one downstream field that a human uses to
+    decide whether a parallel slot is free.
     """
     from app.fund.events import EventType
 
@@ -1653,6 +1657,93 @@ def utc_day_bounds(now: Any = None) -> tuple[str, str, str]:
     return (day.isoformat(), start, end)
 
 
+#: What ``_live_state`` read to decide. On the payload because the two
+#: possible answers are different facts about the FOLD, not about the seat: a
+#: telemetry row built from the open-dispatch list is exact, and one built
+#: from the compatibility headline is a known understatement.
+LIVE_FROM_LIST = "open_dispatches"
+#: NOT "absent" — the fallback also fires when ``open_dispatches`` is present
+#: and is not a list, and calling that absent would be a wrong word on the one
+#: field whose whole job is to say which side was read.
+LIVE_FROM_HEADLINE = ("headline (open_dispatches missing or unreadable — "
+                      "this row can UNDERSTATE)")
+
+
+def _live_state(act: dict[str, Any]) -> dict[str, Any]:
+    """The five live-state fields of a telemetry row, from ONE input.
+
+    THE DEFECT THIS CLOSES, filed deliberately by the diff that created it
+    (``_activity``'s docstring, 2026-08-27): ``working_on`` is retired when
+    the NEWEST dispatch resolves, so a seat still holding an OLDER open
+    dispatch reports ``status: "idle"`` — and ``running_now``, which read that
+    headline, reported the seat as not running while it was running. The list
+    beside it said ``working_count: 1`` the whole time. The chair reading the
+    payload to see whether a parallel slot was free was told the bench was
+    free when it was not, which is the exact failure the split was built to
+    prevent, one field further downstream.
+
+    ONE FUNCTION, ONE INPUT, FIVE FIELDS — and that is the point rather than
+    tidiness. ``running_now``, ``awaiting_review``, ``running_task``,
+    ``running_since`` and ``returned_run_id`` all describe ONE condition: what
+    this seat is doing right now. Computed separately they drift, and the
+    drift is invisible: a row saying ``running_now: true`` with
+    ``running_task: null`` contradicts itself and no test that reads one field
+    can see it.
+
+    THE UNREADABLE CASE IS AN INPUT VALUE, NOT A PATCH. ``open_dispatches``
+    missing (a hand-built activity dict, or a fold that never ran) is a
+    DIFFERENT input from an empty list, and it gets a different answer: the
+    headline, with ``live_basis`` saying so in words. An absent list is not an
+    empty one and must never render as "nothing open".
+    """
+    opens = act.get("open_dispatches")
+    if not isinstance(opens, list):
+        # No list to read. Fall back to the headline exactly as this function's
+        # caller used to, and PUBLISH that it did — a silent fallback is how
+        # an understatement survives its own repair.
+        working = act.get("status") == "working"
+        awaiting = act.get("status") == "awaiting_review"
+        return {
+            "running_now": working,
+            "awaiting_review": awaiting,
+            "returned_run_id": act.get("returned_run_id") if awaiting else None,
+            "running_task": act.get("task") if (working or awaiting) else None,
+            "running_since": act.get("since") if (working or awaiting) else None,
+            "live_basis": LIVE_FROM_HEADLINE,
+        }
+
+    # ``_activity`` orders ``open_dispatches`` NEWEST FIRST, so index 0 of each
+    # filtered group is the most recent dispatch in that state — and on the
+    # ordinary path (headline working) that row IS the headline, which is why
+    # this repair moves no value on any seat whose newest dispatch is open.
+    working_rows = [o for o in opens if o.get("status") == "working"]
+    awaiting_rows = [o for o in opens if o.get("status") == "awaiting_review"]
+    # The dispatch the seat is ON: a running one outranks a returned one,
+    # because "what is this seat doing" and "what does the chair owe" are
+    # different questions and only the first belongs on these two fields.
+    current = (working_rows or awaiting_rows or [None])[0]
+    return {
+        "running_now": bool(working_rows),
+        "awaiting_review": bool(awaiting_rows),
+        # From the returned row itself rather than the headline: with two
+        # dispatches open the headline's id belongs to whichever is newest,
+        # which need not be the one that came back.
+        "returned_run_id": (awaiting_rows[0].get("returned_run_id")
+                            if awaiting_rows else None),
+        # `or None` on both, so a dispatch filed with an EMPTY task string
+        # renders as absent rather than as a blank line where a task belongs.
+        # The Gauntlet's finding: every fixture in the suite defaults a
+        # non-null task, so a working row with none would have reproduced the
+        # exact `running_now: true` / `running_task: null` contradiction this
+        # function exists to prevent — the difference is that `null` now means
+        # "the dispatch stated no task", which is a fact, and the boolean
+        # beside it stays true because the seat IS running either way.
+        "running_task": (current or {}).get("task") or None,
+        "running_since": (current or {}).get("since") or None,
+        "live_basis": LIVE_FROM_LIST,
+    }
+
+
 def seat_telemetry(day_runs: Optional[list[dict[str, Any]]],
                    activity: dict[str, dict[str, Any]],
                    day: str,
@@ -1694,21 +1785,16 @@ def seat_telemetry(day_runs: Optional[list[dict[str, Any]]],
     out: dict[str, Any] = {}
     for seat in names:
         act = activity.get(seat) or {}
-        working = act.get("status") == "working"
-        awaiting = act.get("status") == "awaiting_review"
         row: dict[str, Any] = {
-            "running_now": working,
-            # The third state, carried here too: a returned dispatch is an
-            # obligation on the chair, and a telemetry block that dropped it
-            # would render the seat as idle — which is how a review queue
-            # becomes invisible.
-            "awaiting_review": awaiting,
-            "returned_run_id": act.get("returned_run_id") if awaiting else None,
-            # The task and the clock belong to the dispatch, which is still
-            # open in BOTH live states — so they survive the return rather
-            # than blanking the moment the run lands.
-            "running_task": act.get("task") if (working or awaiting) else None,
-            "running_since": act.get("since") if (working or awaiting) else None,
+            # THE FIVE LIVE-STATE FIELDS, FROM ONE FUNCTION. They describe one
+            # condition — what this seat is doing now — and computing them
+            # here field by field is what let `running_now` read the headline
+            # while `awaiting_review` read a different thing beside it. The
+            # third state (a returned dispatch is an obligation on the chair)
+            # is carried in there too: a telemetry block that dropped it would
+            # render the seat as idle, which is how a review queue becomes
+            # invisible.
+            **_live_state(act),
             "runs_today": None,
             "tokens_today": None,
             "tokens_partial": False,
