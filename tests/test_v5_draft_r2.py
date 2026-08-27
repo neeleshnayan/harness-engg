@@ -935,3 +935,32 @@ class TestTheCoherenceCheckHasNoDeadTerm:
         assert "exposure_ledgers_coherent" in failed(strategy_exposure_usd=None)
         assert "exposure_ledgers_coherent" in failed(order_mark_usd=None)
         assert "exposure_ledgers_coherent" not in failed()
+
+
+class TestTheDetailIsBoundedBecauseItLandsInTheEventLog:
+    """FOUND BY THE LATE READ-THROUGH. Every ``detail`` on this payload is
+    written into an approval event, and the event log is APPEND-ONLY: a context
+    field carrying a megabyte of garbage would put a megabyte of garbage
+    somewhere it can never be taken back out of. The check that names offending
+    fields is the one that reprs an attacker-shaped value."""
+
+    def test_a_huge_value_is_named_but_TRUNCATED(self):
+        huge = "x" * 500_000
+        out = run(nav_usd=huge)
+        d = detail(out, "context_values_in_range")
+        assert "nav_usd=" in d          # it is still NAMED
+        assert "..." in d
+        assert len(d) < 1000, len(d)
+
+    def test_a_short_value_is_shown_WHOLE(self):
+        """The positive control: truncation must not have eaten the diagnosis
+        it exists to preserve."""
+        d = detail(run(nav_usd=1e308), "context_values_in_range")
+        assert "nav_usd=1e+308" in d
+        assert "..." not in d
+
+    def test_the_boundary_of_the_truncation_is_probed_on_BOTH_sides(self):
+        # repr of a string of n chars is n + 2 (the quotes).
+        for n, truncated in ((118, False), (119, True)):
+            d = detail(run(nav_usd="y" * n), "context_values_in_range")
+            assert ("..." in d) is truncated, (n, len(d))

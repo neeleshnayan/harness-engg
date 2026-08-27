@@ -785,13 +785,21 @@ def _evaluate_into(checks: list[dict[str, Any]], check: Any, order: Any,
     # sentence that gets the defect fixed.
     malformed: list[str] = []
 
+    def _short(value: Any) -> str:
+        """A value's repr, BOUNDED. This detail is written into an approval
+        event payload, and a context field carrying a megabyte of garbage would
+        otherwise put a megabyte of garbage in the event log — where it is
+        append-only and cannot be taken back out."""
+        r = repr(value)
+        return r if len(r) <= 120 else r[:117] + "..."
+
     def num(key: str, *, lo: Optional[float] = None,
             hi: Optional[float] = None) -> Optional[float]:
         """Read a context number, record it if it is outside its own unit."""
         raw = ctx.get(key)
         out = _number(raw, lo=lo, hi=hi)
         if out is None and raw is not None:
-            malformed.append(f"{key}={raw!r}")
+            malformed.append(f"{key}={_short(raw)}")
         return out
 
     if not isinstance(context, dict) and context is not None:
@@ -822,16 +830,17 @@ def _evaluate_into(checks: list[dict[str, Any]], check: Any, order: Any,
     raw_qty = ord_.get("qty")
     qty = _number(raw_qty, lo=POSITION_EPS)
     if qty is None and raw_qty is not None:
-        malformed.append(f"order.qty={raw_qty!r}")
+        malformed.append(f"order.qty={_short(raw_qty)}")
 
     check("context_values_in_range", not malformed,
           "every context value is a number inside the unit its name declares"
           if not malformed else
           "these context values are not numbers in their declared unit and are "
           "treated as ABSENT: " + "; ".join(sorted(malformed)) +
-          " — a fraction is 0..1, a percent is 0..100, a dollar figure and a "
-          "quantity are finite and positive, and a boolean is not a number "
-          "however willingly float() converts it")
+          " — a fraction is 0..1, a percent is 0..100, an order quantity and a "
+          "mark are strictly positive, a GROSS figure is non-negative, a SIGNED "
+          "position may be either but must be finite, and a boolean is not a "
+          "number however willingly float() converts it")
 
     symbol = ord_.get("symbol")
     # ``order_delta`` reads the ORIGINAL quantity so it stays pinned to v4's
