@@ -363,7 +363,12 @@ def test_a_disabled_strike_interval_says_so_out_loud():
     """Zero means no NAV is ever struck. That is legitimate to want and
     illegitimate to discover from a flat chart three days later."""
     body = _scheduler_body()
-    assert "strike_every <= 0" in body
+    # THE STATEMENT, not the phrase. The first version asserted the bare
+    # substring ``strike_every <= 0`` and a mutation pass proved it worthless:
+    # a comment eight lines further down ALSO contains that phrase, so breaking
+    # the real condition to ``< 0`` left the assertion satisfied by prose. An
+    # assertion a comment can satisfy is not an assertion.
+    assert "\n    if strike_every <= 0:\n" in body
     assert "DISABLED" in body
 
 
