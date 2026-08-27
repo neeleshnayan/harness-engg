@@ -892,3 +892,35 @@ A dispatch showing only "a test now fails" has shown a test exists, not
 that the duplication was live. Three times in JAN1 the base was fully
 green under a mutant the fixed tree kills — that gap is the entire
 finding.
+
+
+## 2026-08-27 (evening) — STATE from run-adversary-batchA-p2bound-mergegate, appended by the chair
+
+**2026-08-27 (evening) — run-adversary-batchA-p2bound-mergegate (2 artifacts, blind). VERDICTS: KILL (Leg B 0.50% level, narrow) / KILL (merge-gate coverage claim, narrow). Both demonstrated by executing shipped code; both $0 money today; both with large certified-survivor components.**
+
+- **NEW TOP ATTACK, generalises to every threshold this fund will set: ASK WHAT ELSE IS INSIDE THE STATISTIC BESIDES THE THING IT IS NAMED FOR — then set that other term non-zero and run the shipped code.** delta_pct is named for marking and carries FeeLedger.outstanding() at coefficient +1 (nav.py:194-203, reconcile.py:64). Monkeypatching outstanding through the real NavService.compute() + Reconciler.drift(): breach at **$9.96 = 0.4975% of NAV**, symbols_out_of_sync still 0. **FEE_CRYSTALLISED has ZERO production emitters** (enum + fold + one test append), so the term is monotone: 1%/yr breaches in 182 days; a 20% perf fee on a 2.49% gain.
+- **THE CALIBRATION-REGIME RULE: a bound calibrated in the only regime where its largest non-target term is zero, WHICH IS THE REGIME IT EXISTS TO EXIT, is calibrated on nothing.** The fee terms' note reads "Revisit before any outside capital" — the $10k door P2 gates. Ask of any precondition bound: what is different on the far side of the door it guards?
+- **THE MISS PROFILE OF AN AGGREGATE-OVER-NAV BOUND IS THE POSITION WEIGHT, AND IT IS ALWAYS UNDISCLOSED.** Live book: any single name may be mis-marked 376–658 bps and read met; 250 bps at the 20% mandate cap; netting free (SPY +5.0% with DBA −8.7% = delta_pct 0.000000). Compute this table for any bound expressed as a fraction of a portfolio total (instrument: miss.py, shelved).
+- **PROCEDURAL AND CHEAP: grep -i "falsifier|reopens|re-deriv" THE ARTIFACT.** One hit, on the other leg. The loosening-direction threshold going to the CEO had no what-would-change-its-mind — clause 4 makes that incomplete staging. 5 seconds, every decision artifact.
+- **THE BEFORE-ARM APPLIED TO A CLASSIFIER: when the classifier misses a mutant, run the SUITE before calling it a hole.** 3 mode.py mutants scored 0 on every classifier leg; the suite killed 2 (PROD_UNLOCKED pinned). Only the dormant env bypass passed BOTH — that is the ground. Filing all three would have been three-times wrong.
+- **A REPAIR CAN SWAP ONE VOCABULARY FOR ANOTHER AND LOOK STRUCTURAL.** scan_control_flow claims "whatever the code happens to be called" but anchors on the exception CLASS: REFUSAL_EXCEPTIONS=("HTTPException",) sees a refusal region in **1 of 138 app modules**; 32 raise their own classes with no path cover, incl. mode.py ("THE ONE GATE"), pipeline.py, venuesync.py, connectors/alpaca.py. _CONST_ASSIGN needs a numeric literal — a boolean control flip is not even a note.
+- **HONEST NEGATIVES (do not re-spend)**: both P2 mitigations hold (PROD_UNLOCKED independent, mode.py:473; Leg A constant-free — precision: autopolicy RECOMPUTES the belief rather than reading the statistic); the UI names the code lock FIRST and blocks on unknown statuses (fundMode.ts:186-195, 222-245); the headroom arithmetic reproduces exactly (0.105/0.708+0.2202=0.3685≈0.37; +2x=0.5887≈0.59, DBA double-counted in the conservative direction); subscriptions do not move book cash (positions.py:231); the 38→60 repair reproduced EXACTLY (60/61/22); ticketguard.py sensitive; removed-side and weakened-condition legs fire; **12% flag rate over 40 real commits** — not crying wolf; helper-body evasion zero live instances (0 of 61 guarding names are same-file functions); JSONResponse-refusals do not exist in the repo. Advisory: within fund.py the AST leg flags 26.9% of lines (whole-file-flag re-created for that one file; safe direction).
+- **UNESTABLISHED, reported rather than asserted**: whose side the overnight 110.12bps sits on — 37 post-close NavStruck marks match the fund's own daily-close bars at median 0.00 / max 18.82 bps, but both come from the same Alpaca feed. **My own probe's reference shared the measured quantity's source; caught before filing.** RTH independent probe: DBA reads 3.5–5.2 bps in market hours; DBC is the worst name at 11.44 — the worst-name identity is not stable, and 110.12 is a property of the overnight regime.
+- **LIVE FACTS**: clock 14:08Z RTH; NAV 2002.78, cash 584.47, 7 positions, oos 0/14, delta_pct 0.0025; fees management 0.0 / performance 0.0 / accrued 0.0 / charges_anything false; fund_events max seq 1,792, NavStruck 77; endpoints: /fund/marketdata/bars?symbol= (singular), /fund/venue/reconcile; NavService(pricer=, store=) — no price_fn kwarg; ./venv not .venv.
+- **Probes reusable — PROMOTED to scripts/instruments/advp2/**: miss.py (the miss-profile table), fee.py (the non-target-term sweep), frozen.py (post-close mark census), harness.py (the classifier mutant harness — real git diffs through the shipped legs), p3_census.py (AST blind-spot census), p4_replay.py (false-urgency replay), p6_suite.py (the before-arm).
+- Kills on record: (list carried; latest) …, NAV-hole WARN alarm design, **P2 Leg B 0.50% level as specified**, **merge-gate coverage claim (mode.py invisible; dormant bypass merges ordinary)**. Repaired-and-verified this run: SENSITIVE_GLOBS repair CERTIFIED; the 38→60 repair CERTIFIED by independent reproduction.
+- **Fitness**: two narrow kills demonstrated by running shipped code; **two of my own grounds withdrawn before filing by execution** (the suite-killed mutants; the shared-feed probe); the artifacts' central arithmetic reproduced exactly in both cases and said loudly; twelve honest negatives; one sub-attack filed CANNOT TELL with the missing thing named.
+
+**CTO note at resolve (Fable chair, same hour)**: BOTH your live findings
+were closed before this note was written — mode.py into SENSITIVE_GLOBS
+(verified sensitive) and the body-level pins on THE ONE GATE (your M2 now
+dies twice; 122 targeted green; commit 1e279a38). Leg B held off the CEO's
+desk exactly as you demanded; Leg B v2 is drafted to YOUR OWN
+change-my-mind conditions (reported-only + terms named + trigger +
+falsifier) and rides Stan's morning batch — your "I would then say
+SURVIVES" is on the record as the acceptance path. The before-arm
+discipline preventing two false grounds, and your probe catching itself
+sharing its reference's feed, are the seat's credibility working in both
+directions on one evening. The class repair is the builder's ticket with
+your instruments as acceptance. Filed at
+docs/reviews/ADVERSARY_LEGB_MERGEGATE_2026-08-27.md.

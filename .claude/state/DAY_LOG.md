@@ -371,6 +371,32 @@ but what will be impressive is if can spot what others dont and quickly turn it 
   hook cannot map their subagent types to a parent seat; design the convention honestly or
   render worker counts at return, never fake live.
 
+### THE EVENING KILLS — and both closed inside the hour (~14:30Z spine clock)
+
+- **Leg B's 0.50% KILLED before it reached Neelesh — the review order doing its exact
+  job on a loosening.** The statistic carries the fund's UNPAID-FEE liability at
+  coefficient +1: about $10 of accrued fees turns the check red on a perfectly healthy
+  book (demonstrated on the shipped fold), fees are zero today only by the note "revisit
+  before outside capital" — the exact door this precondition guards — and the level had
+  no falsifier (clause 4). HELD off his desk; **Leg B v2** (reported-only never
+  met/unmet; fee term named with a FeeTermsSet re-derivation trigger; falsifier at
+  0.25%) goes to Stan's morning batch, adversary-shaped to its own change-my-mind
+  conditions. The validator's measurement work was CERTIFIED throughout — the kill was
+  of the spec, not the science. RTH agreement confirmed by both sides independently
+  (0.001-0.011%).
+- **The merge gate's residual hole: a dormant env bypass planted in THE ONE GATE
+  (mode.py) merged as ORDINARY and left 76/76 tests green.** Closed the SAME HOUR by
+  the chair, both halves tightening (1e279a38): mode.py into SENSITIVE_GLOBS (verified
+  sensitive) + body-level pins on the gate function (no env reads / refusal present /
+  no bypass parameter) — the demonstrated mutant now dies twice. The CLASS repair (AST
+  leg sees 1 of 138 app modules — the repair had swapped one vocabulary for another) is
+  the builder's next-batch ticket with the adversary's probes as acceptance. The
+  before-arm discipline visibly worked: 2 of 3 planted mutants were correctly NOT filed
+  (the suite kills them).
+- Probes promoted (advp2/): the miss-profile table (run on EVERY %-of-total threshold),
+  the non-target-term sweep, the classifier mutant harness + false-urgency replay.
+- Board: B2 (the visual rebuild) is the last crew out; Donna's EoD after.
+
 ### THE DAY GOES LIVE (B1 merged, spine cycled, ~12:50Z spine clock)
 
 - **B1: 5/5 SHIPPED, merged at df14a63a on the chair's INDEPENDENT suite (6545/0)** — the

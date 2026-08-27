@@ -624,3 +624,14 @@ quoting the CEO's instruction verbatim, and record without the
 `ceo-via-cto`, an identity the guard refuses — a third spelling of the
 channel family that could label a row "chair-adjudicated" which no chair
 could have approved.
+
+
+## BIND carried by the chair, 2026-08-27 evening (from run-adversary-batchA) — joins tomorrow's batch
+
+The prod-gate precondition book_venue_reconciled is gaining an evaluator
+whose companion number can be moved by the FEE LEDGER, not only by marks
+(demonstrated: $9.96 accrued = a 0.50% breach on a synced book;
+FEE_CRYSTALLISED has zero production emitters so accrual is monotone).
+When you audit the envelope: which of its checks read a quantity carrying
+a liability with no venue counterpart? Ask the fee-term question across
+every check.

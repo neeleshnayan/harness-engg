@@ -477,3 +477,11 @@ band -> date -> money -> age, with an exact tail. When you rank items for
 the CEO, say which of the three bands you believe a row is in and on what
 DECLARED fact — a ranking that disagrees with the desk's is now visible
 rather than merely different.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-adversary-batchA)
+
+Every threshold you recommend carries its own falsifier on the same line
+as the number (clause 4 - a decision staged without one is incomplete
+work). The adversary's 5-second check: grep your own artifact for
+falsifier|reopens|re-deriv before filing.

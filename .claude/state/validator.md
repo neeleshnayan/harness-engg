@@ -1294,3 +1294,23 @@ bound is CONFIRMED CONSERVATIVE in both regimes and goes to the adversary
 blind tonight (it routes as a loosening), then the CEO with Stan's
 2026-08-28 batch. The provisional flag on the bound lifts to
 "adversary-pending".
+
+
+## BINDS carried by the chair, 2026-08-27 evening (from run-adversary-batchA)
+
+- When you recommend a numeric bound on a quantity the fund already
+  computes, **enumerate every term inside that quantity before deriving
+  the level, and set each non-target term to a plausible non-zero value
+  against the shipped fold.** delta_pct is named for marking and carries
+  the accrued-fee liability at +1; $9.96 of it breaches your 0.50% with
+  the book perfectly in sync. And **state the miss profile in the bound's
+  own named domain** - "does not measure position integrity" was
+  disclosed; "any one name may be 376-658bps wrong and read met" was not.
+- **Every threshold you recommend carries its own falsifier, on the same
+  line as the number** (clause 4; Leg A had one, Leg B did not). A
+  one-line grep of your own artifact catches it before the adversary does.
+- Chair note: your Leg B work SURVIVES in substance - the two-leg design,
+  Leg A, the anti-correlation finding and the headroom arithmetic were all
+  certified by independent reproduction. Leg B v2 (reported-only + fee
+  term named + trigger + falsifier) carries your measurement forward to
+  Stan's batch; the kill was of the specification, not the measurement.

@@ -1454,3 +1454,19 @@ the cycle: AAVE-USD serves from alpaca-crypto, the TRX corpse 422s.
 transitions executed. Both EVOLVEs applied. The base-was-stale catch is the
 6th consecutive brief-premise correction — the context engine's auto-curl
 remains the structural answer and your dispatches keep proving its case.
+
+
+## BINDS carried by the chair, 2026-08-27 evening (from run-adversary-batchA)
+
+- **When you repair a check that was found blind to a CLASS, prove the
+  class is closed, not the instance** - and ship the census with the
+  repair. The AST leg's HTTPException anchor sees a refusal region in 1 of
+  138 app modules; 32 control modules raising their own classes stayed
+  ordinary, including mode.py ("THE ONE GATE"). Your next-batch ticket:
+  close the class; acceptance = the adversary's harness M2 flags on some
+  leg + the p3 census ships with the diff (instruments at
+  scripts/instruments/advp2/).
+- **A source-scanning guard needs a BODY-level pin, not a signature-level
+  one.** The prod gate's only bypass pin was the shape of the bypass
+  already removed; the chair's test_prod_gate_body_pin.py is the pattern
+  (refuse capability classes - env reads, early returns - not prose).
