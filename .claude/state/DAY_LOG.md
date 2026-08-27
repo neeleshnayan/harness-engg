@@ -371,6 +371,48 @@ but what will be impressive is if can spot what others dont and quickly turn it 
   hook cannot map their subagent types to a parent seat; design the convention honestly or
   render worker counts at return, never fake live.
 
+### THE CHAIR'S DESK SWEEP (CEO instruction ~09:45Z: "clean up your desk; repriotise shelf or execute")
+
+**69 open+approved items triaged: 6 closed with citations, 1 executed, the rest ordered
+or shelved by name.** The queue below is the standing dispatch order until the CEO or the
+record changes it.
+
+- **CLOSED (citation in each resolution)**: b9fa6beb (node_modules — fixed at f680cba3);
+  d03c09b6 (lamp-close gap — superseded by the shipped hook+auto-close, 4 lamps verified
+  today); 708aa38f (D40 — absorbed into slice3); 6c7542ea (merged into c478be63 per its
+  own note); bd3c5232 (persona decision — executed in the 08-23 tuning session);
+  dce47670 (deletion sweep — absorbed into the janitor program).
+- **EXECUTED**: eb92eb0d — the Ed generation batch, queued 6 days behind the old agent
+  cap, FIRED with a dated addendum (crypto admissible with its measured walls; OI record
+  live; survivorship corpus; excess-returns rule; incumbency rule; plain English).
+- **CHAIR-OWNED, dated**: RTH re-measure tomorrow >13:30Z → adversary on Leg B; Friday =
+  Stage A exits → P1 fence → ONE riskofficer BATCH (auto-approval audit + HYG bridge +
+  venue sweep + delta_pct clip + evaluate_completed class + the N2 dollar-floor argument);
+  P2+P3 evaluators by Mon 08-31 12:00Z; governance register in the fixed order
+  (967f11a7 evaluability FIRST, then 61a065c2).
+- **BUILDER QUEUE, in order as slots free**:
+  B1 INSTRUMENT REPAIRS — 78e2650b + d1d5beef (merge gate), e413f9ec (EventStore.stream
+     cap, systemic, now under the watchdog's route), 1913deca, a64f0712, 170dbaeb,
+     9e1d9f5 (test-db namespacing).
+  B2 DESK MACHINERY — 1dfa32f8 (cascade), eb29fd7a (decision identity), 4a4f6b0d
+     (closure-as-fold), 572261e6+384a4bfd (the wire), 4c9317ad (delegation register +
+     routing flip), 02a0048d (EoD guard), 66912f40 (lab script), efe64b67 remainder
+     (Reading Room durable half).
+  B3 BELT INTEGRITY — 8c72939e (unseeded hash), 0178d2e8 (test_end window), de31b31e,
+     739b5ac9 (benchmark population), 91507da1 (container parallelism — 32GB lands),
+     252bce7b (+45efaf68 T0 rider), 6aadd330, 19ed403a, 5429fcf3, 58c4fff5.
+  B4 THE V5 FOLD — the blocker before any arming, + N1 symbol normalisation + the
+     gatherer contract (retention-window ban).
+  Gate v5 round 6 (8e2c799a/4698dee7/5b18fd7d) queues after a round-5 status check.
+- **SHELVED, named, reason = off the demo-v1 critical path, revisit after Sep 1**: data
+  fabric 1-4 (d2e4e054/ccf41752/fdf1a033/9ac5bd4a), META 144 (7074761e), ETH prediction
+  ledger (d7599daf), fidelity ledger (eef589f7), team metric (a87f5b9b), corpus deepening
+  (84492cad), price-taker window (c1c0ec61), market-closed replay (f2d70a55), price
+  anchor (7032a0fd), KG v1.1 (0cc1ac9f), nocturnal adversary (c478be63). VERIFY-THEN-
+  CLOSE candidates at next touch: 40a804f0 (open universe), 04fb98c7 (corpus in PG).
+- **DATED HOLDS**: 395335c8 (sleeve v2 phase 2 — fires Sep 2); 27957634 (R8 formal
+  close — rides Friday's PM dispatch with the incumbency review).
+
 ### FIXED + FOLDED IN (CEO live, ~09:30Z)
 
 - **The studio console 502 diagnosed and fixed**: the Clark agents service (:8000, a
