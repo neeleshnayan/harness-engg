@@ -142,6 +142,17 @@ active and directing throughout.*
   volume. Splitting lessons from map is proposed, not done.
 
 ### CONTEXT ESTATE (evening)
+- **RULED (CEO, verbatim "yup", second-look flagged): the adversary.md context
+  split is OUTSIDE the immune-system exclusion** - moving content to an archive
+  is not amending the mandate. Executes at the next janitor context pass under
+  the versioned-context discipline; the exclusion itself stands untouched for
+  anything that would reshape what the seat IS.
+- **P1 (ETH staking-wrapper premium) entered implementation**: quant dispatch #9
+  fired - implement + belt eth_wrapper_premium (mini trust vs ETHA benchmark,
+  ~13-month covered window is itself a finding to report), batched with the
+  crypto annualisation E2E probe (BTCUSD daily: does LEAN report 252 or 365 on
+  our stack). Stan still sizes any deploy; nothing in the dispatch leads to an
+  order.
 - **VERSIONED CONTEXT CHANGES chartered (CEO: "lets version context changes so
   we can rollback if things go messy")** — isolated `context:` commits, verify
   green BEFORE commit, seat veto = one revert, day-log records every
