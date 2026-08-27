@@ -400,3 +400,37 @@ test("hoursBetween refuses a future stamp rather than reporting a negative age",
   assert.equal(hoursBetween(null, "2026-08-27T12:00:00Z"), null);
   assert.equal(hoursBetween("2026-08-27T10:00:00Z", "2026-08-27T12:00:00Z"), 2);
 });
+
+test("an ORDER's age comes from its OWN clock, decided in one function", () => {
+  /* THE READ-THROUGH MOVED THIS. `OrderCard` used to spread `deskItemFacts`
+   * and then patch `ageHours` — the compute-then-patch shape that ships
+   * payloads contradicting themselves, and whose patch is always the part
+   * that gets forgotten. The order's clock is now decided inside the one
+   * function, from the one input.
+   *
+   * `age_minutes` is server-computed and a pending order expires at 120 of
+   * them, so an order lives on a MINUTE scale where every other row on the
+   * desk lives on a day scale. */
+  const mk = (over: Record<string, unknown>) => orderItems([{
+    order_id: "o", side: "buy", qty: 1, symbol: "SPY",
+    ts: "2026-08-27T06:00:00Z", rationale: "r",
+    impact_preview: { notional_usd: 100 }, ...over,
+  } as never])[0];
+  const NOW = "2026-08-27T12:00:00Z";
+
+  // 90 server-stated minutes wins over the six hours its `ts` implies.
+  assert.equal(deskItemFacts(mk({ age_minutes: 90 }), NOW).ageHours, 1.5);
+  // A server-stated ZERO is a measurement — the order arrived this instant —
+  // and must not fall through to the timestamp.
+  assert.equal(deskItemFacts(mk({ age_minutes: 0 }), NOW).ageHours, 0);
+  // No stated age: the order's own timestamp, six hours back.
+  assert.equal(deskItemFacts(mk({}), NOW).ageHours, 6);
+  // Neither readable: UNKNOWN, never a zero claiming the order just arrived.
+  assert.equal(deskItemFacts(mk({ ts: null }), NOW).ageHours, null);
+  // A NEGATIVE stated age is two clocks disagreeing, not an age — it falls
+  // back to the timestamp rather than drawing a negative spine.
+  assert.equal(deskItemFacts(mk({ age_minutes: -5 }), NOW).ageHours, 6);
+  // A RECOMMENDATION is untouched by any of this.
+  const [r] = recItems([rec(1, "open", { resolved_at: "2026-08-27T10:00:00Z" })], []);
+  assert.equal(deskItemFacts(r, NOW).ageHours, 2);
+});

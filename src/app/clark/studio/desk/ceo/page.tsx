@@ -368,6 +368,26 @@ export default function CeoDeskPage() {
     () => sparkline(navHistoryErr ? null : navHistory),
     [navHistory, navHistoryErr]);
 
+  /* THE LIVE FIGURE, READ ONCE. Three places wanted `nav.live.total_nav_usd`
+     and each reached through two levels of a payload the page does not own —
+     so a 200 that omitted `live`, or a `total_nav_usd` that arrived as a
+     string, would throw inside JSX and take the CEO's whole desk down rather
+     than rendering one figure as unreadable. `null` here is the same
+     UNREADABLE the strip and the line report. */
+  const liveNavUsd = useMemo(() => {
+    const v = nav?.live?.total_nav_usd;
+    return typeof v === "number" && Number.isFinite(v) ? v : null;
+  }, [nav]);
+  /* How far the live mark has moved from the newest STRUCK one. `null` when
+     either side is absent, and when the two agree to the cent — zero is quiet,
+     and "live is $2,003.60, $0.00 off the last strike" is a sentence that
+     tells a reader nothing while occupying a line. */
+  const strikeGap = useMemo(() => {
+    if (liveNavUsd == null || spark.lastUsd == null) return null;
+    const d = liveNavUsd - spark.lastUsd;
+    return Math.abs(d) >= 0.01 ? d : null;
+  }, [liveNavUsd, spark.lastUsd]);
+
   /* THE MONEY BAR'S DENOMINATOR, computed ONCE for the whole decision list.
      Per card it would be a different scale on every row, which is a bar chart
      with a moving axis — the one thing a proportional encoding may not do. */
@@ -503,8 +523,8 @@ export default function CeoDeskPage() {
             {/* ── THE FUND ITSELF, AS A PICTURE ────────────────────────────
                 CEO, 2026-08-27: *"I still dont quite like it... like visually
                 how it represents."* This desk asked him to make 39 decisions
-                about a fund it never showed him. Three graphics, in the order
-                the questions are asked:
+                about a fund it never showed him. TWO questions, three marks,
+                in the order the questions are asked:
 
                   what is it worth   -> the figure, and the struck line beside
                                         it (is it going anywhere)
@@ -526,14 +546,16 @@ export default function CeoDeskPage() {
               <div className="flex items-start gap-6">
                 <StatFigure
                   label="net asset value"
-                  tone={navErr || !nav ? "absent" : "measured"}
+                  tone={liveNavUsd == null ? "absent" : "measured"}
                   value={navErr ? "unreadable"
-                    : !nav ? "…"
-                    : money(nav.live.total_nav_usd)}
+                    : liveNavUsd == null ? (nav ? "unreadable" : "…")
+                    : money(liveNavUsd)}
                   sub={navErr
                     ? "the fund's NAV could not be read"
                     : !nav ? null
-                    : `live mark · ${fmtAt(nav.live.ts)}`}
+                    : liveNavUsd == null
+                      ? "the NAV payload carried no readable figure"
+                      : `live mark · ${fmtAt(nav.live?.ts)}`}
                   title={navErr
                     ? "GET /fund/nav did not answer, so what the fund is worth "
                       + "is UNKNOWN — not zero"
@@ -545,13 +567,20 @@ export default function CeoDeskPage() {
                   <div className="mt-2">
                     <NavSparkline spark={spark} />
                   </div>
-                  {spark.state === "line" && (
+                  {/* THE TWO BASES, NAMED WHERE THEY DISAGREE — and this line
+                      is NOT inside the `state === "line"` guard, deliberately.
+                      The disagreement between the live mark and the last
+                      struck one is a fact about the FUND, not about whether a
+                      line could be drawn; hiding it on a young or flat series
+                      would drop the disclosure exactly when the fund has the
+                      fewest strikes to check it against. */}
+                  {(spark.state === "line" || strikeGap != null) && (
                     <p className={`mt-1 font-mono text-[10px] tabular-nums ${KT.muted}`}>
-                      {spark.note}
-                      {nav && !navErr && spark.lastUsd != null
-                        && Math.abs(nav.live.total_nav_usd - spark.lastUsd) >= 0.01
-                        && ` · live is ${money(nav.live.total_nav_usd)}, `
-                           + `${money(nav.live.total_nav_usd - spark.lastUsd)} off the last strike`}
+                      {spark.state === "line" ? spark.note : ""}
+                      {strikeGap != null
+                        && `${spark.state === "line" ? " · " : ""}live is `
+                           + `${money(liveNavUsd as number)}, ${money(strikeGap)} `
+                           + "off the last strike"}
                     </p>
                   )}
                 </div>
@@ -1283,19 +1312,20 @@ function RecCard({ item, onDecide, sources, now, scale }: {
     <CardShell geo={geo}>
     <div className={type.container}>
       <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
-        {/* THE GLYPH AND THE MONEY BAR LEAD THE ROW. Both are pre-verbal: the
-            glyph says what species of thing this is and the bar says which of
-            these is the big one, before a word of the headline is read. The
-            date chip stays — a dated commitment is the one ranking key that
-            does not wait for a click, and the spine's tone says "late" while
-            the chip says WHEN. */}
+        {/* THE FIGURE COLUMN LEADS THE ROW: glyph, money, date. All three
+            are pre-verbal — what species of thing this is, which of these is
+            the big one, and how late it is — read before a word of the
+            headline.
+
+            THE DATE MOVED HERE FROM AN INLINE CHIP, and it was a measurement
+            that moved it: with the chip before the headline, 39 cards
+            produced four different headline start positions across 119px,
+            because every dated row was indented by the width of its own chip.
+            A column the eye has to hunt for is slower than the word it
+            replaced. `rankReason` still suppresses the date on the metadata
+            line below, because the card still carries it; only the position
+            changed. */}
         <CardFigure geo={geo} />
-        {/* THE DUE CHIP IS GONE FROM THIS ROW and the date is in the figure
-            column above — see `CardFigure`. It was measured: an inline chip
-            indented every dated headline by its own width, giving 39 cards
-            four different headline start positions across 119px. `rankReason`
-            still suppresses the date on the metadata line, because the card
-            still carries it; only the position changed. */}
         <p className={`min-w-0 flex-1 ${type.text}`}>{face.line}</p>
         <span className="flex shrink-0 items-center gap-2">
           {lamp.showButtons ? (
@@ -1457,15 +1487,11 @@ function OrderCard({ item, scale }: { item: DeskItem; scale: CardScale }) {
   const age = o.age_minutes;
   const expiresIn = age != null ? Math.max(0, 120 - age) : null;
   const type = cardStyle(item.reversibility);
-  /* THE AGE HERE IS THE ORDER'S OWN CLOCK, not the desk's. `age_minutes` is
-     server-computed and a pending order expires at 120 of them, so the row
-     has a minute-scale life where every other row on this page has a
-     day-scale one. Passing `waitingSince` would draw a two-hour-old order
-     with the same spine as a two-hour-old recommendation, which is true and
-     useless: for this row the fill should be running out, not starting. */
-  const geo = cardGeometry(
-    { ...deskItemFacts(item, scale.now), ageHours: age == null ? null : age / 60 },
-    scale);
+  /* THE SAME ONE CALL AS EVERY OTHER CARD. `deskItemFacts` knows an order's
+     age comes from `age_minutes` — this used to spread the facts and then
+     patch `ageHours`, which is the compute-then-patch shape that lets a
+     payload contradict itself and whose patch is always the part forgotten. */
+  const geo = cardGeometry(deskItemFacts(item, scale.now), scale);
   return (
     <CardShell geo={geo}>
     <div className={type.container}>

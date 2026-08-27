@@ -1004,19 +1004,28 @@ export function unwrapMemoMarkdown(md: string | null | undefined): string {
 /* ------------------------------------------- the card's geometric facts --- */
 
 /**
- * A desk row, as the four things its PICTURE is drawn from.
+ * A desk row, as the FIVE facts its picture is drawn from.
  *
  * The adapter exists so the geometry module can stay ignorant of `DeskItem`.
  * `cardGeometry` is consumed by the CEO desk, the chair desk, the seat pages
  * and the ticket board, whose row types agree about nothing — a geometry
  * module that imported one of them would have to be forked for the next.
  *
- * TWO FIELDS ARE COMPUTED HERE AND BOTH ARE ABSENCE-CRITICAL:
+ * TWO OF THE FIVE ARE COMPUTED HERE AND BOTH ARE ABSENCE-CRITICAL:
  *
- *   * `ageHours` from `waitingSince`. An unreadable or missing stamp gives
- *     `null`, NOT `0`: a row whose age nobody can read is not a fresh row,
- *     and the spine drawn for one must not look like the spine drawn for the
- *     other.
+ *   * `ageHours`. An unreadable or missing stamp gives `null`, NOT `0`: a row
+ *     whose age nobody can read is not a fresh row, and the spine drawn for
+ *     one must not look like the spine drawn for the other.
+ *
+ *     AN ORDER'S AGE COMES FROM ITS OWN CLOCK, and it is decided HERE rather
+ *     than patched by the caller afterwards. `age_minutes` is server-computed
+ *     and a pending order expires at 120 of them, so an order lives on a
+ *     minute scale where every other row on the desk lives on a day scale.
+ *     The first version of this computed `ageHours` from `waitingSince` and
+ *     let `OrderCard` override the field — which is the compute-then-patch
+ *     shape that ships payloads contradicting themselves, and the patch is
+ *     always the part that gets forgotten. One function, one input.
+ *
  *   * `kind` from the recommendation, when there is one. An ORDER has no
  *     `kind` in the record and gets `"order"` — a literal this function
  *     supplies knowingly rather than an absence, because the item type IS the
@@ -1030,10 +1039,20 @@ export function deskItemFacts(item: DeskItem, now: string): {
   kind: string | null;
   reversibility: string;
 } {
+  const orderMinutes = item.order?.age_minutes;
+  const ageHours = item.kind === "order"
+    ? (typeof orderMinutes === "number" && Number.isFinite(orderMinutes)
+        && orderMinutes >= 0
+        ? orderMinutes / 60
+        // The server stated no age for this order. Fall back to its own
+        // timestamp rather than to nothing — and to `null` if that is absent
+        // too, never to a zero that would claim the order just arrived.
+        : hoursBetween(item.waitingSince, now))
+    : hoursBetween(item.waitingSince, now);
   return {
     dueDate: item.dueDate,
     moneyAtStake: item.moneyUsd,
-    ageHours: hoursBetween(item.waitingSince, now),
+    ageHours,
     kind: item.kind === "order" ? "order" : (item.rec?.kind ?? null),
     reversibility: item.reversibility,
   };
