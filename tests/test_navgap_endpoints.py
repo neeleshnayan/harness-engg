@@ -118,13 +118,23 @@ def test_an_unreadable_history_never_reports_zero_holes(monkeypatch):
 # --- the two surfaces agree -------------------------------------------------
 
 def test_both_surfaces_report_the_same_state(monkeypatch):
+    """CALENDAR-PROOFED 2026-08-27 (chair): the original loop compared `note`
+    byte-for-byte, but both surfaces fold against the REAL clock and the
+    note's trailing-gap sentence embeds an age that ticks between the two
+    HTTP calls — so the test failed as a function of wall time, red on an
+    untouched base (found by B2, proven in a throwaway worktree). The
+    deterministic keys keep exact equality; the note keeps a PROPERTY
+    equality (same hole count named, both non-empty)."""
     nav = FakeNav(OUTAGE)
     client = _client(monkeypatch, nav)
     live = client.get("/api/v1/fund/liveness").json()["nav_record"]
     hist = client.get("/api/v1/fund/nav/history").json()["completeness"]
-    for key in ("state", "hole_count", "note", "newest_strike_at",
+    for key in ("state", "hole_count", "newest_strike_at",
                 "tolerance_seconds", "gaps_measured"):
         assert live[key] == hist[key], key
+    assert live["note"] and hist["note"]
+    assert str(live["hole_count"]) in live["note"]
+    assert str(hist["hole_count"]) in hist["note"]
 
 
 def test_the_history_fold_ignores_the_display_limit(monkeypatch):
@@ -292,8 +302,15 @@ def test_the_outage_is_visible_through_the_endpoint(monkeypatch):
     client = _client(monkeypatch, FakeNav(OUTAGE))
     body = client.get("/api/v1/fund/nav/history").json()["completeness"]
     assert body["hole_count"] >= 1
-    assert body["holes"][0]["from"] == "2026-08-24T19:14:46.808135+00:00"
-    assert "2026-08-25" in body["holes"][0]["trading_days"]
+    # CALENDAR-PROOFED 2026-08-27 (chair): the original asserted the incident
+    # was holes[0], but the fold's window slides with the real clock, so hole
+    # ORDER changes as days pass — red on an untouched base (B2's finding).
+    # The property that matters: THE incident appears among the holes, with
+    # its swallowed trading day named.
+    outage = [h for h in body["holes"]
+              if h["from"] == "2026-08-24T19:14:46.808135+00:00"]
+    assert outage, [h["from"] for h in body["holes"]]
+    assert "2026-08-25" in outage[0]["trading_days"]
 
 
 # --- the cache, which exists for the watchdog ------------------------------
