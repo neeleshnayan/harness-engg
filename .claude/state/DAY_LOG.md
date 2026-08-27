@@ -371,6 +371,18 @@ but what will be impressive is if can spot what others dont and quickly turn it 
   hook cannot map their subagent types to a parent seat; design the convention honestly or
   render worker counts at return, never fake live.
 
+### DECIDED (CEO, mid-morning)
+
+- **PLAIN ENGLISH IS NOW A STANDING DIRECTION for every CEO-facing output** (CEO,
+  verbatim: "plain english should be a direction for all teams writing memo's for CEO").
+  Codified as a uniform section in all 11 seat files, the sixty-second rule's sibling:
+  lead with what happened in words a person reads once; no paths/line-numbers/codenames
+  in the CEO-facing layer (they live in the artifact below); numbers arrive with their
+  meaning; an ask is a question he can answer; register changes, rigor never does. The
+  chair's own desk rows and run-record recommendations comply from this entry onward.
+  Carried live to the in-flight slice-3 builder so the first converted seat pages render
+  under it.
+
 ### BUILT + MEASURED (ops1 merged, ~08:05Z)
 
 - **THE NAV RECORD CAN NOW TELL YOU WHEN IT HAS A HOLE** (navgap.py, merged; gaps in

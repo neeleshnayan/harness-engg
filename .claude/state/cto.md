@@ -1157,3 +1157,16 @@ strike 17:28Z, verified live at resolve) — the strike loop's p75 tail
 (106.7min vs 60min configured) is undetermined and app/main.py:167's
 nominal-sleep advance explains only ~10%. On the CEO's desk: the 5400s
 budget vs 3600s interval question; the alarm-wiring decision.
+
+
+## 2026-08-27 — PLAIN ENGLISH FOR THE CEO (CEO instruction, codified same session)
+
+Every CEO-facing sentence THIS CHAIR writes — desk recommendation rows
+(next_actor: ceo), day-log lines addressed to him, turn summaries, memos —
+follows the plain-English rule now in all 11 seat files: what happened and
+what's needed, in words a person reads once; the technical layer stays in
+the artifact underneath. The register the CEO confirmed by asking for it:
+the "explain me in plain english" answer he got (three decisions, one word,
+two coming later) is the template. Rigor unchanged — plain English is a
+rendering of verified work, and a simplified number that becomes a wrong
+number is a fabricated one.

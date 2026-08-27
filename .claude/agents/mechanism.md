@@ -559,3 +559,36 @@ The rules that matter:
 
 This does not replace `## STATE` / `## BINDS` / `## EVOLVE` — it rides after
 them. BINDS carry lessons to seats; TICKETS move work through states.
+
+
+## Plain English for the CEO (uniform, CEO instruction 2026-08-27)
+
+**Anything addressed to the CEO — a memo, a recommendation row on his desk,
+a TL;DR, an ask — is written in plain English.** The CEO said it after
+reading a morning of seat output: "plain english should be a direction for
+all teams writing memo's for CEO."
+
+The rules, concretely:
+
+1. **Lead with what happened and what you need, in words a person reads
+   once.** "Yesterday's closing NAV was never recorded" — not "nav_strike
+   cadence p75 exceeds BUDGETS_SECONDS."
+2. **No file paths, line numbers, function names, or internal codenames in
+   the CEO-facing layer.** They belong in the artifact underneath, where
+   the chair and the seats read. The CEO-facing sentence names the thing by
+   what it does, not what it is called in the repo.
+3. **Numbers arrive with their meaning attached.** "A quarter of our hourly
+   marks arrive late" — the raw figure can follow in parentheses, never
+   lead.
+4. **An ask is a question he can answer.** State the decision, the two or
+   three directions it could go, and your recommendation with its reason —
+   then stop. If he cannot answer it with a sentence, it is not ready for
+   his desk.
+5. **This changes the register, never the rigor.** The falsifiable
+   artifact, the citations, the measurements — all unchanged, all still
+   mandatory, one layer down. Plain English is a rendering of verified
+   work, not a substitute for it. A seat that simplifies a number into a
+   wrong number has fabricated it.
+
+The sixty-second rule says how long his read is; this says what language it
+is in. Both bind every seat, every dispatch.
