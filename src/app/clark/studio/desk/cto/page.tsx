@@ -99,8 +99,13 @@ export default function CtoDeskPage() {
                 <span className={KT.hero}>
                   {desk === null ? "—" : queue.total}
                 </span>
+                {/* NOT "cleared to trigger": that phrase belongs to approved
+                    asks alone, and this queue also holds every recommendation
+                    routed to the chair. A label that names one population over
+                    two is the kind of small overstatement a reader builds a
+                    wrong model on. Caught on the rendered page. */}
                 <span className="text-[13px] text-[var(--kt-text-dim)]">
-                  cleared to trigger
+                  waiting on you
                 </span>
               </div>
             </div>
@@ -111,8 +116,11 @@ export default function CtoDeskPage() {
               <span className={KT.numberLg}>
                 {desk === null ? "—" : flight.working}
               </span>
+              {/* The "(at least)" qualifier only makes sense beside a NUMBER.
+                  Against a dash it reads "— running now (at least)", which is
+                  not a sentence. Caught on the dead-spine arm. */}
               <span className="text-xs text-[var(--kt-text-dim)]">
-                running now{flight.isFloor ? " (at least)" : ""}
+                running now{desk !== null && flight.isFloor ? " (at least)" : ""}
               </span>
             </div>
           </div>
@@ -151,7 +159,7 @@ export default function CtoDeskPage() {
         {/* ============ THE QUEUE ============ */}
         <section className="mb-8">
           <div className="mb-2.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <span className={KT.label}>Cleared to trigger</span>
+            <span className={KT.label}>Waiting on you</span>
             <span className={`text-[11px] ${KT.muted}`}>{queue.note}</span>
           </div>
 

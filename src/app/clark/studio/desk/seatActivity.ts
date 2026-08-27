@@ -229,8 +229,18 @@ export function benchFlight(rows: SeatLamps[]): BenchFlight {
     working += r.lamps.filter((l) => l.state === "working").length;
     awaiting += r.lamps.filter((l) => l.state === "awaiting_review").length;
   }
+  // NAMED WHILE NAMING HELPS, COUNTED WHEN IT DOES NOT. On the dead-spine arm
+  // every seat is unreadable, and the first version produced eleven names
+  // joined by " and " — a sentence nobody finishes reading, on the one screen
+  // where the reader most needs to finish it. Caught by looking at the dead
+  // arm, not by any test.
+  const who = unreadable.length <= 3
+    ? unreadable.length === 1
+      ? unreadable[0]
+      : `${unreadable.slice(0, -1).join(", ")} and ${unreadable[unreadable.length - 1]}`
+    : `${unreadable.length} of the seats`;
   const note = unreadable.length > 0
-    ? `We could not read what ${unreadable.join(" and ")} `
+    ? `We could not read what ${who} `
       + `${unreadable.length === 1 ? "is" : "are"} doing, so the count above `
       + "is at least this many, not exactly this many."
     : floor

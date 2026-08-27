@@ -74,12 +74,25 @@ function Caret({ open }: { open: boolean }) {
  *  124 of the 200 priced rows on the live desk are 0.0, and a column of $0
  *  would be the loudest thing on the page while saying nothing. */
 function Money({ usd }: { usd: number | null }) {
-  if (usd == null) return <span className="w-16" />;
+  // LOOK-PASS DEFECT, found on the rendered console and not by any test: the
+  // first version rendered an EMPTY SPAN for absent and a dash for a stated
+  // zero. On screen the column read as ragged — a reader cannot tell a blank
+  // from an oversight, and the illumination principle says absence renders as
+  // words, never as an empty region. Both now render a MARK with its own
+  // sentence on hover, and they are different marks.
+  if (usd == null) {
+    return (
+      <span className={`w-16 shrink-0 text-right font-mono text-[11px] ${KT.muted}`}
+            title="The seat filed no figure for this. That is not the same as nothing at stake.">
+        no figure
+      </span>
+    );
+  }
   if (usd === 0) {
     return (
       <span className={`w-16 shrink-0 text-right font-mono text-[11px] tabular-nums ${KT.muted}`}
             title="The seat filed this as nothing at stake.">
-        —
+        $0
       </span>
     );
   }

@@ -8,6 +8,7 @@ import {
   PendingOrder, RiskMonitorResponse, SpineEvent,
 } from "@/lib/fund_api";
 import { KT } from "../../theme";
+import { ReadingRoom } from "../ReadingRoom";
 import { money } from "../../format";
 import { StudioHeader } from "../../components/StudioHeader";
 import { memoParts } from "../../memo";
@@ -529,6 +530,15 @@ export default function CeoDeskPage() {
                     className={`${KT.accent} hover:underline`}>
                 the room, and the firm&apos;s ticket board
               </Link>
+              {" · "}
+              {/* MEASURED, not guessed: the reading room's section sits 7,209px
+                  down this page. It belongs there — it asks for nothing and
+                  must not compete with the decisions — but a room nobody can
+                  find is the defect the room was built to fix, one level up.
+                  One anchor, at the top, and the ordering is untouched. */}
+              <a href="#reading-room" className={`${KT.accent} hover:underline`}>
+                the reading room
+              </a>
             </p>
           </div>
         </header>
@@ -789,6 +799,16 @@ export default function CeoDeskPage() {
                 </div>
               )}
             </Folded>
+
+            {/* ── THE READING ROOM ──────────────────────────────────────
+                CEO 2026-08-27: "I thought we gave dedicated reading rooms aka
+                like a file vault to teams generating research or actual work
+                product that I could go in and read". It sits ABOVE the
+                declined shelf and BELOW everything decidable, because it is
+                the one block on this page that asks for nothing — it is
+                reading, not work, and putting it among the decisions would
+                make it look like another thing he owes. */}
+            <ReadingRoom />
 
             {/* DECLINED ONLY. Cleared asks are the chair's dispatch queue and
                 are now a LANE with the fund's own figure beside them; leaving

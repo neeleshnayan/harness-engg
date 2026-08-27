@@ -366,14 +366,22 @@ function Spot({ s, lit, state, halted, focused, onFocus, onLeave, onNavigate,
           label: the seat is finished and the obligation has moved to the
           chair, so it reads as a standing item rather than as activity.
           Three dispatches rendered as WORKING for hours before this. */}
-      {/* MORE THAN ONE JOB, said as a number. The lamps above say "busy"; this
-          says how busy, and it is the fact the room was getting wrong. */}
-      {jobs != null && jobs > 1 && (
+      {/* LOOK-PASS DEFECT, in this dispatch's own fresh code and caught by
+          looking at the rendered desk. The first version drew this at jobs > 1
+          as "×N" — and the runs-today chip one line below is ALSO "×N". Two
+          different facts wearing one glyph, stacked, six pixels apart: a
+          reader seeing "×2" over "×1" cannot tell which is jobs and which is
+          runs. The `×N` idiom was already spoken for.
+          Worse, it contradicted the comment on the lamps above, which says the
+          marker carries the number only PAST the three-lamp cap. It does now:
+          at two and three the lamps ARE the count, and a chip restating them
+          is chrome. */}
+      {jobs != null && jobs > 3 && (
         <span
-          title={`${jobs} jobs are open at this desk. The room used to show only the most recent one.`}
-          className="inline-flex items-center rounded-full border border-[var(--kt-warn)]/40 px-1.5 font-mono text-[9px] uppercase tracking-[0.08em] text-[var(--kt-warn)]"
+          title={`${jobs} jobs are open at this desk. Only three lamps are drawn.`}
+          className="inline-flex items-center rounded-full border border-[var(--kt-warn)]/40 px-1.5 font-mono text-[9px] lowercase tracking-[0.06em] text-[var(--kt-warn)]"
         >
-          ×{jobs}
+          {jobs} jobs
         </span>
       )}
       {awaitingReview && (

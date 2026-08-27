@@ -148,6 +148,7 @@ export function BriefingCard({ run, requests }: {
   requests?: readonly DeskRequest[] | null;
 }) {
   const [open, setOpen] = useState(false);
+  const [saidMore, setSaidMore] = useState(false);
   const b = briefingOf(run);
   const c = contextOf(run, requests ?? null);
   const hasFold = Boolean(b.fold.reasoning || b.fold.artifactPath);
@@ -159,9 +160,28 @@ export function BriefingCard({ run, requests }: {
           moment, and the only place on the card with heading weight. */}
       <div className="flex flex-col gap-1.5">
         {b.headline ? (
-          <p className="text-[17px] font-semibold leading-snug text-[var(--kt-text-strong)] [text-wrap:balance]">
-            {b.headline}
-          </p>
+          <>
+            {/* CLAMPED TO TWO LINES, and this is a look-pass repair. The
+                contract's headline slot expects ONE claim; the record supplies
+                whatever the seat wrote, and a real one on the live record is
+                five semicolon-joined clauses. At heading weight that rendered
+                as three bold lines dominating the card — the exact "too much
+                text" the CEO named on the engine page.
+                Nothing is hidden: the clamp only bites when there is more, and
+                the control below says so and opens it in place. Truncating
+                without an affordance would be worse than the wall. */}
+            <p onClick={() => setSaidMore((v) => !v)}
+               className={`cursor-pointer text-[17px] font-semibold leading-snug text-[var(--kt-text-strong)] [text-wrap:balance] ${
+                 saidMore ? "" : "line-clamp-2"}`}>
+              {b.headline}
+            </p>
+            {b.headline.length > 150 && (
+              <button type="button" onClick={() => setSaidMore((v) => !v)}
+                      className={`self-start font-mono text-[10px] uppercase tracking-[0.14em] ${KT.muted} hover:text-[var(--kt-text)]`}>
+                {saidMore ? "shorten" : "read the whole verdict"}
+              </button>
+            )}
+          </>
         ) : null}
         {b.headlineNote && (
           <p className={`text-[12px] leading-snug ${

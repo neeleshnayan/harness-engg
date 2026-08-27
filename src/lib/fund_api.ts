@@ -2952,6 +2952,35 @@ export const fundApiClient = {
     count?: number; with_pdf?: number; note?: string;
   }> => (await fundApi.get(`${P}/desk/archives`)).data,
 
+  /** THE READING ROOM's shelf — every finished research document.
+   *
+   *  CEO 2026-08-27: *"I thought we gave dedicated reading rooms aka like a
+   *  file vault to teams generating research or actual work product that I
+   *  could go in and read"*. Six house-styled PDFs had been rendering to disk
+   *  since 2026-08-23 with nothing in the studio linking to one.
+   *
+   *  `readable: false` is UNREADABLE, never empty — an unopenable shelf and a
+   *  shelf with no books look identical to a reader and only one is fine.
+   *  `title_parsed: false` means the title was DEGRADED from the filename
+   *  rather than read out of it, so the surface can show the filename instead
+   *  of a title nobody wrote. */
+  getLibrary: async (): Promise<{
+    readable: boolean;
+    documents: {
+      name: string; title: string; display: string;
+      version: string | null; date: string | null; date_display: string | null;
+      title_parsed: boolean; size_bytes: number; modified_at: number;
+    }[];
+    count: number; directory: string; unreadable?: number; note: string;
+  }> => (await fundApi.get(`${P}/library`)).data,
+
+  /** Where a document's bytes live, for an <a href> — the room is for reading
+   *  and the browser tab is the reading surface, so this is a URL rather than
+   *  a fetch. `encodeURIComponent` because a filename is user-visible text
+   *  that happens to sit in a path segment. */
+  libraryDocumentUrl: (name: string): string =>
+    `${HARNESS_BASE_URL}${P}/library/${encodeURIComponent(name)}`,
+
   /** The seven-stage operating doctrine, with each stage's status read LIVE.
    *
    *  Status is READ, never restated in the client. A doctrine view that carried
