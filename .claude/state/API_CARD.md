@@ -82,7 +82,10 @@ Base URL: `http://127.0.0.1:8090/api/v1`
   span_oos = K·floor(4·hold·365/252) days; hold-1 gets 5 folds over 25
   calendar days). AND: **fold count is INVARIANT to available history** —
   reach-back is fixed at train + test·(K+1); the floor only clips, so
-  deeper history does NOT buy folds (validator 5fc56190; caught the r4
+  deeper history does NOT buy folds — UNLESS min_folds is raised: K is a
+  caller-settable input to window_for_strategy, so the invariant holds per
+  chosen K, not absolutely (caveat added 2026-08-28, closing the residual
+  the second closure sweep caught on run-mechanism-cycle3#8) (validator 5fc56190; caught the r4
   audit modeling a packed generator the belt doesn't have). Also: fold
   count is non-monotone in hold (drops 5→4 at holds 4/9/14/19, cal()
   rounding); `holdout_result.test.window` is engine-actual and is NOT
