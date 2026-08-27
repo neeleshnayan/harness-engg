@@ -1662,7 +1662,11 @@ def utc_day_bounds(now: Any = None) -> tuple[str, str, str]:
 #: telemetry row built from the open-dispatch list is exact, and one built
 #: from the compatibility headline is a known understatement.
 LIVE_FROM_LIST = "open_dispatches"
-LIVE_FROM_HEADLINE = "headline (open_dispatches absent — this row can UNDERSTATE)"
+#: NOT "absent" — the fallback also fires when ``open_dispatches`` is present
+#: and is not a list, and calling that absent would be a wrong word on the one
+#: field whose whole job is to say which side was read.
+LIVE_FROM_HEADLINE = ("headline (open_dispatches missing or unreadable — "
+                      "this row can UNDERSTATE)")
 
 
 def _live_state(act: dict[str, Any]) -> dict[str, Any]:

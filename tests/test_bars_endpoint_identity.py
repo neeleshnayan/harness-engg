@@ -158,3 +158,67 @@ def test_the_pinned_branch_serves_the_SAME_KEYS_as_the_live_one(client,
     assert pinned["instrument_name"] is None
     assert "never recorded" in pinned["identity_note"]
     assert live["instrument_name"] == "Green EnviroTech Holdings Corp."
+
+
+def test_the_ARCHIVE_branch_serves_a_source_rather_than_a_null(client,
+                                                               monkeypatch):
+    """FOUND BY THE READ-THROUGH, not by any test.
+
+    `barstore.as_of` returns `sources` — a LIST of every distinct source that
+    contributed a row, because a series assembled over months can have more
+    than one. The first version of the archive branch read `pit["source"]`,
+    which does not exist, and served `source: null` on every archived request
+    while the answer sat one key away under a different name.
+
+    A null where a value exists is worse than an absent key: a caller reading
+    `payload["source"]` concludes the archive does not know where its bars
+    came from, and the archive knows exactly.
+    """
+    class FakeStore:
+        def as_of(self, symbol, as_of_date, start=None):
+            return {"symbol": symbol,
+                    "dates": ["2026-08-24", "2026-08-25"],
+                    "closes": [1.0, 2.0],
+                    "sources": ["stooq", "yahoo"],
+                    "as_of": as_of_date, "point_in_time": True}
+
+    monkeypatch.setattr(fundapi, "_barstore", lambda: FakeStore())
+    body = client.get("/api/v1/fund/marketdata/bars",
+                      params={"symbol": "SPY", "as_of": "2026-08-26"}).json()
+
+    assert body["source"] == "stooq+yahoo"
+    assert body["basis"] == md.BASIS_ARCHIVE
+    # The list survives too — joining is for the scalar field every branch
+    # fills, never a replacement for the detail.
+    assert body["sources"] == ["stooq", "yahoo"]
+    assert body["point_in_time"] is True
+    assert body["as_of"] == "2026-08-26"
+    # And the shared shape still holds on this branch.
+    assert body["start"] == "2026-08-24"
+    assert body["end"] == "2026-08-25"
+    assert "never recorded" in body["identity_note"]
+
+    # A single source is not decorated with a separator.
+    class OneSource(FakeStore):
+        def as_of(self, symbol, as_of_date, start=None):
+            d = FakeStore.as_of(self, symbol, as_of_date, start)
+            d["sources"] = ["yahoo"]
+            return d
+
+    monkeypatch.setattr(fundapi, "_barstore", lambda: OneSource())
+    one = client.get("/api/v1/fund/marketdata/bars",
+                     params={"symbol": "SPY", "as_of": "2026-08-26"}).json()
+    assert one["source"] == "yahoo"
+
+    # An archive that recorded NO source reports absence, never an empty
+    # string — `""` would render as a source named nothing.
+    class NoSource(FakeStore):
+        def as_of(self, symbol, as_of_date, start=None):
+            d = FakeStore.as_of(self, symbol, as_of_date, start)
+            d["sources"] = []
+            return d
+
+    monkeypatch.setattr(fundapi, "_barstore", lambda: NoSource())
+    none = client.get("/api/v1/fund/marketdata/bars",
+                      params={"symbol": "SPY", "as_of": "2026-08-26"}).json()
+    assert none["source"] is None

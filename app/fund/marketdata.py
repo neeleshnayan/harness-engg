@@ -350,7 +350,7 @@ def bars_payload(basis: str, *, symbol: str, source: str | None,
     that it never recorded one. Absence at the source and absence in our own
     storage are different findings with different fixes.
 
-    ``basis`` is REQUIRED and unvalidated-values raise: a typo that fell
+    ``basis`` is REQUIRED and an unrecognised value RAISES. A typo falling
     through to a default would silently claim a live identity for an archived
     series, which is the one wrong answer this function exists to prevent.
     """

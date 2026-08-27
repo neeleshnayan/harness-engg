@@ -6356,13 +6356,24 @@ def get_bars(symbol: str = Query(..., min_length=1, max_length=12),
         if format == "csv":
             lines = "\n".join(f"{d},{c}" for d, c in zip(pit["dates"], pit["closes"]))
             return Response(content=lines, media_type="text/csv")
-        # THROUGH THE SHARED BUILDER, and the archive's own extra keys ride on
-        # top rather than replacing the shape. Returning `pit` raw is what made
-        # this branch's key set differ from the other two.
+        # THROUGH THE SHARED BUILDER, and the archive's own extra keys —
+        # `sources`, `as_of`, `point_in_time` — ride on top. Returning `pit`
+        # raw is what made this branch's key set differ from the other two.
+        #
+        # THE ARCHIVE SAYS `sources` (A LIST), NOT `source`. `barstore.as_of`
+        # returns every distinct source that contributed a row, because a
+        # series assembled over months can have more than one — and reading
+        # `pit["source"]` would have served `null` on every archived request
+        # while the answer sat one key away. The list stays on the payload;
+        # this joins it for the scalar field every other branch fills.
+        _archived_sources = pit.get("sources") or []
         return bars_payload(
             BASIS_ARCHIVE, symbol=pit.get("symbol", symbol),
-            source=pit.get("source"), dates=pit.get("dates"),
-            closes=pit.get("closes"),
+            source=("+".join(_archived_sources) if _archived_sources else None),
+            dates=pit.get("dates"), closes=pit.get("closes"),
+            # `start`/`end` are excluded because `as_of` does not carry them at
+            # all — the builder derives both from the dates, and listing them
+            # here keeps that true if the archive ever starts sending its own.
             extra={k: v for k, v in pit.items()
                    if k not in ("symbol", "source", "dates", "closes",
                                 "start", "end")})
@@ -6386,7 +6397,10 @@ def get_bars(symbol: str = Query(..., min_length=1, max_length=12),
             lines = "\n".join(f"{d},{c}" for d, c in zip(pinned.dates, pinned.closes))
             return Response(content=lines, media_type="text/csv")
         # Same keys as the live branch below, so no consumer can tell the two
-        # apart by shape — plus one honest extra saying where this came from.
+        # apart by shape — plus `snapshot` and `basis`, both saying where this
+        # came from. (This comment said "one honest extra" until `basis`
+        # joined it; a count in a sentence goes stale the first time anything
+        # is added beside it.)
         # The key EQUALITY is now structural rather than hoped for: both go
         # through `bars_payload`, which is the only place the shape is written.
         return bars_payload(
