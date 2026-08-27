@@ -356,6 +356,21 @@ but what will be impressive is if can spot what others dont and quickly turn it 
 ---
 
 ## 2026-08-27 (UTC) — the overnight program
+### DESIGN SETTLED (CEO, mid-morning)
+
+- **The Studio Work Surfaces canvas APPROVED** ("Cool lets get this") - the briefing contract
+  and queue-as-rows are now the two governing idioms; slice-3 build chartered, fires on the
+  next free builder slot as ONE KP+spine diff.
+- **DESIGN DOCTRINE BAKED INTO THE BUILDER SEAT** (CEO: "everything beautiful by default"):
+  tokens as law, the illumination principle, the two approved idioms, minimal text, anti-slop,
+  the look-pass as design QA with the per-section acceptance question. Permanent, not per-brief.
+- **Two room defects, CEO-observed, chartered into slice 3**: (a) desk._activity collapses to
+  one lamp per seat (latest wins) - two live builders rendered as one; fix is ADDITIVE
+  (open_dispatches + working_count) with both repo halves in ONE diff per the routing-v2
+  lesson; (b) fanned-out sub-workers (Gauntlet/Recount) are invisible in real time - the lamp
+  hook cannot map their subagent types to a parent seat; design the convention honestly or
+  render worker counts at return, never fake live.
+
 ### MORNING (CEO live, ~06:00Z)
 
 - **Two repair crews away** (auto-lamps lit by the hook - its first real firings): mach1
