@@ -371,6 +371,32 @@ but what will be impressive is if can spot what others dont and quickly turn it 
   hook cannot map their subagent types to a parent seat; design the convention honestly or
   render worker counts at return, never fake live.
 
+### THE JANITOR AUDITION (CEO, ~14:30Z: "Lets put janitor a permanent seat if he passes audition")
+
+- **jan1's in-flight run IS the audition** (the CDO pattern — judged on its own output).
+  PASS CRITERIA, written BEFORE the report returns: (1) every deletion cited to callers
+  with ZERO false deletions (suite green, nothing living removed); (2) the override
+  census either surfaces >=1 real not-yet-bitten duplicate or proves a family clean with
+  the site list; (3) the TS census honestly classified (dead vs dynamic-import false
+  positives vs Abhishek's); (4) the context census accurate against spot-checks. PASS ->
+  permanent seat: `.claude/agents/janitor.md` with the two lanes (code + context), the
+  boundaries (never control layer / Abhishek / .claude edits; context = move-never-
+  delete under the chair's review), weekly cadence + on-demand, the charter's falsifiers,
+  identity DELIBERATELY PLAIN (persona only on a measured miss, per the amended rule).
+  FAIL -> the program stays chair-dispatched; reasons recorded.
+- Same window: **the CONTEXT LANE chartered** into CODE_DISCIPLINE (CEO: code + context
+  cleanup, "relevant items are not removed so it needs to triage it really well") —
+  move-never-delete, chair-reviewed splits, seat veto on its own distillation,
+  strong-model distillation, the re-derivation tripwire. jan1 measures the baseline this
+  pass (read-only census of every seat file).
+- **THE LAMP ROOT CAUSE, owned by the chair**: the "auto-close-on-run-record" the hook's
+  docstring promised WAS NEVER BUILT — the chair trusted a docstring over a
+  verification, and 15 lamps burned stale in one day (4 predating the hook). All 15
+  swept with citations via the legitimate door; the REAL auto-close is being chair-built
+  right now (single-open closes; ambiguity closes nothing and names the remainder;
+  explicit closes_task_ids for multi-crew days; unreadable fold closes nothing and says
+  so). The docstring corrected to admit its own history.
+
 ### GO (CEO, ~14:00Z) — universe adopted, B1 away
 
 - **CEO: "Hurrah! yes lets go!! great going!"** — the starter universe (BTC/ETH/SOL,

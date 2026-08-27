@@ -8,9 +8,14 @@ renders it. Zero chair discipline involved — which is the point, because
 chair discipline is the component that failed four days running.
 
 The OFF half: recording the run at resolve closes the lamp (the chair's
-review act, per the constitution's closing-is-judgement rule) — shipped in
-the spine as auto-close-on-run-record. Between them the lamp lifecycle has
-no manual step left.
+review act, per the constitution's closing-is-judgement rule). SHIPPED FOR
+REAL 2026-08-27 in the spine's run recorder: a run record closes the seat's
+single open dispatch automatically, or exactly the ids passed as
+`closes_task_ids` when several are open — ambiguity closes NOTHING and the
+response says which lamps remain, because guessing would close the wrong
+crew's lamp. (An earlier version of this docstring claimed the auto-close
+existed before it did; 15 lamps burned stale in one day and the CEO caught
+it on the floor. A docstring is not a mechanism.)
 
 Fail-open by design: a lamp that fails to light must never block a dispatch.
 Any error prints to stderr (visible in hook logs) and exits 0.
