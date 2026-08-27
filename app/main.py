@@ -9,9 +9,11 @@ See docs/architecture.md for the full design.
 """
 
 import asyncio
+import datetime as _dt
 import logging
 import os
 import pathlib
+import time
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -103,9 +105,50 @@ else:
 
 from app.api.v1 import fund as fund_router  # noqa: E402
 from app.fund import heartbeat
+from app.fund import schedule  # noqa: E402
 from app.fund.demo_seed import seed_if_empty  # noqa: E402
 from app.fund.lease import SchedulerLease  # noqa: E402
 from app.fund.schedule import StrikeWindow  # noqa: E402
+
+
+def _newest_strike():
+    """The fund's newest struck-NAV payload, ``None``, or ``schedule.UNREADABLE``.
+
+    A READER AND NOTHING ELSE. It performs the IO and classifies the ONE thing
+    only the caller can know — that the read itself failed — and hands the raw
+    answer to ``schedule.resume_strike_clock``, which computes every field of
+    the verdict from it. Nothing here interprets the payload, so there is no
+    second place for the interpretation to drift.
+
+    NEVER RAISES, and that is not politeness. This runs inside ``_scheduler``'s
+    lease-acquisition path, and an exception there is not one lost tick: a
+    coroutine started with ``asyncio.create_task`` surfaces its exception only
+    when awaited, at shutdown, so the whole deterministic worker would go quiet
+    with nothing in the log.
+
+    COST, MEASURED HERE rather than inherited: ``latest()`` folds the event log
+    and takes **35–52 ms at 1,654 events**, with no cold/warm split worth the
+    name (2026-08-27, two fresh processes, cold 51.8 and 35.4 ms against a warm
+    range of 34–58 ms). A neighbouring figure of ~1.3s cold belongs to
+    ``navgap.completeness``, which does far more work, and applying it here
+    would have overstated this call by thirty-fold.
+
+    It runs ONCE per lease acquisition, never per tick, and it is synchronous
+    like every other call in this loop — ``run_universe_refresh`` in the same
+    body blocks for up to 50 SECONDS when it is due, which is three orders of
+    magnitude more.
+
+    WHAT TO WATCH: the fold is linear in the log, so the 35–52 ms is a function
+    of 1,654 events and nothing pins it there. The reason to care is that the
+    host watchdog polls ``GET /fund/liveness`` on an 8-second timeout and
+    restarts Docker, Postgres and the spine on a non-200 — and to that watchdog
+    a slow event loop is the same event as a failed one.
+    """
+    try:
+        return fund_router._nav.latest()
+    except Exception as e:  # noqa: BLE001
+        _log.warning("the last struck NAV could not be read (%s)", e)
+        return schedule.UNREADABLE
 
 
 def _venue_session():
@@ -168,17 +211,36 @@ async def _scheduler():
     global _lease
     lease = _lease = SchedulerLease(ttl_seconds=max(180, settle_every * 4))
     _log.info("scheduler identity: %s", lease.owner)
-    since_strike = 0
+    if strike_every <= 0:
+        # SAID OUT LOUD RATHER THAN INFERRED. ``advance`` treats a non-positive
+        # period as never due, so this configuration stops NAV being struck at
+        # all — which is a legitimate thing to want and an illegitimate thing to
+        # discover from a flat NAV chart three days later.
+        _log.warning("STRIKE_INTERVAL_SECONDS is %s — the NAV strike tick is "
+                     "DISABLED in this process and no NAV will be struck",
+                     strike_every)
+    since_strike = 0.0
     # START AT THE INTERVAL, NOT AT ZERO — so the first worker pass happens on
     # the first tick after the lease is held rather than five minutes later.
     # The start-up pass has already run by then; this makes the WORKER's
     # freshness reading true immediately instead of reporting a stale
     # never-ticked state for the first interval of every process.
-    since_reconcile = reconcile_every
+    since_reconcile = float(reconcile_every)
     window = StrikeWindow()
     was_held = None
+    # THE ACCUMULATORS COUNT MEASURED TIME, NOT TICKS. See the long note above
+    # ``schedule.advance``: adding the NOMINAL sleep constant assumes the loop
+    # body is free, and the fund's own strike series measured that assumption
+    # costing between 1.6% and 20.0% of the strike interval, worsening as the
+    # loop gained work. ``last_tick`` is taken AFTER the sleep so the delta is
+    # the full loop period — sleep plus the work of the previous pass — which
+    # is the quantity the interval is supposed to be measured in.
+    last_tick = time.monotonic()
     while True:
         await asyncio.sleep(settle_every)
+        now_mono = time.monotonic()
+        elapsed = now_mono - last_tick
+        last_tick = now_mono
 
         state = lease.acquire()
         if state.held != was_held:
@@ -187,10 +249,61 @@ async def _scheduler():
             _log.info("scheduler lease %s — %s",
                       "ACQUIRED" if state.held else "NOT HELD", state.reason)
             was_held = state.held
+            if state.held and strike_every > 0:
+                # RESUME THE STRIKE CLOCK FROM THE DURABLE RECORD, on every
+                # acquisition — the first one after start-up and every handoff
+                # after that, because they are the same event from the clock's
+                # point of view. Without this a restart bought a full interval
+                # of silence however long it had already been since the last
+                # strike, and a worker that lost the lease came back believing
+                # it had just struck. Both are measured causes of the fund's
+                # over-budget strike gaps, not hypotheticals.
+                #
+                # It is SAFE against a restart loop because the record is the
+                # thing being read: once a strike is written the newest event is
+                # seconds old, so the next process resumes at ~0 and waits.
+                #
+                # NOT RUN WHEN THE STRIKE TICK IS DISABLED. With
+                # ``strike_every <= 0`` nothing will ever be struck, so folding
+                # the event log to find out how overdue the strike is would be
+                # work done for a feature that is off.
+                #
+                # THE WINDOW THIS DOES NOT CLOSE, named rather than left for
+                # someone to find: the record is read AFTER the lease is held,
+                # so the only way to read a stale one is for the previous holder
+                # to be writing a strike while no longer holding the lease. That
+                # is possible — a tick checks the lease at its top and strikes at
+                # its bottom — and ``run_strike`` has no recency guard, so the
+                # result would be two struck NAVs seconds apart. Sequential
+                # restarts, which are the common case, cannot hit it. Closing it
+                # properly means a guard on the WRITE, which is not this loop's
+                # to add.
+                resumed = schedule.resume_strike_clock(
+                    _newest_strike(), strike_every,
+                    _dt.datetime.now(_dt.timezone.utc))
+                since_strike = resumed.seconds_served
+                _log.info("strike clock: %s", resumed.note)
         if not state.held:
             continue
 
-        since_strike += settle_every
+        # DUE-NESS IS DECIDED ONCE, HERE, and the accumulator resets the moment
+        # it is due — whether or not a strike is written. That was already the
+        # behaviour (the reset was the first line of the strike block) and it is
+        # preserved deliberately: it is what makes a strike that fails cost one
+        # interval rather than putting the loop into a retry burst against the
+        # permanent record.
+        #
+        # THE OPEN CONSEQUENCE, stated here because nothing else states it: a
+        # tick that ran and whose ``run_strike`` RAISED is indistinguishable in
+        # the durable record from a tick that decided not to strike. Both leave
+        # no NavStruck and both beat the heartbeat. Two of the fund's ten
+        # over-budget in-session strike gaps have exactly that signature (the
+        # accumulator's phase was preserved across them, so the loop was
+        # running and the write produced nothing). Making that visible means
+        # deciding what a failed official-NAV write should do, which is not a
+        # decision this loop should take on its own.
+        since_strike, strike_due = schedule.advance(
+            since_strike, elapsed, strike_every)
         # Settlement stays unconditional. It is read-mostly, idempotent, and an
         # order submitted near the bell can fill after it — refusing to poll
         # while closed would leave that fill unrecorded until the next open.
@@ -311,9 +424,26 @@ async def _scheduler():
         # runs every 30 seconds and the reconciliation every five minutes, so
         # the common case is one integer comparison. It shells out to
         # ``docker ps`` when it is due, which is why it is not on every tick.
-        since_reconcile += settle_every
-        if reconcile_every and since_reconcile >= reconcile_every:
-            since_reconcile = 0
+        #
+        # Measured time, like the strike accumulator and for the same reason:
+        # a five-minute reconcile that advances by the nominal 20s stretches by
+        # whatever the loop body costs. ``advance`` also keeps the DISABLE path
+        # intact — a non-positive interval is never due — and the explicit
+        # ``reconcile_every and`` below is kept as well, because the setting is
+        # supported and a reader should not have to open another module to see
+        # that zero means off.
+        #
+        # DELIBERATELY NOT RESUMED FROM A RECORD the way the strike clock is,
+        # and the asymmetry is the point rather than an oversight: this
+        # accumulator freezes while the lease is elsewhere, so a handoff can
+        # make the next pass late by up to one reconcile interval. That is five
+        # minutes of delayed orphan detection against the strike clock's ONE
+        # HOUR of missing permanent record, and this tick writes nothing that
+        # persists. If it ever earns a resume, ``_lr.last_reconciliation()`` is
+        # the hook.
+        since_reconcile, reconcile_due = schedule.advance(
+            since_reconcile, elapsed, reconcile_every)
+        if reconcile_every and reconcile_due:
             try:
                 # THE GRACE IS WHAT MAKES A PERIODIC PASS SAFE. ``start_live``
                 # writes its registry row before launching ``docker run``, so a
@@ -350,8 +480,7 @@ async def _scheduler():
                 _log.warning("LEAN session reconciliation tick failed: %s — "
                              "any orphaned live container is still "
                              "unaccounted for", e)
-        if since_strike >= strike_every:
-            since_strike = 0
+        if strike_due:
             # Both of these WRITE to the permanent log — a NAV_STRUCK snapshot
             # and any RECONCILIATION_MISMATCH — and both read prices to do it.
             # Off-session those prices are the previous close, so an unguarded
