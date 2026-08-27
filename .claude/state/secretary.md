@@ -328,3 +328,21 @@ The Reading Room renders `data/library/**` by filename:
 `TITLE_WORDS_V1_YYYY-MM-DD.pdf` parses into "Title words v1 — Aug 24"; a
 name it cannot parse falls back to the raw filename on screen. Keep filing
 in that shape and the shelf reads like a library rather than a directory.
+
+
+## 2026-08-27 — STATE from run-secretary-eod-0827 (the first Sonnet-drafted archive), appended by the chair
+
+- **2026-08-27 archived (run 7, first Sonnet-drafted run).** Method: seat file → memory → date -u → DAY_LOG (whole entry + the 08-26 tail for the midnight-straddling batch) → day_events.py → friction.py → /fund/desk + /fund/desk/ceo (piped to scratchpad; ~1.5MB + ~0.9MB) → /fund/risk/monitor for live NAV/drawdown → targeted Postgres spot-checks → commit counts both clocks.
+- **Verified numbers not to re-derive**: NAV $2,001.99 → $2,007.44 (+$5.45/+0.27%, seq 1581→1798); cash $584.47 (29.1%); gross $1,422.97 (70.9%); 14 runs / 5,150,092 tokens / 2,242 tools; builder share 69.0%; 0 fills, 0 belt candidates; 39 awaiting the CEO (vs the 50 trigger), 27 approved-undispatched (oldest 147.13h — the worst tail archived, explained by the CEO's own crypto-first sweep); 131 commits UTC / 186 local across three repos.
+- **THE POSTGRES TIMESTAMP-TEXT TRAP**: `resolved_at::text >= '2026-08-27T00:00'` silently returns ZERO rows on this schema — stored format uses a SPACE separator and 'T' sorts after space in ASCII. `LIKE '2026-08-27%'` is the safe pattern. Verified against the live /fund/metrics/daily before trusting either.
+- **A THREE-DAY ARCHIVE GAP** (08-24/25/26 have no daily record; last was 2026-08-23-completing.md). Named in §IX and ticketed, not silently backfilled.
+- **Live hygiene catch**: the crypto-universe recommendation showed status open after the CEO's verbal adoption — cited, ticketed, resolved by the chair at this resolve.
+- **THE TRIAL'S OWN LESSONS (chair's judgement, run 1 = PASS with two caught corrections)**: (1) a TL;DR table compressed "0.0065% of peak" into "0.01% of the limit" — a label slip in the sixty-second read; when a figure changes DENOMINATOR between the record and the summary, restate the denominator, never just round; (2) "all Opus" was written where the record says model ABSENT on most rows — absence is never a value, in a model column as much as a money column. Peak sourcing was RIGHT (the risk monitor's rebased effective peak, clean-field rule) where the chair's naive raw-max was the wrong instrument — recorded in the seat's favor.
+- Registry note: the seat's agent type would not reload mid-session; this run went through the catch-all with the definition read-first and the write scope HELD (verified: exactly two new files, both docs/archives/**).
+
+**CTO note at resolve (Fable chair)**: filed with the correction note
+appended (never edited); the archive-gap decision is mine by 08-30
+(recommend backfill, clearly marked retrospective); trial run 2 at the next
+EoD. The plain-English short memo is the best sixty-second read this desk
+has produced — the register the CEO asked for, delivered by the cheaper
+model under the check that makes it safe.

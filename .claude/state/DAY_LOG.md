@@ -371,6 +371,22 @@ but what will be impressive is if can spot what others dont and quickly turn it 
   hook cannot map their subagent types to a parent seat; design the convention honestly or
   render worker counts at return, never fake live.
 
+### THE DAY CLOSES (Donna's archive filed, ~16:15Z spine clock)
+
+- **The first Sonnet-drafted archive FILED** (docs/archives/2026-08-27.md + PDF) — trial
+  run 1: **PASS with two caught corrections** (a drawdown label slip in the TL;DR and an
+  "all Opus" where the record says absent-on-most; both appended as a dated chair note,
+  never edited). Exact to the digit on every load-bearing number: 14 runs, 5,150,092
+  tokens, builder 69.0%, NAV $2,007.44 (+$5.45, zero trades — market drift only). Run 2
+  at the next EoD before Sonnet becomes standing.
+- Donna's two findings actioned: the stale-open universe recommendation closed with the
+  CEO's quote cited; the THREE-DAY ARCHIVE GAP (08-24/25/26) is the chair's decision by
+  08-30 (recommend retrospective backfill for the demo's continuity story).
+- FINAL BOARD: zero crews out, zero open lamps (every one of today's 17 dispatches
+  retired by its own record or the sweep), all seven merges live on the spine, the
+  session running (052650b749da), the vault push AWAITING THE CEO'S WORD on ~40 commits.
+  Tomorrow's runsheet stands as written in the GO entry.
+
 ### THE DESK BECOMES A PICTURE (B2 merged + live, ~15:30Z spine clock)
 
 - **THE VISUAL REBUILD SHIPPED AND IS LIVE** (CH 8286d6df at 6571/0; KP 1281/1281, tsc
