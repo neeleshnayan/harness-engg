@@ -541,8 +541,27 @@ def test_a_working_row_with_NO_TASK_still_reports_the_seat_as_running():
     a = desk._activity(MemStore([taskless]), runs=[])
     t = desk.seat_telemetry([], a, "2026-08-27")["seats"]["builder"]
     assert t["running_now"] is True, "an open dispatch is an open dispatch"
-    assert t["running_task"] is None, "an empty task is ABSENT, not a blank"
+    assert t["running_task"] is None, "a missing task is ABSENT"
     assert t["live_basis"] == desk.LIVE_FROM_LIST
+
+    # AND THE EMPTY-STRING SHAPE, WHICH IS THE ONE THE `or None` IS FOR.
+    # The first version of this test only omitted the key — `.get("task")`
+    # returns None either way, so the mutant that removes `or None` SURVIVED
+    # it. A dispatch filed with `task: ""` is the input that separates them:
+    # without the guard the payload carries an empty string, and a card then
+    # renders a blank line where a task belongs instead of saying nothing.
+    blank = Event(aggregate_id="t2", aggregate_type="desk_request",
+                  type=EventType.DESK_DISPATCHED,
+                  payload={"task_id": "t2", "seat": "adversary",
+                           "at": "2026-08-27T07:00:00+00:00", "task": ""},
+                  actor="cto")
+    assert blank.payload["task"] == "", "the fixture carries an EMPTY task"
+    bt = desk.seat_telemetry(
+        [], desk._activity(MemStore([blank]), runs=[]),
+        "2026-08-27")["seats"]["adversary"]
+    assert bt["running_now"] is True
+    assert bt["running_task"] is None, (
+        "an EMPTY task string is absence, not a blank line — `or None`")
     # ...and the ordinary row beside it still carries its task, so this is not
     # a test that would pass on a function that blanked every task.
     b = desk._activity(MemStore([
