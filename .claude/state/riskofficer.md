@@ -635,3 +635,8 @@ FEE_CRYSTALLISED has zero production emitters so accrual is monotone).
 When you audit the envelope: which of its checks read a quantity carrying
 a liability with no venue counterpart? Ask the fee-term question across
 every check.
+
+
+## BINDS carried from quant dispatch #8 (run-quant-hygv2-0828, 2026-08-28), appended by the chair
+
+- The first HYG engine signals (strategy e545c8ca, `hyg_fast_flip_probe_v2`) will arrive roughly **three per week, just after 00:00 ET, in alternating buy/sell pairs about one session apart**, each capped at $50. A BUY declined followed by an approved SELL would propose a short the fund cannot exit (the exit machinery only sells); the pre-trade refusal of that is expected behaviour and should be audited as a working control, not an incident. Also on your next batch: the chair stopped v1's session and committed v2's exits as neelesh-via-cto (2026-08-28) — audit that channel as always.

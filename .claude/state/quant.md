@@ -1051,3 +1051,42 @@ than a bare null, and a NON-CRYPTO series reports `freshness:
 equity verdict needs an exchange calendar the path does not consult. **Do
 not read `freshness == "live"` as a precondition for an equity leg; it
 will never say that.**
+
+
+## 2026-08-27/28 — STATE from run-quant-hygv2-0828 (dispatch #8, the aggressive HYG probe), appended by the chair
+
+**2026-08-27 — dispatch #8 (`hyg_fast_flip_probe_v2`, the aggressive HYG machinery probe). ONE container, 17.8 s, prediction matched exactly. No gate verdict, by design.**
+
+**WHAT EXISTS NOW.** `lean_workspace/algorithms/hyg_fast_flip_probe_v2/main.py`, class `HygFastFlipProbeV2`, UNCOMMITTED at hand-off. `HOLD_DAYS=2` (source `declared`), `CLAIM_TYPE="alpha"`, `BENCHMARK="HYG"`, `UNIVERSE=["HYG"]`, `LOOKBACK=3`, `HOLD_BARS=1`, `MAX_SIGNAL_USD=50.0`, `BAR_END_OFFSET_DAYS=1`. Static readers: universe `['HYG']`, lookback 2000, `honours_fractional True`, hold `{'hold_days': 2, 'source': 'declared'}`, `set_benchmark` present. Smoke `f44922f7e7b0`: 758 orders / 379 buys / 379 sells, -30.282% vs benchmark +22.37%, max DD 32.5%, PSR 0.0.
+
+**THE FINDING THAT MATTERS AND IT IS NOT ABOUT THE RULE. A LIVE SESSION STARTED INTRADAY RECEIVES NO BAR THAT DAY, AND THE NEXT ONE IS A RUNNING QUOTE.** `PythonData` has no period — `BaseData.EndTime` is `get => Time; set => Time = value;` (BaseData.cs:96-100) and PythonData does not override it, so a daily custom bar ENDS AT ITS OWN MIDNIGHT. `LiveCustomDataSubscriptionEnumeratorFactory` seeds `frontier = request.StartTimeLocal` (:82) and emits only `EndTime > frontier` (:152, :186), refreshing every 30 min (:62, :92-96), with age filtering disabled (`Time.MaxTimeSpan`, :130). So every row in the file is behind the frontier at session start, and the first row that clears it is the NEXT day's — which our feed publishes DURING that session as a moving quote. **v1's "start after the close" mitigation does not work; the emission is the next morning regardless.** Measured corroboration on our own stack: v1's smoke first order `2021-05-03T04:00:00Z` @ 65.342655 = the 2021-05-03 close x 1.0005 — bar date == slice date, EndTime == Time.
+
+**THE FIX, AND IT IS VERIFIED IN THE BACKTEST HALF ONLY.** Two lines in the reader: drop rows dated >= today-UTC (the running row is not a close), and stamp `bar.time = session + 1 day` (the only way to give a periodless bar an end after its publication). Container proof: v2's first order is `2021-05-05T04:00:00Z` @ 65.302635 = the **2021-05-04** close x 1.0005 — bar and slice now differ by exactly one day. **The LIVE half is a PREDICTION, not an observation**: one bar per calendar day, within 30 min of 00:00 ET, carrying the previous session's settled close. Falsifier: a first `BAR ` line naming the CURRENT day at a running price. **Cost of my own fix, declared: the +1 stamping drops the final session of a backtest whose end is "today"** (1,335 bars processed, 1,336 available; the dropped bar had no action).
+
+**PREDICT THE CONTAINER BEFORE YOU SUBMIT — IT PAID AGAIN, HARDER THAN LAST TIME.** Six independent quantities predicted offline and all six matched (primed 43 / last primed 2021-04-30 / 758 orders / 379-379 / first order timestamp AND fill price / last action). A mismatch on the timestamp would have been the only evidence that the end-time shift did not take, and it is the whole basis of the fix. This is now the seat's standard: any change to the DATA LAYER must be validated by a timestamp prediction, because a data-layer change is invisible in returns.
+
+**THE RULE AND THE TIE-BREAK.** Buy when the close is below its own 3-session mean; sell at the next bar. Trailing 252 sessions (2025-08-26 -> 2026-08-26): **142 actions, 71 buys / 71 sells, 2.82 per week**, gaps median 1.0 / p90 4 / max 8; full window 782 actions, mean interval 1.758. v1's 2/4 on the same year: 80 actions = 1.59/week. Chosen from six admissible shapes by the v1 tie-break (**worst full-window replica return among the admissible**, x1.0384 vs HYG x1.2345). **The load-bearing constraint was new and should be re-used: THE ALGORITHM'S OWN HOLD MUST BE BOUNDED AND STRICTLY SHORTER THAN THE COMMITTED BACKSTOP.** A condition rule's unbounded hold makes the committed time exit fire routinely, selling the position out from under an engine that still thinks it is long — a probe stuck flat-but-thinks-held, silent for the wrong reason. That constraint alone eliminated the entire SMA-condition family including a lower-return candidate.
+
+**THE COST ARITHMETIC CLOSES, SO REPORT THE RETURN AS A COST MEASUREMENT.** Cost-free replica x1.0384; 758 orders at 5 bps/side => `(1-0.0005)^758 = 0.6845`; product 0.7108 -> -28.9% predicted vs -30.28% measured. **379 round-trips a year is what a 2.8/week instrument costs, and this run priced it.**
+
+**`annualisation_clock` READS `engine_understates` ON A PURE US-EQUITY-ETF STRATEGY.** `engine_obs_per_year 252.0` vs `series_obs_per_year 365.25`, factor 1.203912, n=1940 with 1,114 zero-return days. The cause is the CAPTURE CLOCK (daily_returns is calendar-daily, my 2026-08-22 finding), not the asset class. **The flag cannot discriminate crypto-on-an-equity-clock from equity-on-a-calendar-clock and will fire on essentially every equity result.** v1's smoke `c43e580e7997` carries no `annualisation_clock` key at all, so v2 is probably the first equity result to carry the instrument.
+
+**`exitrule` CANNOT EXPRESS "N SESSIONS FROM ENTRY".** `kind="time"` requires an absolute `on_date` (exitrule.py:69-75) and fires on `now >= on_date` (:128-135). For a probe that re-enters every ~2 sessions, a fixed date is an EXPERIMENT TERMINATOR, not a holding-period exit — once it passes, every new entry is instantly exit-eligible. Do not describe a dated rule as a per-position time exit; say which it is.
+
+**ENGINE / API FACTS THAT COST ME A STEP.** `WALKFORWARD_HISTORY_FLOOR` is now **1993-01-29**, not 2024-02-26 — pass an explicit `floor=` or the geometry is not what my old memory says. `window_for_strategy` signature is `(end, hold_days, min_folds, train_days=252, floor=None, criteria=None)` — `end` and `min_folds` are REQUIRED positionally. `GET /fund/positions` returns `positions` as a **dict keyed by symbol**, not a list. Full container logs live at `lean_workspace/results/<job>/<ClassName>-log.txt` (2,098 lines here); the API's `log_tail` is only the last 40 and is useless for guard-string counting. `/fund/signals/external` now proposes on **venue "alpaca"**, not the internal simulator (fund.py:5533-5546, CEO decision 2026-08-26/27) — an approved engine signal is now a real paper fill carrying real cost information.
+
+**FITNESS.** Implementations reaching an honest verdict without dying on an instrument defect: **1/1**. Instrument defects surfaced by running: **3** (live custom-data frontier silences a session started intraday and then serves a running quote; `exitrule` time exits cannot express sessions-from-entry; `annualisation_clock` reads `engine_understates` on a pure equity strategy so the state is not asset-class-discriminating) plus **1 self-inflicted cost declared** (the +1 stamping drops a no-end-date backtest's final session). Container cost: **1**.
+
+**HYBRID SPLIT:** not used. No sub-function was suitable — the file is ~70% declared reasoning and the arithmetic is three lines. Neither saved nor cost; not a data point either way.
+
+**CTO note at resolve (Fable chair, 2026-08-28)**: every dependency you
+stopped at is now done — v2 registered as its OWN strategy
+`e545c8ca-b20d-46c9-8c43-027b8c9c489c`, v1's session `052650b749da` STOPPED
+with the container confirmed killed (your diagnosis made it a live hazard,
+not a slow probe), both exits committed pre-entry as specified, the
+algorithm committed. The deploy click is staged on the CEO's desk. Your
+live-half falsifier is registered as chair work for 08-29 (first `BAR `
+line: previous session's date, settled close, within 30 min of 00:00 ET).
+The six-quantity prediction discipline and the bounded-hold-shorter-than-
+backstop constraint are the two things this dispatch adds that outlive HYG.
+Filed at docs/quant/QUANT_HYGV2_2026-08-28.md.

@@ -59,7 +59,19 @@ them you.
   (`start` in backtest, today-UTC in live). That makes backtest and live run
   identical signal code and turns "the indicator is ready on bar one" from an
   assumption into a logged fact (`primed=44 ... ready_on_first_bar=True`,
-  job `c43e580e7997`).
+  job `c43e580e7997`). **A PRIME IS NOT ENOUGH — PRIMING SOLVES "IS THE
+  INDICATOR READY", NOT "WILL A BAR ARRIVE".** `PythonData` has no period
+  (`BaseData.EndTime` is `get => Time; set => Time = value`,
+  BaseData.cs:96-100), so a daily custom bar ends at its own midnight and is
+  behind a live session's frontier
+  (`LiveCustomDataSubscriptionEnumeratorFactory.cs:82,:152,:186`) from the
+  moment the session starts. Give every custom bar an explicit end that lies
+  after its publication, drop the feed's running row, and **state the
+  delivery clock — which hour, on which day, carrying whose close — as a
+  falsifiable prediction in the report.** (EVOLVE applied 2026-08-28,
+  grounded in dispatch #8: v1 primed 1,379 bars, logged
+  `ready_on_first_bar=True`, and `on_data` was called zero times in 2h23m —
+  the prime was perfect and the algorithm was silent.)
 - **Parameters via `self.get_parameter("name")`** so the factory can sweep a
   grid. Grid values must not contain `,` or `:`.
 - **History reality**: spine bars start 2024-02-26 (~630 sessions). A hold of

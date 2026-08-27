@@ -1500,3 +1500,9 @@ live-tree npm ci is scheduled pre-market tomorrow. Keeping the eight
 dead-because-defective exports with reasons written in place was the
 janitor's own doctrine applied unprompted by a different seat — the
 work-layer propagating exactly as designed.
+
+
+## BINDS carried from quant dispatch #8 (run-quant-hygv2-0828, 2026-08-28), appended by the chair
+
+- **`annualisation_clock.state` reads `engine_understates` on a pure US-equity-ETF daily strategy** (job `f44922f7e7b0`: engine 252 vs series 365.25, factor 1.2039), because `daily_returns` is captured on a CALENDAR clock with weekend zeros. **Do not let the state be read as a crypto detector** — it cannot distinguish "24/7 series on an equity clock" from "equity series on a calendar clock". Either carry the capture clock as its own field, or rename the state so the two causes are separable.
+- **`exitrule` `kind="time"` takes only an absolute `on_date`**, so "close N sessions after entry" is not expressible; for any strategy that re-enters faster than the date, a committed time rule is an experiment terminator that becomes instantly-firing for every later entry. If a per-position holding-period exit is wanted, it is a new kind, not a note on an existing one.

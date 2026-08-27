@@ -355,6 +355,53 @@ but what will be impressive is if can spot what others dont and quickly turn it 
 
 ---
 
+## 2026-08-28 (UTC) — Fable chair
+
+### DECIDED
+- **v1's HYG live session STOPPED and v2 staged (chair call as neelesh-via-cto,
+  second-look flagged).** The quant's dispatch #8 proved v1's silence was a LEAN
+  engine defect, not a slow rule — and worse, v1's only possible future signal
+  would have been priced off a RUNNING intraday quote. Stopping it was
+  risk-reduction, not housekeeping. v2 (`hyg_fast_flip_probe_v2`) registered as
+  its own strategy `e545c8ca-b20d-46c9-8c43-027b8c9c489c`; both exits committed
+  pre-entry (loss_pct 2.0 tail backstop; time 2026-09-04 experiment terminator,
+  weekly re-commit flagged). **The deploy click is the CEO's, staged on his desk.**
+
+### BUILT
+- `lean_workspace/algorithms/hyg_fast_flip_probe_v2/main.py` (quant) — the
+  aggressive probe: 2.82 actions/week measured on the trailing 252 sessions
+  (142 actions, 71/71) vs v1's 1.59; $50 cap structural in the code; per-bar
+  heartbeat closes half the "quiet engine vs dead engine" blind spot; the
+  two-line delivery fix (drop running row, stamp bars +1 day) verified in-container.
+- PLATFORM_FACTS gained the LEAN live custom-data emission section (PythonData
+  bars have no period; live frontier; 30-min refresh; the working mitigation).
+
+### MEASURED
+- **THE HEADLINE: a LEAN live session started intraday receives NO custom bar
+  that day, and the next arrives as a running quote** (BaseData.cs:96-100;
+  LiveCustomDataSubscriptionEnumeratorFactory.cs:82,152,186; corroborated in our
+  own containers both directions). v1 primed 1,379 bars, ready_on_first_bar=True,
+  and on_data was called ZERO times in 2h23m.
+- v2 smoke `f44922f7e7b0`: 17.8 s, 758 orders, -30.28% vs +22.37% — the cost
+  arithmetic closes ((1-0.0005)^758 x 1.0384 = -28.9% predicted): 379 round-trips
+  a year is what a 2.8/week instrument costs, now priced.
+- Six-quantity offline prediction matched the container exactly (the timestamp
+  match is the proof the end-time fix took).
+- Two more instrument defects: `annualisation_clock` reads `engine_understates`
+  on a pure equity strategy (capture clock, not asset class — cannot serve as a
+  crypto detector); `exitrule` time exits cannot express "N sessions from entry".
+- Lamp auto-close: fourth flawless firing (quant lamp retired by its own run record).
+
+### OPEN FOR FABLE
+- (chair is live; carried items stand in the 08-27 entry: P2/P3 by 08-31, KG
+  crypto records 09-01, archive-gap decision by 08-30)
+
+### ON FIRE
+- **The CEO's morning clicks**: START v2's live session (one tap — everything
+  else is done); Stage A time exits fire today (autopolicy's first live approval
+  attempt); pre-market `npm ci` on the live KP tree; Stan's PM batch and the
+  riskofficer batch ride the morning as planned.
+
 ## 2026-08-27 (UTC) — the overnight program
 ### DESIGN SETTLED (CEO, mid-morning)
 

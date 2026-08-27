@@ -1097,3 +1097,8 @@ Hyperliquid at Alpaca, Supreme Finance at $0.0000054 on Yahoo — both HTTP
 form, and cite the instrument identity the bars now carry. The engine-side
 blockers are CLOSED: any venue-listed pair prices, corpses refuse, and the
 annualisation clock travels disclosed on every result.
+
+
+## BINDS carried from quant dispatch #8 (run-quant-hygv2-0828, 2026-08-28), appended by the chair
+
+- Before you propose anything intended to run LIVE on the fund's own daily custom feed, state the **time-to-first-signal and the emission clock**, not just the signal frequency. A session started intraday receives no bar that day, and the next arrives as a running intraday quote unless the algorithm gives its bars an explicit end. A proposal that assumes "it acts on today's close" is assuming a clock the engine does not have.

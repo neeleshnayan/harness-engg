@@ -1326,3 +1326,8 @@ than a bare null, and a NON-CRYPTO series reports `freshness:
 equity verdict needs an exchange calendar the path does not consult. **Do
 not read `freshness == "live"` as a precondition for an equity leg; it
 will never say that.**
+
+
+## BINDS carried from quant dispatch #8 (run-quant-hygv2-0828, 2026-08-28), appended by the chair
+
+- The v2 belt result (`f44922f7e7b0`, 2026-08-27) carries `annualisation_clock` and v1's 2026-08-26 result (`c43e580e7997`) does not, so the instrument landed between 08-26 and 08-27. Any census that compares "clock state" across candidates must treat pre-instrument rows as ABSENT, never as agreeing.

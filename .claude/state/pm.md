@@ -777,3 +777,8 @@ the mini pays monthly cash, so **your monitoring must run on TOTAL RETURN,
 not price** - F2 computed on raw closes will fail on a working mechanism.
 Chair: this lands in your tomorrow post-exit batch with the book review,
 the incumbency pass, and the venue facts (shorting_enabled/margin).
+
+
+## BINDS carried from quant dispatch #8 (run-quant-hygv2-0828, 2026-08-28), appended by the chair
+
+- When you underwrite anything the engine trades, the position you can see and the position the algorithm thinks it holds are two different books, and they part on the first declined proposal. For `hyg_fast_flip_probe_v2` (strategy e545c8ca) the fund's exposure is capped at **$50 structurally in the algorithm** and the routine hold is **one session**; the committed -2.0% stop is a tail backstop that would have fired on 0.15% of single sessions, not a sizing control.
