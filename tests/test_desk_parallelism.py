@@ -342,3 +342,34 @@ def test_a_roster_agent_OUTSIDE_the_kind_map_gets_the_FULL_envelope():
     # and not the other goes red here rather than on the CEO's floor.
     assert seats <= kinds | {"ceo", "cto"}, (
         f"roster agents with no request kind: {sorted(seats - kinds)}")
+
+
+def test_the_PAYLOAD_serves_the_full_envelope_to_a_seat_the_fold_never_saw(
+        monkeypatch):
+    """M23, ON THE PATH THAT ACTUALLY HAS THE BRANCH.
+
+    The first attempt at this test asserted key-set equality between
+    ``idle_activity()`` and the fold's own idle row — and the mutant SURVIVED
+    it, because the four-key literal lives in ``view``'s roster comprehension
+    and that test never called ``view``. A test that cannot reach the branch
+    cannot defend it, however much it looks like it is about the same thing.
+
+    So: a stranger is put in ``ROSTER`` with no entry in ``REQUEST_KINDS``,
+    which is exactly the state that would exist five minutes after somebody
+    seats a new agent. Its activity envelope must carry the same ten keys as
+    every other seat's, or every consumer of ``open_dispatches`` reads
+    absent-as-undefined on that one seat.
+    """
+    from app.fund import desk as desk_mod
+    stranger = {"agent": "newcomer", "lane": "a lane", "emits": "an artifact",
+                "exists_because": "a demonstrated need"}
+    monkeypatch.setattr(desk_mod, "ROSTER",
+                        list(desk_mod.ROSTER) + [stranger])
+    payload = desk_mod.view(MemStore([_dispatch("builder", "t1")]))
+    rows = {r["agent"]: r["activity"] for r in payload["roster"]}
+    assert "newcomer" in rows
+    assert set(rows["newcomer"]) == set(desk_mod.idle_activity())
+    assert rows["newcomer"] == desk_mod.idle_activity()
+    # And it is the SAME envelope a folded seat gets — the whole point of one
+    # constructor is that these two cannot drift.
+    assert set(rows["newcomer"]) == set(rows["builder"])
