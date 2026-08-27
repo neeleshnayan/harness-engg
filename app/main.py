@@ -126,14 +126,23 @@ def _newest_strike():
     when awaited, at shutdown, so the whole deterministic worker would go quiet
     with nothing in the log.
 
-    COST, measured 2026-08-27: ``latest()`` folds the event log — ~1.3s on the
-    first call of a process, ~50ms warm, at 1,647 events. It runs ONCE per lease
-    acquisition, never per tick, and it is synchronous like every other call in
-    this loop; ``run_universe_refresh`` in the same body blocks for up to 50
-    seconds when it is due, so a 1.3s fold is not what makes this coroutine
-    block. It is still worth watching as the log grows — the host watchdog polls
-    ``GET /fund/liveness`` on an 8-second timeout and restarts the stack on a
-    non-200, and slow is the same event to it as failed.
+    COST, MEASURED HERE rather than inherited: ``latest()`` folds the event log
+    and takes **35–52 ms at 1,654 events**, with no cold/warm split worth the
+    name (2026-08-27, two fresh processes, cold 51.8 and 35.4 ms against a warm
+    range of 34–58 ms). A neighbouring figure of ~1.3s cold belongs to
+    ``navgap.completeness``, which does far more work, and applying it here
+    would have overstated this call by thirty-fold.
+
+    It runs ONCE per lease acquisition, never per tick, and it is synchronous
+    like every other call in this loop — ``run_universe_refresh`` in the same
+    body blocks for up to 50 SECONDS when it is due, which is three orders of
+    magnitude more.
+
+    WHAT TO WATCH: the fold is linear in the log, so the 35–52 ms is a function
+    of 1,654 events and nothing pins it there. The reason to care is that the
+    host watchdog polls ``GET /fund/liveness`` on an 8-second timeout and
+    restarts Docker, Postgres and the spine on a non-200 — and to that watchdog
+    a slow event loop is the same event as a failed one.
     """
     try:
         return fund_router._nav.latest()
