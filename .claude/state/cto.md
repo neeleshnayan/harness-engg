@@ -1196,3 +1196,14 @@ rules:
    "built and then scrapped" is exactly the cost this ordering removes.
    Candidate chain unchanged (mechanism → adversary already does this);
    this extends the pattern to harness designs.
+
+
+## 2026-08-27 — chair rule from cad1 (BIND accepted verbatim)
+
+**A cadence complaint is a CLOCK question before it is a BUDGET question.**
+Ask whether the accumulator counts seconds or ticks FIRST; on the strike
+loop the answer made a budget change unnecessary and would have hidden a
+defect that was still growing (1.016x → 1.200x in thirteen days, tracking
+the loop's own weight). Generalises: when a periodic control drifts from its
+configured interval, suspect the measurement of time before the tolerance
+on it.

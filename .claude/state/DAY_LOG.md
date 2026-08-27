@@ -371,6 +371,28 @@ but what will be impressive is if can spot what others dont and quickly turn it 
   hook cannot map their subagent types to a parent seat; design the convention honestly or
   render worker counts at return, never fake live.
 
+### BUILT + CLOSED (cad1 merged, ~10:15Z) — the morning's clock decision executed
+
+- **THE STRIKE CLOCK IS FIXED AND THE BUDGET QUESTION IS CLOSED** exactly as the CEO
+  decided: the accumulator counted TICKS, not seconds, so the hourly NAV stretched by the
+  loop's own weight — and the stretch was GROWING (1.016x day one → 1.200x thirteen days
+  later, 4321s median walking toward its own 5400s alarm). Post-fix: bounded at 3600–3624s
+  (~49% headroom), and restarts no longer buy a free hour of silence (the clock resumes
+  from the newest strike in the record on every lease acquisition). Falsifier answered:
+  the cadence structurally hits 3600s; the budget stands untouched.
+- **The ten worst historical gaps, each named**: 3 outages (now watchdog-covered), 5
+  restart/handoff resets (fixed here), 1 silent failed write (→ the CEO: what should a
+  FAILED official-NAV write do? today it is indistinguishable from a deliberate
+  market-closed no-strike), 1 undetermined. Nine of ten predate the current
+  configuration. Bonus: 3 of 76 strikes were hand-fired and the history endpoint carries
+  no actor field — two instruments disagreed by exactly 60s over it (R6, queued B1).
+- Suite 6260/1 on tip, 34/34 mutants, nine control blobs verified identical; merged,
+  merged-tree suite under the lock. New host hazard named: Windows ephemeral-port
+  exhaustion (1,231 TIME_WAIT to Postgres) will flake merge gates — queued to B1/janitor.
+- Board: slice3 (desk build, carrying the CEO's four) + Ed (generation batch) still out.
+  Spine restart still held for slice3 — now FOUR merges activate on one cycle (mach1,
+  ops1, cad1, + slice3 if green).
+
 ### THE CHAIR'S DESK SWEEP (CEO instruction ~09:45Z: "clean up your desk; repriotise shelf or execute")
 
 **69 open+approved items triaged: 6 closed with citations, 1 executed, the rest ordered

@@ -1329,3 +1329,36 @@ direction. Finally, **normalise the row symbol through the same function the
 order's symbol uses, or refuse a row whose symbol is not canonical** — a
 near-miss spelling drops the row out of the per-name and reduce-only bounds
 entirely (v5r2-N1).
+
+
+## 2026-08-27 — STATE from run-builder-cad1 (the strike clock), appended by the chair
+
+**builder — after dispatch CAD1 (2026-08-27), the strike clock**
+
+- **Base was RIGHT (`365c7c3c`) and I created the worktree myself.** Live head moved to `ff5e3f6e` mid-dispatch (4 files) with **zero overlap**. Check at bundling; two commands.
+- **A PERIODIC ACCUMULATOR THAT ADVANCES BY THE NOMINAL SLEEP IS A CLOCK THAT UNDER-COUNTS BY THE LOOP'S OWN COST — AND THE ERROR GROWS AS THE LOOP GAINS WORK.** Measured on the fund's own strike series: 1.016x on day one, 1.200x thirteen days later, tracking the tick from 20.3s to 24.0s. The fix (`time.monotonic()` deltas) bounds the period at `interval + ONE TICK`, so it stops growing with total loop work. **Before making any periodic control's cadence a "budget question", check whether the accumulator counts seconds or ticks.**
+- **`not (x > 0)` IS THE NaN-SAFE FORM OF `x <= 0`, AND FOR A PERIODIC CONTROL IT IS THE ONLY ACCEPTABLE ONE.** Every comparison against NaN is False, so `x <= 0` passes a NaN through, the accumulator becomes NaN, and `>= interval` is False forever: a control that has died silently and permanently. One condition covers negative, zero and NaN, which makes the safe reading the default rather than something to remember. Found by the Gauntlet, not by 34 mutants.
+- **A COMMENT CAN SATISFY A SOURCE-SCAN ASSERTION.** M32 survived because my own explanatory comment eight lines below the guard contained the exact substring the test asserted. Pin the **statement** (with indentation and punctuation), never the phrase. This is the shared-word audit pointed at my own prose, and I walked into it the same dispatch I read the rule.
+- **`os.environ.setdefault` INSIDE A SUBPROCESS IS NOT ISOLATION — IT IS A NO-OP WHENEVER THE PARENT ALREADY SET THE VAR.** My clean-interpreter probe inherited the developer's shell; `FUND_MODE=alpaca-paper` errored three tests and `FUND_STORE=postgres` burned 30s retrying a missing database. Build the child's env explicitly and **remove** poisoning vars — there is no value for `ALPACA_API_KEY` that means "ignore me".
+- **THE HEREDOC LESSON BIT ME THREE TIMES IN ONE DISPATCH** — `python - <<'EOF'` mangled escaped `\n` in string literals and produced four silent ANCHOR misses in the mutation harness, which read as "no result", not as an error. **Any generated script containing `\n` inside a literal goes through the Write tool. No exceptions.** I have now written this rule twice and violated it four times.
+- **Verified live shapes (2026-08-27):** the fund holds **76 NavStruck in 1,654 events**, 2026-08-13 → 08-26. **Three strikes were HAND-FIRED** (`cto` 08-24 13:50; `co-cto` 15:21, 15:52) and `GET /fund/nav/history` **carries no `actor`** — so no consumer of that endpoint can exclude them, and any cadence statistic taken from it measures the chair too. `limit=1000` → HTTP 422 (cap 365; 76 does not bind it). `NavService.latest()` costs **35–52 ms at 1,654 events, with no cold/warm split** — the ~1.3s figure belongs to `navgap.completeness` and applying it here would have overstated by 30x. The event type on the wire is `NavStruck`, not `NAV_STRUCK`. `NavService.__init__`'s first positional is the **pricer**, not the store.
+- **THE VENUE GATE WAS INERT UNTIL 2026-08-22.** Before the fund-mode commit the connector had no `session` probe, so `_venue_session()` returned "simulated — always open" and the worker struck through the night. **The strike series spans three schedulers and two venue regimes; only 08-24 onward measures the current configuration.** Never compute one statistic over the whole series.
+- **PHASE IS A REAL DIAGNOSTIC FOR A RESET ACCUMULATOR**: the counter resets the moment the interval elapses whether or not a strike is written, so a tick that ran and wrote nothing preserves the phase while a restart or lease freeze moves it. **Derive the tolerance from the data with a ROBUST statistic** — my first pass used max-deviation, got 37–49% "noise", and every gap read UNDETERMINED, because the anomalies under test were themselves in the noise sample. 3xMAD gave 0.3–4.4% and decided seven of ten.
+- **Windows ephemeral-port exhaustion is now a live suite hazard**: `Address already in use (10048)` on an *outbound* Postgres connect, **1,231 TIME_WAIT to :5433** against a 16,384-port range. Two arms flaked on different tests; the base arm and two later branch arms were clean. It will make the merge gate flaky and it is not a code defect.
+- **New surfaces**: `schedule.advance` / `resume_strike_clock` / `ResumedClock` / `UNREADABLE` / `NEVER_STRUCK` / `FUTURE` / `OVERDUE` / `RESUMED`; `main._newest_strike`.
+- **Open, mine**: (a) the failed-strike blind spot — a raised `run_strike` is indistinguishable from a deliberate no-strike in the durable record (R2); (b) the handoff-during-write double-strike window, needs a guard on the write (R3); (c) the interval env reads are an unguarded kill switch for the whole worker (R4); (d) the missed closing mark after a restart — `StrikeWindow._was_open` is separate state and the clock resume does NOT cover it (R5); (e) `/fund/nav/history` carries no actor (R6); (f) `since_reconcile` is deliberately not resumed; (g) everything from OPS1/MACH1.
+- **Fitness**: production **+327 / −8 = 41:1**, tests **+582 / −3**. Better than OPS1's 378:1 and ENG1's 302:1, worse than MACH1's 7.9:1; the deletions are the two nominal-sleep accumulations and the two `>=` comparisons they fed. **Against the fitness question: the diff moved a measured number** — the strike interval from 4321s (1.200x, 80% of its alarm budget and rising) to a bounded 3600–3624s (1.007x), and it closed a cause of five of the ten worst historical gaps. It survived 34 mutants with zero survivors and zero retired, and the suite went 6222 → 6261 with nothing deleted.
+
+**CTO note at resolve (Fable chair, 2026-08-27)**: verified before merging — 4
+files, nine control/adjacent blobs identical both sides, schedule.py strictly
+additive (0 deletions), StrikeWindow untouched. Merged; merged-tree suite
+running under the lock. THE CEO'S MORNING DECISION IS EXECUTED AND CLOSED:
+clock fixed, budget untouched, falsifier answered (the cadence structurally
+hits 3600s with ~49% headroom). Your scope decision (pure logic in
+schedule.py for testability) is ACCEPTED — untestable code in main.py would
+have been the worse reading of the brief. The failed-strike semantics
+question routes to the CEO as a control decision; R3–R6 queue into the
+instrument-repair batch (B1) per the desk sweep; the ephemeral-port hazard
+is noted as a merge-gate flake source. The per-day stretch table — the
+defect GROWING with every job added — is the finding of the dispatch: a
+budget change would have hidden a still-compounding fault.

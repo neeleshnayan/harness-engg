@@ -601,3 +601,13 @@ the envelope certifies $148bn against a $2,002 fund. v4 never depended on
 this because its percentage cap sat behind four checks binding the order to
 a position that already existed. Ask for a dollar floor (per-order and
 per-day), not a better ceiling.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-builder-cad1)
+
+When you audit a control's liveness, read what the heartbeat actually
+watches before you trust a green row. `nav_strike` beats on a *deliberate
+no-strike* as well as a real one, so its budget bounds the strike CHECK's
+cadence, not the record's. State, for every heartbeat you rely on, which of
+the two it measures — the durable series is the only evidence a NAV was
+struck.

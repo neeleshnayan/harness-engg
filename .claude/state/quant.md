@@ -960,3 +960,13 @@ a 30-day rolling window — anything older than 30 days before the recorder's
 first run does not exist and cannot be bought. Coverage query:
 `python scripts/data/oi_recorder.py --verify` (reports `complete: null`,
 never `true`, when it has compared nothing).
+
+
+## BIND carried by the chair, 2026-08-27 (from run-builder-cad1)
+
+When your instrument reconciles with someone else's and the numbers differ,
+the difference IS the finding: locate what one side can see that the other
+cannot, before adjusting either. Two instruments measuring the same strike
+cadence differed by exactly 60s for one reason — an `actor` field absent
+from one endpoint's payload (three hand-fired strikes indistinguishable
+from the worker's).

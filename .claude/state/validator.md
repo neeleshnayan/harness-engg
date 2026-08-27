@@ -1203,3 +1203,13 @@ a 30-day rolling window — anything older than 30 days before the recorder's
 first run does not exist and cannot be bought. Coverage query:
 `python scripts/data/oi_recorder.py --verify` (reports `complete: null`,
 never `true`, when it has compared nothing).
+
+
+## BIND carried by the chair, 2026-08-27 (from run-builder-cad1)
+
+Before you compute any statistic over the fund's own historical series,
+partition it by the code that produced it. The strike series spans three
+schedulers and a venue gate that was inert until 2026-08-22; a single median
+over it is two measurements wearing one number. And check whether the series
+contains hand-fired rows: three of 76 strikes were, and
+`GET /fund/nav/history` carries no `actor` to exclude them by.

@@ -673,3 +673,39 @@ The rules, concretely:
 
 The sixty-second rule says how long his read is; this says what language it
 is in. Both bind every seat, every dispatch.
+
+
+## EVOLVE applied 2026-08-27 (run-builder-cad1, chair-reviewed and accepted)
+
+**A COST FIGURE FROM A NEIGHBOURING FUNCTION IS A BORROWED NUMBER — MEASURE
+THE CALL YOU ARE ADDING, AND MAKE THE COLD PATH THE PROCESS'S FIRST TOUCH.**
+Extends "READ THE CONFIGURED VALUE, NOT THE CODE DEFAULT" (OPS1) from
+configuration to measurement. Any latency, size or cost claim about code you
+are adding is measured on that code before it enters a comment; a figure
+measured on a sibling is a claim, not a measurement. And a "cold" reading
+must be the first thing the process does with the resource, because
+module-level caches are warmed by the very setup line that counts the
+population. *Measured basis: CAD1 — "~1.3s cold" written into a docstring
+was OPS1's measurement of `navgap.completeness`; `NavService.latest()` is
+35–52 ms with no cold/warm split — a 30x overstatement that would have
+justified a mitigation nothing needed; and the first cold measurement
+measured itself wrong by warming `events._STREAM_CACHE` while counting the
+population.*
+
+**A TOLERANCE DERIVED FROM A POPULATION THAT CONTAINS THE ANOMALIES USES A
+ROBUST STATISTIC, AND SAYS WHICH.** When you derive a threshold from data
+that includes the outliers you are testing for, a maximum lets the anomaly
+set its own tolerance and the test can then never fire. Use a robust
+dispersion (MAD, IQR), name it in the output, and print the maximum beside
+it so a reader can see the difference. *Measured basis: CAD1 — max-deviation
+returned 37–49% "cadence noise" and all ten gaps read UNDETERMINED because
+the stretched intervals under test were in the noise sample; 3xMAD gave
+0.02–4.41% and decided seven of ten.*
+
+**RUN THE SOURCE-SCAN ASSERTIONS AGAINST YOUR OWN COMMENTS.** A test that
+asserts a bare substring of source can be satisfied by prose in the same
+function. Pin the statement with its indentation and punctuation, never the
+phrase. *Measured basis: CAD1 M32 — breaking `if strike_every <= 0:` to
+`< 0` left the assertion passing because an explanatory comment eight lines
+below contained the identical phrase; caught by the mutation pass's second
+run.*
