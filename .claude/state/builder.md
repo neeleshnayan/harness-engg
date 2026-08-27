@@ -495,3 +495,10 @@ work-layer propagating exactly as designed.
 ## BIND carried from janitor dispatch #2 (2026-08-28), appended by the chair
 
 - **Your memory file was SPLIT on 2026-08-28** (context commit 451a81d8): entries 2026-08-20 -> 08-24 moved VERBATIM to `.claude/state/builder_archive_2026-08.md`; their still-operative rules are distilled in the STANDING LESSONS section above, each cited to its source entry. **On this dispatch, review the distillation against your own recall: anything you find missing or blunted, say so — your objection restores the archived item unconditionally, no justification needed.** The archive is the authority wherever a distilled line and its source could disagree. Rollback of the whole split is one `git revert 451a81d8`.
+
+
+## BINDS carried from quant dispatch #9 (run-quant-p1-0828, 2026-08-28), appended by the chair
+
+- **`factory.effective_history_floor` derives the walk-forward floor from `lookback_days` against the wall clock** with `per_symbol: null` — for a 2024-launched pair it planned 12 folds from 2022-06-06 and doubled `folds_required` to 8 on folds that could never carry data (~16 wasted containers). The fix: a cheap live probe of each declared symbol's first bar.
+- **The equity freshness guard is unreachable on the live bars endpoint**: `bars_payload` reads `bars.freshness` when a `Bars` object is passed (`marketdata.py:384`) and the Alpaca equity fetcher stamps `series_freshness(dates)` (a 3-day crypto bound) unconditionally (`:178-190`) — `?symbol=ETH` returns `freshness: "live"` and a holiday-week equity would read `stale`.
+- **THE CRYPTO BELT BLOCKER (critical path)**: our crypto feed is `PythonData` -> `SecurityType.Base`, refused by `CashBuyingPowerModel` and by `CoinbaseBrokerageModel.CanSubmitOrder`, while the 365-day clock REQUIRES a crypto brokerage model — **the correct clock and fills are mutually exclusive**. The harness needs either a native crypto security path in the container or a brokerage-model shim; the chair decides the shape in your next batch brief.

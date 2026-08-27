@@ -734,3 +734,8 @@ explicit start/end window still returns history (asking for 2022 is asking
 for 2022), and the venue's TRADABLE LIST and its DATA ENDPOINT disagree
 (TRX/MATIC absent from assets while old bars still serve) — the code asks
 the list, not the endpoint.
+
+
+## BIND carried from quant dispatch #9 (run-quant-p1-0828, 2026-08-28), appended by the chair
+
+- Before proposing anything on an instrument younger than ~3 years, state its **first bar date** and the fold count it buys (two years = at most 4 folds at a 17-session cadence; NOT TESTABLE at 21). A claim about a young ETP is un-walk-forward-able by construction — a property of the proposal, not of the implementation. P1's belt run demonstrated this 2026-08-28.

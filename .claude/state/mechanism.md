@@ -1102,3 +1102,10 @@ annualisation clock travels disclosed on every result.
 ## BINDS carried from quant dispatch #8 (run-quant-hygv2-0828, 2026-08-28), appended by the chair
 
 - Before you propose anything intended to run LIVE on the fund's own daily custom feed, state the **time-to-first-signal and the emission clock**, not just the signal frequency. A session started intraday receives no bar that day, and the next arrives as a running intraday quote unless the algorithm gives its bars an explicit end. A proposal that assumes "it acts on today's close" is assuming a clock the engine does not have.
+
+
+## BINDS carried from quant dispatch #9 (run-quant-p1-0828, 2026-08-28), appended by the chair
+
+- **Your P1 instrument pre-commitment is scored: right outcome, wrong reason.** The premia luck leg scores P(advantage > 0) on the ADVANTAGE series at target ZERO (`premia_psr_basis: target_zero_module`), not the engine's 1.0-Sharpe hurdle. It read 61.245% full-window and **76.768% post-staking**. When you pre-commit about the gate, name the criterion's own basis from `PREMIA_CRITERIA`, not the engine's published PSR.
+- **When a mechanism has a switch-on date, state the fraction of available history in which it was ON.** 301 of 526 sessions predated P1's staking start; that diluted +1.82%/yr to +0.70%/yr and the dilution alone decided a gate failure.
+- **Before proposing anything on an instrument younger than ~3 years, state its first bar date and the fold count it buys.** Two years of joint history gives at most 4 folds at a 17-session cadence and NOT TESTABLE at 21. A claim about a young ETP is un-walk-forward-able by construction — a property of the proposal, not the implementation.

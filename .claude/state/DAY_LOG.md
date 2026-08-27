@@ -141,6 +141,30 @@ active and directing throughout.*
   read-through catches that make the seat valuable come from the lessons, not the
   volume. Splitting lessons from map is proposed, not done.
 
+### P1 THROUGH THE FULL CHAIN (night)
+- **The crypto program's first candidate completed the whole chain SIX DAYS
+  EARLY** (charter said ~Sep 3): Ed proposed -> adversary SURVIVED -> quant
+  implemented -> belt ran -> gate judged. Candidate a39f301168fa, gate
+  v5r4-premia, **FAILED on the full window - and the premia leg itself passed
+  CLEAN**. Post-staking window (the only one where the mechanism exists):
+  advantage +0.0202, luck 76.8% vs the 65% bar, zero failures both legs. The
+  failure is dilution (301/526 sessions predate the 2025-10-06 staking start)
+  plus consistency legs that judge ether's PRICE, not the spread. **The
+  pursue/pass decision rides the CEO's desk on the post-staking evidence**
+  (due 08-30); Stan sizes on +1.9%/yr post-staking if pursued.
+- **THE CRYPTO BELT BLOCKER, exactly located**: a crypto brokerage model gives
+  the correct 365-day clock AND refuses our PythonData feed
+  (SecurityType.Base) at two independent gates - the right clock and fills
+  are mutually exclusive. Chair-owed harness decision (native crypto security
+  path vs shim) in the next builder batch. CRITICAL PATH for the 2-3 week
+  demonstration.
+- Five instrument defects cited by the quant (fold floor from the wall clock
+  cost ~16 containers and doubled the fold bar; two absence-as-zero counters;
+  benchmark label lies on cross-wrapper bars; equity freshness guard
+  unreachable). 10/11 pre-registered predictions exact; census 59 containers,
+  4 ceiling kills, no censored-grid selection. Filed
+  docs/quant/QUANT_P1_CRYPTOPROBE_2026-08-28.md; algorithms committed 8fe7eea1.
+
 ### THE SWEEP'S SECOND OPINION (late evening)
 - The parent closure-sweep agent returned its OWN independent disposition table
   (its sub-agent transcripts were unreadable to it, so it re-derived all 158

@@ -1090,3 +1090,42 @@ line: previous session's date, settled close, within 30 min of 00:00 ET).
 The six-quantity prediction discipline and the bounded-hold-shorter-than-
 backstop constraint are the two things this dispatch adds that outlive HYG.
 Filed at docs/quant/QUANT_HYGV2_2026-08-28.md.
+
+
+## 2026-08-28 — STATE from run-quant-p1-0828 (dispatch #9: P1 + crypto clock probe), appended by the chair
+
+**2026-08-27/28 — dispatch #9 (P1 ETH wrapper premium + the crypto annualisation probe). 59 containers, 4 killed, one FAIL verdict with the premia leg clean, one E2E blocker identified in both its halves.**
+
+**WHAT EXISTS NOW.** `lean_workspace/algorithms/eth_wrapper_premium/main.py` (class `EthWrapperPremium`) and `lean_workspace/algorithms/crypto_clock_probe/main.py` (class `CryptoClockProbe`), committed 8fe7eea1. Candidate **`a39f301168fa`**, gate **v5r4-premia**, **FAILED**, 3 failures (luck 61.245 < 65; holdout retention -152%; 2 of 12 folds measurable against 8 required). Winner `slip=0.0001`, `analytics_available: true`. Smokes `f068a5befd8f` / `ef76b864b045`; post-staking measurement `9c13e2542206`; crypto arms `07cebef339f4` (none) / `c5ec1c1cb7ab` (coinbase) / `7842c0838143` (coinbase+margin).
+
+**THE RESULT THAT MATTERS: THE PREMIA LEG PASSED, THE WINDOW FAILED.** Zero premia failures on the full window (advantage +0.00654, drawdown 66.978 vs 67.915, gross 0.9921, coverage true). On the post-staking sub-window (2025-10-06 -> 2026-08-26, 224 sessions) the advantage is **+0.0202** and the luck leg reads **76.768% >= 65 — zero failures on both legs.** The full-window failure is dilution: 301 of 526 sessions predate staking. **A premia claim can now clear this fund's premia bar; what it cannot do is clear the consistency legs on a two-year-old instrument.**
+
+**RUN `effective_history_floor` BEFORE `window_for_strategy`, ALWAYS.** My one prediction miss in eleven. I passed the symbols' true first bar as the floor and got 4 folds; the belt calls `factory.effective_history_floor(code, test_end)` which returns `data_path` from `lookback_days` against the WALL CLOCK (`2021-03-06` here, `per_symbol: null`, "UNMEASURED at plan time") and planned **12** folds reaching to 2022-06-06 — years before either ETP existed. Cost: ~16 wasted containers and a fold requirement doubled to 8 by `folds_required`'s folds-density term. **Counterfactual computed: at the true floor it is 4 planned / 1 measurable / 4 required — still fails, so the defect cost containers, not the verdict.**
+
+**FOR ANY LONG-ONLY SINGLE-NAME PREMIA CLAIM, THE WALK-FORWARD IS A BET ON THE ASSET'S DIRECTION.** 12 folds: 3 with zero trades (no data), 1 test leg killed at the ceiling, 6 with train legs under the 5% floor, 2 measurable and both retained <= -1.9. `MIN_TRAIN_RETURN_PCT` is on the LEVEL while the claim is a SPREAD. Predict this before submitting: compute each planned fold's train return off the feed; it is free.
+
+**TWO LEAN DEFAULTS REWRITE A MAINTENANCE RULE AND ONE OF THEM IS SILENT.** `FreePortfolioValuePercentage` 0.25% -> `set_holdings(0.99)` buys 98.7525% (entry qty 30,199 not 30,275; reproduced to the share). `MinimumOrderMarginPortfolioPercentage` 0.1% -> 12 of 31 requested trades DECLINED, one Debug line for the lot, 19 fills where the file said 31. **At weight 1.00 a maintain-the-target rule places 3 orders** (no drift, nothing to rebalance) — `min_orders` is unreachable without a cash buffer, and the buffer costs ~2.6 points of the premia luck statistic by injecting the asset's own vol into the advantage series. Both defaults measured; docs confirm the 0.25%.
+
+**THE CRYPTO BELT IS BLOCKED AND THE BLOCK IS NOW EXACTLY LOCATED.** `set_brokerage_model(COINBASE, CASH)` DOES move `trading_days_per_year` 252 -> 365 and the clock reads `agree` (1.000342) — the documented fix works on our stack. It also makes the run place ZERO fills, at two independent gates, because our feed is `PythonData` -> `SecurityType.Base`: `CashBuyingPowerModel` ("The security type must be Cryptoor Forex. Returning null.") and then, after replacing that model, `CoinbaseBrokerageModel.CanSubmitOrder` ("does not support Base security type"). **Neither is fixable inside `lean_workspace/algorithms/**`.** Corollaries: `engine_understates` is not asset-class evidence (it fires on equity ETFs too) but **`agree` IS** — only a crypto brokerage model produces 365; and a rejected order emits **no** order event (`rejects=0` in both failing arms), so `portfolio.invested` is the only in-algorithm detector.
+
+**THE BENCHMARK LABEL LIES WHENEVER `set_benchmark` NAMES A SYMBOL YOU DO NOT TRADE.** `benchmark_series_source: engine_single_name` gives the right SERIES (ETHA, -28.93 against ETHA's own -28.925) and a `benchmark_population.population` of `["ETH"]` — `sorted(traded_syms)`, `leanrunner.py:1828-1830`. Declaring `UNIVERSE = ["ETH","ETHA"]` keeps the snapshot pinning both legs and makes the fallback recompute a half-strength EW bar; read `benchmark_series_source` off every result and say which branch ran.
+
+**DECOMPOSE THE TOTAL-RETURN EXCESS BEFORE QUOTING IT.** Strategy - bar = +1.721pp, of which the wrapper premium proper (mini buy-and-hold - bar) is **+1.066pp** and **+0.655pp is a 1% cash cushion compounding better through a fall.** The SHARPE advantage is not contaminated this way (a rebalanced fixed weight leaves Sharpe unchanged); the total-return excess is. Report both.
+
+**CENSUS**: 59 containers (56 + 3), 55 done (6.5 / 11.5 / 18.0 s), **4 killed at the 900s ceiling (6.8%)**, 3,601 s of deadline against 630 s of useful engine time — **80.7% of a 74-minute wall clock was waiting on hangs.** Points declared 39, realised 36; no censored point was cheaper than every survivor in any sweep, so **no SELECTED-FROM-CENSORED-GRID label**, and the one censored test leg belonged to an already-unmeasurable fold. Hangs clustered on train legs, not on any one slip value.
+
+**FITNESS.** Implementations reaching an HONEST gate verdict without dying on an instrument defect: **1/1** (candidate completed end to end; the four kills cost containers, not the verdict). Instrument defects surfaced by running: **5** (fold floor ignores per-symbol availability; `folds_before_data_path_reach` renders that absence as 0; `benchmark_population` mislabels a cross-wrapper bar; `total_orders` counts INVALID orders so `min_orders` is pass-favourable; the equity freshness guard is unreachable on the live endpoint branch so a holiday-week equity reads `stale`). Plus **1 platform blocker located in both halves** and **1 seat prediction miss owned with its cause**.
+
+**HYBRID SPLIT:** not used. No sub-function was suitable — both files are declared reasoning plus ~15 lines of arithmetic. Neither saved nor cost; not a data point.
+
+**CTO note at resolve (Fable chair, 2026-08-28)**: the crypto program's first
+candidate went through the FULL CHAIN six days ahead of the charter date, and
+your window-vs-wrapper reading is the chair's reading too — the P1
+pursue/pass decision rides the CEO's desk on the post-staking evidence with
+Stan's sizing next if pursued. Your SecurityType blocker is chair-owed for
+the next builder batch (with the fold-floor, freshness-guard, and
+total_orders repairs); it is named critical-path in the day log. Ten-of-eleven
+prediction, the miss owned with its cause, and the counterfactual computed
+before claiming the defect didn't change the verdict — this is the seat's
+standard holding under pressure. Filed at
+docs/quant/QUANT_P1_CRYPTOPROBE_2026-08-28.md; algorithms committed 8fe7eea1.

@@ -782,3 +782,8 @@ the incumbency pass, and the venue facts (shorting_enabled/margin).
 ## BINDS carried from quant dispatch #8 (run-quant-hygv2-0828, 2026-08-28), appended by the chair
 
 - When you underwrite anything the engine trades, the position you can see and the position the algorithm thinks it holds are two different books, and they part on the first declined proposal. For `hyg_fast_flip_probe_v2` (strategy e545c8ca) the fund's exposure is capped at **$50 structurally in the algorithm** and the routine hold is **one session**; the committed -2.0% stop is a tail backstop that would have fired on 0.15% of single sessions, not a sizing control.
+
+
+## BIND carried from quant dispatch #9 (run-quant-p1-0828, 2026-08-28), appended by the chair
+
+- **If P1 is pursued, size on the +1.9%/yr POST-STAKING figure, not the belt's headline.** The belt's total-return excess is +1.72pp, of which **0.66pp is a 1% cash buffer compounding better through a falling market** — a rebalancing artifact that reverses sign in a rising market. The wrapper premium proper is +1.07pp over 25 months. The Sharpe advantage is not contaminated this way; the total-return excess is.

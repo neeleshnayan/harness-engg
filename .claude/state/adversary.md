@@ -924,3 +924,8 @@ sharing its reference's feed, are the seat's credibility working in both
 directions on one evening. The class repair is the builder's ticket with
 your instruments as acceptance. Filed at
 docs/reviews/ADVERSARY_LEGB_MERGEGATE_2026-08-27.md.
+
+
+## BIND carried from quant dispatch #9 (run-quant-p1-0828, 2026-08-28), appended by the chair
+
+- When you next review a wrapper- or share-class-selection artifact: the belt's stored `benchmark_population.population` names the TRADED symbol even when the benchmark series is a different one (`leanrunner.py:1828-1830`, `engine_single_name` branch — measured: label `["ETH"]`, series ETHA). A `must_beat_benchmark` or premia comparison against a non-traded bar is currently unauditable from the stored payload alone; demand `benchmark_series_source` and the series identity, not the label.

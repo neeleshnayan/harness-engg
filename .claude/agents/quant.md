@@ -74,8 +74,21 @@ them you.
   the prime was perfect and the algorithm was silent.)
 - **Parameters via `self.get_parameter("name")`** so the factory can sweep a
   grid. Grid values must not contain `,` or `:`.
-- **History reality**: spine bars start 2024-02-26 (~630 sessions). A hold of
-  21 days gets exactly 4 walk-forward folds; 42+ days is NOT TESTABLE. Do not
+- **History reality — and the floor is NOT yours to choose.** Run
+  `factory.effective_history_floor(code, test_end)` FIRST and feed ITS
+  `effective` into `window_for_strategy`; that is the call the belt makes, and
+  it derives the floor from your declared `lookback_days` against the WALL
+  CLOCK, with `per_symbol` availability explicitly `null` ("UNMEASURED at plan
+  time"). Measured 2026-08-28 (EVOLVE, dispatch #9): on two ETPs whose first
+  bar is 2024-07-23, a hand-chosen floor predicted 4 folds and the belt
+  planned **12 reaching back to 2022-06-06** — three placed zero trades, and
+  `folds_required`'s folds-density term doubled the requirement from 4 to 8 on
+  folds that could never carry data. Then compute each PLANNED fold's
+  train-leg return off the feed before submitting: `MIN_TRAIN_RETURN_PCT` is
+  5.0 on the LEVEL, so for a long-only single-name rule in a falling market
+  most folds are unmeasurable regardless of the claim. Both checks cost zero
+  containers. (Original fact kept: spine bars start 2024-02-26, ~630 sessions;
+  a 21-day hold gets exactly 4 folds; 42+ days is NOT TESTABLE.) Do not
   write strategies the history cannot judge — check with the fold table before
   spending engine time.
 - **≥20 fills or the Sharpe is a story**: the gate requires min_orders 20.
