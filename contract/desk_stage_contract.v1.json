@@ -29,6 +29,9 @@
         "text_basis": "verbatim",
         "execution_yours": false,
         "desk_stage": "awaiting_decision",
+        "action_tag": "pending",
+        "action_tag_label": "Pending",
+        "action_tag_basis": "status",
         "adjudication": null,
         "superseded_by": null,
         "cascade": null
@@ -65,6 +68,9 @@
         "text_basis": "verbatim",
         "execution_yours": false,
         "desk_stage": "owned_elsewhere",
+        "action_tag": "pending",
+        "action_tag_label": "Pending",
+        "action_tag_basis": "status",
         "adjudication": null,
         "superseded_by": null,
         "cascade": null
@@ -101,6 +107,9 @@
         "text_basis": "verbatim",
         "execution_yours": false,
         "desk_stage": "owned_elsewhere",
+        "action_tag": "pending",
+        "action_tag_label": "Pending",
+        "action_tag_basis": "status",
         "adjudication": null,
         "superseded_by": null,
         "cascade": null
@@ -137,6 +146,9 @@
         "text_basis": "verbatim",
         "execution_yours": false,
         "desk_stage": "owned_elsewhere",
+        "action_tag": "pending",
+        "action_tag_label": "Pending",
+        "action_tag_basis": "status",
         "adjudication": null,
         "superseded_by": null,
         "cascade": null
@@ -174,6 +186,9 @@
         "text_basis": "verbatim",
         "execution_yours": true,
         "desk_stage": "awaiting_decision",
+        "action_tag": "in_flight",
+        "action_tag_label": "In flight",
+        "action_tag_basis": "status",
         "adjudication": null,
         "superseded_by": null,
         "cascade": null
@@ -211,6 +226,9 @@
         "text_basis": "verbatim",
         "execution_yours": true,
         "desk_stage": "awaiting_decision",
+        "action_tag": "in_flight",
+        "action_tag_label": "In flight",
+        "action_tag_basis": "status",
         "adjudication": null,
         "superseded_by": null,
         "cascade": null
@@ -248,6 +266,9 @@
         "text_basis": "verbatim",
         "execution_yours": true,
         "desk_stage": "awaiting_decision",
+        "action_tag": "in_flight",
+        "action_tag_label": "In flight",
+        "action_tag_basis": "status",
         "adjudication": null,
         "superseded_by": null,
         "cascade": null
@@ -284,6 +305,9 @@
         "text_basis": "verbatim",
         "execution_yours": false,
         "desk_stage": "awaiting_execution",
+        "action_tag": "in_flight",
+        "action_tag_label": "In flight",
+        "action_tag_basis": "status",
         "adjudication": null,
         "superseded_by": null,
         "cascade": null
@@ -320,6 +344,9 @@
         "text_basis": "verbatim",
         "execution_yours": false,
         "desk_stage": "awaiting_execution",
+        "action_tag": "in_flight",
+        "action_tag_label": "In flight",
+        "action_tag_basis": "status",
         "adjudication": null,
         "superseded_by": null,
         "cascade": null
@@ -357,6 +384,9 @@
         "text_basis": "verbatim",
         "execution_yours": false,
         "desk_stage": "awaiting_execution",
+        "action_tag": "in_flight",
+        "action_tag_label": "In flight",
+        "action_tag_basis": "status",
         "adjudication": null,
         "superseded_by": null,
         "cascade": null
@@ -394,6 +424,9 @@
         "text_basis": "verbatim",
         "execution_yours": false,
         "desk_stage": "owned_elsewhere",
+        "action_tag": "pending",
+        "action_tag_label": "Pending",
+        "action_tag_basis": "status",
         "adjudication": null,
         "superseded_by": null,
         "cascade": null
@@ -430,6 +463,9 @@
         "text_basis": "verbatim",
         "execution_yours": false,
         "desk_stage": "awaiting_decision",
+        "action_tag": "pending",
+        "action_tag_label": "Pending",
+        "action_tag_basis": "unreadable:in-progress-ish",
         "adjudication": null,
         "superseded_by": null,
         "cascade": null
@@ -465,6 +501,9 @@
         "text_basis": "verbatim",
         "execution_yours": false,
         "desk_stage": "awaiting_decision",
+        "action_tag": "pending",
+        "action_tag_label": "Pending",
+        "action_tag_basis": "status",
         "adjudication": null,
         "superseded_by": null,
         "cascade": null
@@ -501,6 +540,9 @@
         "text_basis": "verbatim",
         "execution_yours": false,
         "desk_stage": "awaiting_decision",
+        "action_tag": "pending",
+        "action_tag_label": "Pending",
+        "action_tag_basis": "status",
         "adjudication": null,
         "superseded_by": null,
         "cascade": null
@@ -540,6 +582,9 @@
         "text_basis": "verbatim",
         "execution_yours": false,
         "desk_stage": "owned_elsewhere",
+        "action_tag": "deprioritised",
+        "action_tag_label": "Deprioritised",
+        "action_tag_basis": "status",
         "adjudication": null,
         "superseded_by": null,
         "cascade": null
@@ -576,6 +621,9 @@
         "text_basis": "verbatim",
         "execution_yours": false,
         "desk_stage": "owned_elsewhere",
+        "action_tag": "executed",
+        "action_tag_label": "Executed",
+        "action_tag_basis": "status",
         "adjudication": null,
         "superseded_by": null,
         "cascade": null
@@ -612,6 +660,9 @@
         "text_basis": "verbatim",
         "execution_yours": false,
         "desk_stage": "owned_elsewhere",
+        "action_tag": "completed",
+        "action_tag_label": "Completed",
+        "action_tag_basis": "status",
         "adjudication": null,
         "superseded_by": null,
         "cascade": null
@@ -651,5 +702,5 @@
     "decided_awaiting_execution": 3,
     "explicit_next_actor": 4
   },
-  "digest": "c02655184d8eb8ea58bc6cc27203a6816cba01dc3acd1a63bc0feb7ceeb00500"
+  "digest": "4159620cda25c127e7daed2b1d87fb83081cd355ad242161b64bead35a7e5236"
 }

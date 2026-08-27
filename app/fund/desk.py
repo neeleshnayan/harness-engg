@@ -2150,6 +2150,11 @@ def _annotated(rec: Any, status_by_ref: Optional[dict[str, Any]] = None) -> Any:
            "execution_yours": deskcard.execution_yours(v["actor"],
                                                        rec.get("status")),
            "desk_stage": deskcard.desk_stage(v["actor"], rec.get("status")),
+           # THE FIVE ACTION TAGS (CEO, 2026-08-28): one status vocabulary on
+           # every surface, folded in deskcard.action_tag. Spread AFTER the
+           # band fields; both folds ride every row and neither replaces the
+           # other — the band ranks, the tag says what state the work is in.
+           **deskcard.action_tag(rec),
            "adjudication": deskcard.adjudication(rec),
            "superseded_by": deskcard.superseded_by(rec.get("note")),
            # THE CASCADE MUST BE ON *THIS* PATH, and it was not on the first
@@ -2760,6 +2765,9 @@ def desk_items(open_recommendations: Iterable[dict[str, Any]],
             "execution_yours": deskcard.execution_yours(v["actor"],
                                                         rec.get("status")),
             "adjudication": deskcard.adjudication(rec),
+            # The five action tags ride this projection too — same fold, same
+            # reason as `_annotated`: one vocabulary, no client re-derivation.
+            **deskcard.action_tag(rec),
             # A supersession the TABLE does not know about because it was
             # written in English. Only when the note names its superseder —
             # see `deskcard.superseded_by`, where 6 of 10 word-level hits in

@@ -289,6 +289,82 @@ DECIDED_STATUSES = ("accepted", "staged")
 #: ``desk_load``'s partition, stated once.
 CEO_ACTORS = ("ceo", "unknown")
 
+#: THE FIVE ACTION TAGS (CEO instruction 2026-08-28, verbatim: "I want simpler
+#: action oriented tags. Pending, In FLight, Executed, Deprioritised,
+#: Completed"). One vocabulary for every desk surface, folded HERE once — the
+#: band fold's own argument: three client copies of a status rule is three
+#: status rules, and the day they disagree the disagreement is invisible.
+ACTION_TAGS = ("pending", "in_flight", "executed", "deprioritised", "completed")
+
+ACTION_TAG_LABELS = {
+    "pending": "Pending",
+    "in_flight": "In flight",
+    "executed": "Executed",
+    "deprioritised": "Deprioritised",
+    "completed": "Completed",
+}
+
+#: Statuses that mean "the record says this was carried out" vs "closed with
+#: nothing further owed". ``done`` is the execution word on this desk (the
+#: resolve pipeline marks an actioned item ``done`` with its citation);
+#: ``resolved``/``noted`` close a thing without claiming an act was performed.
+_EXECUTED_STATUSES = ("done",)
+_COMPLETED_STATUSES = ("resolved", "noted")
+_DEPRIORITISED_STATUSES = ("rejected", "declined", "shelved", "deferred",
+                           "superseded", "killed")
+
+
+def action_tag(row: Any) -> dict[str, Any]:
+    """Which of the CEO's five action tags this row wears, and why.
+
+    The mapping, stated so a reader can disagree with it in one place:
+
+      ``pending``        nobody has decided it — status ``open`` (or absent)
+                         with no supersession edge.
+      ``in_flight``      a decision landed and the follow-through is owed or
+                         underway — ``accepted``/``staged``/``approved``/
+                         ``dispatched``. An accepted row that was ALREADY
+                         executed but never marked ``done`` also lands here:
+                         that is the closure gap being visible, not a bug in
+                         the tag — the fix is marking the record, never
+                         guessing at it from here.
+      ``executed``       the record says the act was performed (``done``).
+      ``deprioritised``  a human chose not to do it now — rejected, declined,
+                         shelved, superseded, killed.
+      ``completed``      closed with nothing further owed (``resolved``,
+                         ``noted``).
+
+    An unreadable status reports ``basis: "unreadable"`` and lands in
+    ``pending`` — the same direction rule as the band fold: coercion must not
+    quietly retire a row from the desk.
+    """
+    if not isinstance(row, dict):
+        return {"action_tag": "pending", "action_tag_label": "Pending",
+                "action_tag_basis": "unreadable"}
+    # A supersession edge outranks the stored status: a superseded row is not
+    # actionable whatever its status field still says.
+    if row.get("supersession"):
+        return {"action_tag": "deprioritised",
+                "action_tag_label": ACTION_TAG_LABELS["deprioritised"],
+                "action_tag_basis": "supersession"}
+    st = row.get("status")
+    s = str(st).strip().lower() if isinstance(st, str) else ""
+    if s in _EXECUTED_STATUSES:
+        tag = "executed"
+    elif s in _COMPLETED_STATUSES:
+        tag = "completed"
+    elif s in _DEPRIORITISED_STATUSES:
+        tag = "deprioritised"
+    elif s in DECIDED_STATUSES or s in ("approved", "dispatched"):
+        tag = "in_flight"
+    elif s in ("open", ""):
+        tag = "pending"
+    else:
+        return {"action_tag": "pending", "action_tag_label": "Pending",
+                "action_tag_basis": f"unreadable:{s[:24]}"}
+    return {"action_tag": tag, "action_tag_label": ACTION_TAG_LABELS[tag],
+            "action_tag_basis": "status"}
+
 
 def desk_stage(actor: Any, status: Any) -> str:
     """How a spine verdict maps onto the page's three stages.
