@@ -357,6 +357,20 @@ def order_delta(order: dict[str, Any]) -> Optional[float]:
     return None
 
 
+def _type_name(e: Any) -> str:
+    """An exception's class name, or a placeholder. Never raises.
+
+    ``type(e).__name__`` reads an attribute off a class object, and a class
+    with a metaclass ``__getattribute__`` can make even that throw. The whole
+    point of the handler this serves is that NOTHING inside it may raise —
+    a guard that can itself fail is the control this module keeps finding.
+    """
+    try:
+        return str(type(e).__name__)
+    except Exception:  # noqa: BLE001
+        return "(an exception whose type could not be named)"
+
+
 def _number(value: Any, *, lo: Optional[float] = None,
             hi: Optional[float] = None) -> Optional[float]:
     """A context value as a number INSIDE ITS DECLARED RANGE, or ABSENT.
@@ -729,8 +743,22 @@ def evaluate(order: Any, *, halted: bool,
         # LOUD AND REFUSING, NEVER SWALLOWED. The partial check list is kept:
         # whatever was evaluated before the fault is exactly what the
         # riskofficer needs to find where it happened.
+        #
+        # THE EXCEPTION'S OWN ``__str__`` IS CALLED INSIDE A SECOND GUARD, and
+        # that is not paranoia dressed as rigour — it is the same class of
+        # defect this whole handler exists to close, one layer down. The first
+        # version of this line interpolated ``{e}`` directly, so an exception
+        # whose ``__str__`` raises escaped ``evaluate`` and took the tick with
+        # it: the guard against hostile INPUT stopped one step short of a
+        # hostile EXCEPTION. Found by the Gauntlet, reproduced with a class
+        # whose ``.get`` raises an error whose ``__str__`` raises.
+        try:
+            said = str(e)
+        except Exception:  # noqa: BLE001
+            said = ("(the exception's own __str__ raised, so what went wrong "
+                    "cannot be reported — only that something did)")
         check("evaluate_completed", False,
-              f"the envelope raised {type(e).__name__}: {e} — an order whose "
+              f"the envelope raised {_type_name(e)}: {said} — an order whose "
               f"evaluation did not finish is refused, and this check exists so "
               f"the failure is a REFUSAL on the record rather than an exception "
               f"that aborts the tick and leaves every later order unevaluated")

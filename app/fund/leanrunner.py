@@ -1137,7 +1137,8 @@ class LeanRunner:
         launching ``docker run``, so a pass landing in that window sees a live
         row with no container — which is the shape of ``vanished``. See
         ``leansessions.YOUNG``. The default of 0 is the start-up behaviour to
-        the byte; the worker passes ``LEAN_RECONCILE_GRACE_SECONDS``.
+        the byte; the worker passes this module's ``RECONCILE_GRACE_SECONDS``
+        (set by the ``LEAN_RECONCILE_GRACE`` environment variable).
         """
         from app.fund import leansessions
         rows = self.registry_rows_or_none()

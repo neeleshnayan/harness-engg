@@ -88,6 +88,13 @@ def failed(**ctx_over):
     return set(run(**ctx_over)["failed"])
 
 
+def failed_order(**order_over):
+    """The refusing checks for a context that is FINE and an ORDER
+    that is not. ``failed`` only overrides the context, and three of
+    the boundaries below live on the order."""
+    return set(run(order(**order_over))["failed"])
+
+
 def detail(out, name):
     rows = [c["detail"] for c in out["checks"] if c["check"] == name]
     assert len(rows) == 1, f"{name} appears {len(rows)} times"
@@ -964,3 +971,125 @@ class TestTheDetailIsBoundedBecauseItLandsInTheEventLog:
         for n, truncated in ((118, False), (119, True)):
             d = detail(run(nav_usd="y" * n), "context_values_in_range")
             assert ("..." in d) is truncated, (n, len(d))
+
+
+class TestTheGuardCannotItselfRaise:
+    """FOUND BY THE GAUNTLET. The handler that exists so ``evaluate`` never
+    raises interpolated the exception with ``{e}`` — which calls ``str(e)``. An
+    exception whose own ``__str__`` raises therefore escaped ``evaluate`` and
+    took the tick with it: **the guard against hostile INPUT stopped one step
+    short of a hostile EXCEPTION.**
+
+    Narrow, and it contradicts a contract written in capitals in the module's
+    own docstring, which is what makes it worth closing rather than noting."""
+
+    @staticmethod
+    def _hostile(exc):
+        class Hostile(dict):
+            def get(self, *a, **k):
+                raise exc
+        return Hostile()
+
+    def test_an_exception_whose_str_RAISES_still_returns_a_verdict(self):
+        class Unspeakable(Exception):
+            def __str__(self):
+                raise RuntimeError("str blew up too")
+
+        out = V5.evaluate(order(), halted=False, heartbeats=HB,
+                          signal_age_minutes=0.5,
+                          context=self._hostile(Unspeakable()))
+        assert out["approve"] is False
+        assert "evaluate_completed" in out["failed"]
+        d = detail(out, "evaluate_completed")
+        assert "Unspeakable" in d                      # the TYPE still lands
+        assert "__str__ raised" in d                   # and says what it lost
+
+    def test_an_exception_whose_TYPE_cannot_be_named_still_returns_a_verdict(self):
+        """One layer further down: ``type(e).__name__`` reads an attribute off
+        a class object, and a metaclass can make even that throw. A guard that
+        can itself fail is the control this module keeps finding."""
+        class Blind(type):
+            def __getattribute__(cls, name):
+                if name == "__name__":
+                    raise RuntimeError("no name for you")
+                return type.__getattribute__(cls, name)
+
+        class Nameless(Exception, metaclass=Blind):
+            pass
+
+        out = V5.evaluate(order(), halted=False, heartbeats=HB,
+                          signal_age_minutes=0.5,
+                          context=self._hostile(Nameless()))
+        assert out["approve"] is False
+        assert "could not be named" in detail(out, "evaluate_completed")
+
+    def test_an_ORDINARY_exception_still_reports_its_type_and_message(self):
+        """THE POSITIVE CONTROL. A guard that swallowed every message would
+        satisfy both tests above and destroy the diagnosis they preserve."""
+        out = V5.evaluate(order(), halted=False, heartbeats=HB,
+                          signal_age_minutes=0.5,
+                          context=self._hostile(ValueError("plain and legible")))
+        d = detail(out, "evaluate_completed")
+        assert "ValueError" in d
+        assert "plain and legible" in d
+        assert "__str__ raised" not in d
+
+    def test_the_payload_is_still_WELL_FORMED_on_the_hostile_paths(self):
+        """The riskofficer's query is over ``draft`` and ``policy_version``. If
+        an exception path could drop either, the one evaluation most worth
+        finding would be the one that is invisible."""
+        class Unspeakable(Exception):
+            def __str__(self):
+                raise RuntimeError("nope")
+
+        for exc in (ValueError("x"), Unspeakable()):
+            out = V5.evaluate(order(), halted=False, heartbeats=HB,
+                              signal_age_minutes=0.5,
+                              context=self._hostile(exc))
+            assert out["draft"] is True
+            assert out["wired"] is False
+            assert out["policy_version"] == V5.AUTOPOLICY_V5_DRAFT_VERSION
+            assert out["class"] == "engine_entry"
+            assert out["checks"][-1]["check"] == "evaluate_completed"
+
+
+class TestTheEPSILON_boundaries_the_Gauntlet_found_unprobed:
+    """``POSITION_EPS`` is float noise everywhere else in this module and a
+    MINIMUM-POSITIVE THRESHOLD in three new places. The Gauntlet's boundary
+    table found all three unprobed — low materiality, and 'we never looked' is
+    not a measurement."""
+
+    def test_an_order_quantity_AT_the_epsilon_is_accepted(self):
+        assert "side_is_readable" not in failed_order(qty=V5.POSITION_EPS)
+        assert "side_is_readable" in failed_order(qty=V5.POSITION_EPS / 2)
+
+    def test_an_in_flight_quantity_AT_the_epsilon_is_REFUSED(self):
+        """The two boundaries point OPPOSITE ways and that is deliberate: an
+        order quantity is ``lo=POSITION_EPS`` (at the epsilon is a real order),
+        an in-flight row is ``<= POSITION_EPS`` (at the epsilon is noise a
+        ledger should not be carrying). Asserted together so the asymmetry is
+        a decision on the record rather than an accident."""
+        at = pending(qty=V5.POSITION_EPS)
+        assert "in_flight_ledger_readable" in failed(pending_approved=[at])
+        just_over = pending(qty=V5.POSITION_EPS * 2)
+        assert "in_flight_ledger_readable" not in failed(
+            pending_approved=[just_over])
+
+    def test_an_in_flight_MARK_at_the_epsilon_is_REFUSED(self):
+        at = pending(qty=0.01, mark=V5.POSITION_EPS)
+        assert "in_flight_ledger_readable" in failed(pending_approved=[at])
+        over = pending(qty=0.01, mark=V5.POSITION_EPS * 2)
+        assert "in_flight_ledger_readable" not in failed(pending_approved=[over])
+
+    def test_the_coherence_slack_is_EXACTLY_the_epsilon(self):
+        """``t + POSITION_EPS < m``: a gross figure short of its own position by
+        the epsilon is tolerated; short by more is not."""
+        qty, mark = 1.0, MARK        # this symbol is worth $80.00
+        assert "exposure_ledgers_coherent" not in failed(
+            book_qty_signed=qty, venue_qty_signed=qty, strategy_qty_signed=qty,
+            gross_exposure_usd=qty * mark - V5.POSITION_EPS,
+            strategy_exposure_usd=qty * mark - V5.POSITION_EPS)
+        assert "exposure_ledgers_coherent" in failed(
+            book_qty_signed=qty, venue_qty_signed=qty, strategy_qty_signed=qty,
+            gross_exposure_usd=qty * mark - 1.0,
+            strategy_exposure_usd=qty * mark - 1.0)

@@ -539,3 +539,63 @@ class TestTheWorkerTickCannotKillTheWorker:
         # runner declined to perform must not read as one it did.
         assert 'rep.get("actions")' in window
         assert 'rep.get("counts")' not in window
+
+
+class TestTheYOUNGBranchThroughTheRUNNER:
+    """FOUND BY THE GAUNTLET'S FIXTURE-CLASSIFICATION PASS. ``YOUNG`` was
+    exercised only against the pure function ``leansessions.reconcile``. The
+    RUNNER's dispatch — the ``else`` that records an action without acting on
+    it — was covered for ``LEAVE`` and not for the new word, so nothing proved
+    that a spared row is not also, say, killed on the way past.
+
+    A MODEL fixture is not a CALL fixture: the branch is code-identical to the
+    tested one, and 'identical' is a claim about code somebody has to check."""
+
+    @staticmethod
+    def _now_minus(seconds):
+        import datetime as dt
+        return (dt.datetime.now(dt.timezone.utc)
+                - dt.timedelta(seconds=seconds)).isoformat()
+
+    def _runner(self, tmp_path, started):
+        """A runner whose two IO reads are fixed and whose two WRITES are
+        witnessed. Killing and registering are the only destructive things the
+        dispatch can do, so both are recorded rather than stubbed away — a fake
+        that swallows the write cannot prove the write did not happen."""
+        from app.fund.leanrunner import LeanRunner
+        r = LeanRunner(workspace=tmp_path)
+        row = {"session_id": "young1", "state": "starting",
+               "container": f"{LS.CONTAINER_PREFIX}young1",
+               "started_at": started, "stopped_at": None}
+        r.registry_rows_or_none = lambda: [dict(row)]
+        r.docker_live_containers = lambda: []       # readable, and EMPTY
+        r._our_mode = lambda: "alpaca-paper"
+        killed, registered = [], []
+        r._kill_container = lambda c: (killed.append(c), (False, "witness"))[1]
+        r._register_state = lambda s, **k: registered.append(dict(s))
+        return r, killed, registered
+
+    def test_a_YOUNG_row_is_recorded_and_NOTHING_is_done_to_it(self, tmp_path):
+        r, killed, registered = self._runner(tmp_path, self._now_minus(5))
+        rep = r.reconcile_containers(trigger="worker", grace_seconds=180.0)
+        act, = rep["actions"]
+        assert act["action"] == LS.YOUNG
+        assert act["done"] is False
+        assert killed == [], "a spared row must not have its container killed"
+        assert registered == [], "a spared row must not be written back"
+        assert rep["counts"][LS.YOUNG] == 1
+        assert rep["counts"][LS.VANISHED] == 0
+
+    def test_the_SAME_row_older_than_the_grace_IS_retired_through_the_runner(
+            self, tmp_path):
+        """THE POSITIVE CONTROL ON THE SAME PATH. Without it, a dispatch that
+        had quietly stopped acting on anything would satisfy the test above."""
+        r, killed, registered = self._runner(tmp_path, self._now_minus(3600))
+        rep = r.reconcile_containers(trigger="worker", grace_seconds=180.0)
+        act, = rep["actions"]
+        assert act["action"] == LS.VANISHED
+        assert act["done"] is True
+        assert killed == [], "a vanished row has no container to kill"
+        assert len(registered) == 1
+        assert registered[0]["state"] == LS.VANISHED
+        assert "UNKNOWN" in registered[0]["error"]
