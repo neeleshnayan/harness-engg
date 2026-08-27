@@ -142,6 +142,26 @@ async def _scheduler():
     """
     settle_every = int(os.getenv("SETTLE_INTERVAL_SECONDS", "30"))
     strike_every = int(os.getenv("STRIKE_INTERVAL_SECONDS", "1800"))
+    # READ ONCE, HERE, AND DEFENSIVELY. Every tick in the loop below is wrapped
+    # in its own ``try`` for the same reason: an exception must cost one tick,
+    # never the worker. An import at this level is NOT covered by those, and a
+    # coroutine that raises inside ``asyncio.create_task`` surfaces its
+    # exception only when it is awaited — at shutdown. The whole deterministic
+    # worker would go quiet with nothing in the log until the process ended,
+    # which is the unwired-kill-switch shape wearing an import statement.
+    #
+    # ``reconcile_every`` falsy DISABLES the tick, and that is a supported
+    # setting (``LEAN_RECONCILE_INTERVAL=0``) as well as the failure path.
+    try:
+        from app.fund import leanrunner as _lr
+        from app.fund import leansessions as _ls
+        reconcile_every = _lr.RECONCILE_INTERVAL_SECONDS
+    except Exception as e:  # noqa: BLE001
+        _lr = _ls = None
+        reconcile_every = 0
+        _log.error("LEAN session reconciliation is UNWIRED in this process "
+                   "(%s) — orphan detection now runs ONLY at start-up, and "
+                   "the window between start-ups is open again", e)
     # The lease must outlive several ticks. One that expires between two ticks
     # of its own holder hands the work back and forth and produces exactly the
     # double-execution it exists to prevent.
@@ -149,6 +169,12 @@ async def _scheduler():
     lease = _lease = SchedulerLease(ttl_seconds=max(180, settle_every * 4))
     _log.info("scheduler identity: %s", lease.owner)
     since_strike = 0
+    # START AT THE INTERVAL, NOT AT ZERO — so the first worker pass happens on
+    # the first tick after the lease is held rather than five minutes later.
+    # The start-up pass has already run by then; this makes the WORKER's
+    # freshness reading true immediately instead of reporting a stale
+    # never-ticked state for the first interval of every process.
+    since_reconcile = reconcile_every
     window = StrikeWindow()
     was_held = None
     while True:
@@ -273,6 +299,57 @@ async def _scheduler():
             fund_router.run_results_prune_tick()
         except Exception as e:  # noqa: BLE001
             _log.warning("results prune tick failed: %s", e)
+        # LEAN live containers, reconciled against the registry BETWEEN
+        # start-ups. The start-up pass (in ``lifespan`` below) closed the
+        # restart case; this closes the one that is actually normal — a session
+        # whose container dies mid-run, or a container still running whose row
+        # something retired. Until this existed, ``engineledger.ORPHAN_NOTE``
+        # published that window as an unclosed limit on what the engine fence
+        # proves, and the window was as long as the spine's uptime.
+        #
+        # SELF-THROTTLING, like the universe and snapshot ticks above: this
+        # runs every 30 seconds and the reconciliation every five minutes, so
+        # the common case is one integer comparison. It shells out to
+        # ``docker ps`` when it is due, which is why it is not on every tick.
+        since_reconcile += settle_every
+        if reconcile_every and since_reconcile >= reconcile_every:
+            since_reconcile = 0
+            try:
+                # THE GRACE IS WHAT MAKES A PERIODIC PASS SAFE. ``start_live``
+                # writes its registry row before launching ``docker run``, so a
+                # pass landing in that window would see a live row with no
+                # container and retire a session that is starting correctly.
+                # The start-up pass cannot race a start and passes no grace.
+                rep = fund_router._lean().reconcile_containers(
+                    trigger="worker",
+                    grace_seconds=_lr.RECONCILE_GRACE_SECONDS) or {}
+                # COUNTED FROM WHAT WAS PERFORMED, NOT FROM WHAT WAS PLANNED,
+                # and REATTACH is excluded from "acted" deliberately. A live
+                # session's row and its container agree on every single pass,
+                # so a reattach is the STEADY STATE of a healthy fund — counting
+                # it would put a warning in the log every five minutes for as
+                # long as anything is running, which is how a log stops being
+                # read. The three that remain are the three that CHANGE
+                # something: a container stopped, a row retired, a contradiction
+                # adopted.
+                acted = sum(1 for a in (rep.get("actions") or [])
+                            if a.get("done") is True
+                            and a.get("action") != _ls.REATTACH)
+                # QUIET WHEN IT FOUND NOTHING AND LOUD WHEN IT ACTED, the same
+                # rule the autopolicy tick follows: at one pass every five
+                # minutes, an unconditional line would bury everything else.
+                # ``checked`` false is its own case — a pass that compared
+                # nothing is not a pass that found nothing.
+                if acted or rep.get("checked") is not True:
+                    _log.warning("LEAN session reconciliation (worker): %s",
+                                 rep.get("note"))
+                else:
+                    _log.info("LEAN session reconciliation (worker): %s",
+                              rep.get("note"))
+            except Exception as e:  # noqa: BLE001
+                _log.warning("LEAN session reconciliation tick failed: %s — "
+                             "any orphaned live container is still "
+                             "unaccounted for", e)
         if since_strike >= strike_every:
             since_strike = 0
             # Both of these WRITE to the permanent log — a NAV_STRUCK snapshot

@@ -204,8 +204,18 @@ def _ok_ctx(**over):
         "nav_usd": 2000.0,
         "order_mark_usd": 10.0,
         "mark_move_vs_strike_pct": 0.4,
-        "notional_usd": 100.0,
+        # ``notional_usd`` IS DELIBERATELY ABSENT AND MUST STAY ABSENT. r2
+        # computes the order notional as ``|qty| x order_mark_usd`` rather than
+        # accepting a third number that can disagree with the two that
+        # determine it. A fixture still carrying the key would let a reader
+        # believe the envelope reads it — and would hide the day the envelope
+        # stopped.  qty 10 x mark 10 = $100.
         "day_auto_notional_usd": 0.0,
+        # A MEASURED ZERO, NOT AN ABSENCE. ``[]`` says the in-flight ledger was
+        # read and nothing is in flight; ``None`` says it could not be read and
+        # refuses. The happy path has to state which one it is, because those
+        # are the two facts the kill was about.
+        "pending_approved": [],
         "book_qty_signed": 0.0,
         "strategy_qty_signed": 0.0,
         "venue_qty_signed": 0.0,
@@ -521,12 +531,37 @@ class TestFreshness:
 
 class TestTheCaps:
     def test_an_oversized_order_refuses(self):
-        assert "order_notional_within_cap" in _failed(notional_usd=400.0)
+        # DRIVEN THROUGH THE MARK, because r2 computes the notional from the
+        # quantity and the mark rather than accepting it. 10 units at $40 is
+        # $400 = 20% of a $2,000 NAV against a 15% ceiling.
+        assert "order_notional_within_cap" in _failed(order_mark_usd=40.0)
 
     def test_the_order_cap_boundary_is_inclusive(self):
         at = 2000.0 * V5.MAX_ENGINE_ORDER_NOTIONAL_PCT / 100.0
-        assert "order_notional_within_cap" not in _failed(notional_usd=at)
-        assert "order_notional_within_cap" in _failed(notional_usd=at * 1.01)
+        assert "order_notional_within_cap" not in _failed(
+            order_mark_usd=at / 10.0)
+        assert "order_notional_within_cap" in _failed(
+            order_mark_usd=at * 1.01 / 10.0)
+
+    def test_the_notional_is_COMPUTED_and_a_supplied_one_is_ignored(self):
+        """r1 READ ``notional_usd`` from the context beside the quantity and
+        the mark that determine it, and approved an order declaring a notional
+        of ZERO for ten units at $10. Two ideas of one number, in a module
+        whose own header warns against exactly that.
+
+        Both halves are asserted: a supplied figure cannot make an oversized
+        order look small, and it cannot make a small one look oversized. A test
+        that only checked the first would pass on a module that had started
+        reading the key again in the other direction.
+        """
+        assert "order_notional_within_cap" in _failed(
+            order_mark_usd=40.0, notional_usd=0.0)
+        assert "order_notional_within_cap" not in _failed(
+            notional_usd=1e9)
+        out = _run(ctx=_ok_ctx(notional_usd=0.0))
+        detail = [c for c in out["checks"]
+                  if c["check"] == "order_notional_within_cap"][0]["detail"]
+        assert "5.00%" in detail, detail  # 10 x $10 / $2,000, not the zero
 
     def test_the_order_cap_is_never_wider_than_the_pre_trade_gate_s(self):
         """An auto-approved order a HUMAN could not have submitted through the
@@ -737,17 +772,36 @@ class TestTheEmptyInput:
         out = V5.evaluate({}, halted=False, heartbeats={},
                           signal_age_minutes=None, context=None)
         assert out["approve"] is False
-        # EVERY check refuses EXCEPT ``not_halted``, which is genuinely true:
-        # the caller passed ``halted=False`` and that is a real reading, not an
-        # absent one. Naming the exception rather than asserting "all of them"
-        # is what keeps this test honest — the loose version would have hidden
-        # a second check that passed on nothing.
+        # EVERY check refuses EXCEPT THREE, and each of the three is genuinely
+        # true rather than passing on nothing. Naming them rather than
+        # asserting "all of them" is what keeps this test honest — the loose
+        # version would have hidden a fourth check that passed on absence.
+        #
+        #   not_halted            — the caller passed ``halted=False`` and that
+        #                           is a real reading.
+        #   context_values_in_range — nothing was MALFORMED. Every field was
+        #                           absent, and absent is not malformed: the
+        #                           checks that need those fields refuse on
+        #                           their own, which is where the refusal
+        #                           belongs. A version of this check that also
+        #                           fired on absence would report the same
+        #                           sentence for a missing NAV and a boolean
+        #                           one, which are different defects in the
+        #                           gatherer.
+        #   evaluate_completed    — the evaluation DID complete. It says
+        #                           whether the envelope reached the end, not
+        #                           whether it liked what it found, and an
+        #                           empty input is precisely the case r1 threw
+        #                           on and r2 must not.
         assert set(out["failed"]) == {c["check"] for c in out["checks"]} - {
-            "not_halted"}
-        assert V5.evaluate({}, halted=True, heartbeats={},
-                           signal_age_minutes=None,
-                           context=None)["failed"] == [
-            c["check"] for c in out["checks"]]
+            "not_halted", "context_values_in_range", "evaluate_completed"}
+        # ...and with the kill switch ALSO engaged, the only survivors are the
+        # two that describe the evaluation rather than the order.
+        halted = V5.evaluate({}, halted=True, heartbeats={},
+                             signal_age_minutes=None, context=None)
+        assert set(halted["failed"]) == {c["check"] for c in out["checks"]} - {
+            "context_values_in_range", "evaluate_completed"}
+        assert halted["approve"] is False
 
     @pytest.mark.parametrize("junk", [
         {"side": "buy", "qty": "abc"}, {"side": None, "qty": 1},

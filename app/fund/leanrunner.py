@@ -158,6 +158,30 @@ _ENGINE_SLOTS = threading.BoundedSemaphore(MAX_CONCURRENT_CONTAINERS)
 MAX_LIVE_SESSIONS = int(os.getenv("LEAN_MAX_LIVE_SESSIONS",
                                   str(max(1, MAX_CONCURRENT_CONTAINERS // 2))))
 
+#: How often the deterministic worker reconciles the session registry against
+#: ``docker ps``. Proposed at five minutes, matching the cadence of the other
+#: CONTROL ticks rather than the settle poll: an unaccounted container holds a
+#: signal token and can POST proposals into the approval queue, so the window
+#: in which one can exist unnoticed belongs beside the risk monitor's, not
+#: beside the snapshot's.
+#:
+#: The cost is one ``docker ps`` and one registry page per pass. Both are
+#: bounded and neither writes; the ACTIONS write, and they only fire on a
+#: difference.
+RECONCILE_INTERVAL_SECONDS = float(os.getenv("LEAN_RECONCILE_INTERVAL", "300"))
+
+#: How long a live registry row is protected from being called ``vanished``
+#: because no container backs it. See ``leansessions.YOUNG`` for the race; this
+#: is its width, and three minutes is chosen against the SLOW path (a cold
+#: ``docker run`` that has to pull the LEAN image) rather than the fast one.
+#:
+#: THE COST OF EACH DIRECTION IS NOT SYMMETRIC AND THAT IS WHY IT IS GENEROUS.
+#: Too long and a genuinely dead session keeps its scope claimed for an extra
+#: few minutes, which the next pass corrects. Too short and a session that is
+#: starting correctly is retired mid-start, its scope released, and the
+#: container that then appears is stopped by the following pass as an orphan.
+RECONCILE_GRACE_SECONDS = float(os.getenv("LEAN_RECONCILE_GRACE", "180"))
+
 _PARAM_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_\-]{0,31}$")
 
 #: The parameter an algorithm reads to fill FRACTIONAL shares.
@@ -465,6 +489,13 @@ class LeanRunner:
         # ``leansessions.known_since`` holds the three-case decision and the
         # direction argument; this value is now one of its three inputs.
         self._born = _now()
+        #: The last reconciliation that ACTED, or ``None`` — never a zeroed
+        #: record. ``None`` here is what makes ``last_reconciliation`` able to
+        #: say NEVER RUN, which is a louder fact than STALE and calls for a
+        #: different response: a stale reading means the worker stopped, a
+        #: never-run reading means the start-up pass itself failed and an
+        #: inherited container is still holding a signal token.
+        self._last_reconcile: Optional[dict[str, Any]] = None
         self._lock = threading.Lock()
         # Durable mirror, built on first use so a runner with no database (every
         # test) behaves exactly as before.
@@ -1084,26 +1115,39 @@ class LeanRunner:
             out.append({"name": name.strip(), "mode": label.strip() or None})
         return out
 
-    def reconcile_containers(self) -> dict[str, Any]:
+    def reconcile_containers(self, *, trigger: str = "startup",
+                             grace_seconds: float = 0.0) -> dict[str, Any]:
         """Match the registry against ``docker ps`` and act on the difference.
 
         **THIS IS THE HALF OF THE FIX THAT MAKES THE OTHER HALF TRUE.** A
         durable registry alone would still leave a container running that no
         process remembers; ``engineledger.ORPHAN_NOTE`` names that exact gap and
-        says closing it needs the runner to reconcile against ``docker ps`` at
-        start-up. This is that reconciliation.
+        says closing it needs the runner to reconcile against ``docker ps``.
 
-        Called at spine start-up (``app.main.lifespan``). Never raises: a
-        reconciliation that cannot run must not stop the spine from starting —
-        it reports what it could not do, and every action it did not take is
-        visible in the counts beside the domain it compared.
+        Called at spine start-up (``app.main.lifespan``) and, since 2026-08-27,
+        on the deterministic worker's tick — the start-up pass left the whole
+        window BETWEEN start-ups open, which is where a session that goes quiet
+        mid-run actually lives. Never raises: a reconciliation that cannot run
+        must not stop the spine from starting, nor kill the tick that will try
+        again — it reports what it could not do, and every action it did not
+        take is visible in the counts beside the domain it compared.
+
+        ``grace_seconds`` is what makes the periodic caller SAFE and the
+        start-up caller UNCHANGED. ``start_live`` writes its registry row before
+        launching ``docker run``, so a pass landing in that window sees a live
+        row with no container — which is the shape of ``vanished``. See
+        ``leansessions.YOUNG``. The default of 0 is the start-up behaviour to
+        the byte; the worker passes this module's ``RECONCILE_GRACE_SECONDS``
+        (set by the ``LEAN_RECONCILE_GRACE`` environment variable).
         """
         from app.fund import leansessions
         rows = self.registry_rows_or_none()
         containers = self.docker_live_containers()
         plan = leansessions.reconcile(rows, containers,
                                       our_mode=self._our_mode(),
-                                      rows_cap=self.registry_page_size())
+                                      rows_cap=self.registry_page_size(),
+                                      now=_now(),
+                                      grace_seconds=grace_seconds)
 
         performed: list[dict[str, Any]] = []
         for act in plan["actions"]:
@@ -1111,6 +1155,36 @@ class LeanRunner:
             row = next((r for r in (rows or ()) if r.get("session_id") == sid),
                        None)
             if what in (leansessions.REATTACH, leansessions.ADOPT):
+                # A SESSION THIS PROCESS ALREADY HOLDS IS NEVER RE-TAKEN, AND
+                # THIS BECAME LOAD-BEARING THE DAY THE PASS BECAME PERIODIC.
+                #
+                # ``_run_live`` binds ``session = self._live[session_id]`` ONCE
+                # and mutates that object for the rest of the session's life.
+                # Replacing the entry hands the process a DIFFERENT dict from
+                # the one its own thread is writing to: when the engine exits,
+                # the thread records ``ended`` on the object it holds while
+                # ``_live`` — which is what ``live_sessions()`` and
+                # ``stop_live()`` read — still says ``running``, forever.
+                #
+                # At start-up this could not happen: ``_live`` is empty, there
+                # is no thread, and taking the row back in is the entire point.
+                # Every five minutes it happens on the FIRST pass after any
+                # session starts. Demonstrated by identity, not equality:
+                # ``scratchpad/clobber_probe.py``.
+                #
+                # Recording it as ``done: False`` rather than skipping it
+                # silently: the reconciliation's job is to say what it found,
+                # and "this one is already ours" is a finding, not a no-op.
+                with self._lock:
+                    held = sid in self._live
+                if held:
+                    performed.append({
+                        **act, "done": False,
+                        "detail": ("this process already holds the session; "
+                                   "its own thread owns that object and "
+                                   "replacing it would leave `_live` reporting "
+                                   "a state the thread no longer writes to.")})
+                    continue
                 taken = dict(row or {})
                 taken.update({"session_id": sid, "state": "running",
                               "container": act.get("container"),
@@ -1149,9 +1223,34 @@ class LeanRunner:
                                        "exit code.")})
                 self._register_state(gone)
                 performed.append({**act, "done": True})
-            else:  # LEAVE — recorded, never touched
+            else:  # LEAVE or YOUNG — recorded, never touched
                 performed.append({**act, "done": False})
-        return {**plan, "actions": performed}
+        report = {**plan, "actions": performed}
+        # RECORDED IN ONE PLACE, SO BOTH CALLERS RECORD IT. A stamp written by
+        # the worker tick and not by the start-up pass would make a fresh spine
+        # report ``never_run`` for its first five minutes — and the field exists
+        # precisely so that reading means something.
+        self._last_reconcile = {"at": _now(), "trigger": trigger,
+                                "report": report}
+        return report
+
+    def last_reconciliation(self, *, stale_after_seconds: Optional[float] = None,
+                            interval_seconds: Optional[float] = None
+                            ) -> dict[str, Any]:
+        """When a reconciliation last ACTED, folded into one readable state.
+
+        The decision is ``leansessions.reconciliation_status``; this supplies
+        the clock and the bound. ``stale_after_seconds`` defaults to twice the
+        configured tick interval — one missed tick is a slow host, two is a
+        worker that has stopped.
+        """
+        from app.fund import leansessions
+        every = (RECONCILE_INTERVAL_SECONDS if interval_seconds is None
+                 else interval_seconds)
+        ceiling = (2.0 * every if stale_after_seconds is None
+                   else stale_after_seconds)
+        return leansessions.reconciliation_status(
+            self._last_reconcile, _now(), ceiling, interval_seconds=every)
 
     def _run_live(self, session_id: str, signal_token: str, qty: float) -> None:
         from app.fund import leansessions
