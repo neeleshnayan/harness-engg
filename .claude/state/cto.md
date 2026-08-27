@@ -1170,3 +1170,29 @@ the "explain me in plain english" answer he got (three decisions, one word,
 two coming later) is the template. Rigor unchanged — plain English is a
 rendering of verified work, and a simplified number that becomes a wrong
 number is a fabricated one.
+
+
+## 2026-08-27 — REVIEW BATCHING, SHARPENED (CEO suggestion, adopted with the isolation caveat)
+
+CEO: "can we save tokens by running adversary and validator in batch? since
+many things are being built and then scrapped out." Adopted as two dispatch
+rules:
+
+1. **Verification seats (adversary, validator) fire on BATCHES by default.**
+   Hold the review queue; fire when >=2 artifacts are pending for the seat,
+   or when a date/money demands a solo run (say which in the dispatch note).
+   Blind isolation still separates an artifact from its author's concurrent
+   run — that boundary outranks the batching. (This morning's two solo
+   fires were each justified: p2bound had a demo date behind it; r2 was the
+   only artifact queued and gates v5's critical path. The NAV-alarm rule
+   review is the first beneficiary — it BATCHES with whatever queues next
+   for the adversary.)
+2. **THE DEEPER SAVING: kill designs before builds.** Any Tier-B+ build on
+   a NOVEL design gets its design memo attacked blind BEFORE the build
+   dispatch fires. Measured basis: the adversary's ~200k-token kill of v5
+   r1 bought a redesign that closed two structural fail-opens BEFORE the
+   envelope ever approached wiring — versus the builder's 540k tokens
+   building r2. Reviews are cheap where builds are expensive, and the CEO's
+   "built and then scrapped" is exactly the cost this ordering removes.
+   Candidate chain unchanged (mechanism → adversary already does this);
+   this extends the pattern to harness designs.

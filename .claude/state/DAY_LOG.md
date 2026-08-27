@@ -371,6 +371,35 @@ but what will be impressive is if can spot what others dont and quickly turn it 
   hook cannot map their subagent types to a parent seat; design the convention honestly or
   render worker counts at return, never fake live.
 
+### DECIDED (CEO, live session ~08:30-09:00Z — five decisions, all executed same hour)
+
+- **NAV cadence is a DEFECT, not a budget problem** (CEO approved the chair's rec (a)):
+  the strike loop gets fixed to hit its configured hourly interval; the 5400s heartbeat
+  budget is UNTOUCHED — no loosening. Falsifier recorded at decision time: if the fixed
+  loop structurally cannot hit 3600s, the budget question reopens as a versioned review.
+  **cad1 dispatched** (monotonic clock fix + per-gap diagnosis of the unexplained p75 tail;
+  main.py only, disjoint from slice3).
+- **NAV-hole WARN alarm approved in principle** — chartered as desk request `b0d07e67`:
+  adversary blind on the rule design at its next batch, then a builder diff to the
+  riskmonitor (sensitive), then merge with the versioned note. Warn severity, session-
+  overlapping holes only, unreadable = its own state.
+- **VAULT PUSHED on the CEO's word**: firm → `firm` (8bfc45e7), ClarkHarness →
+  `clarkharness` (365c7c3c), KryptonPay → `kryptonpay` (f680cba3). Three branches, vault
+  only, as always.
+- **DESK ORDERING** (CEO: "high-priority to low; time-sensitive or not; blocker or not"):
+  three bands — blockers, then dated soonest-first, then money descending with absent
+  labeled — derived from DECLARED fields only (`blocks` filer-declared, never inferred),
+  one named fold in desk.py that every surface consumes. Carried live to slice3.
+- **APPROVED ITEMS LEAVE THE CEO'S AWAITING VIEW** (CEO: "move it out of awaiting...
+  30secs timer... tagged approved → moving to execution"): awaiting COUNT excludes
+  approved immediately; the row lingers ~30s wearing the transition tag, then clears to
+  the chair's execution queue (routing v2 already owns the routing). Carried live to
+  slice3, with the CEO's three items ordered ahead of the original charter if time
+  presses.
+- **REVIEW BATCHING SHARPENED** (CEO: "can we save tokens by running adversary and
+  validator in batch? since many things are being built and then scrapped"): codified —
+  see cto.md entry; the deeper half adopted too: novel designs get killed BEFORE builds.
+
 ### DECIDED (CEO, mid-morning)
 
 - **PLAIN ENGLISH IS NOW A STANDING DIRECTION for every CEO-facing output** (CEO,
