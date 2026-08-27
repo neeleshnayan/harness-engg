@@ -122,3 +122,42 @@ the course instead of re-taking the exam.**
   D37 decomposition, D38 annualisation, the chair's own ruling text).
   Per-observation quantities are the only safe currency. Verified:
   run-adversary-d38, 339-run census.
+
+
+## LEAN — live custom-data emission (added 2026-08-28, quant dispatch #8)
+
+- **`PythonData` bars have NO period: `EndTime == Time`.** `BaseData.EndTime`
+  is `get => Time; set => Time = value;` (`Common/Data/BaseData.cs:96-100`)
+  and `PythonData` does not override it, so a daily custom bar ends at its
+  own midnight. Verified in our own container: v1 smoke `c43e580e7997`
+  first order `2021-05-03T04:00:00Z` filled at the 2021-05-03 close x 1.0005
+  — bar date == slice date.
+- **A live session's frontier starts at the session's own start time and
+  discards every earlier bar.** `LiveCustomDataSubscriptionEnumeratorFactory`
+  seeds `frontier = request.StartTimeLocal` (`:82`) and emits only
+  `EndTime > frontier` (`:152`, `:186`). Consequence: a session started
+  intraday receives NO bar that day; the first row that can clear the
+  frontier is dated the NEXT day — which a same-day-updating feed publishes
+  DURING the session as a running, unsettled quote. "Start the session after
+  the close" does NOT mitigate this; the emission is the next morning
+  regardless of start time. Verified: v1 live session `052650b749da` primed
+  1,379 bars, `ready_on_first_bar=True`, and `on_data` was called zero
+  times in 2h23m.
+- **The remote file is re-read every 30 minutes** (`min(increment,
+  minimumIntervalCheck)`, default `TimeSpan.FromMinutes(30)` at `:62`,
+  applied `:92-96`), and **age filtering is disabled** — the
+  `FastForwardEnumerator` is handed `Time.MaxTimeSpan` (`:130`), so no row
+  is ever dropped for being old.
+- **The mitigation that works (v2 pattern, `hyg_fast_flip_probe_v2`)**: in
+  the reader, DROP rows dated >= today-UTC (the running row is not a close)
+  and STAMP `bar.time = session + 1 day` so the bar's end lies after its
+  publication. Backtest half verified in-container (bar 2021-05-04 delivered
+  at slice 2021-05-05, job `f44922f7e7b0`); live half is a PREDICTION —
+  one bar per calendar day within 30 min of 00:00 ET carrying the previous
+  session's settled close; falsifier: a first `BAR ` log line naming the
+  current day at a running price. Declared cost: the +1 stamp drops the
+  final session of a backtest whose end is "today".
+- **LEAN takes `TradingDaysPerYear` from the BROKERAGE MODEL** (prior fact,
+  cross-referenced): the emission facts above are about DELIVERY; the
+  annualisation clock is a separate trap and both bit HYG probes in the
+  same week.
