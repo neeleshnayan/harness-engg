@@ -1088,6 +1088,24 @@ export interface DeskView {
        *  `working` is an honest floor rather than a confident reading. `null`
        *  when the seat is idle and there is nothing to detect. */
       review_detectable?: boolean | null;
+      /** EVERY dispatch this seat holds open, newest first (spine 2026-08-27,
+       *  from the CEO's own observation on the floor: *"1 builder working but
+       *  2 in reality"*). The fields above describe only the NEWEST — they are
+       *  unchanged so no consumer moves, and they can now be read as
+       *  understating. OPTIONAL because a spine that has not been restarted
+       *  since the fold shipped does not serve it, and a reader that treated
+       *  the missing key as an empty list would report a working bench as
+       *  idle. `seatActivity.ts` is the one place that decides. */
+      open_dispatches?: {
+        status: 'working' | 'awaiting_review';
+        task: string | null;
+        since: string | null;
+        task_id: string | null;
+        returned_run_id: string | null;
+        review_detectable: boolean;
+      }[];
+      working_count?: number;
+      awaiting_review_count?: number;
       last_delivered: { task: string; artifact: string; at: string } | null;
     };
   }[];
