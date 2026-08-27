@@ -1086,3 +1086,106 @@ When you certify an instrument, check that its CITATIONS RESOLVE. Six pixel meas
 ## BINDS carried by the CTO chair 2026-08-28 (from run-builder-eng3; none struck; the chair's own is ADOPTED)
 
 - **from builder, run-builder-eng3** - The session reconciliation payload now publishes `rows_cap` and `rows_capped`. When you audit any fold that reconciles against another instrument, **ask for that pair** - agreement is only meaningful inside the cap, and a fold that cannot say whether its own page filled has not measured what it claims.
+
+## 2026-08-27 — STATE from run-validator-p2bound (P2's bound), appended by the chair
+
+- **THE POPULATION IS FENCED, ALL OF IT.** `ReconciliationMismatch` = **71 events,
+  17 distinct (symbol,expected,actual) rows, 2 incidents, 8 reconciler runs**
+  (cohort A seq 119-141, 7 syms x 3 runs, fenced BY THE PRODUCING CODE —
+  `reconcile.py:96-99` names those exact seqs as a mock-mode artifact; cohort B
+  seq 715-854, 10 syms x 5 runs, the 2026-08-21 divergence, PM-fenced).
+  Pseudo-replication 3.4x. A quantile over 71 rows is a quantile over 2 incidents.
+  Payload is `{symbol, expected, actual}` — **QUANTITY ONLY, no mark/notional/NAV**,
+  so NO dollar quantile is computable from this event type at any n.
+- **TWO THINGS ARE NAMED "RECONCILIATION DELTA".** The events are share drift;
+  `delta_usd`/`delta_pct` come from `Reconciler.drift()` which **writes no events**
+  (`reconcile.py:32-33`). Nothing persists the dollar series: `fund_metrics_daily`
+  has **0 rows**; the only history is 4 alarm MESSAGES.
+- **THE HEADLINE, AND IT INVERTS THE CRITERION'S MEANING:** `delta_usd` is
+  ANTI-CORRELATED with position integrity on every observation the fund owns.
+  H1 post-sync (seq 1414, quantities+cash SET to venue, residual pure marking):
+  **-$2.14 / -0.1064%**. M1 (seq 1459, XLE out of sync, **$174.72** notional):
+  **-$0.18**. M2 (seq 1525, 3 of 11, **$650.86 = 32.5% of NAV**): **-$0.05**.
+  A perfectly reconciled book reads **21x** the delta of a book wrong about a
+  third of the fund. MECHANISM (verified, not inferred): a fill moves book cash
+  and book position TOGETHER, so both ledgers stay internally consistent and NAV
+  is blind to WHERE the value sits. Incidents I1 +6.87% (seq 725) / I2 +6.71%
+  (seq 1025) are the other kind (positions without matching cash) and ARE visible.
+- **POST-FILL RACE, MEASURED:** M1 fill 13:46:45.580 -> raise +3.00s -> clear
+  +28.02s; M2 fills ...15:51:36.031 -> raise +1.93s -> clear +23.86s. **n=2, so
+  95% upper bound on P(race > 28.1s) is 77.6%** — nearly no bound. Never read a
+  drift alarm raised within 30s of a fill as a book problem.
+- **LIVE, n=58 over 28.5min (06:06:43-06:35:13Z), 0 of 14 out of sync throughout:**
+  delta_usd min 1.68 / p50 2.10 / p90 2.23 / max 2.25 (sd .181); delta_pct
+  .0839/.1049/.1114/.1124 (sd .00904). **`book_nav` CONSTANT at 2002.44 in all 58**
+  — treat as ONE independent instant. **The brief's/Grace's -0.001% is 100x
+  smaller on an equally clean book 3 days earlier; a bound there fails every day.**
+- **DECOMPOSITION (n=20 x 7 = 140 paired obs):** the delta is ENTIRELY mark
+  dispersion. Sum qty*(broker_px - fund_px) = 1.732/2.087/2.186 USD =
+  .0864/.1041/.1090% of equity; cash agrees to $0.06 (unexplained). Fund mark =
+  `alpaca.py:156-161` `get_stock_latest_trade` (IEX, **frozen overnight**);
+  broker = position `current_price` (not frozen). Per-symbol |rel bps| med 12.04
+  max 110.12; **ex-DBA** med 10.66 p90 26.66 max 33.40. **DBA (110.12 bps, 7.67%
+  wt) supplies 80% of the delta.** NULL TEST: XLF returned exactly 0.00 bps in
+  20 of 20 over a domain of 140.
+- **TOLERANCE CHAIN — nothing clips, and the two `_TOL`s are on a different axis.**
+  `reconcile._TOL=1e-6` (qty in_sync + a div-by-zero guard) and
+  `engineledger._TOL=1e-9` (the ENGINE leg, fund-vs-LEAN, a sibling key at
+  `fund.py:5448`) are BOTH quantity tolerances on DIFFERENT comparisons; neither
+  touches the dollar axis. `autopolicy.MAX_POSITION_DRIFT_QTY=1e-6` is pinned
+  `== float(reconcile._TOL)` (test_autopolicy.py:517-518). **The only real clip is
+  `money()` cent-quantizing book NAV (nav.py:216, read at reconcile.py:58) ->
+  resolution floor 0.00025% of NAV at $2002; Grace's -0.001% is 4 quanta.**
+  DEFECT: `riskmonitor.py:519` renders delta_pct at `:.2f` into the ONLY historical
+  series of this quantity — M2 prints "-0.00%" and is -0.0025%.
+- **RECOMMENDED SPEC. Leg A (= P2, NO new constant):** `configured is True AND
+  len(per_symbol) >= 1 AND symbols_out_of_sync == 0` on TWO readings >=120s apart.
+  Import `reconcile._TOL` (the mode.py:388 precedent). `len>=1` matters:
+  `symbols_out_of_sync == 0` is TRUE on an empty list, and `_drift_alarm` shares
+  it — absence as agreement in the precondition that gates real money.
+  **Leg B (report beside P2, name it `marking_agreement`, NOT `reconciled`):**
+  `|delta_pct| <= 0.50`. Derivation is MANDATE-MECHANICAL, not a quantile:
+  `max_position_pct=0.20` (risk.py:53) x worst measured dispersion 110.12bps =
+  **0.2202%/NAV from ONE mandate-legal name**; today's whole book 0.105%; so 0.50%
+  survives one stale maximal name + baseline (.37%) and fails at two (.59%).
+  Healthy passes 4.4x; I1/I2 fail 13.4x. **n_healthy = 2 INDEPENDENT instants ->
+  95% upper bound on P(clean > 0.1124%) is 77.6%. There is no quantile bound
+  available and I did not offer one.**
+- **NOT COVERED:** all 78 live samples are 02:06-02:35 ET, MARKET CLOSED (H1 was
+  pre-open too) — the RTH distribution is UNMEASURED and the overnight gap WIDENS
+  with hours-since-close (my own window drifted .0954 -> .1124); composition (one
+  name = 80%); **fees** (`nav.py:198-204` subtracts `FeeLedger.outstanding()` with
+  no broker counterpart — $0 today by an explicit FeeTermsSet zero whose note says
+  "Revisit before any outside capital", i.e. the $10k path); the $0.06 cash
+  residue; single venue/USD/long-only/no margin.
+- **DIRECTION:** shipping any P2 evaluator that can return `met` turns an
+  `unchecked` (= unmet, mode.py:473) precondition into a passable one — route as a
+  loosening. Mitigated: `PROD_UNLOCKED=False` is an independent lock and Leg A adds
+  no constant.
+- **CHALLENGE FILED (tightens):** against D2's METHOD, not the decision to ship.
+  The quantile basis does not exist; §5 replaces it. Decision unaffected.
+- Repro: the two PG queries in the filed doc + samplers NOW ON THE SHELF
+  (`scripts/instruments/p2_reconcile_sampler.py`, `p2_persym_dispersion.py` —
+  promoted at resolve per the instrument-shelf rule; the scratchpad copies were
+  session-temp and flagged per the D43 bind).
+- **FITNESS:** 1 confirmed instrument defect with money behind it (P2's proposed
+  statistic is anti-correlated with the property it names; 5 observations, complete
+  inversion) + 1 criterion whose MEANING changed (a "reconciliation" bound is a
+  marking bound) + 1 reporting clip (riskmonitor.py:519) + 1 latent
+  absence-as-agreement (`symbols_out_of_sync == 0` on an empty list).
+- Debts carried, unchanged: 29 clean nulls for gate FPR; oracle inversion under
+  v4.2; rf series (H1); DECISIONS_PER_TEST_LEG=4. NEW: an RTH measurement of
+  delta_pct (one 30-min sample after 13:30Z closes it, and the bound is
+  provisional until it exists).
+
+**CTO note at resolve (Fable chair, 2026-08-27)**: four sharpest claims
+verified against the code before filing (fenced-cohort comment, quantity-only
+payload, the :.2f clip, the mode.py:473 lock) — all hold. Artifact filed at
+docs/validator/VALIDATOR_P2BOUND_2026-08-27.md; run recorded (199k tokens,
+~39min, delivered); samplers promoted to the shelf. Leg A adopted as the P2
+evaluator spec (chair builds it with P3). Leg B held provisional pending the
+RTH re-measurement you asked for (chair fires it 2026-08-28 after 13:30Z with
+your shelved sampler), then adversary blind, then the CEO. Your CHALLENGE to
+D2's method is accepted and carried to Grace as a BIND. Exemplary dispatch:
+the null test on your own instrument and the refusal to offer a quantile at
+n=2 are exactly the discipline this seat exists to enforce.

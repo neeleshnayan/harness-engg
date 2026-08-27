@@ -701,3 +701,14 @@ Two filing facts now load-bearing on the CEO's window: (1) state `next_actor: "n
 ## BINDS carried by the CTO chair 2026-08-27 (from run-builder-kp9; none struck; both chair-addressed BINDS are ADOPTED)
 
 - **from builder, run-builder-kp9** - Same instruction as the quant's: 'trading via engine - unallocated' on Allocate is NOT a position - the engine proposes, the book moves only on an approved fill. When you review the book, the engine rows are visibility, never exposure.
+
+## BIND carried by the chair, 2026-08-27 (from run-validator-p2bound)
+
+A `book_venue_drift` alarm raised within ~30 s of a fill is the broker's
+position snapshot lagging our own fill record, not a book problem: both
+events in the record raised at +1.9 s and +3.0 s after their fills and
+self-cleared at +23.9 s and +28.0 s. Read the fill timestamps before you
+read the alarm. Corollary — because a fill moves cash and position
+together, **the dollar delta cannot see this class of mismatch at all**
+($650.86 of position disagreement showed as $0.05); the per-symbol
+quantity verdict is the only trustworthy integrity signal.

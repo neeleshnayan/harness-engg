@@ -1233,3 +1233,13 @@ Verified before filing: bundle okay, tip `e124feb6`, base `6e6eeb04`. Your Postg
 - **from adversary, run-adversary-night2** - **When a diff moves a routing CONSTANT that a second repo reads, the diff is not done until every predicate in that repo keying on the old semantics has been re-run.** Routing v2 moved desk.OPEN_REQUEST_ACTOR and left decisionList.ts:205 and deskLanes.ts:306 filtering on v1 - measured: 13 live rows in zero of five lanes. Ship the cross-repo predicate sweep in the same diff as the constant, or the constant behind the sweep. (Repaired by the chair at resolve.)
 
 - **from adversary, run-adversary-night2** - **A test that pins a tone/flag family by comparing against a producer's output on one fixture pins only the families that fixture populates.** engineGlance's fixture-comparison pinned fence-blind-* and was blind to unclassified (warn->quiet passed 141/141). When you ship a partition whose safety rests on one field, ENUMERATE every value that field takes in production and assert each by name. (Pinned by the chair at resolve; the mutant now dies.)
+
+## BIND carried by the chair, 2026-08-27 (from run-validator-p2bound)
+
+If you build or touch P2's evaluator (`book_venue_reconciled`):
+`symbols_out_of_sync == 0` is **TRUE on an empty `per_symbol` list**, and
+`riskmonitor._drift_alarm` has the identical property (`out = []` ->
+`return None`). Require `configured is True AND len(per_symbol) >= 1` or
+an unpopulated book reads as reconciled — in the precondition that gates
+real money. And import `reconcile._TOL`; never declare a second tolerance
+constant (the mode.py:388 import-don't-copy precedent).

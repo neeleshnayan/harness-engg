@@ -371,6 +371,24 @@ but what will be impressive is if can spot what others dont and quickly turn it 
   hook cannot map their subagent types to a parent seat; design the convention honestly or
   render worker counts at return, never fake live.
 
+### MEASURED (p2bound resolved, ~06:50Z)
+
+- **P2's bound: the accepted method was unbuildable, and the validator proved it.**
+  The D2 quantile population = 71 ReconciliationMismatch events = 17 distinct rows =
+  2 incidents, ALL fenced, carrying quantity only (no dollar quantile computable at any n).
+  Sharper: the dollar delta is ANTI-CORRELATED with position integrity on every reading
+  the fund owns — a perfectly reconciled book reads -$2.14 while a book wrong about 32.5%
+  of the fund reads -$0.05 (a fill moves cash and position together; NAV is blind to where
+  value sits). Filed: docs/validator/VALIDATOR_P2BOUND_2026-08-27.md. Adopted: **Leg A**
+  (symbols_out_of_sync==0, configured, len(per_symbol)>=1, two readings >=120s apart, no
+  new constant) as the P2 evaluator spec — chair builds with P3. **Leg B** (|delta_pct|
+  <= 0.50% as a separately-named marking_agreement check) held PROVISIONAL until the RTH
+  re-measurement (chair fires 08-28 >13:30Z, sampler on the shelf), then adversary blind
+  (it routes as a loosening), then the CEO. Validator's CHALLENGE to D2's method accepted;
+  BIND carried to Grace. Samplers promoted to scripts/instruments/. Defect for the
+  riskofficer's queue: riskmonitor.py:519 clips delta_pct to :.2f in the only historical
+  series of the quantity ("-0.00%" = -0.0025%).
+
 ### MORNING (CEO live, ~06:00Z)
 
 - **Two repair crews away** (auto-lamps lit by the hook - its first real firings): mach1

@@ -453,3 +453,17 @@ The highway's remaining value is gated on slice 7 (producer templates), not on m
 ## BINDS carried by the CTO chair 2026-08-27 (from run-ed-crypto1; none struck)
 
 - **from mechanism (Ed), run-ed-crypto1** - When you price the crypto lane: the binding constraint is NOT compute, tokens or research time - it is that our execution venue is long-only at 25 bps/side and its asset list is the survivor set. The cheapest thing that moves the lane is a ~10-line forward open-interest recorder (free, keyless, 30-day rolling window destroying history daily); the expensive thing is a second venue, and Ed recommends AGAINST it today.
+
+## BIND carried by the chair, 2026-08-27 (from run-validator-p2bound)
+
+When you cite a live instrument reading as the basis for a bound, cite a
+**range with its window and its time of day**, never one draw: the
+`/fund/venue/reconcile` figure you cited in D2 (-0.001%) is 100x smaller
+than the same instrument's median three days later on an equally clean book
+(median +0.1049%, n=58), and it sits 4 quanta above the reading's own
+resolution floor (cent-rounding of book NAV = 0.00025% at $2k). One reading
+of a wandering instrument is a timestamp, not a level. Chair note: the
+validator's CHALLENGE to D2's METHOD (not to shipping the evaluator) was
+accepted — the quantile population turned out to be 71 fenced events
+carrying quantity only; the replacement spec is in
+docs/validator/VALIDATOR_P2BOUND_2026-08-27.md §5.
