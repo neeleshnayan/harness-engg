@@ -371,6 +371,27 @@ but what will be impressive is if can spot what others dont and quickly turn it 
   hook cannot map their subagent types to a parent seat; design the convention honestly or
   render worker counts at return, never fake live.
 
+### GO (CEO, ~14:00Z) — universe adopted, B1 away
+
+- **CEO: "Hurrah! yes lets go!! great going!"** — the starter universe (BTC/ETH/SOL,
+  Alpaca paper, daily bars, hold >= 2 weeks) is ADOPTED on his word (recorded in the
+  program doc with the quote; the dossier's four change-triggers stand). P1's position
+  decision remains tomorrow's: Stan prices, the CEO clicks.
+- **B1 FIRED — the crypto engine-blocker batch**: the √252 annualization made
+  calendar-deriving (the item that unblocks every crypto candidate), the 16-coin
+  hardcode replaced with freshness-filtered discovery (the four corpses become a STALE
+  state), the GETH wrong-instrument collision + outage-shaped no-such-symbol fixed, the
+  merge-gate guard-blindness repaired with janitor advisory scans folded in, and
+  per-worktree test-DB namespacing. Explicitly out: events.py stream cap (control layer,
+  own adversary-reviewed pass), the KP/hw5 residuals (B2).
+- **TOMORROW'S RUNSHEET (Thu 2026-08-28)**: Stage A time exits fire (autopolicy's first
+  live approval attempt, 0/18 history) → P1 fence to window+venue → the riskofficer
+  BATCH (auto-approval audit + HYG bridge + venue sweep + the accumulated queue) → Stan's
+  PM batch (post-exit book review + incumbency + P1 as a NEW-position decision + the
+  shorting/margin venue facts) → the RTH re-measurement after 13:30Z (Leg B's bound) →
+  B1 resolve if landed. The CEO's morning question stands: did he or Alpaca flip
+  shorting_enabled?
+
 ### THE VERDICTS (adversary batch resolved, ~13:40Z) — one SURVIVES, one KILL, both earned
 
 - **P1 SURVIVES — the first crypto candidate through adversarial review, certified on
