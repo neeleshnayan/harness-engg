@@ -371,6 +371,18 @@ but what will be impressive is if can spot what others dont and quickly turn it 
   hook cannot map their subagent types to a parent seat; design the convention honestly or
   render worker counts at return, never fake live.
 
+### DISPATCHED (slice 3 fired, ~07:45Z)
+
+- **SLICE 3 AWAY on the freed builder slot** (charter 910c480a): briefing-contract seat
+  pages (analyst first), the console as queue-rows, the truthful multi-lamp room (additive
+  `open_dispatches` on desk.py:721 + floor rendering, BOTH halves one diff), honest fan-out
+  visibility, the per-dispatch context inspector. First dispatch under the baked DESIGN
+  DOCTRINE; canvas boards are the acceptance references. Bases frozen: ClarkHarness
+  69681ec0 (post-mach1), KP f680cba3 (the @assistant-ui pin committed first so the worktree
+  builds green). Two builders in flight (ops1 disjoint: navgap + scripts/data); suites
+  serialize via the lock. Fitting: the room shows ONE builder lamp right now — the defect
+  is demonstrating itself while its fix is being built.
+
 ### BUILT (mach1 merged, ~07:35Z)
 
 - **THE V5 REDESIGN LANDED AND MERGED** (69681ec0; merged-tree suite **6092 passed / 0
