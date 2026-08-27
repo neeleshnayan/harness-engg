@@ -3,9 +3,16 @@
 WHY, MEASURED (builder HW3, 2026-08-24; desk 9e1d9fb5). Thirty-six tests went
 red across three Postgres-backed modules with **no defect behind any of them**:
 ``assert count() == 0`` immediately after a ``TRUNCATE``, while a second
-builder's suite truncated the same database. ``krypton_fund_test`` was a
-constant in ten test modules, and six others had escaped into private databases
-— by a FIXED name, so two worktrees collided there too.
+builder's suite truncated the same database.
+
+THE POPULATION IS GROWING AND BOTH READINGS ARE HERE, because a single count
+goes quietly stale. The ticket said ten modules on 2026-08-24. Re-measured on
+2026-08-27, immediately before this module was written: **``krypton_fund_test``
+appears in 13 Postgres-touching test modules** (12 using it as their database,
+one naming it in a forged sample), and **7 more had escaped into private
+databases — by a FIXED name, so two worktrees collided there too**, one of them
+using two. Reproduce by scanning ``tests/test_*.py`` for
+``"krypton_fund_[a-z0-9_]+"`` in modules that import psycopg.
 
 **THE SHARED RESOURCE IS THE NAME, NOT THE SERVER.** Two crews on one Postgres
 are fine; two crews on one database name are not. ``scripts/suite_lock.py``
@@ -55,9 +62,12 @@ def _fund_ledgers() -> frozenset[str]:
 
     Imported lazily and defensively: this module is used by test collection,
     and a scratch name must still be computable in an environment where the
-    mode module cannot be imported. When it cannot be read the fallback is the
-    LITERAL set of prefixes that could be a ledger, which refuses MORE, not
-    less — an unreadable ledger list must not open the door it guards.
+    mode module cannot be imported. When it cannot be read, the fallback is a
+    literal copy of the three ledger names — which refuses at least as much as
+    the live list, never less. An unreadable guard list must not open the door
+    it guards, and ``test_an_unreadable_ledger_list_refuses_MORE_not_less``
+    compares the fallback against the live list rather than against typed
+    names, so a fourth mode makes that test fail rather than pass quietly.
     """
     try:
         from app.fund import mode as _mode
