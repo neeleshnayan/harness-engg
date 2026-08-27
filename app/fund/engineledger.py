@@ -169,6 +169,25 @@ BASIS_KNOWN_SINCE_UNREADABLE = "sessions_known_since_unreadable"
 BASIS_RAISED_DURING_THIS_PROCESS = "raised_during_this_process"
 BASIS_PREDATES_SESSION_MEMORY = "predates_session_memory"
 
+#: The bases a per-SYMBOL ROW's fence can rest on. A DIFFERENT QUESTION FROM
+#: THE ONES ABOVE, and that is why they are different constants: the bases
+#: above answer "did THIS SIGNAL come from an engine that still exists"; these
+#: answer "does a live engine exist for this STRATEGY at all, and if so what
+#: does it hold here". Answering the second with the first is the defect these
+#: were added to close (see ``row_fence``).
+ROW_LIVE_SIGNAL = "live_signal_on_this_key"
+ROW_LIVE_SESSION_STARTED_FLAT = "live_session_for_this_strategy_started_flat"
+ROW_SESSIONS_UNREADABLE = "row_sessions_unreadable"
+ROW_SESSION_UNATTRIBUTABLE = "a_live_session_names_no_strategy"
+ROW_NO_LIVE_ENGINE = "no_live_engine_for_this_strategy"
+
+#: What the row's implied quantity may be computed FROM. Three words rather
+#: than a boolean, because the three are genuinely different facts and the
+#: caller must not have to re-derive which one it is holding.
+IMPLIED_FROM_FOLD = "fold"            # sum the live signals on this key
+IMPLIED_MEASURED_ZERO = "zero"        # a live container exists and started FLAT
+IMPLIED_ABSENT = "absent"             # it cannot be known
+
 _SESSION_ALIVE = ("starting", "running")
 
 #: Whether anything asks DOCKER what is actually running, as opposed to asking
@@ -399,6 +418,86 @@ def signal_liveness(row: dict[str, Any], ctx: EngineContext) -> dict[str, Any]:
         reason = ("the strategy is ARCHIVED and " + reason)
     return {"state": FENCED, "basis": BASIS_PREDATES_SESSION_MEMORY,
             "reason": reason, "strategy_archived": archived}
+
+
+def row_fence(n_live: int, strategy_id: str, ctx: EngineContext) -> dict[str, Any]:
+    """Is this (strategy, symbol) row fenced history, and what may its implied
+    quantity be computed from?
+
+    **THE DEFECT THIS CLOSES (adversary run-adversary-night2, probe p7).** The
+    previous rule was one expression — ``fenced_row = (n_live == 0)`` — and it
+    conflated two different facts under one word:
+
+      * **no live SIGNAL on this key**, which is what ``n_live == 0`` measures;
+      * **no live ENGINE for this strategy**, which is what the fence's own
+        justification claimed (*"there is no live engine to hold anything"*).
+
+    Where a live session EXISTS for the strategy and has simply not signalled
+    on this symbol, those are opposite readings. **A LEAN container starts
+    FLAT** — this module's own implied-book model says so in the sentence it
+    publishes — so a live session that has raised nothing here holds exactly
+    ZERO of it. That is a MEASURED quantity, not an absence, and a fund book
+    holding something against it is a LIVE divergence rather than history. The
+    old rule fenced it, which is the permissive direction: it took a real
+    divergence off the verdict.
+
+    **FIVE OUTCOMES, AND ONLY ONE OF THEM FENCES.** Fencing stays what it was:
+    a POSITIVE PROOF read from the record. Everything unproven stays live, as
+    everywhere else in this module — but "live" now splits, because not fencing
+    and being able to state a quantity are two different things and the first
+    does not imply the second:
+
+      1. ``n_live > 0`` — live signals on this key. Nothing changes: the
+         implied quantity is their fold.
+      2. the session list is UNREADABLE — we cannot prove there is no live
+         engine (so no fence) and we cannot claim one holds zero (so the
+         quantity is ABSENT). The row reads ``undetermined``.
+      3. a live session names THIS strategy — it started flat and has signalled
+         nothing here, so its implied quantity is a measured ZERO.
+      4. a live session names NEITHER a strategy nor an algorithm — it cannot
+         be ruled out and cannot be attributed, so again no fence and no
+         quantity.
+      5. every live session is attributable and none is ours (including the
+         case of no live sessions at all) — PROVEN: no live engine for this
+         strategy. This, and only this, fences.
+
+    Direction, stated plainly because a fence is a permissive mechanism: this
+    change makes the fence STRICTLY NARROWER. Every row it fences was fenced
+    before; rows 2, 3 and 4 above were fenced before and are not now. It can
+    only ever report MORE divergence, never less.
+    """
+    if n_live > 0:
+        return {"fenced": False, "implied": IMPLIED_FROM_FOLD,
+                "basis": ROW_LIVE_SIGNAL, "reason": None}
+    if not ctx.sessions_readable:
+        return {"fenced": False, "implied": IMPLIED_ABSENT,
+                "basis": ROW_SESSIONS_UNREADABLE,
+                "reason": ("the live-session list could not be read, so "
+                           "whether a live engine holds anything here is "
+                           "UNKNOWN — it is not zero and it is not history.")}
+    sid = (strategy_id or "").strip()
+    unattributable = False
+    for s in ctx.live_sessions:
+        s_sid = (s.get("strategy_id") or "").strip()
+        s_algo = (s.get("algorithm") or "").strip()
+        if s_sid and sid and s_sid == sid:
+            return {"fenced": False, "implied": IMPLIED_MEASURED_ZERO,
+                    "basis": ROW_LIVE_SESSION_STARTED_FLAT,
+                    "reason": None,
+                    "session_id": s.get("session_id")}
+        if not s_sid and not s_algo:
+            # A session identifying itself as nothing cannot be ruled out, and
+            # cannot be attributed either. Both halves matter: the first stops
+            # the fence, the second stops the measured zero.
+            unattributable = True
+    if unattributable:
+        return {"fenced": False, "implied": IMPLIED_ABSENT,
+                "basis": ROW_SESSION_UNATTRIBUTABLE,
+                "reason": ("a live session names neither a strategy nor an "
+                           "algorithm, so it can be neither ruled out nor "
+                           "credited with a position here.")}
+    return {"fenced": True, "implied": IMPLIED_ABSENT,
+            "basis": ROW_NO_LIVE_ENGINE, "reason": None}
 
 
 def _fold(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
@@ -775,14 +874,27 @@ def engine_leg(store: EventStore | None = None,
         sid, sym = key
         n_live = live_signals.get(key, 0)
         n_fenced = fenced_signals.get(key, 0)
-        # A KEY WITH NO LIVE SIGNAL IS FENCED HISTORY, AND ITS LIVE IMPLIED
-        # QUANTITY IS ABSENT RATHER THAN ZERO. Zero would be a measured claim
-        # that a live engine holds nothing here; there is no live engine to
-        # hold anything, which is a different fact and the one the reader
-        # needs. Absence discipline, applied to the number this fence creates.
-        fenced_row = n_live == 0
-        eng_qty = (None if (fenced_row or key in unquantified)
-                   else implied.get(key, Decimal("0")))
+        # THE ROW'S FENCE IS ONE DECISION MADE IN ONE PLACE (``row_fence``),
+        # and it decides two things at once: whether the row is history, and
+        # what its implied quantity may be computed from. It used to be the
+        # expression ``n_live == 0``, which read "no live SIGNAL on this key"
+        # and justified itself with "there is no live engine to hold anything"
+        # — two different facts, and where a live session EXISTS for this
+        # strategy they point opposite ways. A container starts FLAT, so a live
+        # session that has signalled nothing here holds a MEASURED ZERO, and
+        # the fund's book disagreeing with that is a LIVE divergence.
+        rf = row_fence(n_live, sid, ctx)
+        fenced_row = rf["fenced"]
+        if key in unquantified:
+            # An unquantified LIVE signal outranks every other reading: we know
+            # the engine asked for something here and cannot size it.
+            eng_qty = None
+        elif rf["implied"] == IMPLIED_FROM_FOLD:
+            eng_qty = implied.get(key, Decimal("0"))
+        elif rf["implied"] == IMPLIED_MEASURED_ZERO:
+            eng_qty = Decimal("0")
+        else:
+            eng_qty = None
         # ABSENCE INSIDE A COMPLETE FOLD IS ZERO; ABSENCE OF THE FOLD IS NOT.
         # StrategyAttribution folds EVERY fill, so a (strategy, symbol) with no
         # entry means the fund never filled anything there — a measured zero,
@@ -825,6 +937,13 @@ def engine_leg(store: EventStore | None = None,
             "sync_state": sync_state,
             "fenced": fenced_row,
             "fence_reason": fence_reason.get(key) or None if fenced_row else None,
+            # WHY THIS ROW'S IMPLIED QUANTITY IS WHAT IT IS, as a value a test
+            # and a renderer can switch on. Without it a null implied quantity
+            # has three possible causes — fenced history, an unquantified live
+            # signal, and a live engine we cannot attribute — and the payload
+            # named only the second.
+            "row_basis": rf["basis"],
+            "row_note": rf.get("reason"),
             # What the DEAD engine had asked for, preserved beside the live
             # reading exactly as the clean-field rule requires: annotate the
             # contaminated figure, never erase it.
