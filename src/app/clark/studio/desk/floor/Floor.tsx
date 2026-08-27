@@ -15,6 +15,7 @@ import {
   RoomState,
   allSpots,
   floorPulses,
+  lampCounts,
   litSeats,
   pulsesByWire,
   runsChip,
@@ -95,6 +96,15 @@ export function Floor({
     () => (state === "dead" ? [] : awaitingReviewSeats(desk?.roster)),
     [desk, state],
   );
+  /* HOW MANY JOBS, where it is more than one. The CEO on this floor,
+     2026-08-27: "1 builder working but 2 in reality". A lamp is binary and
+     always was; what was missing is that a seat can hold several dispatches,
+     and the room drew only the newest. Seats with one job carry no marker —
+     an "x1" on every desk is chrome. */
+  const counts = useMemo(
+    () => (state === "dead" ? {} : lampCounts(desk?.roster)),
+    [desk, state],
+  );
   const { pulses, total } = useMemo(
     () => (state === "dead"
       ? { pulses: [] as Pulse[], total: 0 }
@@ -135,6 +145,7 @@ export function Floor({
                   onLeave={() => setFocus((f) => (f === s.id ? null : f))}
                   onNavigate={() => setZooming(true)}
                   runs={runsChip(state, runsToday?.(s))}
+                  jobs={counts[s.id]}
                 />
               ))}
             </nav>
@@ -312,11 +323,15 @@ function RoomSvg({ wires, lit, state }: {
 /* -------------------------------------------------------------- furniture -- */
 
 function Spot({ s, lit, state, halted, focused, onFocus, onLeave, onNavigate,
-               runs, awaitingReview }: {
+               runs, awaitingReview, jobs }: {
   s: FloorSpot; lit: boolean; state: RoomState; halted: boolean;
   focused: boolean; onFocus: () => void; onLeave: () => void; onNavigate: () => void;
   runs?: number | null;
   awaitingReview?: boolean;
+  /** How many jobs this seat holds open, ONLY when it is more than one.
+   *  `undefined` draws nothing — one job is the assumption a lamp already
+   *  makes, and restating it on every desk is noise. */
+  jobs?: number;
 }) {
   const machine = s.kind === "machine" || s.kind === "door";
   const body = (
@@ -331,7 +346,14 @@ function Spot({ s, lit, state, halted, focused, onFocus, onLeave, onNavigate,
         {/* A lamp, not a badge: the room tells you someone is at the desk the
             way a room does. `kt-breathe` keeps the marker drawn under reduced
             motion and drops only the motion. */}
-        {lit && <span className={`kt-breathe kt-floor-lamp h-1.5 w-1.5`} aria-hidden="true" />}
+        {/* STACKED LAMPS, one per open job, up to three — past three the
+            marker below carries the number and a row of dots stops being
+            countable at a glance. Each keeps the breathe, so a busy desk
+            reads as busier rather than merely marked. */}
+        {lit && Array.from({ length: Math.min(jobs ?? 1, 3) }, (_, i) => (
+          <span key={i} className="kt-breathe kt-floor-lamp h-1.5 w-1.5"
+                aria-hidden="true" />
+        ))}
         <span className={lit ? "text-[var(--kt-text-strong)]" : "text-[var(--kt-text-muted)]"}>
           {machine ? <MachineGlyph kind={s.kind} /> : <SeatFace actor={s.id} size={26} decorative />}
         </span>
@@ -344,6 +366,16 @@ function Spot({ s, lit, state, halted, focused, onFocus, onLeave, onNavigate,
           label: the seat is finished and the obligation has moved to the
           chair, so it reads as a standing item rather than as activity.
           Three dispatches rendered as WORKING for hours before this. */}
+      {/* MORE THAN ONE JOB, said as a number. The lamps above say "busy"; this
+          says how busy, and it is the fact the room was getting wrong. */}
+      {jobs != null && jobs > 1 && (
+        <span
+          title={`${jobs} jobs are open at this desk. The room used to show only the most recent one.`}
+          className="inline-flex items-center rounded-full border border-[var(--kt-warn)]/40 px-1.5 font-mono text-[9px] uppercase tracking-[0.08em] text-[var(--kt-warn)]"
+        >
+          ×{jobs}
+        </span>
+      )}
       {awaitingReview && (
         <span
           title="returned — the chair has not reviewed it yet; a dispatch closes on a resolution, never on a run coming back"

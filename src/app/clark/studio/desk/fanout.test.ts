@@ -212,3 +212,107 @@ test("parseWorker drops what it cannot label and keeps what it can", () => {
   assert.equal(w!.brief, "b", "`brief` is accepted beside `brief_one_line`");
   assert.equal(w!.outcome, "used", "the outcome vocabulary is case-insensitive");
 });
+
+/* ---------------------------------------------------- the ledger shape ----- */
+
+/**
+ * THE SHAPE THE RECORD ACTUALLY FILES, and the defect it exposed.
+ *
+ * MEASURED against the live record 2026-08-27: exactly one run carries
+ * `meta.fanout`, and it is an OBJECT — `run-builder-mach1` holds
+ * `{helpers: 1, gauntlet_tokens: 237654}`. It is neither an array nor a
+ * string nor a bare count, so before the `ledger` member existed it fell past
+ * every branch and the reader reported shape `none` with the sentence *"This
+ * run filed no fan-out evidence. A seat that ran alone and a seat that fanned
+ * out without recording it look the same here"*.
+ *
+ * That sentence was FALSE about the only run that had ever filed any: the
+ * evidence was there and the reader could not see it. This is the same
+ * absence-collapse the module was written to prevent, reproduced inside the
+ * module, on the one path no test covered.
+ */
+
+const withMeta = (meta: unknown): DeskView => ({
+  runs: [{
+    run_id: "run-builder-mach1", seat: "builder",
+    resolved_at: "2026-08-27T07:21:44+00:00", meta,
+  }],
+} as unknown as DeskView);
+
+test("a LEDGER object is read, not reported as no evidence at all", () => {
+  const f = seatFanout(
+    { kind: "record", desk: withMeta({ fanout: { helpers: 1, gauntlet_tokens: 237654 } }) },
+    "builder");
+  assert.equal(f.shape, "ledger");
+  assert.equal(f.count, 1);
+  assert.deepEqual(f.tokens, { gauntlet_tokens: 237654 });
+  assert.equal(f.runId, "run-builder-mach1");
+  assert.match(f.note, /reported at return/);
+  assert.match(f.note, /NOT a live count/);
+  // The regression this file exists for: the OLD reader said this.
+  assert.doesNotMatch(f.note, /filed no fan-out evidence/);
+});
+
+test("a ledger with tokens and NO count says how many is unknown, not none", () => {
+  const f = seatFanout(
+    { kind: "record", desk: withMeta({ fanout: { gauntlet_tokens: 237654 } }) },
+    "builder");
+  assert.equal(f.shape, "ledger");
+  assert.equal(f.count, null, "absent is not zero");
+  assert.match(f.note, /unknown — not none/);
+});
+
+test("a ledger's unreadable token value is dropped, never rendered as zero", () => {
+  const f = seatFanout(
+    { kind: "record", desk: withMeta({ fanout: { helpers: 2, gauntlet_tokens: "lots" } }) },
+    "builder");
+  assert.equal(f.count, 2);
+  assert.deepEqual(f.tokens, {}, "a numeric STRING is refused, not coerced");
+});
+
+test("a key that does not name tokens is not counted as a token figure", () => {
+  const f = seatFanout(
+    { kind: "record", desk: withMeta({ fanout: { helpers: 3, retries: 9 } }) },
+    "builder");
+  assert.deepEqual(f.tokens, {});
+  assert.equal(f.count, 3);
+});
+
+test("an EMPTY ledger object is a defect in the record, not a lone run", () => {
+  const f = seatFanout({ kind: "record", desk: withMeta({ fanout: {} }) }, "builder");
+  assert.equal(f.shape, "none");
+  assert.match(f.note, /nothing readable in it/);
+  assert.match(f.note, /not a run with no workers/);
+});
+
+test("a ledger falls back to workers_fired when it names no count itself", () => {
+  const f = seatFanout(
+    { kind: "record", desk: withMeta({ fanout: { gauntlet_tokens: 1 }, workers_fired: 4 }) },
+    "builder");
+  assert.equal(f.count, 4);
+});
+
+test("the array, prose and count shapes are UNCHANGED by the ledger branch", () => {
+  // An array is still a tree; a string is still never parsed. The ledger check
+  // sits between them and must not have swallowed either.
+  const arr = seatFanout({ kind: "record", desk: withMeta({
+    fanout: [{ worker: "gauntlet", kind: "qa", returned: "catch", tokens: 5 }] }) },
+    "builder");
+  assert.equal(arr.shape, "structured");
+  assert.equal(arr.workers[0].worker, "gauntlet");
+  const str = seatFanout({ kind: "record", desk: withMeta({ fanout: "3 workers" }) },
+    "builder");
+  assert.equal(str.shape, "prose");
+  assert.equal(str.prose, "3 workers");
+  const cnt = seatFanout({ kind: "record", desk: withMeta({ workers_fired: 3 }) },
+    "builder");
+  assert.equal(cnt.shape, "count");
+});
+
+test("a ledger seat is included in seatsWithFanout — it has something to draw", () => {
+  const desk = withMeta({ fanout: { helpers: 1 } });
+  assert.deepEqual(
+    seatsWithFanout({ kind: "record", desk }, ["builder", "quant"])
+      .map((f) => f.seat),
+    ["builder"]);
+});

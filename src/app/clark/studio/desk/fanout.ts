@@ -69,6 +69,16 @@ export type FanoutShape =
   | "structured"
   /** The record carries prose. Shown verbatim, not parsed. */
   | "prose"
+  /** A LEDGER SUMMARY object: counts and token totals, no per-worker rows.
+   *  MEASURED 2026-08-27 against the live record, and it is the only shape
+   *  any run currently files — `run-builder-mach1` carries
+   *  `{helpers: 1, gauntlet_tokens: 237654}`. Before this member existed the
+   *  reader fell through every branch and reported shape `none` with the
+   *  sentence *"This run filed no fan-out evidence"*, which was FALSE about
+   *  that run: the evidence was filed and the reader could not see it. The
+   *  same absence-collapse the module was written to prevent, inside the
+   *  module. */
+  | "ledger"
   /** Only a count was filed. */
   | "count"
   /** The run exists and filed no fan-out evidence at all. */
@@ -86,6 +96,9 @@ export interface SeatFanout {
   count: number | null;
   /** The prose, verbatim, when `shape === "prose"`. */
   prose: string | null;
+  /** Token figures the ledger stated, by their own key. Empty when none —
+   *  and a key with an unreadable value is DROPPED rather than zeroed. */
+  tokens: Record<string, number>;
   /** The run this was read from, so a reader can go and check. */
   runId: string | null;
   at: string | null;
@@ -155,7 +168,8 @@ export function parseWorker(raw: unknown): FanoutWorker | null {
 export function seatFanout(source: FanoutSource, seat: string): SeatFanout {
   const base = {
     seat, workers: [] as FanoutWorker[], count: null as number | null,
-    prose: null as string | null, runId: null as string | null,
+    prose: null as string | null, tokens: {} as Record<string, number>,
+    runId: null as string | null,
     at: null as string | null, basis: "last recorded run" as const,
   };
 
@@ -210,6 +224,39 @@ export function seatFanout(source: FanoutSource, seat: string): SeatFanout {
     };
   }
 
+  // A LEDGER SUMMARY. Checked before `prose` and before the bare count,
+  // because an object is neither and used to fall past both into "no evidence
+  // filed" — a sentence that was false about the only run that had filed any.
+  if (filed && typeof filed === "object" && !Array.isArray(filed)) {
+    const led = filed as Record<string, unknown>;
+    const helpers = numberOrNull(led.helpers) ?? numberOrNull(led.workers)
+      ?? numberOrNull(led.count) ?? fired;
+    const tokens: Record<string, number> = {};
+    for (const [k, v] of Object.entries(led)) {
+      // Only keys that NAME tokens, and only readable numbers. A key with an
+      // unreadable value is dropped rather than rendered as zero.
+      const n = numberOrNull(v);
+      if (n !== null && /tokens?$/i.test(k)) tokens[k] = n;
+    }
+    if (helpers !== null || Object.keys(tokens).length > 0) {
+      return {
+        ...base, shape: "ledger", runId: run.run_id, at, count: helpers,
+        tokens,
+        note: helpers !== null
+          ? `${helpers} worker(s), reported at return — this run filed a `
+            + "summary rather than a row per worker, so there is no tree to "
+            + "draw. NOT a live count."
+          : "This run filed token figures for its workers and no count of "
+            + "them, so how many ran is unknown — not none.",
+      };
+    }
+    return {
+      ...base, shape: "none", runId: run.run_id, at, count: fired,
+      note: "This run filed a fan-out summary with nothing readable in it — a "
+        + "defect in the record, not a run with no workers.",
+    };
+  }
+
   const prose = stringOrNull(filed);
   if (prose) {
     return {
@@ -246,5 +293,5 @@ export function seatsWithFanout(
   return seats
     .map((s) => seatFanout(source, s))
     .filter((f) => f.shape === "structured" || f.shape === "prose"
-                || f.shape === "count");
+                || f.shape === "ledger" || f.shape === "count");
 }

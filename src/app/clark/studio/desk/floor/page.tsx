@@ -15,6 +15,8 @@ import { DeskMatrix } from "../DeskMatrix";
 import { routingFootprint } from "../routingFootprint";
 import type { SeatFanout } from "../fanout";
 import { seatFanout } from "../fanout";
+import { seatLamps } from "../seatActivity.ts";
+import { OpenJobs } from "../OpenJobs";
 import { Floor } from "./Floor";
 import { floorEnabled, roomState } from "./floorPlan";
 
@@ -238,6 +240,13 @@ export default function FloorPage() {
                   </p>
                 ) : (
                   <>
+                    {/* EVERY OPEN JOB, not the newest. The CEO on this floor,
+                        2026-08-27: "1 builder working but 2 in reality". The
+                        room's lamps say how many; this says which. */}
+                    <OpenJobs compact lamps={seatLamps(
+                      spot.id,
+                      desk?.roster?.find((r) => r.agent === spot.id)?.activity
+                        ?? null)} />
                     <SeatTelemetryChips t={seatTelemetry(desk, spot.id)} />
                     {/* THE FAN-OUT, from the record. CEO 2026-08-23: "would be
                         good to see agents w sub-agents fanned out in the rooms
@@ -336,6 +345,21 @@ function FanoutTree({ f }: { f: SeatFanout }) {
       {f.shape === "prose" && (
         <p className={`mt-1 border-l border-[var(--kt-border)] pl-2.5 text-[11px] leading-snug ${KT.body}`}>
           {f.prose}
+        </p>
+      )}
+      {/* A LEDGER SUMMARY: figures, no tree. Rendered as the figures it is,
+          rather than as N unnamed nodes — a box with no label is not evidence,
+          and inventing rows to fill a tree would be exactly that. */}
+      {f.shape === "ledger" && Object.keys(f.tokens).length > 0 && (
+        <p className="mt-1 flex flex-wrap gap-x-3 border-l border-[var(--kt-border)] pl-2.5">
+          {Object.entries(f.tokens).map(([k, v]) => (
+            <span key={k} className={`font-mono text-[10px] tabular-nums ${KT.muted}`}>
+              {k.replace(/_/g, " ")}{" "}
+              <span className="text-[var(--kt-text-strong)]">
+                {v.toLocaleString("en-US")}
+              </span>
+            </span>
+          ))}
         </p>
       )}
       <p className={`mt-1 text-[10px] leading-relaxed ${KT.muted}`}>{f.note}</p>

@@ -22,6 +22,7 @@
  */
 
 import type { DeskView, SpineEvent } from "@/lib/fund_api";
+import { seatLamps, type SeatLamps } from "../seatActivity.ts";
 import { SEATS, type SeatId } from "../seatLib.ts";
 import { faceFor } from "../faces.ts";
 
@@ -511,16 +512,50 @@ export function runsChip(
   return runs;
 }
 
+/**
+ * Every seat's lamps, from the one reader.
+ *
+ * ADDED 2026-08-27 on the CEO's own observation on this floor, verbatim: *"1
+ * builder working but 2 in reality"*. `litSeats` and `awaitingReviewSeats`
+ * below now DELEGATE here rather than filtering the roster's headline status
+ * themselves — that filter kept only a seat's most recent dispatch, so a seat
+ * running two jobs lit one lamp and a seat whose newest job had finished while
+ * an older one ran lit none at all.
+ *
+ * One reader, three consumers. The room, the console and the seat pages must
+ * not be able to disagree about who is busy.
+ */
+export function floorLamps(
+  roster: DeskView["roster"] | null | undefined,
+): SeatLamps[] {
+  if (!roster) return [];
+  return roster.map((r) => seatLamps(r.agent, r.activity));
+}
+
 /** The seats whose lamp is lit, from the spine's own activity fold.
  *
  *  Null roster → EMPTY, never "all idle": a floor with no lamps and a floor we
  *  could not read must not look alike, and the caller renders the dead room
  *  differently on the strength of this returning nothing. */
 export function litSeats(roster: DeskView["roster"] | null | undefined): string[] {
-  if (!roster) return [];
-  return roster
-    .filter((r) => r.activity?.status === "working")
-    .map((r) => r.agent);
+  return floorLamps(roster)
+    .filter((l) => l.lamps.some((d) => d.state === "working"))
+    .map((l) => l.seat);
+}
+
+/** How many jobs each lit seat is running, for the room's ×N marker.
+ *
+ *  Keyed by seat and holding only seats with MORE THAN ONE open job: a "×1"
+ *  on every desk is chrome, and the marker exists to say "this is not the one
+ *  job you assume". Absent from the map means one job or none. */
+export function lampCounts(
+  roster: DeskView["roster"] | null | undefined,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const l of floorLamps(roster)) {
+    if (l.lamps.length > 1) out[l.seat] = l.lamps.length;
+  }
+  return out;
 }
 
 /**
@@ -538,10 +573,9 @@ export function litSeats(roster: DeskView["roster"] | null | undefined): string[
 export function awaitingReviewSeats(
   roster: DeskView["roster"] | null | undefined,
 ): string[] {
-  if (!roster) return [];
-  return roster
-    .filter((r) => r.activity?.status === "awaiting_review")
-    .map((r) => r.agent);
+  return floorLamps(roster)
+    .filter((l) => l.lamps.some((d) => d.state === "awaiting_review"))
+    .map((l) => l.seat);
 }
 
 /**
@@ -555,11 +589,10 @@ export function awaitingReviewSeats(
 export function reviewDetectionBlind(
   roster: DeskView["roster"] | null | undefined,
 ): string[] {
-  if (!roster) return [];
-  return roster
-    .filter((r) => r.activity?.status === "working"
-      && r.activity?.review_detectable === false)
-    .map((r) => r.agent);
+  return floorLamps(roster)
+    .filter((l) => l.lamps.some(
+      (d) => d.state === "working" && !d.reviewDetectable))
+    .map((l) => l.seat);
 }
 
 /* -------------------------------------------------------------- pulses ----- */
