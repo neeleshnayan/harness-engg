@@ -28,7 +28,6 @@ never zero:
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime
 from statistics import median
 from typing import Any, Optional
 

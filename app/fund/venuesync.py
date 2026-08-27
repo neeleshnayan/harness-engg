@@ -74,14 +74,21 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any, Callable, Optional
 
+from app.fund import reconcile
 from app.fund.events import Event, EventStore, EventType
 from app.fund.money import D, f, money
-from app.fund.projections.strategy import DISCRETIONARY
 
-#: Below this a quantity difference is float noise, not a divergence. Matches
-#: the reconciler's own tolerance so the two instruments agree about what
-#: "in sync" means.
-QTY_TOLERANCE = Decimal("1e-6")
+#: Below this a quantity difference is float noise, not a divergence.
+#: READ from the reconciler rather than restated, because this module's whole
+#: job is to agree with it about what "in sync" means. It was an independent
+#: ``Decimal("1e-6")`` until 2026-08-27, held to the reconciler by a comment
+#: and nothing else — unlike ``autopolicy.MAX_POSITION_DRIFT_QTY``, which is a
+#: deliberate copy pinned by ``tests/test_autopolicy.py`` so a control's
+#: threshold cannot move without a human seeing it. ``_TOL`` is private and
+#: reached anyway: it is the name the reconciler, autopolicy's comment and
+#: autopolicy's own test all already refer to, and renaming it is a wider
+#: change than this one.
+QTY_TOLERANCE = reconcile._TOL
 
 
 class VenueSyncError(RuntimeError):

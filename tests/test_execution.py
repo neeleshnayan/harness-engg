@@ -263,3 +263,49 @@ def test_holding_unknown_without_timestamps():
         e.pop("ts", None)
     h = hist_for(events)["summary"]["holding"]
     assert h["measurable"] is False
+
+
+# ---------------------------------------------------------------------------
+# JAN1 (2026-08-27): one owner for the unattributed-fill bucket.
+#
+# Until this dispatch ``execution.py`` and ``projections/strategy.py`` each
+# declared ``DISCRETIONARY = "discretionary"``. Two folds over the SAME fills,
+# each with its own private spelling of the bucket a fill with no strategy_id
+# lands in. Nothing compared them, so a rename on one side would have produced
+# two discretionary ledgers out of one event log, silently.
+
+def test_the_two_fills_folds_agree_on_the_unattributed_bucket_name():
+    """Both folds put a fill with no ``strategy_id`` under the SAME key.
+
+    The invariant is the agreement, not the string: it must stay true if the
+    name is ever changed, which is exactly what a second declaration breaks.
+    """
+    from app.fund.execution import ExecutionHistory
+    from app.fund.projections.strategy import StrategyAttribution
+
+    unattributed = fill(1, "2026-08-13T19:31:20+00:00", "SPY", "buy",
+                        1.0, 100.0, strategy=None)
+    exec_keys = {r["strategy_id"]
+                 for r in ExecutionHistory(FakeStore([unattributed])).all()}
+    attr_keys = set(
+        StrategyAttribution(FakeStore([unattributed])).positions_by_strategy())
+
+    assert exec_keys, "the execution fold produced no strategy at all"
+    assert attr_keys, "the attribution fold produced no strategy at all"
+    assert exec_keys == attr_keys
+
+
+def test_execution_does_not_declare_its_own_discretionary_bucket():
+    """The module READS the owner's constant; it must not re-declare it.
+
+    Pinned on the statement with its punctuation rather than the bare word,
+    because the word appears in this module's prose too.
+    """
+    import inspect
+
+    from app.fund import execution
+    src = inspect.getsource(execution)
+    assert "\nDISCRETIONARY = " not in src, (
+        "execution.py declares its own DISCRETIONARY again; "
+        "projections.strategy owns that name")
+    assert "from app.fund.projections.strategy import DISCRETIONARY" in src

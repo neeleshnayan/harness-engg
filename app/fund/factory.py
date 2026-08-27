@@ -551,7 +551,6 @@ class CandidateFactory:
              grid: dict[str, list[str]], holdout: Optional[dict[str, str]],
              claim_type: Optional[str] = None) -> None:
         from app.fund import barcache
-        from app.fund.gate import evaluate
         runner = self._lean()
         snap = self._snapshot(candidate_id, algorithm, runner)
         # The snapshot is active for the WHOLE candidate — sweep, verification

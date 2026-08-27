@@ -44,16 +44,16 @@ from datetime import datetime
 from typing import Any, Optional
 
 from app.fund.events import EventStore, EventType
+from app.fund.executionquality import SIMULATED_VENUES
 
 BPS = 10_000.0
 
 #: What the backtester assumes, per side, so realised cost can be read against
-#: the number the Sharpe ratios were computed with. Kept in sync by eye rather
-#: than imported, because backtest.CostModel is a default and callers override
-#: it; this is the figure the fund's own backtests were actually run at.
-#: Kept only so an old import does not break. The live number is
-#: costassumption.DEFAULT_SLIPPAGE_BPS, which the backtests also read —
-#: two copies of one belief is how they drifted apart in the first place.
+#: the number the Sharpe ratios were computed with. Kept only so an old import
+#: does not break; the live number is costassumption.DEFAULT_SLIPPAGE_BPS,
+#: which the backtests also read — two copies of one belief is how they
+#: drifted apart in the first place. No production caller reads this alias as
+#: of 2026-08-27; only tests/test_tca.py and tests/test_costassumption.py do.
 from app.fund.costassumption import DEFAULT_SLIPPAGE_BPS as ASSUMED_COST_BPS_PER_SIDE
 
 
@@ -127,8 +127,14 @@ class OrderCost:
 
         A simulated venue cannot, by construction, at any sample size. Decided
         on the EXECUTED venue, which is the whole point of the field.
+
+        The venue list is READ from ``executionquality.SIMULATED_VENUES``,
+        which owns it. Until 2026-08-27 this was an independent ``!= "paper"``
+        literal, guarded only by a behavioural pin in
+        ``tests/test_executionquality_store.py``. A pin catches drift after
+        somebody ships it; reading the list makes the drift impossible.
         """
-        return (self.venue or "") != "paper"
+        return (self.venue or "") not in SIMULATED_VENUES
 
     def to_dict(self) -> dict[str, Any]:
         return {**self.__dict__, "informative": self.informative}

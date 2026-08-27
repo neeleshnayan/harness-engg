@@ -26,7 +26,7 @@ than implying a provenance it does not have.
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any, Optional
 

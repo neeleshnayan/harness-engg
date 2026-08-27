@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from typing import Optional
 
 from app.fund.lease import DEFAULT_TTL_SECONDS, LEASE_DOC, LeaseState, identity
 

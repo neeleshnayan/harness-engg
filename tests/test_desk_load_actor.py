@@ -487,3 +487,50 @@ def test_the_two_terminal_lists_agree():
         tuple(deskstore.TERMINAL_REC_STATUSES)
     for s in desk_mod.TERMINAL_STATUSES:
         assert s in deskstore.REC_STATUSES
+
+
+def test_the_two_live_rec_lists_agree():
+    """JAN1 (2026-08-27). The complement of the terminal list has the same
+    two-copies problem the test above exists for, and had none of its guards:
+    `deskstore.open_recommendations` (the CEO's own queue) and `deskhygiene`'s
+    H3 rule each spelled ("open", "accepted", "staged") inline, and nothing
+    compared them to the vocabulary they are a slice of.
+
+    Add "withdrawn" to REC_STATUSES + TERMINAL_REC_STATUSES and this fails,
+    which is the point: the sweeper and the queue it sweeps must not disagree
+    about which rows are still live.
+    """
+    pytest.importorskip("psycopg")
+    from app.fund import deskhygiene, deskstore
+    assert deskstore.LIVE_REC_STATUSES == ("open", "accepted", "staged")
+    assert tuple(deskhygiene.LIVE_REC_STATUSES) == \
+        tuple(deskstore.LIVE_REC_STATUSES)
+    # DERIVED, not restated: every rec status is live or terminal, never both,
+    # never neither.
+    assert (set(deskstore.LIVE_REC_STATUSES)
+            | set(deskstore.TERMINAL_REC_STATUSES)) == set(deskstore.REC_STATUSES)
+    assert not (set(deskstore.LIVE_REC_STATUSES)
+                & set(deskstore.TERMINAL_REC_STATUSES))
+
+
+def test_neither_live_rec_reader_keeps_its_own_status_tuple():
+    """Pinned on the STATEMENT with its indentation, not on the words — the
+    tuple appears in both modules' prose describing what was removed."""
+    import inspect
+
+    pytest.importorskip("psycopg")
+    from app.fund import deskhygiene, deskstore
+    store_src = inspect.getsource(deskstore.DeskStore.open_recommendations)
+    assert '("open", "accepted", "staged")' not in store_src
+    assert "if r.get(\"status\") in LIVE_REC_STATUSES:" in store_src
+
+    hyg_src = inspect.getsource(deskhygiene)
+    assert 'or "open") not in ("open", "accepted", "staged")' not in hyg_src
+    assert 'or "open") not in LIVE_REC_STATUSES:' in hyg_src
+
+    # And the OWNER derives rather than lists. Restating the derivation as the
+    # equal literal is behaviour-identical today and re-creates the drift the
+    # whole change removes, so it is pinned on the statement too.
+    own_src = inspect.getsource(deskstore)
+    assert "LIVE_REC_STATUSES = tuple(s for s in REC_STATUSES" in own_src
+    assert "if s not in TERMINAL_REC_STATUSES)" in own_src

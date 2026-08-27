@@ -143,15 +143,15 @@ assert LIVE_FEED in FEEDS and RETRO_FEED in FEEDS
 MARK_BASIS = "arrival-mark"
 
 #: Venues whose fills carry NO execution-cost information, because the venue
-#: prints at the mark it was handed rather than against a book.
+#: prints at the mark it was handed rather than against a book. THIS MODULE
+#: OWNS THE LIST; ``tca.OrderCost.informative`` reads it.
 #:
-#: ``app/fund/tca.py:131`` holds an INDEPENDENT copy of this judgement
-#: (``(self.venue or "") != "paper"``). Two copies of a predicate is the defect
-#: this codebase has priced twice, and it cannot be derived away here — the
-#: other copy is a string literal inside a property. So it is pinned
-#: BEHAVIOURALLY instead: ``tests/test_executionquality.py`` builds a real
-#: ``tca.OrderCost`` on each venue and asserts the two modules agree, which
-#: fails on whoever changes either one.
+#: Until 2026-08-27 tca held an independent copy (a ``!= "paper"`` literal
+#: inside a property) and the two were held together only by a behavioural pin
+#: in ``tests/test_executionquality_store.py``. That pin still runs and still
+#: earns its keep — the two modules NORMALISE differently: ``execution_class``
+#: lowers and strips its input and ``informative`` does not, so a venue string
+#: that reaches one path uncanonicalised is still classed two ways.
 SIMULATED_VENUES = ("paper",)
 
 #: What a fill leg IS, for the purpose of averaging it with other fill legs.

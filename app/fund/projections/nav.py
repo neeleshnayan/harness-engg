@@ -23,8 +23,6 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any, Callable, Optional
 
-from firebase_admin import firestore
-
 from app.fund.events import Event, EventStore, EventType
 from app.fund.money import D, f, money, units
 from app.fund.projections.positions import Book, PositionsProjection

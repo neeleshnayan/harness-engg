@@ -230,7 +230,7 @@ def optimize_portfolio(symbols: list[str], lookback_days: int = 365, method: str
             "correlation": corr,
             "cv_metrics": cv_metrics,
         }
-    except Exception as e:
+    except Exception:
         # Fallback to equal weight on error
         return {
             "method": method,

@@ -679,3 +679,36 @@ class TestPartialReleaseKeepsTheOwner:
         assert float(rec["positions"]["GLD"]["cost"]) == pytest.approx(800.0)
         assert float(rec["net_invested"]) == pytest.approx(800.0), (
             "net_invested still carries the superseded 350 basis")
+
+
+# ---------------------------------------------------------------------------
+# JAN1 (2026-08-27): the divergence tolerance is READ from the reconciler.
+#
+# ``QTY_TOLERANCE`` was ``Decimal("1e-6")`` here and ``_TOL`` was
+# ``Decimal("1e-6")`` there, and the only thing holding them together was a
+# comment saying they matched. Decimals are not interned, so identity is a real
+# proof of reading rather than copying: a restored literal would be an equal
+# object and a DIFFERENT one.
+
+def test_the_divergence_tolerance_is_the_reconcilers_own_object():
+    from app.fund import reconcile
+
+    assert venuesync.QTY_TOLERANCE is reconcile._TOL, (
+        "venuesync restated the reconciler's tolerance instead of reading it; "
+        "the two instruments can now disagree about what 'in sync' means")
+
+
+def test_in_sync_moves_with_the_reconcilers_tolerance():
+    """The boundary is the OWNER's number, probed on both sides of it."""
+    from app.fund import reconcile
+
+    tol = reconcile._TOL
+
+    def align(delta):
+        return venuesync.SymbolAlignment(
+            symbol="SPY", book_qty=Decimal("1"),
+            venue_qty=Decimal("1") + delta, venue_avg_price=None)
+
+    assert align(tol / 2).in_sync is True
+    assert align(tol).in_sync is False        # strict <, probed AT the bound
+    assert align(tol * 2).in_sync is False
