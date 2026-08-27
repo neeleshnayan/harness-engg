@@ -77,11 +77,14 @@ class CommandPipeline:
         """The venue THIS pipeline's connector is, asked of the connector.
 
         Never ``order.venue``. That field is whatever the proposer typed, and
-        it has demonstrably lied: ``exitrule.py:303`` hardcodes ``"paper"`` on
-        every exit it raises regardless of which connector will execute it,
+        it has demonstrably lied: ``exitrule.enforce`` hardcodes ``"paper"``
+        on every exit it raises regardless of which connector will execute it,
         and the propose schema defaults it to ``"paper"`` for anything that
         does not say otherwise. Autopolicy v4 already refuses to read it
-        (``autopolicy.py:452``); this makes the WRITE path agree with that.
+        (``autopolicy.evaluate``, the venue check); this makes the WRITE path
+        agree with that. Cited by SYMBOL and not by line: both citations read
+        ``exitrule.py:303`` and ``autopolicy.py:452`` until 2026-08-27, by
+        which time the lines were 326 and 475.
 
         Returns None when the connector declines to identify itself, which is
         an ABSENCE — the caller records the declaration as unverified rather
