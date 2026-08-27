@@ -852,8 +852,14 @@ def test_the_capture_checks_the_engines_volatility_rule_still_holds():
     got = psr_inputs(REAL_STATS, {"strategy": series, "dates": dts})
     rep = got["engine_volatility_reproduction"]
     assert rep["published_annual_standard_deviation"] == 0.116
-    assert rep["series_stdev_times_sqrt_252"] == pytest.approx(0.116, abs=5e-4)
+    assert rep["series_stdev_annualised"] == pytest.approx(0.116, abs=5e-4)
     assert rep["reproduces"] is True
+    # No config was handed in, so the 252 is the DOCUMENTED DEFAULT and the
+    # payload says which. A 252 that was read and a 252 that was assumed are
+    # different facts and this is the field that keeps them apart.
+    assert rep["clock"] == 252.0
+    assert rep["clock_assumed"] is True
+    assert "ASSUMED" in rep["note"]
     assert got["observations"]["n"] == n
     assert got["observations"]["obs_per_year"] == pytest.approx(365.25, abs=0.1)
 

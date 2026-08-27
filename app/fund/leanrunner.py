@@ -2198,6 +2198,221 @@ _PSR_IDENTIFYING_STATISTICS = (
 )
 
 
+#: The engine statistics whose annualisation multiplies by ``sqrt(K)``, and
+#: those that multiply by ``K``. Named rather than described, because the
+#: correction factor differs between the two groups and a reader holding one
+#: number for "the annualisation error" would apply the wrong one to variance.
+#:
+#: Source: LEAN annualises the per-observation moments by
+#: ``Settings.TradingDaysPerYear``; standard deviation, Sharpe, Sortino,
+#: tracking error and information ratio all carry ``sqrt(K)`` while variance
+#: carries ``K``. ``Compounding Annual Return`` is deliberately in NEITHER
+#: list: it is derived from the window's own elapsed time, not from K, so a
+#: wrong K does not move it.
+SQRT_ANNUALISED_STATISTICS: tuple[str, ...] = (
+    "Annual Standard Deviation",
+    "Sharpe Ratio",
+    "Sortino Ratio",
+    "Tracking Error",
+    "Information Ratio",
+)
+LINEARLY_ANNUALISED_STATISTICS: tuple[str, ...] = ("Annual Variance",)
+
+#: How far the engine's annualisation factor may sit from the one the series'
+#: own calendar asks for before the two are reported as DIFFERENT clocks.
+#:
+#: STATED, not measured, and the reason is stated with it so the next reader
+#: does not have to guess which it was. The clocks that actually appear are a
+#: small set of conventions — 252 (equity), 360, 365 and 365.25 — and the
+#: question this tolerance answers is "same convention, or a different one?":
+#:
+#:   * 365 against 365.25 (the same convention, one carrying leap years) is
+#:     0.034% on the factor and must read AGREE.
+#:   * 360 against 365 is 0.69% and reads DISAGREE deliberately. It is small,
+#:     but it is a real re-scaling of every statistic above and the reader is
+#:     entitled to be told rather than to have it rounded away.
+#:   * 252 against 365.25 — the case this whole function exists for — is 20.4%.
+#:
+#: 0.5% sits between the first two with room on both sides. It is a reporting
+#: boundary and moves no verdict; see ``annualisation_clock``.
+CLOCK_AGREEMENT_TOLERANCE = 0.005
+
+
+def clocks_agree(series_obs_per_year: float, engine_obs_per_year: float) -> bool:
+    """Are these two the SAME annualisation convention?
+
+    Extracted as a named predicate rather than left inline, because a boundary
+    reached only through ``sqrt(a/b)`` cannot be probed exactly — the float
+    round trip lands a hair either side of the tolerance and a
+    strict-versus-non-strict slip would hide there. Here the boundary is an
+    argument.
+
+    Compares the ANNUALISATION FACTORS (``sqrt(K)``), not the clocks, because
+    that is the number every statistic in ``SQRT_ANNUALISED_STATISTICS`` is
+    actually multiplied by. Inclusive at the tolerance: exactly
+    ``CLOCK_AGREEMENT_TOLERANCE`` apart is still one convention.
+    """
+    factor = math.sqrt(series_obs_per_year) / math.sqrt(engine_obs_per_year)
+    return abs(factor - 1.0) <= CLOCK_AGREEMENT_TOLERANCE
+
+
+def _engine_clock(config: Optional[dict[str, Any]]) -> Optional[int | float]:
+    """The run's own ``tradingDaysPerYear``, or None when it did not carry one.
+
+    ONE reader, because ``psr_inputs`` and ``annualisation_clock`` both need
+    it and two copies of "is this clock usable" is two beliefs wearing one
+    name. Returns the value AS THE RUN WROTE IT — an int stays an int, so a
+    stored payload does not change shape for having been read twice.
+
+    ``math.isfinite`` as well as ``> 0``: a NaN fails every comparison, so
+    ``tdy <= 0`` alone let NaN and inf through and the capture then reported
+    them as the run's clock. Same guard, same reason, as
+    ``statistics.lean_psr_target``.
+    """
+    tdy = (config or {}).get("tradingDaysPerYear") if isinstance(config, dict) else None
+    if (isinstance(tdy, bool) or not isinstance(tdy, (int, float))
+            or not math.isfinite(tdy) or tdy <= 0):
+        return None
+    return tdy
+
+
+def annualisation_clock(daily: Optional[dict[str, Any]] = None,
+                        config: Optional[dict[str, Any]] = None
+                        ) -> dict[str, Any]:
+    """On what clock did the ENGINE annualise, and does the series agree?
+
+    THE CRYPTO BLOCKER, MADE VISIBLE RATHER THAN SILENTLY CORRECTED.
+
+    LEAN annualises every statistic in ``SQRT_ANNUALISED_STATISTICS`` by
+    ``Settings.TradingDaysPerYear``, and it takes that from the BROKERAGE
+    MODEL rather than from the security type: 252 unless a crypto brokerage
+    model is set, 365 when one is (LEAN documentation for
+    ``Settings.TradingDaysPerYear``, read 2026-08-27). So a crypto algorithm
+    that never calls ``set_brokerage_model`` is scored on an equity clock and
+    every one of those statistics is understated by ``sqrt(365/252) = 1.2034``
+    — including the Sharpe a human reads off the belt.
+
+    OUR OWN numbers do not have this problem and that is worth saying plainly,
+    because it decides what this function is for. Everything the fund computes
+    itself — the premia legs, ``sharpe_annualised``, the advantage series —
+    annualises by ``statistics.observations_per_year``, derived from the
+    series' own dates, which is self-correcting across clocks (a mean scales
+    with K and a standard deviation with sqrt(K), so the Sharpe lands on the
+    same number either way; measured on four candidates in that function's
+    docstring). The engine's published block is the part nobody can re-derive
+    after the fact, so it is the part that needs a disclosure.
+
+    **THIS FUNCTION RESCALES NOTHING.** It reports two clocks and the factor
+    between them. Applying that factor to a criterion would be a threshold
+    change, which is a versioned human decision and not a builder's.
+
+    THE SEVEN STATES, each its own value, because "could not compare" covers
+    four different facts and collapsing them is how an absence gets read as an
+    agreement:
+
+      * ``agree`` — the two factors are within ``CLOCK_AGREEMENT_TOLERANCE``.
+      * ``engine_understates`` — the engine's clock is SHORTER than the
+        series', so every sqrt-annualised statistic above is too small.
+      * ``engine_overstates`` — the engine's clock is LONGER, so they are too
+        large.
+      * ``series_absent`` — no undownsampled daily series accompanied the
+        result, so there is nothing to compare the engine against.
+      * ``series_clock_unreadable`` — a series was present and its own clock
+        could not be derived; ``series_clock_note`` carries
+        ``observations_per_year``'s own reason verbatim.
+      * ``engine_clock_absent`` — the series' clock is readable and the run's
+        ``algorithmConfiguration`` did not carry ``tradingDaysPerYear``.
+
+    PRECEDENCE IS STATED because two sides can fail at once: the state names
+    the FIRST reason the comparison is impossible, and each side's own note
+    field keeps its own reason regardless. A result with neither clock reads
+    ``series_absent`` in ``state`` and still says so in ``engine_clock_note``.
+    """
+    from app.fund import statistics as _stats
+
+    series = (daily or {}).get("strategy") if isinstance(daily, dict) else None
+    dates = (daily or {}).get("dates") if isinstance(daily, dict) else None
+
+    tdy = _engine_clock(config)
+    engine_k: Optional[float] = None if tdy is None else float(tdy)
+    engine_note: Optional[str] = (
+        "this run's configuration carried no usable `tradingDaysPerYear`, so "
+        "the clock the engine annualised on is UNKNOWN — absent, not the "
+        "engine's default" if tdy is None else None)
+
+    out: dict[str, Any] = {
+        "engine_obs_per_year": engine_k,
+        "engine_clock_note": engine_note,
+        "series_obs_per_year": None,
+        "series_clock_note": None,
+        "engine_annualisation_factor": (None if engine_k is None
+                                        else math.sqrt(engine_k)),
+        "series_annualisation_factor": None,
+        "factor_for_sqrt_annualised": None,
+        "factor_for_linearly_annualised": None,
+        "sqrt_annualised_statistics": list(SQRT_ANNUALISED_STATISTICS),
+        "linearly_annualised_statistics": list(LINEARLY_ANNUALISED_STATISTICS),
+        "tolerance": CLOCK_AGREEMENT_TOLERANCE,
+        "state": None,
+        "note": None,
+    }
+
+    # `observations_per_year` returns exactly two shapes — usable with a rate,
+    # or unusable with a reason — and a third case never reaches it: no series
+    # at all. All three get a disposition here rather than one falling through.
+    if not isinstance(series, list) or not series:
+        out["state"] = "series_absent"
+        out["series_clock_note"] = (
+            "no undownsampled daily series accompanied this result, so the "
+            "clock it was actually observed on is UNKNOWN — absent, not 252")
+        out["note"] = ("the engine's clock cannot be checked against anything: "
+                       + out["series_clock_note"])
+        return out
+
+    clock = _stats.observations_per_year(dates or [], len(series))
+    if not clock.get("usable"):
+        out["state"] = "series_clock_unreadable"
+        out["series_clock_note"] = clock.get("reason")
+        out["note"] = ("the engine's clock cannot be checked against the "
+                       "series: " + str(clock.get("reason")))
+        return out
+
+    series_k = float(clock["obs_per_year"])
+    out["series_obs_per_year"] = round(series_k, 4)
+    out["series_annualisation_factor"] = math.sqrt(series_k)
+
+    if engine_k is None:
+        out["state"] = "engine_clock_absent"
+        out["note"] = ("the series carries "
+                       f"{series_k:.2f} observations a year; " + str(engine_note))
+        return out
+
+    # The correction a reader would apply to the engine's own figures: the
+    # factor the series asks for, over the factor the engine used.
+    sqrt_factor = math.sqrt(series_k) / math.sqrt(engine_k)
+    out["factor_for_sqrt_annualised"] = round(sqrt_factor, 6)
+    out["factor_for_linearly_annualised"] = round(series_k / engine_k, 6)
+
+    if clocks_agree(series_k, engine_k):
+        out["state"] = "agree"
+        out["note"] = (f"the engine annualised on {engine_k:g} observations a "
+                       f"year and the series carries {series_k:.2f} — the same "
+                       f"clock within {CLOCK_AGREEMENT_TOLERANCE:.1%}")
+        return out
+
+    out["state"] = ("engine_understates" if sqrt_factor > 1.0
+                    else "engine_overstates")
+    direction = "UNDERSTATES" if sqrt_factor > 1.0 else "OVERSTATES"
+    out["note"] = (
+        f"the engine annualised on {engine_k:g} observations a year while the "
+        f"series carries {series_k:.2f}, so every statistic in "
+        f"`sqrt_annualised_statistics` {direction} by x{sqrt_factor:.4f} "
+        f"(variance by x{series_k / engine_k:.4f}). Nothing here rescales the "
+        f"engine's figures — moving a verdict on this factor is a threshold "
+        f"change")
+    return out
+
+
 def psr_inputs(stats: dict, daily: Optional[dict[str, Any]] = None,
                config: Optional[dict[str, Any]] = None
                ) -> dict[str, Any]:
@@ -2225,10 +2440,17 @@ def psr_inputs(stats: dict, daily: Optional[dict[str, Any]] = None,
         interpretable at all, and the belt has never stored one.
       * ``engine_volatility_reproduction`` — whether the engine's published
         ``Annual Standard Deviation`` is still the calendar-clock standard
-        deviation times sqrt(252). It was on all four stored candidates
-        (0.11627 computed against 0.116 published); if a future engine build
-        changes that, this is the field that says so instead of a silent
-        17% shift in a statistic nobody re-derives.
+        deviation times sqrt of THE RUN'S OWN CLOCK. It was on all four stored
+        candidates (0.11627 computed against 0.116 published, at the 252 they
+        all carry); if a future engine build changes the FORMULA, this is the
+        field that says so instead of a silent 17% shift in a statistic nobody
+        re-derives. A run at a different CLOCK is not a formula change, which
+        is why the clock is read here rather than typed.
+      * ``annualisation_clock`` — whether the clock the engine used is the one
+        the series it scored was actually observed on. That is a different
+        question from the one above and it is the crypto blocker: a 24/7
+        series annualised at 252 understates every sqrt-annualised statistic
+        by 1.2034, and no other field on a stored verdict would say so.
       * ``trading_days_per_year`` and ``target`` — the run's OWN
         ``algorithmConfiguration.tradingDaysPerYear``, and the PSR hurdle that
         follows from it. This is the falsifier for the whole engine-hurdle
@@ -2239,14 +2461,11 @@ def psr_inputs(stats: dict, daily: Optional[dict[str, Any]] = None,
         re-read against the hurdle it was actually judged against. MEASURED at
         capture time: 252 on 276 of 276 stored ``-summary.json`` files.
     """
-    cfg = config if isinstance(config, dict) else {}
-    tdy = cfg.get("tradingDaysPerYear")
-    # `math.isfinite` as well as `> 0`: a NaN fails every comparison, so
-    # `tdy <= 0` alone let NaN and inf through and the capture reported them as
-    # the run's clock. Same guard, same reason, as `statistics.lean_psr_target`.
-    if (isinstance(tdy, bool) or not isinstance(tdy, (int, float))
-            or not math.isfinite(tdy) or tdy <= 0):
-        tdy = None
+    tdy = _engine_clock(config)
+    # Computed ONCE, before the early return below, so a result with no daily
+    # series still carries the clock block saying WHY it could not be checked
+    # rather than carrying nothing at all.
+    clock_block = annualisation_clock(daily, config)
     from app.fund import statistics as _stats
     out: dict[str, Any] = {
         "statistics": {k: stats.get(k) for k in _PSR_IDENTIFYING_STATISTICS
@@ -2258,6 +2477,11 @@ def psr_inputs(stats: dict, daily: Optional[dict[str, Any]] = None,
         # `target.assumed` then says the hurdle rests on the default.
         "trading_days_per_year": tdy,
         "target": _stats.lean_psr_target(tdy),
+        # WHICH CLOCK, AND DOES THE SERIES AGREE. The field above says what the
+        # engine used; this says whether that was the right one for the series
+        # it scored. On a crypto run those differ by 1.2034 and nothing else on
+        # a stored verdict would say so.
+        "annualisation_clock": clock_block,
         "benchmark_sharpe_published": (
             # Named as an ABSENCE rather than left out. The engine's statistics
             # block does not carry the target; its SOURCE does, and the two are
@@ -2298,22 +2522,49 @@ def psr_inputs(stats: dict, daily: Optional[dict[str, Any]] = None,
     # engine changed its formatting.
     published = _annual_vol_fraction(stats)
     _, sd = _stats.mean_std(series)
-    recomputed = sd * math.sqrt(252.0) if sd else None
+    # THE CLOCK IS READ FROM THE RUN, NOT RE-TYPED. This used to be a literal
+    # `sqrt(252.0)` — a hardcoded duplicate of `tdy`, which is read fifty lines
+    # above in this same function. It agreed on every result this fund has
+    # ever stored (252 on 276 of 276) and would have started disagreeing on the
+    # first crypto run: a candidate scored at 365 would have reported
+    # `reproduces: False`, which reads as "the engine changed its formula" when
+    # what actually happened is that the checker used the wrong clock.
+    #
+    # When the run's configuration did not carry a clock, the DOCUMENTED
+    # default is used and the payload SAYS SO (`clock_assumed`), the same way
+    # `statistics.lean_psr_target` names its own assumption — a 252 that was
+    # read and a 252 that was assumed are different facts.
+    repro_clock = clock_block.get("engine_obs_per_year")
+    clock_assumed = repro_clock is None
+    if clock_assumed:
+        repro_clock = float(_stats.LEAN_TRADING_DAYS_PER_YEAR)
+    recomputed = sd * math.sqrt(float(repro_clock)) if sd else None
     out["engine_volatility_reproduction"] = {
         "published_annual_standard_deviation": published,
-        "series_stdev_times_sqrt_252": (None if recomputed is None
-                                        else round(recomputed, 5)),
+        # Named for what it IS rather than for the constant it used to carry.
+        # The old key was `series_stdev_times_sqrt_252`, whose name would have
+        # been a lie on any run at another clock; nothing outside this module's
+        # own tests ever read it.
+        "series_stdev_annualised": (None if recomputed is None
+                                    else round(recomputed, 5)),
+        "clock": float(repro_clock),
+        "clock_assumed": clock_assumed,
         # The rule holds when the two agree to the three decimals the engine
         # prints. Stated as a comparison rather than asserted as a fact,
         # because this is the check, not the claim.
         "reproduces": (None if published is None or recomputed is None
                        else abs(published - recomputed) < 5e-4),
         "note": ("the engine's annualisation multiplies a CALENDAR-day series "
-                 "by sqrt(252); the trading-day truth is larger by roughly "
-                 "sqrt(365.25/252) = 1.2039 — measured 1.2033 to 1.2047 "
-                 "across the four stored candidates, since the real "
-                 "calendar-to-trading ratio varies with the window's "
-                 "holidays"),
+                 f"by sqrt({repro_clock:g})"
+                 + (" — ASSUMED, this run's configuration carried no clock"
+                    if clock_assumed else " — the clock this run reported")
+                 + "; whether that clock matches the one the series was "
+                   "actually observed on is `annualisation_clock` above, and "
+                   "on this fund's equity runs it does not: the trading-day "
+                   "truth is larger by roughly sqrt(365.25/252) = 1.2039, "
+                   "measured 1.2033 to 1.2047 across the four stored "
+                   "candidates, since the real calendar-to-trading ratio "
+                   "varies with the window's holidays"),
     }
     return out
 
