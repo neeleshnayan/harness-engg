@@ -141,6 +141,19 @@ active and directing throughout.*
   read-through catches that make the seat valuable come from the lessons, not the
   volume. Splitting lessons from map is proposed, not done.
 
+### THE SWEEP'S SECOND OPINION (late evening)
+- The parent closure-sweep agent returned its OWN independent disposition table
+  (its sub-agent transcripts were unreadable to it, so it re-derived all 158
+  rows inline: 100 done / 11 superseded / 34 stays / 3 cannot-tell / 10
+  awaits-CEO). Reconciled against the five group tables the chair executed:
+  agreement on the large majority; ~13 rows the parent would close that the
+  groups left open STAY OPEN (conflicting dispositions = cannot tell, the
+  conservative direction); 2 rows the chair had closed were re-verified against
+  live code - the timeout split EXISTS (walkforward.py:409, parent wrong) and
+  the API-card row had a real residual, fixed by adding the min_folds caveat
+  (commit 2584a7e6). The parent's independently-derived AWAITS-CEO list (10)
+  matches what the CEO was told this morning.
+
 ### CONTEXT ESTATE (evening)
 - **RULED (CEO, verbatim "yup", second-look flagged): the adversary.md context
   split is OUTSIDE the immune-system exclusion** - moving content to an archive
