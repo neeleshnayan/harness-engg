@@ -371,6 +371,28 @@ but what will be impressive is if can spot what others dont and quickly turn it 
   hook cannot map their subagent types to a parent seat; design the convention honestly or
   render worker counts at return, never fake live.
 
+### MEASURED — THE CRYPTO TERRAIN MAP (cryptoland resolved, ~12:30Z)
+
+- **THE LANDSCAPE DOSSIER LANDED AND IT DECIDES THE PROGRAM'S SHAPE**: six of eight
+  professional strategy classes CLOSED by measured arithmetic (carry loses to T-bills at
+  every venue; MM pays 10x what it captures at our fee tier; MEV is a 90%-concentrated
+  access game). THE OPEN LANE: slow systematic BTC/ETH/SOL on daily bars, hold >= 2 weeks
+  — the band set by Alpaca's 0.542% round trip (daily rebalancing = 136.6%/yr drag).
+  STRUCTURAL FINDING: crypto has NO middle-band event class (tokens do not file; free
+  dated families are daily-and-thrice-killed or n<=10 vs a 4.89% MDE) — crypto generation
+  redirected to price/flow structure, BIND carried to Ed mid-flight.
+- **A public headline refuted at its own primary**: "CME hedge funds flipped net long" is
+  MICRO-contract only (0.3% of notional); the $2.94bn structural short stands (CFTC's own
+  file, 0 of 60 weeks net long).
+- **Chair settled the dossier's top question at resolve**: Alpaca crypto perps NOT live
+  (authenticated 404 on our keys). No shorting at the current venue.
+- **On Neelesh's desk**: the starter universe BTC/ETH/SOL (his coin rider answered with
+  measured filters; XRP excluded as a trap — #2 volume, 40bp spread, 93 gapped bars; four
+  stale corpses found being served without warning). Dossier rendered to his READING ROOM
+  ("Crypto landscape v1 — Aug 27" — the new room's first same-day delivery).
+- Watch item chartered to the validator: four research-critical free endpoints went
+  paid/capped in ONE WEEK — a silent reproducibility risk for every study we run.
+
 ### SHIPPED LIVE + THE CRYPTO-FIRST SWEEP (~12:00Z)
 
 - **SLICE3 MERGED AND THE SPINE CYCLED — the whole day is live.** Spine merge 328204dd,

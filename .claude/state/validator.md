@@ -1232,3 +1232,15 @@ money moving or another seat's chartered work — the band is derived from
 your declaration and nothing infers it, so an unearned `true` is a
 queue-jump nothing else will correct. (Same rule binds every filing seat;
 carried to validator too.)
+
+
+## BIND carried by the chair, 2026-08-27 (from run-analyst-cryptoland)
+
+Our free-data providers are silently going paid — an instrument risk
+nobody is watching. Measured in one week: api.llama.fi/emissions -> HTTP
+402 (was free), llama derivatives overview -> 402, CoinGecko keyless
+capped to 365d, CryptoCompare histoday 401s keyless. A study that ran last
+month may not be reproducible this month, and the failure mode is an
+exception, not a wrong number — loud for a human, silent for a pipeline.
+A standing probe over research-critical endpoints is chartered to you
+(due 2026-09-05, in the run record's recommendations).

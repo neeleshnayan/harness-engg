@@ -737,3 +737,15 @@ itself is on the CEO's desk as a question — do not assume it was chosen.)
 Ed produced no challenger this cycle, so DBA and TLT keep their incumbency
 BY DEFAULT, not by contest. Read that as an absence of evidence, not a
 defence — say so in the next book review's incumbency section.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-analyst-cryptoland)
+
+Two risk parameters for crypto sizing, both measured: BTC 30d realized vol
+is 41.8% — the 24.5th percentile of its own history — and SOL's 51.9% is
+the 5.5th percentile: any vol-scaled parameter fitted today is fitted at a
+historical extreme and will be too tight when vol normalizes toward BTC's
+55.5% median. State the covariance window in the table. And carry the
+gap finding into crypto sizing: for 24/7 spot the overnight gap becomes
+continuous, so exit machinery reaches a LARGER fraction of the risk than
+in ETFs — the one structural advantage crypto gives us.

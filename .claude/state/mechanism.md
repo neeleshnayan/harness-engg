@@ -1012,3 +1012,20 @@ sustainable per-batch rate — the screen exists precisely to make future batche
 cheaper, and the next batch's cost is the test. An honest zero that produces the
 rule explaining six zeros is leg-1 work of the first order; leg 2 stays red and
 the liquidation panel is its named unblock.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-analyst-cryptoland)
+
+**Stop looking for a crypto event corpus; there isn't one.** Free dated
+crypto event families are daily-and-already-killed (ETF flows, n=674,
+three independent kills) or rare-and-structurally-unmeasurable (n<=10
+against a 5-day MDE of 4.89% at n=4). Tokens do not file. **Before
+proposing any crypto event study, state the population count and compute
+the MDE from BTC daily sd 2.188% — if n<50 the family is closed, not
+untested.** Two of your holder-triggered families are closed on DATA: the
+DefiLlama unlock calendar returns HTTP 402 as of 2026-08-27, and
+public-miner monthly production 8-Ks decayed from 25/yr to 11/yr (MARA)
+and 31 to 6 (CLSK). **Assume the frequency band Alpaca's 0.542% round trip
+permits: hold >= 2 weeks, or name a different venue and its connector cost
+in the proposal itself.** Chair addition: Alpaca crypto perps settled NOT
+live at resolve — no shorting at the current venue, full stop.

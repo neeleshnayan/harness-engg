@@ -670,3 +670,45 @@ Two filing facts now load-bearing on the CEO's window: (1) state `next_actor: "n
   `GET /fund/marketdata/bars` returns HTTP 422 for delisted tickers (151 of
   274 in Ed's run; chair-verified). The surviving set is a survivorship
   filter with no error message. Cache failures as failures, not as files.
+
+
+## 2026-08-27 — STATE from run-analyst-cryptoland (crypto strategy landscape dossier v1), appended by the chair
+
+**THE STRUCTURAL FINDING, and it redirects the whole crypto funnel: CRYPTO HAS NO MIDDLE-BAND EVENT CLASS.** Equities gave us 79,559 free dated 8-Ks across 391 tickers. Crypto's free dated event families are either DAILY-AND-DEAD (ETF flows, n=674, killed 3x independently — ETH placebo, GLD 21y replication, and now the 2025-07-29 in-kind approval removes the forced-spot-transaction mechanism itself) or RARE-AND-UNMEASURABLE (court distributions, halvings; n<=10). **MDE computed BEFORE any test (clause 5): BTC 30d vol 41.8% => daily sd 2.188%; at n=4 a 5-day effect must exceed 4.89% to reach |t|=2; n=10 -> 3.09%; n=50 -> 1.38%.** Tokens do not file. **"Find a free dated event class and measure its drift" is a search over a two-member set in crypto.** Generation must come from price/flow structure on a small liquid universe.
+
+**THE COST TABLE SETS THE TRADEABLE FREQUENCY BAND.** Alpaca 0.542% RT => daily 136.6%/yr, weekly 28.2%, bi-weekly 14.1%, monthly 6.5%. **Minimum viable hold at Alpaca ~ 2 weeks; at Binance perp ~ 3 days.** Any candidate holding less is dead before backtest.
+
+**CARRY IS DEAD AT THE TERM STRUCTURE TOO.** Measured 2026-08-27: BTCUSDT_260925 +4.34%/yr, _261225 +4.64%/yr, ETH +4.10/+3.65. Dec contract: +1.503% gross over 119.9d − 0.300% both-legs cost = +3.68%/yr vs DGS3MO 3.86% — loses to cash before tax. Funding trailing: BTC 7d +9.46 / 30d +7.14 / 90d +5.32 / 365d +3.32%; ETH 365d +2.39%; SOL 365d −1.56%. 13/21 of last week's BTC settlements printed EXACTLY +0.01% — the constant again.
+
+**A PUBLIC HEADLINE REFUTED AT ITS OWN PRIMARY.** Media (2026-08-10) reported CME hedge funds "flipped net long." CFTC gpe5-46if, report 2026-08-18: BITCOIN (5 BTC) leveraged funds NET −7,439 (≈−$2.94bn), net long in 0 of 60 weekly reports since 2025-07-01. The flip is MICRO BITCOIN only (+1,098 ≈ +$8.7M ≈ 0.3% of notional). ETHER lev funds −4,395, 0/60. **The carry short is compressed, not unwound.** CFTC socrata is free/fast; percent-encode $ params.
+
+**HLP IS THE CLASS BENCHMARK NOBODY WAS USING**: api.hyperliquid.xyz vaultDetails — equity $185,480,912, apr 7.00%, all-time P&L +$137.7M since 2023-05-10, month +$876k. **Equity fell $224.1M -> $185.5M in a month while P&L was POSITIVE = redemptions.** Free, dated, repeatable — price any MM/liquidity claim against it.
+
+**REGIME (settled bars, 2026-08-26)**: BTC $79,023.75 −36.6% from ATH; ETH −48.1%; SOL −61.0%. 30d ann vol: BTC 41.8% = 24.5th pct of own history; ETH 67.7% = 39.8th; **SOL 51.9% = 5.5th pct**. Volumes ~half of 2024/25; DEX −56% y/y. Dominance 59.2%; stablecoins $310.8bn with USDC +1.91%/mo — dry powder NOT leaving (the one two-sided fact). Hashrate −27.2% from peak (confirms miner stress at the primary). **ETHENA = the carry tombstone: USDe $4.05bn vs $14.82bn peak (2025-10-04), −72.7%.** ETF flows: BTC 2026 YTD −$1,935m BUT trailing 20d +$3,250m, ten straight positive sessions — recorded, not explained.
+
+**EXOGENOUS-FLOW SCREEN — three of four families closed on DATA:** (1) UNLOCKS: api.llama.fi/emissions now HTTP 402 (was free); tokenomist serves a JS shell; published impacts disagree 3.5x — trust the matched-peer −4.85% (n=236) over the unmatched −16.97% (n=52); off-universe anyway (only ARB vests in our set). (2) MINER SELLING: the monthly-production 8-K cadence DECAYED (MARA 25/11mo 2024 -> 11/7mo 2026; CLSK 31 -> 6; only 23-34% land by the 8th). (3) ETF: pre-killed x3. (4) COURT DISTRIBUTIONS: FTX pays USD CASH at petition valuations — a potential BID, sign undetermined; Mt. Gox slipped again to 2026-10-31.
+
+**THE EXECUTABLE UNIVERSE, MEASURED**: Alpaca serves 29 USD pairs; **4 are corpses with no warning — TRX (last quote 2023-04-18), NEAR (2023-06-23), MATIC (2023-06-23), MKR (2025-09-23). FOURTH "absence wearing values" instance — filter on quote freshness, never on "the endpoint returned a row."** 7d $vol/day: BTC 347k, XRP 206k, ETH 149k, SOL 76k … FIL $293/XTZ $236/BAT $228 (one position = 1.6-2.1x the coin's entire daily volume). Spreads: ETH 2.13bp, BTC 3.02, SOL 3.82 … XRP 40.05. Binance/Alpaca volume ratio: BTC 5,790x. **SPLICE SCREEN: ZERO flags on all 27** (max DOGE 4.92x, real). Binance base rate: 3,685 spot symbols, 63.1% BREAK. **Alpaca history traps: ADA 196 bars, ARB 193, FIL 193, XRP 93 GAPPED bars from 2024 behind the #2 volume rank.** PERP NAMING: PEPE/SHIB perps exist as 1000PEPEUSDT/1000SHIBUSDT; MATIC has none (migrated POLUSDT).
+
+**STARTER UNIVERSE (recommended, on the CEO's desk): BTC/USD, ETH/USD, SOL/USD on Alpaca paper, daily bars, hold >= 2 weeks.** XRP excluded (40bp spread, 93 gapped bars). Backtest-on-Binance/execute-on-Alpaca => declare the ~9bp USDT/USD systematic offset in every candidate.
+
+**VENUE**: Alpaca crypto-perp routes 401 keyless — **CHAIR SETTLED AT RESOLVE: authenticated GET on our paper keys -> 404 "endpoint not found" on both routes. NOT LIVE.** The SDK doc was right; the 401 was the auth gate. Alpaca: no margin, no shorting (docs verbatim), maker 15bp vs 1.5bp half-spread (MM impossible), liquidity source undisclosed. "Alpaca Finance" (BNB DeFi) is a DIFFERENT COMPANY — search trap. Connector cost: base.py 119-line Protocol, alpaca.py 386 lines, a Binance connector ~400 (ccxt not in venv; a dependency decision).
+
+**GALAXY Q2-26 (SEC 8-K verbatim)**: $49M adjusted gross profit, net loss $(85)M, $2.7bn equity — the whole professional stack's profitability in this regime. **MEV: top-3 builders 90.08% of blocks.**
+
+**ABSENT, REPORTED AS SUCH**: DGS3MO live (used 3.86% from 08-26); Alpaca liquidity source; Kaiko bodies (gated; those quotes second-hand); VisionTrack 2025-26; **Binance FUTURES testnet fidelity (cheapest open item, decides no-money perp rehearsal)**; Delta India funding (two surfaces, opposite signs — do not measure there); real crypto execution costs (zero real fills; paper.py:116 cannot measure one).
+
+**SCRATCHPAD (reuse)**: cryptoland/ — klines_daily.json, funding.json, alpaca_snapshots.json, alpaca_bars7.json, etf_BTC/ETH.json, hlp.json, dq.json, glxy_q2.txt, scripts m1-m15.
+
+**FITNESS**: 5 decision-changing measurements — the no-middle-band finding (redirects crypto generation entirely); the CFTC refutation; the frequency-band arithmetic (constrains every candidate pre-write); the unlock-paywall + miner-cadence decay (closes two flow families on data); the corpse/gapped-XRP universe filter. Zero containers.
+
+**CTO note at resolve (Fable chair, 2026-08-27)**: the perp question you
+escalated was settled within the hour of your filing (404 authenticated —
+not live); your starter universe is on the CEO's desk; your
+research-redirect and frequency-band recommendations were ADOPTED at
+resolve and carried to Ed mid-flight; the endpoint-decay probe is
+chartered to the validator. The dossier rendered to the CEO's Reading Room
+the same hour the room shipped — the compounding loop working exactly as
+designed. The MDE-before-any-test discipline in §3.2 is the best
+demonstration of clause 5 this firm has produced; it closed a whole lane
+cheaper than one failed study would have.

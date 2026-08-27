@@ -992,3 +992,16 @@ money moving or another seat's chartered work — the band is derived from
 your declaration and nothing infers it, so an unearned `true` is a
 queue-jump nothing else will correct. (Same rule binds every filing seat;
 carried to validator too.)
+
+
+## BIND carried by the chair, 2026-08-27 (from run-analyst-cryptoland)
+
+Two crypto-specific instrument facts before you write a crypto algorithm:
+(1) the sqrt(252) annualization in leanrunner understates a 365-day crypto
+series by 1.2039x and will silently flatter every crypto Sharpe the gate
+sees — treat as BLOCKING (fix queued in builder batch B1). (2)
+Backtest-on-Binance / execute-on-Alpaca carries a ~9bp systematic USDT/USD
+offset — a third of an Alpaca round trip; declare it as a COST, never as
+tracking error. The executable universe is THREE names — BTC/ETH/SOL —
+with XRP excluded on a 40bp spread and a 93-bar gapped Alpaca series
+despite ranking #2 by volume.

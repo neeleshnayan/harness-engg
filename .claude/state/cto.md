@@ -1223,3 +1223,18 @@ on it.
    literally it would have swept the 18 rows whose execution is his
    personally — the exact case Donna's falsifier and the COO's preserved
    objection protect. The missing thing was feedback, not the count.
+
+
+## 2026-08-27 — chair facts from cryptoland (BIND accepted; probe done)
+
+- **Alpaca crypto perps SETTLED NOT LIVE** — authenticated GET on our paper
+  keys: 404 endpoint-not-found on both crypto-perps routes (the 401 was the
+  auth gate answering before routing). No shorting/leverage at Alpaca. A
+  short leg = Binance/Delta connector build + CEO venue decision.
+- **The crypto frequency band is a proposal-time pre-filter now**: Alpaca
+  0.542% RT => hold >= 2 weeks; Binance perp => ~3 days. Any brief
+  chartering a crypto candidate states the band.
+- **The Binance FUTURES testnet fidelity check** is the cheapest open item
+  (decides whether perp strategies can rehearse without money) — due 09-03.
+- CFTC socrata (publicreporting.cftc.gov) is free/fast; percent-encode $
+  params. Farside needs a browser UA. SEC Archives needs a contact UA.
