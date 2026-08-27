@@ -1005,3 +1005,13 @@ offset — a third of an Alpaca round trip; declare it as a COST, never as
 tracking error. The executable universe is THREE names — BTC/ETH/SOL —
 with XRP excluded on a 40bp spread and a 93-bar gapped Alpaca series
 despite ranking #2 by volume.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-ed-batch7)
+
+When you implement a claim whose edge is a YIELD rather than a forecast,
+compute the active statistic at the frequency the yield accrues, and
+report BOTH: daily-differenced and monthly-aggregated. On Ed's staking
+candidate the same data reads t=+0.99 daily and t=+4.22 monthly, and only
+the second is economically meaningful. Differencing two non-synchronous
+closing prints is a measurement artifact, not risk.

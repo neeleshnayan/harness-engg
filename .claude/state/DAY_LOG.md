@@ -371,6 +371,33 @@ but what will be impressive is if can spot what others dont and quickly turn it 
   hook cannot map their subagent types to a parent seat; design the convention honestly or
   render worker counts at return, never fake live.
 
+### THE DROUGHT BREAKS (Ed batch 7 resolved, ~13:00Z)
+
+- **THE FIRST SURVIVING PROPOSAL IN FIVE BATCHES, and it needs nothing we don't have**:
+  P1, the Ethereum staking-wrapper premium — hold the staking mini trust (feed symbol
+  ETH, 0.15% fee) over non-staking ETHA (0.25%); issuance pays only stakers, so the ~70%
+  unstaked supply is diluted by an accounting identity. Measured +1.86%/yr, 10/11 months
+  positive (p=0.0059), one-time ~10bps switch, >$1bn capacity, executable on Alpaca
+  today. CHAIN: adversary blind FIRED at resolve (batched with the NAV-alarm rule review
+  — the batching rule's first use; Ed's own two contamination attacks lead the brief) →
+  Stan prices → the CEO clicks. Routing call recorded: P1 goes as INSTRUMENT SELECTION
+  (zero free parameters — nothing for an overfitting gate to protect), while the belt
+  runs it separately as a GATE-CALIBRATION experiment against Ed's pre-committed
+  prediction that the daily-frequency luck filter refuses a true yield for the wrong
+  reason.
+- **Four more kills, all measured**: weekend premium (true premise, spread-not-drift
+  conclusion), miner forced supply (passed its control, died on 3-of-29 observations),
+  crypto tax-loss (dead on statute — no wash-sale rule = no net flow; watch item if the
+  bill passes), cross-sectional funding (blocked on a venue bookkeeping artifact:
+  default-print share correlates +0.647 with measured carry).
+- **The unlock lead has a design worthy of the program**: forward paper test with a
+  timestamped schedule snapshot — zero look-ahead where the backtest is unrecoverable.
+  Needs a short-leg venue; parked with its unblock named.
+- **Two feed defects chair-verified live** (GETH serves a penny stock at HTTP 200;
+  ?symbol=ETH is the Grayscale trust, not the coin — card corrected). Both to B1.
+- Score: 12 crypto mechanisms graded across two batches, 1 survivor — the honest
+  denominator, now chartered into the knowledge graph (due 09-01).
+
 ### MEASURED — THE CRYPTO TERRAIN MAP (cryptoland resolved, ~12:30Z)
 
 - **THE LANDSCAPE DOSSIER LANDED AND IT DECIDES THE PROGRAM'S SHAPE**: six of eight

@@ -1244,3 +1244,14 @@ month may not be reproducible this month, and the failure mode is an
 exception, not a wrong number — loud for a human, silent for a pipeline.
 A standing probe over research-critical endpoints is chartered to you
 (due 2026-09-05, in the run record's recommendations).
+
+
+## BIND carried by the chair, 2026-08-27 (from run-ed-batch7)
+
+The gate's alpha-luck filter is computed on daily active returns. Measure
+what it does to a candidate whose true edge accrues smoothly at low
+amplitude against high daily pairing noise: Ed's pre-committed prediction
+is P(true excess Sharpe>1.0) ~53% on a position whose monthly information
+ratio exceeds 3. The chair chartered the experiment (belt run of the
+staking candidate as an instrument test, due 09-05). If it reproduces, the
+criterion is frequency-dependent in a way nothing documents.

@@ -712,3 +712,14 @@ the same hour the room shipped — the compounding loop working exactly as
 designed. The MDE-before-any-test discipline in §3.2 is the best
 demonstration of clause 5 this firm has produced; it closed a whole lane
 cheaper than one failed study would have.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-ed-batch7)
+
+Before any crypto study using free funding-rate history: screen out prints
+exactly equal to the venue default (0.0100%/8h) and report the share you
+removed. Across 12 Binance perps the default-print share correlates +0.647
+with realised mean carry — a cross-sectional carry ranking is partly
+ranking exchange bookkeeping. And Coin Metrics Community Network Data is
+the untested free alternative to paywalled miner-flow series — its shape
+check is chartered (due 09-10), queue it with your next crypto batch.

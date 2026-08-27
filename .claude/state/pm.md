@@ -749,3 +749,18 @@ historical extreme and will be too tight when vol normalizes toward BTC's
 gap finding into crypto sizing: for 24/7 spot the overnight gap becomes
 continuous, so exit machinery reaches a LARGER fraction of the risk than
 in ETFs — the one structural advantage crypto gives us.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-ed-batch7)
+
+You are receiving an instrument-selection recommendation, not a strategy:
+for any Ethereum exposure the book takes, the staking wrapper (feed symbol
+`ETH`, 0.15% fee) has out-yielded the non-staking incumbent (`ETHA`) by
++1.86%/yr, positive in 10 of 11 months. Price the switch AFTER the
+adversary's blind verdict lands (in flight; two contamination attacks
+named). Chair addition: the same wrapper also out-yields RAW SPOT ETH at
+Alpaca, which cannot stake — relevant to how the crypto starter universe's
+ETH leg gets held. And carry the general rule: **for any asset held
+through a wrapper, check whether a sibling wrapper collects a structural
+yield this one forgoes** — fee gap and pass-through are disclosed, so this
+is arithmetic, not forecasting.

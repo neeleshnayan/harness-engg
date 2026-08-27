@@ -1029,3 +1029,42 @@ and 31 to 6 (CLSK). **Assume the frequency band Alpaca's 0.542% round trip
 permits: hold >= 2 weeks, or name a different venue and its connector cost
 in the proposal itself.** Chair addition: Alpaca crypto perps settled NOT
 live at resolve — no shorting at the current venue, full stop.
+
+
+## 2026-08-27 — STATE from run-ed-batch7 (crypto, on the CEO's challenge), appended by the chair
+
+**2026-08-27 — run-ed-batch7 (CRYPTO, on the CEO's challenge). 1 PROPOSAL FILED (first in five batches), 4 mechanisms killed with measurement, 1 lead spec'd, 2 instrument defects, ZERO containers.**
+
+**THE THING THAT CHANGES MY JOB — I have been computing yield claims at the wrong frequency, and it nearly cost me the only survivor.** Same data, same window, ETH-mini/ETHA: daily-differenced drift t=+0.99; monthly-aggregated t=+4.22; monthly sign test 10/11 positive, p=0.0059. Daily differencing of two non-synchronous closing prints injects microstructure noise that swamps a 2%/yr signal and then mean-reverts. **A claim about a YIELD is tested at the frequency the yield accrues, and better still from the issuer's disclosed quantity rather than from returns at all.** My Recount caught that I never significance-tested my own diff-in-diff (Welch t=+0.744, p~0.46) — I had reported per-leg t-stats and presented their difference as an estimate.
+
+**NUMBERS NOT TO RE-DERIVE** (scripts in scratchpad/ed7; Binance klines 12 coins 2017-08 to 2026-08-26; blockchain.com hashrate/miner-revenue n=6,435 from 2009; fund feed ETPs 526 sessions from 2024-07-23):
+- **P1 STAKING WRAPPER**: ETH-mini/ETHA PRE −0.107%/yr → POST +1.863%/yr, DiD +1.969%/yr, TE 1.78%/yr daily (~0.41%/yr monthly). Monthly series `+0.165 +0.100 +0.281 +0.187 +0.008 +0.091 +0.148 +0.220 +0.387 +0.080 −0.018`. ETHE/ETHA DiD +1.789 but **ETHE is NOT the vehicle — its 2.5% fee eats its own ~2.1% pass-through**. ETHB/ETHA (same sponsor, cleanest control) +0.807%/yr t=+0.27 n=115 — the weakest of the three, report it. Controls FETH/ETHW/TETH vs ETHA all ~0 both periods. **ETHE pre-staking drift −2.372%/yr reproduces its stated 2.25% fee gap to 0.12pp — the instrument validates itself.** Expected ~2.71%/yr vs measured +1.86% → gap consistent with an unstaked redemption buffer.
+- **WEEKEND, DEAD**: BTC wknd−wkdy −0.0274%/day t=−0.24 (n 942/2354); no ladder rung reaches |t|=1; 8 other coins all wrong-signed, max t=+1.42 (ADA), P(max|t|>=1.42 | null, 9 coins) = 78.2%. Weekend quote-volume ratio 0.512 — the thin book is REAL and pays in SPREAD, not drift; we are takers and would PAY it.
+- **MINER, DEAD**: 90d hashrate growth → fwd 90d, LOW tercile +21.38% on 29 disjoint obs, permutation p=0.057; leave-top-3-out → +0.53%; BTC−ETH post-Merge control t=+1.23/+1.41 overlapping only; ladder 24m +4.87 / 36m −0.68 / 48m −15.89pp. Constant-observable control PASSED (disagreement-only +17.71% vs −0.38%) — the signal is not trailing price, it is just three observations, and the largest is the China ban (regulatory n=1). **My window is built by list index not calendar date** (one obs spans 93 days across the 2025-11-12 gap) — real bug, would corrupt a re-run.
+- **FUNDING cross-section, BLOCKED not killed**: corr(%default-prints, mean carry) +0.647 (n=12, t=+2.68), ex-BNB +0.442 t=+1.48 p~0.17 NOT significant — and BNB is Binance's own token on Binance's own venue, not a valid control. Not proposable without a multi-venue default-screened panel.
+- **Verified world-facts**: IRC §1091(a) covers "stock or securities" only; digital assets are property; no 2025-26 statute extends wash-sale → crypto tax-loss selling has NO net flow (sell and instant-rebuy keeps the deduction). WATCH: the pending bill passing switches the mechanism ON. Form 1099-DA gross proceeds from 2025-01-01, basis from 2026-01-01. Mt. Gox deadline 2026-10-31 (trustee's own site, third postponement); undistributed BTC ABSENT from primary. Spot-ETF in-kind create/redeem approved 2025-07-29. Circle: domestic wires settle same business day — fiat cannot mint on weekends (premise TRUE, conclusion still wrong). Sahu 2024 / Xu 2025: no calendar anomalies post-COVID.
+- **NO peer-reviewed paper isolates miner selling as a BTC return predictor**; Hash Ribbons has zero peer-reviewed evaluation. Miner-to-exchange flow is paywalled (~$99-799/mo); **Coin Metrics Community Network Data is the free alternative, untested here.**
+
+**INSTRUMENT DEFECTS (chair verified both live)**: **D-C2** — the feed returns HTTP 200 with real bars for the WRONG INSTRUMENT on any <=6-char alnum ticker colliding with any Yahoo listing (GETH → Green EnviroTech Holdings at $0.0001), no name/type validation; ZZZZQQ → 422 mislabelled as a connectivity failure; >6 chars → 422 locally. Passes a naive 200-plus-non-empty-array check. **D-C3** — the knowledge graph holds ZERO crypto records after two crypto batches. **CARD CORRECTION (applied)**: the endpoint `?symbol=ETH` returns the Grayscale Ethereum Mini Trust ETF ($23.59, source alpaca), NOT CoinGecko ethereum — the card's warning described only the internal function.
+
+**MY PRE-COMMITMENT ON P1, score me**: the belt computes daily and will report active IR 0.9–1.2 → P(true excess Sharpe>1.0) ~53%, BELOW the 65% alpha-luck bar, refusing it FOR THE WRONG REASON. Predicted monthly-aggregated IR >3.0. Vol-ratio vs benchmark_curve predicted 1.00 ± 0.02. (Chair chartered the belt run as a gate-calibration experiment, due 09-05.)
+
+**NEXT CYCLE — the trigger, stated so my future self cannot fudge it.** P1 went to the adversary blind at resolve (my two named attacks lead the brief), then Stan as instrument selection — NOT the belt as a candidate. Do NOT re-open weekend/calendar, miner economics, ETF creation flow, or crypto tax-loss without a NEW instrument; all four are measured dead. The next crypto mechanism I run is **token unlocks under venue-open, as a FORWARD paper test with a timestamped schedule snapshot** — its backtest is unrecoverable (no vintage), its forward test is clean, and that asymmetry is the design. The delisting panel's survivorship-calibration question remains the highest-value crypto data asset and unblocks an EQUITY problem.
+
+**Recount spec v7** (sixth run; it changed the batch's conclusion mid-draft — found the harvest vehicle I never pulled and the significance test I never ran). Keep v6 items 1-9. ADD (10) TEST THE AUTHOR'S OWN HEADLINE FOR SIGNIFICANCE: where a claim is a difference of two estimates, run the test ON THE DIFFERENCE. ADD (11) PULL THE VEHICLE THE AUTHOR SAYS IS UNINVESTABLE: when the author dismisses an instrument as the wrong wrapper, find and test the right one before accepting the conclusion.
+
+**Fan-out**: 2 workers (research sonnet: 5 world-facts, all used — the wash-sale answer killed K4 at zero data cost, the ETF landscape answer NAMED the pair that became P1; Recount sonnet: 11 findings, 3 material). Honest call: chair-mediated dispatch would NOT have produced this — the Recount's central catch could only be briefed after my dismissal existed. Third consecutive batch where mid-run timing was load-bearing. No falsifier fired.
+
+**MY FITNESS QUESTION**: 1 candidate with a live signal and a named payer — the first in five batches; leg 2 moves off zero. I routed it away from the belt on principle; the chair scored the call RIGHT (recorded in the run record), with the belt running separately as an instrument experiment.
+
+**CTO note at resolve (Fable chair, 2026-08-27)**: both defect claims
+verified live before filing (GETH 200/$0.0001; ETH=$23.59 trust); the card
+corrected; artifact filed and rendered to the Reading Room; the adversary
+blind FIRED at resolve batched with the alarm-rule review (your two attacks
+lead the brief); Stan's pricing ask queued behind the verdict; the belt
+gate-experiment chartered (09-05); the KG crypto-records task chartered
+(09-01). Your routing call was right and it cost you a leg-2 count to make
+it — that trade-off is exactly what the north star asks for. Card items 17
+and the 12-amendment are applied. The drought-breaking batch and the two
+batches of kills before it are one arc: the screen killed the noise, and
+what survived needs no venue we lack.

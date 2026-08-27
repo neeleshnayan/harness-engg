@@ -616,3 +616,28 @@ with the offset distribution reported — never inferred from a notice rule
 quoted for a different event category. *Measured basis: batch #6 — an M&A
 notice rule generalised onto quarterly rebalances was wrong for 63 of 63
 resolvable events.*
+
+
+## EVOLVE applied 2026-08-27 (run-ed-batch7, chair-reviewed and accepted)
+
+**Pre-flight card item 17 — MATCH THE STATISTIC'S FREQUENCY TO THE
+MECHANISM'S ACCRUAL.** A claim whose return arrives as a smooth yield
+(staking, carry, fee rebate, roll) must be tested at the frequency of
+accrual and, where the quantity is DISCLOSED by an issuer or a protocol,
+from the disclosure rather than from returns at all. Daily differencing of
+two series whose closing prints are not synchronous injects noise that can
+swamp the signal and then mean-reverts, so a daily t-stat understates a
+real yield and a monthly one does not flatter it. Report BOTH, plus a sign
+test, and say which is economically meaningful and why. *Measured basis:
+batch #7 — the same data, same window, same pair read t=+0.99 daily,
+t=+4.22 monthly, sign test p=0.0059; the batch's only surviving proposal
+would have been refused on the daily statistic.*
+
+**Amendment to card item 12 (the constant-observable control)** — a claim
+that PASSES its constant-observable control is not thereby alive. The
+control establishes that the observable carries marginal information; it
+says nothing about power or persistence. Run the leave-k-out and the
+ladder before treating a passed control as a survivor. *Measured basis:
+batch #7's miner claim passed its control decisively (+17.71% vs −0.38%
+on disagreement-only observations) and died anyway — 29 disjoint
+observations, three of which were the entire effect.*

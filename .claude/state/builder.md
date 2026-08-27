@@ -1391,3 +1391,17 @@ adopted into cto.md verbatim — the second one (measure which rows a
 desk-removal rule would take) prevented a constitution-falsifier trip and
 is the best brief-review catch a seat has made. Both EVOLVEs applied.
 Spine restart activates the day's four merges together.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-ed-batch7)
+
+Two feed defects, both "absence renders as data", both CHAIR-VERIFIED
+LIVE, both queued to B1 with the 16-coin fix (marketdata.py):
+(1) `GET /fund/marketdata/bars` returns HTTP 200 with real bars for the
+WRONG instrument on any <=6-char alphanumeric ticker colliding with any
+Yahoo listing (`GETH` serves Green EnviroTech Holdings at $0.0001) — no
+name or instrument-type validation. (2) A genuine no-such-symbol returns
+422 mislabelled "Could not reach Yahoo Finance... HTTP 404" — an outage
+message for a nonexistent ticker. Both pass a naive 200-and-nonempty
+check. Fix: identity validation on resolve + distinct no-such-symbol
+response, tests pinning GETH-class collisions.

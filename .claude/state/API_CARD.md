@@ -139,3 +139,18 @@ Base URL: `http://127.0.0.1:8090/api/v1`
   advertised .csv 301s to a PDF; 204 rows read "US Holiday"; openpyxl not
   in venv. Recovers the LBMA fix as NAV/oz (no free FRED gold price exists
   - GOLDAMGBD228NLBM is a 404).
+
+
+## Crypto-adjacent feed facts (corrected 2026-08-27, run-ed-batch7, chair-verified live)
+
+- **`GET /fund/marketdata/bars?symbol=ETH` returns the GRAYSCALE ETHEREUM
+  MINI TRUST ETF (~$23.59, source alpaca), NOT ethereum.** The card's older
+  BTC/CoinGecko warning described the internal `fetch_daily_bars` only —
+  the ENDPOINT and the function resolve symbols differently. Any crypto
+  study must state which surface it read and verify the instrument's
+  identity (price sanity vs the coin), not just the symbol.
+- **A <=6-char ticker colliding with ANY Yahoo listing returns HTTP 200
+  with the WRONG instrument's real bars** (GETH -> an OTC penny stock at
+  $0.0001), and a genuine no-such-symbol 422s with an outage-shaped
+  message. Fix queued (B1). Until then: sanity-check price level and
+  source field on every unfamiliar symbol.
