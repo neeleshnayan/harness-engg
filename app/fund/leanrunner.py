@@ -1154,6 +1154,36 @@ class LeanRunner:
             row = next((r for r in (rows or ()) if r.get("session_id") == sid),
                        None)
             if what in (leansessions.REATTACH, leansessions.ADOPT):
+                # A SESSION THIS PROCESS ALREADY HOLDS IS NEVER RE-TAKEN, AND
+                # THIS BECAME LOAD-BEARING THE DAY THE PASS BECAME PERIODIC.
+                #
+                # ``_run_live`` binds ``session = self._live[session_id]`` ONCE
+                # and mutates that object for the rest of the session's life.
+                # Replacing the entry hands the process a DIFFERENT dict from
+                # the one its own thread is writing to: when the engine exits,
+                # the thread records ``ended`` on the object it holds while
+                # ``_live`` — which is what ``live_sessions()`` and
+                # ``stop_live()`` read — still says ``running``, forever.
+                #
+                # At start-up this could not happen: ``_live`` is empty, there
+                # is no thread, and taking the row back in is the entire point.
+                # Every five minutes it happens on the FIRST pass after any
+                # session starts. Demonstrated by identity, not equality:
+                # ``scratchpad/clobber_probe.py``.
+                #
+                # Recording it as ``done: False`` rather than skipping it
+                # silently: the reconciliation's job is to say what it found,
+                # and "this one is already ours" is a finding, not a no-op.
+                with self._lock:
+                    held = sid in self._live
+                if held:
+                    performed.append({
+                        **act, "done": False,
+                        "detail": ("this process already holds the session; "
+                                   "its own thread owns that object and "
+                                   "replacing it would leave `_live` reporting "
+                                   "a state the thread no longer writes to.")})
+                    continue
                 taken = dict(row or {})
                 taken.update({"session_id": sid, "state": "running",
                               "container": act.get("container"),

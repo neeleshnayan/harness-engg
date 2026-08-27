@@ -21,9 +21,20 @@ grace must not weaken the start-up pass** (its default is 0 and every existing
 behaviour is unchanged), and **an unreadable age must count as young**, because
 refusing to judge costs one pass and retiring a live session costs the session.
 """
+import pathlib
+
 import pytest
 
 from app.fund import leansessions as LS
+
+
+#: ``app/main.py`` read as TEXT rather than imported. Importing it
+#: resolves the fund mode, initialises Firebase and builds the router —
+#: a unit test that did that would be an integration test wearing a
+#: unit test's name, and would fail for reasons that have nothing to do
+#: with what is being asserted.
+MAIN_SRC = (pathlib.Path(__file__).resolve().parents[1]
+            / "app" / "main.py").read_text(encoding="utf-8")
 
 NOW = "2026-08-27T12:00:00+00:00"
 
@@ -391,3 +402,140 @@ class TestTheEndpointPublishesIt:
         body = c.get("/api/v1/fund/lean/live/reconciliation").json()
         assert body["last_acted"]["state"] == LS.RECON_FRESH
         assert body["last_acted"]["trigger"] == "worker"
+
+
+class TestTheReattachDoesNotClobberTheThreadThatOwnsTheSession:
+    """FOUND BY THE LATE READ-THROUGH, not by any suite, and it is a defect the
+    PERIODIC pass created rather than one it inherited.
+
+    ``_run_live`` binds ``session = self._live[session_id]`` ONCE and mutates
+    that object for the rest of the session's life. The REATTACH branch of
+    ``reconcile_containers`` did ``self._live[sid] = taken`` — a NEW dict built
+    from the registry row.
+
+    At START-UP that is correct and harmless: ``_live`` is empty, there is no
+    thread, and taking the row back in is the entire point. Every five minutes
+    it is not. After the first periodic pass, ``_live[sid]`` and the object the
+    running thread is writing to are two different dicts — so when the engine
+    exits, the thread records ``ended`` on its own object while
+    ``live_sessions()`` and ``stop_live()`` read ``running``, forever.
+
+    Asserted by IDENTITY. Equality would pass on the clobbered version, because
+    the replacement dict is built from a row that (at that instant) says the
+    same thing.
+    """
+
+    def _runner(self, tmp_path, sid="abc123"):
+        from app.fund.leanrunner import LeanRunner
+        r = LeanRunner(workspace=tmp_path)
+        con = f"{LS.CONTAINER_PREFIX}{sid}"
+        owned = {"session_id": sid, "algorithm": "probe", "class_name": "P",
+                 "state": "running", "started_at": "2026-08-27T11:00:00+00:00",
+                 "stopped_at": None, "container": con, "strategy_id": "s1",
+                 "signal_configured": True, "error": None, "log_tail": [],
+                 "scope_key": "strategy:s1", "mode": "alpaca-paper"}
+        r._live[sid] = owned
+        r.registry_rows_or_none = lambda: [dict(owned)]
+        r.docker_live_containers = lambda: [{"name": con,
+                                             "mode": "alpaca-paper"}]
+        r._our_mode = lambda: "alpaca-paper"
+        return r, owned, sid
+
+    def test_the_object_in__live_IS_the_one_the_thread_holds(self, tmp_path):
+        r, owned, sid = self._runner(tmp_path)
+        r.reconcile_containers(trigger="worker", grace_seconds=180.0)
+        assert r._live[sid] is owned
+
+    def test_a_state_the_thread_writes_AFTER_a_pass_is_what_is_served(
+            self, tmp_path):
+        """THE CONSEQUENCE, which is what makes the identity assertion matter.
+        The engine exits; the thread records it; the process must agree."""
+        r, owned, sid = self._runner(tmp_path)
+        r.reconcile_containers(trigger="worker", grace_seconds=180.0)
+        owned["state"] = "ended"
+        owned["stopped_at"] = "2026-08-27T12:00:00+00:00"
+        assert r._live[sid]["state"] == "ended"
+
+    def test_it_is_recorded_as_a_FINDING_and_not_skipped_silently(self,
+                                                                 tmp_path):
+        """A reconciliation's job is to say what it found. "This one is already
+        ours" is a finding, and a pass that dropped it would report an action
+        list that does not add up to the containers it saw."""
+        r, _, sid = self._runner(tmp_path)
+        rep = r.reconcile_containers(trigger="worker", grace_seconds=180.0)
+        act, = rep["actions"]
+        assert act["action"] == LS.REATTACH
+        assert act["done"] is False
+        assert "already holds the session" in act["detail"]
+
+    def test_a_session_this_process_does_NOT_hold_is_still_taken(self,
+                                                                 tmp_path):
+        """THE POSITIVE CONTROL, and it is the start-up case — the one that has
+        been correct all along. A guard that skipped every reattach would have
+        un-built the feature."""
+        r, owned, sid = self._runner(tmp_path)
+        r._live.clear()
+        rep = r.reconcile_containers(trigger="startup")
+        act, = rep["actions"]
+        assert act["action"] == LS.REATTACH
+        assert act["done"] is True
+        assert sid in r._live
+        assert r._live[sid]["restored"] is True
+
+    def test_a_repeat_pass_is_IDEMPOTENT(self, tmp_path):
+        """Three passes, one outcome. The other ticks in that loop all have
+        this property and this one must too."""
+        r, owned, sid = self._runner(tmp_path)
+        r._live.clear()
+        first = r.reconcile_containers(trigger="startup")
+        taken = r._live[sid]
+        assert first["actions"][0]["done"] is True
+        for _ in range(2):
+            rep = r.reconcile_containers(trigger="worker", grace_seconds=180.0)
+            assert rep["actions"][0]["done"] is False
+            assert r._live[sid] is taken
+
+
+class TestTheWorkerTickCannotKillTheWorker:
+    """The second read-through finding. Every tick in ``_scheduler``'s loop is
+    wrapped in its own ``try`` so an exception costs one tick and never the
+    worker — but an IMPORT at function level is not covered by any of them, and
+    a coroutine that raises inside ``asyncio.create_task`` surfaces its
+    exception only when it is awaited, at shutdown. The whole deterministic
+    worker would go quiet with nothing in the log."""
+
+    def test_the_imports_that_serve_the_tick_are_guarded(self):
+        i = MAIN_SRC.index("from app.fund import leanrunner as _lr")
+        window = MAIN_SRC[max(0, i - 900):i + 700]
+        assert "try:" in window
+        assert "except Exception" in window
+        assert "_log.error" in window
+        # ...and the failure is LOUD about what it cost, not a bare message.
+        assert "UNWIRED in this process" in window
+        assert "window between start-ups is open again" in window
+
+    def test_a_falsy_interval_DISABLES_the_tick_rather_than_firing_it(self):
+        """``reconcile_every = 0`` is both the failure path and a supported
+        setting. Without the guard, ``since_reconcile >= 0`` is true on every
+        tick and a broken import would produce a reconciliation attempt every
+        thirty seconds."""
+        assert "if reconcile_every and since_reconcile >= reconcile_every:" \
+            in MAIN_SRC
+
+    def test_the_ACTED_count_excludes_the_steady_state(self):
+        """A live session's row and its container agree on EVERY pass, so a
+        reattach is the steady state of a healthy fund. Counting it as "acted"
+        would put a warning in the log every five minutes for as long as
+        anything is running — which is how a log stops being read.
+
+        Pinned at the source because the alternative is a five-minute
+        integration test, and what is being asserted is a decision, not a
+        behaviour that varies."""
+        i = MAIN_SRC.index("acted = sum(")
+        window = MAIN_SRC[i:i + 300]
+        assert '.get("done") is True' in window
+        assert '!= _ls.REATTACH' in window
+        # It counts ACTIONS PERFORMED, not the plan's counts: an action the
+        # runner declined to perform must not read as one it did.
+        assert 'rep.get("actions")' in window
+        assert 'rep.get("counts")' not in window

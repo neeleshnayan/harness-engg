@@ -140,12 +140,28 @@ async def _scheduler():
     loser goes quiet and keeps asking rather than exiting, and picks the work
     back up if that process dies.
     """
-    from app.fund import leanrunner as _lr
-    from app.fund import leansessions as _ls
-
     settle_every = int(os.getenv("SETTLE_INTERVAL_SECONDS", "30"))
     strike_every = int(os.getenv("STRIKE_INTERVAL_SECONDS", "1800"))
-    reconcile_every = _lr.RECONCILE_INTERVAL_SECONDS
+    # READ ONCE, HERE, AND DEFENSIVELY. Every tick in the loop below is wrapped
+    # in its own ``try`` for the same reason: an exception must cost one tick,
+    # never the worker. An import at this level is NOT covered by those, and a
+    # coroutine that raises inside ``asyncio.create_task`` surfaces its
+    # exception only when it is awaited — at shutdown. The whole deterministic
+    # worker would go quiet with nothing in the log until the process ended,
+    # which is the unwired-kill-switch shape wearing an import statement.
+    #
+    # ``reconcile_every`` falsy DISABLES the tick, and that is a supported
+    # setting (``LEAN_RECONCILE_INTERVAL=0``) as well as the failure path.
+    try:
+        from app.fund import leanrunner as _lr
+        from app.fund import leansessions as _ls
+        reconcile_every = _lr.RECONCILE_INTERVAL_SECONDS
+    except Exception as e:  # noqa: BLE001
+        _lr = _ls = None
+        reconcile_every = 0
+        _log.error("LEAN session reconciliation is UNWIRED in this process "
+                   "(%s) — orphan detection now runs ONLY at start-up, and "
+                   "the window between start-ups is open again", e)
     # The lease must outlive several ticks. One that expires between two ticks
     # of its own holder hands the work back and forth and produces exactly the
     # double-execution it exists to prevent.
@@ -296,7 +312,7 @@ async def _scheduler():
         # the common case is one integer comparison. It shells out to
         # ``docker ps`` when it is due, which is why it is not on every tick.
         since_reconcile += settle_every
-        if since_reconcile >= reconcile_every:
+        if reconcile_every and since_reconcile >= reconcile_every:
             since_reconcile = 0
             try:
                 # THE GRACE IS WHAT MAKES A PERIODIC PASS SAFE. ``start_live``
@@ -307,9 +323,18 @@ async def _scheduler():
                 rep = fund_router._lean().reconcile_containers(
                     trigger="worker",
                     grace_seconds=_lr.RECONCILE_GRACE_SECONDS) or {}
-                acted = sum(v for k, v in (rep.get("counts") or {}).items()
-                            if k in (_ls.REATTACH, _ls.ADOPT, _ls.STOP,
-                                     _ls.VANISHED))
+                # COUNTED FROM WHAT WAS PERFORMED, NOT FROM WHAT WAS PLANNED,
+                # and REATTACH is excluded from "acted" deliberately. A live
+                # session's row and its container agree on every single pass,
+                # so a reattach is the STEADY STATE of a healthy fund — counting
+                # it would put a warning in the log every five minutes for as
+                # long as anything is running, which is how a log stops being
+                # read. The three that remain are the three that CHANGE
+                # something: a container stopped, a row retired, a contradiction
+                # adopted.
+                acted = sum(1 for a in (rep.get("actions") or [])
+                            if a.get("done") is True
+                            and a.get("action") != _ls.REATTACH)
                 # QUIET WHEN IT FOUND NOTHING AND LOUD WHEN IT ACTED, the same
                 # rule the autopolicy tick follows: at one pass every five
                 # minutes, an unconditional line would bury everything else.
