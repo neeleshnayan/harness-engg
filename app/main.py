@@ -9,9 +9,11 @@ See docs/architecture.md for the full design.
 """
 
 import asyncio
+import datetime as _dt
 import logging
 import os
 import pathlib
+import time
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -105,7 +107,39 @@ from app.api.v1 import fund as fund_router  # noqa: E402
 from app.fund import heartbeat
 from app.fund.demo_seed import seed_if_empty  # noqa: E402
 from app.fund.lease import SchedulerLease  # noqa: E402
+from app.fund import schedule  # noqa: E402
 from app.fund.schedule import StrikeWindow  # noqa: E402
+
+
+def _newest_strike():
+    """The fund's newest struck-NAV payload, ``None``, or ``schedule.UNREADABLE``.
+
+    A READER AND NOTHING ELSE. It performs the IO and classifies the ONE thing
+    only the caller can know — that the read itself failed — and hands the raw
+    answer to ``schedule.resume_strike_clock``, which computes every field of
+    the verdict from it. Nothing here interprets the payload, so there is no
+    second place for the interpretation to drift.
+
+    NEVER RAISES, and that is not politeness. This runs inside ``_scheduler``'s
+    lease-acquisition path, and an exception there is not one lost tick: a
+    coroutine started with ``asyncio.create_task`` surfaces its exception only
+    when awaited, at shutdown, so the whole deterministic worker would go quiet
+    with nothing in the log.
+
+    COST, measured 2026-08-27: ``latest()`` folds the event log — ~1.3s on the
+    first call of a process, ~50ms warm, at 1,647 events. It runs ONCE per lease
+    acquisition, never per tick, and it is synchronous like every other call in
+    this loop; ``run_universe_refresh`` in the same body blocks for up to 50
+    seconds when it is due, so a 1.3s fold is not what makes this coroutine
+    block. It is still worth watching as the log grows — the host watchdog polls
+    ``GET /fund/liveness`` on an 8-second timeout and restarts the stack on a
+    non-200, and slow is the same event to it as failed.
+    """
+    try:
+        return fund_router._nav.latest()
+    except Exception as e:  # noqa: BLE001
+        _log.warning("the last struck NAV could not be read (%s)", e)
+        return schedule.UNREADABLE
 
 
 def _venue_session():
@@ -168,17 +202,36 @@ async def _scheduler():
     global _lease
     lease = _lease = SchedulerLease(ttl_seconds=max(180, settle_every * 4))
     _log.info("scheduler identity: %s", lease.owner)
-    since_strike = 0
+    if strike_every <= 0:
+        # SAID OUT LOUD RATHER THAN INFERRED. ``advance`` treats a non-positive
+        # period as never due, so this configuration stops NAV being struck at
+        # all — which is a legitimate thing to want and an illegitimate thing to
+        # discover from a flat NAV chart three days later.
+        _log.warning("STRIKE_INTERVAL_SECONDS is %s — the NAV strike tick is "
+                     "DISABLED in this process and no NAV will be struck",
+                     strike_every)
+    since_strike = 0.0
     # START AT THE INTERVAL, NOT AT ZERO — so the first worker pass happens on
     # the first tick after the lease is held rather than five minutes later.
     # The start-up pass has already run by then; this makes the WORKER's
     # freshness reading true immediately instead of reporting a stale
     # never-ticked state for the first interval of every process.
-    since_reconcile = reconcile_every
+    since_reconcile = float(reconcile_every)
     window = StrikeWindow()
     was_held = None
+    # THE ACCUMULATORS COUNT MEASURED TIME, NOT TICKS. See the long note above
+    # ``schedule.advance``: adding the NOMINAL sleep constant assumes the loop
+    # body is free, and the fund's own strike series measured that assumption
+    # costing between 1.6% and 20.0% of the strike interval, worsening as the
+    # loop gained work. ``last_tick`` is taken AFTER the sleep so the delta is
+    # the full loop period — sleep plus the work of the previous pass — which
+    # is the quantity the interval is supposed to be measured in.
+    last_tick = time.monotonic()
     while True:
         await asyncio.sleep(settle_every)
+        now_mono = time.monotonic()
+        elapsed = now_mono - last_tick
+        last_tick = now_mono
 
         state = lease.acquire()
         if state.held != was_held:
@@ -187,10 +240,36 @@ async def _scheduler():
             _log.info("scheduler lease %s — %s",
                       "ACQUIRED" if state.held else "NOT HELD", state.reason)
             was_held = state.held
+            if state.held:
+                # RESUME THE STRIKE CLOCK FROM THE DURABLE RECORD, on every
+                # acquisition — the first one after start-up and every handoff
+                # after that, because they are the same event from the clock's
+                # point of view. Without this a restart bought a full interval
+                # of silence however long it had already been since the last
+                # strike, and a worker that lost the lease came back believing
+                # it had just struck. Both are measured causes of the fund's
+                # over-budget strike gaps, not hypotheticals.
+                #
+                # It is SAFE against a restart loop because the record is the
+                # thing being read: once a strike is written the newest event is
+                # seconds old, so the next process resumes at ~0 and waits.
+                resumed = schedule.resume_strike_clock(
+                    _newest_strike(), strike_every,
+                    _dt.datetime.now(_dt.timezone.utc))
+                since_strike = resumed.seconds_served
+                _log.info("strike clock: %s", resumed.note)
         if not state.held:
             continue
 
-        since_strike += settle_every
+        # DUE-NESS IS DECIDED ONCE, HERE, and the accumulator resets the moment
+        # it is due — whether or not a strike is written. That was already the
+        # behaviour (the reset was the first line of the strike block) and it is
+        # preserved deliberately: it is what makes a strike that fails cost one
+        # interval rather than putting the loop into a retry burst against the
+        # permanent record. It is ALSO why a failed strike is invisible in the
+        # log; see the recommendation filed with this change.
+        since_strike, strike_due = schedule.advance(
+            since_strike, elapsed, strike_every)
         # Settlement stays unconditional. It is read-mostly, idempotent, and an
         # order submitted near the bell can fill after it — refusing to poll
         # while closed would leave that fill unrecorded until the next open.
@@ -311,9 +390,17 @@ async def _scheduler():
         # runs every 30 seconds and the reconciliation every five minutes, so
         # the common case is one integer comparison. It shells out to
         # ``docker ps`` when it is due, which is why it is not on every tick.
-        since_reconcile += settle_every
-        if reconcile_every and since_reconcile >= reconcile_every:
-            since_reconcile = 0
+        #
+        # Measured time, like the strike accumulator and for the same reason:
+        # a five-minute reconcile that advances by the nominal 20s stretches by
+        # whatever the loop body costs. ``advance`` also keeps the DISABLE path
+        # intact — a non-positive interval is never due — and the explicit
+        # ``reconcile_every and`` below is kept as well, because the setting is
+        # supported and a reader should not have to open another module to see
+        # that zero means off.
+        since_reconcile, reconcile_due = schedule.advance(
+            since_reconcile, elapsed, reconcile_every)
+        if reconcile_every and reconcile_due:
             try:
                 # THE GRACE IS WHAT MAKES A PERIODIC PASS SAFE. ``start_live``
                 # writes its registry row before launching ``docker run``, so a
@@ -350,8 +437,7 @@ async def _scheduler():
                 _log.warning("LEAN session reconciliation tick failed: %s — "
                              "any orphaned live container is still "
                              "unaccounted for", e)
-        if since_strike >= strike_every:
-            since_strike = 0
+        if strike_due:
             # Both of these WRITE to the permanent log — a NAV_STRUCK snapshot
             # and any RECONCILIATION_MISMATCH — and both read prices to do it.
             # Off-session those prices are the previous close, so an unguarded
