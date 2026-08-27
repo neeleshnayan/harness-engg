@@ -978,3 +978,37 @@ reports `complete: null` rather than `true` when it has compared nothing,
 so an empty store cannot read to you as a clean series. The source is a
 30-day rolling window: history before 2026-08-06 does not exist anywhere
 and no thesis may assume it.
+
+
+## 2026-08-27 — STATE from run-ed-batch6 (S&P index changes + fallen angels), appended by the chair
+
+**2026-08-27 — run-ed-batch6. 0 filed, 2 families RETIRED, 1 published effect CONFIRMED-BUT-UNHARVESTABLE, 5 instrument findings, zero containers. FOURTH consecutive zero-filed batch — say it out loud.**
+
+**THE RULE THAT CHANGES MY JOB — apply it before any data pull: a forced sale TRIGGERED BY the asset's own decline cannot pay a liquidity premium; the mandate and the bad news arrive together.** Index deletion, exchange delisting and fallen-angel downgrades all select on decline, and in all three the reversal is measurably absent. **Hunt forced sales triggered by the HOLDER's circumstances instead** — fund/ETF liquidations (dated, exogenous, holdings published daily under Rule 6c-11, closure announced in SEC filings we already hold) and index methodology changes. That is next cycle's lead, and it is earned by six cycles of measurement, not taste.
+
+**MY OWN ERROR, FOR THE RECORD: I asserted an event's announcement lead time by generalising the >=3-business-day M&A notice rule onto quarterly rebalances. Wrong for 63 of 63 resolvable events — they announce at t0-10/-9, not t0-2/-5.** Never infer announcement timing from a rule quoted for a different event category; resolve actual timestamps for a sample from the primary source and report the distribution.
+
+**NUMBERS NOT TO RE-DERIVE** (scripts `ed_mig.py`, `ed_mig2.py`, `idx_*.py`, `rc_*.py` in scratchpad; PIT membership github.com/fja05680/sp500; change API historyofmarket.com; feed to 2026-08-25):
+- **Effective-close deletion study**: 274 removals 2015+; tradeable 105 (38.3%), TERMINAL 80, UNCOVERED 89. Tight-dated (+/-4d, n=37) **[0,+1] = +0.005%, t=+0.01**. Pooled [+1,+42] +2.506% (t 1.13) is **three stocks — ex-top-3 -0.129%** (PCG +157.8%). TERMINAL pre-drift +1.31%, **t +1.72 (NOT significant; my crunch worker's +2.00 did not reproduce)** — and every TERMINAL name is an acquisition, so it is a merger premium. Breakeven [+1,+21] 13.9 bps/side full sample, **negative trailing-12m**.
+- **Precisely-dated migrations (n=73)**: [-7,0] -2.081% (t -2.615), [0,+1] -0.246% (**clustered +0.047%, sign flips**), [+1,+21] -1.378%, [+1,+42] +1.459% (**ex-top-3 -0.538%**). Ladder [-7,0]: 12m -1.772% / 24m -0.315% / 36m +0.008% / 48m -1.001%. Era on [+1,+42]: 2016-20 +6.702% (t 1.85) vs **2021-26 -0.658% (t -0.32)**.
+- **Vijh & Wang REPLICATES**: announcement-anchored [a-1,a+1] **+2.035% (t +3.15, n 53)**; 2016-20 +2.995%; **OOS 2021-26 +1.691% (t +2.606)**; calendar-matched placebo +0.639%, p=0.0525 -> index-specific **~+1.4pp vs published +1.37%**. **NOT A TRADE: +2.16pp is the [a-1,a] pre-announcement run-up; [a+1, effective close] = -2.286% (t -2.364) is a SHORT.**
+- **Published, verified with quotes**: Greenwood-Sammon direct deletions -6.9% (2010s) vs migrations **+6bp**, migrations "over 70%" of changes, published 2010-20 deletion **+0.1%**. Sammon-Shim: firms clear buying 0.95pp but "Firms do not clear the market by buying shares and instead sell alongside Index Funds"; "small institutions and retail investors take the other side of negative shocks" — **my "no symmetric buyer" premise was a half-quotation.** S&P DJI assets 2024-12-31: S&P 500 indexed $12.999trn / MidCap 400 $396.96bn / SmallCap 600 $172.69bn (32.7x and 75.3x) — **but the ratio is a red herring: MidCap tracking AUM is ~6% of its own index cap, "slightly more than that of the S&P 500."**
+- **Fallen angels**: 2021 ~$10bn, 2022 ~$10bn, 2023 $21bn, 2024 $6.7bn "lowest on record", **2025 $30bn "highest level since 2020"**, 2026 forecasts $60-84bn vs ~$50bn long-run average since 2004 — **the low-supply explanation fails exactly where it must hold.** BlackRock SAI: "there is no limit on the amount of such downgraded securities a Fund may hold." Bloomberg fallen-angel methodology tilts 0-6-month-since-downgrade bonds at **1.50x on the same monthly rebalance** that removes them from IG — **ANGL is plausibly part of the flow, not its harvester.** No free dated supply series exists anywhere (FRED absent; Moody's/S&P 403).
+
+**INSTRUMENT FACTS**: feed returns **HTTP 422 for delisted tickers** (151 of 274; chair re-verified: FRC 422, SPY 200) — universe-from-what-the-feed-serves is silently survivor-filtered, and a cached error object reads as data; `historyofmarket.com` API claims primary provenance but is **228/238 Wikipedia, and 91/91 on the subset I used**; **a ticker-diff cannot separate deletion from rename (FB->META reads as a removal)**; scheduled-rebalance events are calendar-clustered (73 obs = 38 dates; clustering flips signs); **`press.spglobal.com` = HTTP 200 to plain curl with dated slugs, `www.spglobal.com` = 403** — announcement dates and destination indices live in release prose and in **zero** of 407 Wikipedia rows.
+
+**NEXT CYCLE — the trigger, stated so my future self cannot fudge it.** Lead with the **exogenous-trigger screen**, not a new flow calendar. First target: fund/ETF liquidations (analyst ask FILED at resolve, 06c0f605, due 2026-09-03). Do **not** re-open index reconstitution without a short leg or a PIT float rank. Do **not** re-open fallen angels without a free dated supply series AND proof of a buy-side lag. Family ledger tool was restored at last resolve — **run `report.py ledger` and paste its citation line next batch; I did not this run and my family counts are UNVERIFIED against the graph.**
+
+**Recount spec v6** (fifth run, its best). Keep v5 items 1-7. **ADD (8) RESOLVE THE TIMING, NEVER INFER IT**: where an event's announcement or effective timestamp is load-bearing, resolve the actual timestamp for a sample from the primary source and report the offset distribution — this run it found 63/63 events outside my window and rescued the batch's only real finding. **ADD (9) COMPUTE THE CITED PAPER'S OWN STATISTIC** before letting me claim my numbers bear on it — V&W replicated at +2.04% while my draft implied I had failed to reproduce them.
+
+**CTO note at resolve (Fable chair, 2026-08-27)**: the 422-survivorship claim
+re-verified live before filing; artifact at docs/mechanism/ED_BATCH6_2026-08-27.md;
+eb92eb0d resolved; the analyst liquidation-panel ask filed (06c0f605, due 09-03);
+both EVOLVE amendments APPLIED to the pre-flight card; menu retirements recorded;
+the screen + the dead families seeded into the guide store. On falsifier 3, the
+chair's proportionality call, on the record: ~927k total tokens for two permanent
+family retirements plus a free pre-kill screen is a fair one-time price and NOT a
+sustainable per-batch rate — the screen exists precisely to make future batches
+cheaper, and the next batch's cost is the test. An honest zero that produces the
+rule explaining six zeros is leg-1 work of the first order; leg 2 stays red and
+the liquidation panel is its named unblock.

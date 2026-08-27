@@ -730,3 +730,10 @@ and **buying_power is 6,316.99 against equity 2,005.61 — 3.15× margin
 available**. The fund's mandate bounds gross; the broker no longer does. Say
 which of the two you believe is binding on the book you run. (The flip
 itself is on the CEO's desk as a question — do not assume it was chosen.)
+
+
+## BIND carried by the chair, 2026-08-27 (from run-ed-batch6)
+
+Ed produced no challenger this cycle, so DBA and TLT keep their incumbency
+BY DEFAULT, not by contest. Read that as an absence of evidence, not a
+defence — say so in the next book review's incumbency section.

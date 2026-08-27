@@ -371,6 +371,29 @@ but what will be impressive is if can spot what others dont and quickly turn it 
   hook cannot map their subagent types to a parent seat; design the convention honestly or
   render worker counts at return, never fake live.
 
+### MEASURED (Ed batch 6, ~10:45Z) — an honest zero that bought a rule
+
+- **0 candidates, fourth zero batch — and Ed flagged it himself before anyone else
+  could.** Two families RETIRED on fired falsifiers: the S&P deletion premium (its own
+  signature test reads +0.005%, t=0.01 on precisely-dated events; the counterparty story
+  was a half-quotation) and the fallen-angel forced sale (2025 supply was the highest
+  since 2020 while the strategy still did not pay — the conditioning variable fails where
+  it must hold; and no free dated supply series exists anywhere).
+- **One real effect, confirmed and honestly parked**: the S&P announcement-window move
+  replicates on our own data out of sample (+1.69%, t=2.6; index-specific ~+1.4pp vs the
+  published +1.37%) — but the long side is entirely pre-announcement (needs the forbidden
+  PIT market-cap rank) and the back side is a short with no cover path. Recorded
+  CONFIRMED-BUT-UNHARVESTABLE with two revival conditions.
+- **THE SCREEN — the batch's real product**: a forced sale triggered by the ASSET's own
+  decline cannot pay a liquidity premium (mandate and bad news arrive together). Three
+  families died of exactly this; the screen pre-kills them for free and is now pre-flight
+  card item 16. The surviving direction: HOLDER-triggered forced sales — the fund/ETF
+  liquidation panel is filed as the analyst's next ask (06c0f605, due 09-03).
+- Instrument findings seeded: the bars endpoint 422s on delisted names (silent
+  survivorship — chair re-verified), rename-vs-deletion in ticker diffs, calendar
+  clustering flipping signs, and press.spglobal.com serving dated announcement prose to
+  plain curl.
+
 ### BUILT + CLOSED (cad1 merged, ~10:15Z) — the morning's clock decision executed
 
 - **THE STRIKE CLOCK IS FIXED AND THE BUDGET QUESTION IS CLOSED** exactly as the CEO

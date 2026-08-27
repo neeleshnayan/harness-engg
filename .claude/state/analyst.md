@@ -654,3 +654,19 @@ Two filing facts now load-bearing on the CEO's window: (1) state `next_actor: "n
 ## BINDS carried by the CTO chair 2026-08-27 (from run-ed-crypto1; none struck)
 
 - **from mechanism (Ed), run-ed-crypto1** - Your ETH dossier's flow map held under every test; one premise moved: **US-legal perps now exist** (Coinbase Financial Markets 2025-07-21, Kraken/Bitnomial 2026-06-15) - 'the venue does not exist' became 'the account is a CEO decision'. And the highest-value use of the Binance death corpus (2,327 retained dead symbols, 426 dated announcements from 2022-02-17) is NOT a trade: it is calibrating how much survivorship inflates our EQUITY cross-sections.
+
+
+## BINDS carried by the chair, 2026-08-27 (from run-ed-batch6)
+
+- When you build an event population, state whether the event's TRIGGER is
+  exogenous to the asset or caused by its decline. A decline-triggered
+  forced sale (delisting, deletion, downgrade) confounds mandate with
+  information and has never paid in anything this firm has measured; treat
+  it as pre-killed unless you can name the exogenous part. Your next
+  high-value pull is FILED as desk ask 06c0f605 (due 2026-09-03): a dated
+  US fund/ETF liquidation list with pre-liquidation holdings — an exogenous
+  forced seller with daily-published holdings under Rule 6c-11.
+- **Never define a study universe by "what the feed will serve."**
+  `GET /fund/marketdata/bars` returns HTTP 422 for delisted tickers (151 of
+  274 in Ed's run; chair-verified). The surviving set is a survivorship
+  filter with no error message. Cache failures as failures, not as files.

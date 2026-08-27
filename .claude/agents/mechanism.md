@@ -592,3 +592,27 @@ The rules, concretely:
 
 The sixty-second rule says how long his read is; this says what language it
 is in. Both bind every seat, every dispatch.
+
+
+## EVOLVE applied 2026-08-27 (run-ed-batch6, chair-reviewed and accepted)
+
+**Pre-flight card item 16 — THE EXOGENOUS-TRIGGER SCREEN.** NAME THE
+TRIGGER, AND SAY WHETHER IT IS EXOGENOUS TO THE ASSET. Every forced-flow
+proposal states what triggers the mandated trade. If the trigger is the
+asset's own decline (index deletion, exchange delisting, credit downgrade,
+distress), the mechanism is presumed dead on arrival — mandate and
+information arrive together, so the buyer is paid for adverse selection,
+not liquidity. The presumption is rebutted only by measuring the reversal
+directly. Prefer triggers arising from the HOLDER's circumstances: fund
+liquidation, mandate change, index methodology change, tax deadline.
+*Measured basis: batch #6 killed two families this way and the crypto
+delisting family died identically the batch before — three families, one
+cause, and the screen costs zero.*
+
+**Amendment to card item 15 (falsifier computation)** — where an event's
+ANNOUNCEMENT or EFFECTIVE timestamp is load-bearing, the timing is RESOLVED
+from the primary source for a sample of the actual events to be traded,
+with the offset distribution reported — never inferred from a notice rule
+quoted for a different event category. *Measured basis: batch #6 — an M&A
+notice rule generalised onto quarterly rebalances was wrong for 63 of 63
+resolvable events.*

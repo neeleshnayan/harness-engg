@@ -970,3 +970,14 @@ cannot, before adjusting either. Two instruments measuring the same strike
 cadence differed by exactly 60s for one reason — an `actor` field absent
 from one endpoint's payload (three hand-fired strikes indistinguishable
 from the worker's).
+
+
+## BINDS carried by the chair, 2026-08-27 (from run-ed-batch6)
+
+- If you ever implement an event rule anchored on an "effective date", the
+  trade prints at the close of the session BEFORE it (S&P changes are
+  effective *prior to the opening* of the effective date). Off-by-one here
+  moves every window.
+- Never define a study universe by feed availability: the bars endpoint
+  422s on delisted tickers, so the served set is survivor-filtered
+  silently.

@@ -1213,3 +1213,11 @@ schedulers and a venue gate that was inert until 2026-08-22; a single median
 over it is two measurements wearing one number. And check whether the series
 contains hand-fired rows: three of 76 strikes were, and
 `GET /fund/nav/history` carries no `actor` to exclude them by.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-ed-batch6)
+
+Event studies on scheduled-rebalance data are calendar-clustered by
+construction (73 observations were 38 independent dates in Ed's run, and
+date-clustering flipped one window's sign). When you audit an event-study
+criterion, check whether independence is asserted or measured.
