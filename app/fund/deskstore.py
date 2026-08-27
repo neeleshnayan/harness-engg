@@ -363,6 +363,12 @@ def build_recommendations(recommendations: Any, *, seat: str,
                      # queue without it is real delegation. Both absent on
                      # rows filed before the engine, which is correct —
                      # they were not routed at birth.
+                     **({"routed_from": r["routed_from"]}
+                        if isinstance(r, dict) and r.get("routed_from")
+                        else {}),
+                     **({"routing_rules_version": r["routing_rules_version"]}
+                        if isinstance(r, dict)
+                        and r.get("routing_rules_version") else {}),
                      # THE PRIORITY BAND'S ONLY INPUT (CEO 2026-08-27: *"can
                      # we add ordering to my desk say high-priority to low;
                      # time-sensitive or not; blocker or not?"*). A
@@ -389,13 +395,7 @@ def build_recommendations(recommendations: Any, *, seat: str,
                      # fixes. Presence is what is preserved; meaning is read
                      # once, in one place.
                      **({"blocks": r["blocks"]}
-                        if isinstance(r, dict) and "blocks" in r else {}),
-                     **({"routed_from": r["routed_from"]}
-                        if isinstance(r, dict) and r.get("routed_from")
-                        else {}),
-                     **({"routing_rules_version": r["routing_rules_version"]}
-                        if isinstance(r, dict)
-                        and r.get("routing_rules_version") else {})})
+                        if isinstance(r, dict) and "blocks" in r else {})})
     return recs
 
 

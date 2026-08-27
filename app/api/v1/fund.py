@@ -2458,10 +2458,20 @@ def fund_library_document(name: str):
     escape; a resolve is an answer, and it also catches a symlink pointing out
     of the tree, which no string check can see.
 
-    ONE REFUSAL, NOT TWO. Everything that is not a servable document — outside
-    the fence, not a ``.pdf``, not a regular file, absent — returns the SAME
-    404 with the same sentence. A 403 that is distinguishable from a 404 is a
-    directory listing for anyone patient enough to enumerate.
+    ONE REFUSAL, NOT TWO — as far as THIS HANDLER reaches. Everything it sees
+    and will not serve — outside the fence, not a ``.pdf``, not a regular file,
+    absent — returns the same 404 with the same sentence, because a 403 that is
+    distinguishable from a 404 is a directory listing for anyone patient.
+
+    THE MEASURED LIMIT, stated because the first version of this docstring said
+    "everything" and the tests then proved it false three times: a name whose
+    decoded form contains a SLASH never arrives here at all. Literal
+    (``....//....//``), single-encoded (``..%2F``) and double-encoded
+    (``..%252F``) all become multi-segment paths, so Starlette's router answers
+    its own ``{"detail": "Not Found"}`` — a distinguishable refusal. It leaks
+    that the path had a slash, which the sender already knows, and it is left
+    alone rather than papered over with a catch-all route that would add a
+    second door onto the same directory to make a sentence true.
 
     ``inline`` rather than ``attachment``: the room is for reading, and a
     browser tab is the reading surface. The filename still rides the header so

@@ -718,12 +718,22 @@ def _within_window(dispatched_at: Any, window_floor: Any) -> bool:
     return a >= b
 
 
+#: The instant an UNREADABLE dispatch stamp sorts at. Module level and named,
+#: because it was being rebuilt inside the per-seat loop — eleven identical
+#: datetimes per payload — and because a magic year-1 literal buried in a sort
+#: key is the kind of thing a later reader deletes.
+_SORT_FLOOR = _ts("0001-01-01T00:00:00+00:00")
+
+
 def idle_activity() -> dict[str, Any]:
     """The activity envelope for a seat the fold produced no row for.
 
-    ONE constructor, because there were two and they disagreed. ``_activity``
-    emits seven keys per seat; the desk payload's fallback for a roster agent
-    the fold never reached emitted four — so adding a seat to ``ROSTER``
+    ONE constructor, because there were two and they disagreed. Before this
+    diff ``_activity`` emitted SEVEN keys per seat and the desk payload's
+    fallback for a roster agent the fold never reached emitted FOUR (it is ten
+    and ten now, and a test asserts the two sets are equal rather than
+    restating either number here, because a count in a comment goes stale on
+    the next field and this one already had) — so adding a seat to ``ROSTER``
     without adding it to ``REQUEST_KINDS`` silently served an activity object
     missing ``task_id``, ``returned_run_id`` and ``review_detectable``, and
     every consumer of those keys would have read absent-as-undefined on that
@@ -972,17 +982,21 @@ def _activity(store: Any, runs: Optional[list[dict[str, Any]]] = None,
         # dispatch whose `at` cannot be parsed sorts oldest rather than
         # raising: `None` and a datetime are not orderable in Python, and a
         # payload builder is the worst place to discover that.
-        _FLOOR = _ts("0001-01-01T00:00:00+00:00")
         ordered = sorted(open_by_seat.get(seat, []),
-                         key=lambda t: (t[0] or _FLOOR, t[1]), reverse=True)
+                         key=lambda t: (t[0] or _SORT_FLOOR, t[1]), reverse=True)
         opens = [_dispatch_state(d, run_by_key, recorder_read, window_floor)
                  for _, _, d in ordered]
         out[seat] = {
             **idle_activity(),
+            # EVERY headline field from the SAME place. `task`, `since` and
+            # `task_id` were still being read straight off `w` while the three
+            # beside them came from `headline` — two sources describing one
+            # row, which is the shape that drifts the moment one of them gains
+            # a rule. The values are identical; the sourcing is not.
             "status": headline["status"] if headline else "idle",
-            "task": (w or {}).get("task"),
-            "since": (w or {}).get("at"),
-            "task_id": (w or {}).get("task_id"),
+            "task": headline["task"] if headline else None,
+            "since": headline["since"] if headline else None,
+            "task_id": headline["task_id"] if headline else None,
             # The run that came back, so the chair can open it and review.
             "returned_run_id": headline["returned_run_id"] if headline else None,
             # None when the seat's HEADLINE is idle — there is nothing to
@@ -1910,8 +1924,11 @@ def status_index(open_recommendations: Any = (), requests: Any = ()) -> dict[str
 # the disagreement is invisible — each surface looks internally consistent.
 # The payload carries the band; nothing re-derives it.
 
-#: Ordered worst-first, so ``BANDS.index`` is the sort key and adding a band
-#: cannot silently renumber the others.
+#: Ordered worst-first, so ``BANDS.index`` is the sort key. APPENDING a band
+#: leaves every existing rank where it was; INSERTING one renumbers everything
+#: below it, which is the correct behaviour for a priority order and is stated
+#: because "adding cannot renumber" — what this comment said first — is only
+#: true of one of the two.
 BANDS = ("blocker", "time_sensitive", "rest")
 
 #: What the reader sees on the chip. Plain English, per the CEO's instruction
