@@ -232,6 +232,46 @@ def test_a_failed_read_names_the_failure_and_stays_unreadable(monkeypatch):
     assert "TimeoutError" in got["note"] and "UNKNOWN, not empty" in got["note"]
 
 
+def test_a_FAILED_read_expires_far_sooner_than_a_successful_one(monkeypatch):
+    """Found by the read-through, not by a test.
+
+    A success and a failure were cached for the same hour, so one network blip
+    would leave the router reading `universe_readable: False` — and classing
+    bare tickers off the coin-id map alone — for the next sixty minutes. A
+    success is a fact that stays true; a failure is a fact about one moment.
+    """
+    assert md._UNIVERSE_FAILURE_TTL_S < md._UNIVERSE_TTL_S
+
+    monkeypatch.setenv("ALPACA_API_KEY", "k")
+    monkeypatch.setenv("ALPACA_SECRET_KEY", "s")
+    calls = []
+
+    def _die(*a, **k):
+        calls.append(1)
+        raise TimeoutError("blip")
+
+    monkeypatch.setattr(md.urllib.request, "urlopen", _die)
+    assert crypto_universe()["readable"] is False
+    assert crypto_universe()["readable"] is False      # still inside the short TTL
+    assert len(calls) == 1
+
+    # Age the cached failure past the SHORT ttl but well inside the long one.
+    md._UNIVERSE_CACHE["value"]["read_at"] -= md._UNIVERSE_FAILURE_TTL_S + 1
+    crypto_universe()
+    assert len(calls) == 2, "the failure was held for the success TTL"
+
+    # A SUCCESS aged by the same amount is NOT re-read — the two really are
+    # different lifetimes and not one constant with a longer name.
+    rows = [{"symbol": "BTC/USD", "tradable": True}]
+    monkeypatch.setattr(md.urllib.request, "urlopen",
+                        lambda *a, **k: _Resp(json.dumps(rows).encode()))
+    assert crypto_universe(refresh=True)["readable"] is True
+    md._UNIVERSE_CACHE["value"]["read_at"] -= md._UNIVERSE_FAILURE_TTL_S + 1
+    before = md._UNIVERSE_CACHE["value"]["read_at"]
+    crypto_universe()
+    assert md._UNIVERSE_CACHE["value"]["read_at"] == before
+
+
 def test_a_read_universe_carries_pairs_and_bases_and_drops_the_untradable(monkeypatch):
     monkeypatch.setenv("ALPACA_API_KEY", "k")
     monkeypatch.setenv("ALPACA_SECRET_KEY", "s")

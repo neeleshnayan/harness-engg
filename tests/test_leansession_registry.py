@@ -17,6 +17,7 @@ import uuid
 import pytest
 
 from app.fund import leansessions as LS
+from _testdb import scratch_database
 
 # IMPORTED AT MODULE SCOPE UNDER AN EXPLICIT ENV GUARD, and both halves are
 # load-bearing.
@@ -255,7 +256,6 @@ class LiveAlgo(QCAlgorithm):
 
 FAKE_LIVE = r"""
 import sys, time
-from _testdb import scratch_database
 if "kill" in sys.argv[:2]:
     sys.exit(0)
 time.sleep(60)

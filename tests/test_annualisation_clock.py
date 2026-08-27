@@ -12,7 +12,7 @@ used the wrong clock.
 The second half is the blocker itself: LEAN annualises by
 ``Settings.TradingDaysPerYear``, which it takes from the BROKERAGE MODEL and
 not from the security type. A 24/7 series scored at 252 understates every
-sqrt-annualised statistic by sqrt(365/252) = 1.2034, and before this diff no
+sqrt-annualised statistic by sqrt(365/252) = 1.2035, and before this diff no
 field on a stored verdict said so.
 
 The tests are written so that restoring either defect turns one of them red:
@@ -113,15 +113,39 @@ def test_an_equity_shaped_run_reports_the_engine_understating():
     assert "UNDERSTATES" in got["note"]
 
 
-def test_a_crypto_shaped_run_at_the_equity_clock_is_the_blocker_and_it_shows():
-    """The reason this batch exists: 24/7 daily bars, scored at 252."""
+def test_a_crypto_shaped_run_is_told_apart_by_the_ENGINES_clock_not_the_series():
+    """The reason this batch exists — and the honest shape of it.
+
+    A 24/7 crypto series and LEAN's weekend-padded equity curve are the SAME
+    shape to a clock derived from dates: one observation per calendar day,
+    365.25 a year, both. What tells them apart is the OTHER argument — the
+    clock the engine was configured with — and that is exactly where the
+    blocker lives. The first version of this test asserted the same fixture
+    and the same clock as the equity case above and called itself the crypto
+    case; it was a second copy of one fact wearing two names.
+
+    So both clocks are exercised on ONE genuinely 24/7 series (no zero-return
+    days at all, which the padded equity curve has ~29% of).
+    """
     n = 1000
-    got = annualisation_clock({"strategy": [0.0] * n, "dates": calendar_days(n)},
-                              {"tradingDaysPerYear": 252})
-    assert got["state"] == "engine_understates"
+    series = [0.001 if i % 2 else -0.0005 for i in range(n)]  # never flat
+    assert sum(1 for x in series if x == 0.0) == 0
+    dates = calendar_days(n)
+
+    scored_as_equity = annualisation_clock({"strategy": series, "dates": dates},
+                                           {"tradingDaysPerYear": 252})
+    assert scored_as_equity["state"] == "engine_understates"
     # sqrt(365.25/252): the factor the validator measured, on the series' own
     # calendar rather than on an assumed one.
-    assert got["factor_for_sqrt_annualised"] == pytest.approx(1.2039, abs=0.002)
+    assert scored_as_equity["factor_for_sqrt_annualised"] == pytest.approx(
+        1.2039, abs=0.002)
+
+    scored_as_crypto = annualisation_clock({"strategy": series, "dates": dates},
+                                           {"tradingDaysPerYear": 365})
+    assert scored_as_crypto["state"] == "agree"
+    # ONE series, TWO verdicts, decided entirely by the engine's own clock.
+    assert (scored_as_equity["series_obs_per_year"]
+            == scored_as_crypto["series_obs_per_year"])
 
 
 def test_a_crypto_run_at_the_crypto_clock_agrees():
@@ -156,8 +180,8 @@ def test_a_weekday_series_with_holidays_removed_agrees_with_252():
     """The other direction of the same fact: a series really observed on the
     ~252 days a US exchange opens, scored at 252, reads AGREE.
 
-    Built by dropping one weekday in 29 from the weekday calendar — 260.6 x
-    (1 - 1/29) = 251.6 — which is the arithmetic of ~9 market holidays a year.
+    Built by dropping one weekday in 29 from the weekday calendar — 261.29 x
+    (1 - 1/29) = 252.3 — which is the arithmetic of ~9 market holidays a year.
     """
     weekdays = trading_days(900)
     dates = [d for i, d in enumerate(weekdays) if i % 29]

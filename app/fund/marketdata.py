@@ -220,6 +220,14 @@ _UNIVERSE_TIMEOUT_S = 10.0
 #: How long Alpaca's tradable-crypto list is cached. The list changes when
 #: Alpaca lists or delists, which is a matter of months, not minutes.
 _UNIVERSE_TTL_S = 3600.0
+
+#: ...and how long a FAILED read is cached, which is a different question and
+#: was originally given the same answer. Caching a failure for an hour means
+#: one network blip leaves the fund reading `universe_readable: False` — and
+#: routing bare tickers off the coin-id map alone — for the next sixty
+#: minutes. A success is a fact that stays true; a failure is a fact about one
+#: moment, and it should expire like one.
+_UNIVERSE_FAILURE_TTL_S = 60.0
 _UNIVERSE_CACHE: dict[str, Any] = {}
 
 
@@ -311,13 +319,19 @@ def crypto_universe(refresh: bool = False) -> dict[str, Any]:
     — never an empty set, which would read as "Alpaca lists no crypto" and
     silently un-list the whole asset class.
 
-    Cached for an hour: the answer changes when Alpaca lists or delists.
+    A SUCCESS IS CACHED FOR AN HOUR AND A FAILURE FOR A MINUTE, because they
+    are different kinds of fact: the venue's list changes when Alpaca lists or
+    delists, while a failed read is a statement about one moment and must not
+    blind the router for the rest of the hour.
     """
     import time as _time
     now = _time.time()
     hit = _UNIVERSE_CACHE.get("value")
-    if hit and not refresh and now - float(hit.get("read_at") or 0) < _UNIVERSE_TTL_S:
-        return hit
+    if hit and not refresh:
+        ttl = (_UNIVERSE_TTL_S if hit.get("readable")
+               else _UNIVERSE_FAILURE_TTL_S)
+        if now - float(hit.get("read_at") or 0) < ttl:
+            return hit
 
     out: dict[str, Any] = {"pairs": None, "bases": None, "readable": False,
                            "source": "alpaca", "read_at": now, "note": None}
@@ -328,13 +342,17 @@ def crypto_universe(refresh: bool = False) -> dict[str, Any]:
                        "UNKNOWN, not empty")
         _UNIVERSE_CACHE["value"] = out
         return out
+    # Read with a BOUNDED urllib call rather than through the SDK. This sits on
+    # the routing path of every bare-ticker bars fetch, so it needs a timeout it
+    # actually owns; the SDK does not expose one.
+    #
+    # MEASURED ON THIS CODE, 2026-08-27, n=3: 1.03 s cold (1025 / 1037 / 1034
+    # ms), 0.004 ms warm from the cache, 73 pairs of which 36 quote USD. The
+    # first figure written here was 1.34 s and it was WRONG for this function —
+    # it was the SDK version's cost, measured before the rewrite and left
+    # behind. Reproduce: `crypto_universe(refresh=True)` around
+    # `time.perf_counter()`.
     try:
-        # Read with a BOUNDED urllib call rather than through the SDK. This sits
-        # on the routing path of every bare-ticker bars fetch, so it needs a
-        # timeout it actually owns; the SDK does not expose one. MEASURED on
-        # this code, 2026-08-27: 1.34 s cold, 0.003 ms warm from the cache, 73
-        # pairs. A borrowed figure from a sibling call would not have been the
-        # cost of THIS one.
         # THE HOST FOLLOWS THE CREDENTIALS, and it is NOT read from a flag.
         # `ALPACA_PAPER` is a retired switch: `AlpacaConnector` refuses to be
         # built without an explicit `paper=`, because an environment variable

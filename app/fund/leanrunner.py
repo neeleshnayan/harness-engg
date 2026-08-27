@@ -2241,16 +2241,23 @@ CLOCK_AGREEMENT_TOLERANCE = 0.005
 def clocks_agree(series_obs_per_year: float, engine_obs_per_year: float) -> bool:
     """Are these two the SAME annualisation convention?
 
-    Extracted as a named predicate rather than left inline, because a boundary
-    reached only through ``sqrt(a/b)`` cannot be probed exactly — the float
-    round trip lands a hair either side of the tolerance and a
-    strict-versus-non-strict slip would hide there. Here the boundary is an
-    argument.
+    Extracted as a named predicate rather than left inline, so the boundary is
+    an ARGUMENT and can be probed from either side; through
+    ``annualisation_clock`` it is whatever the date arithmetic happens to
+    produce.
 
     Compares the ANNUALISATION FACTORS (``sqrt(K)``), not the clocks, because
     that is the number every statistic in ``SQRT_ANNUALISED_STATISTICS`` is
-    actually multiplied by. Inclusive at the tolerance: exactly
-    ``CLOCK_AGREEMENT_TOLERANCE`` apart is still one convention.
+    actually multiplied by.
+
+    The comparison is written ``<=``, and EXACT equality with the tolerance is
+    provably unreachable rather than merely unlikely: ``factor - 1.0`` is exact
+    for any factor in [0.5, 2), so its magnitude is always an integer multiple
+    of 2^-53, while the double written ``0.005`` is 5764607523034235 / 2^60 —
+    not such a multiple. Outside [0.5, 2) the difference exceeds 0.5. So a
+    ``<``/``<=`` slip here changes no answer, and the proof is executable in
+    ``tests/test_annualisation_clock.py`` so that it fails if the tolerance is
+    ever moved to a value the comparison CAN land on.
     """
     factor = math.sqrt(series_obs_per_year) / math.sqrt(engine_obs_per_year)
     return abs(factor - 1.0) <= CLOCK_AGREEMENT_TOLERANCE
@@ -2289,7 +2296,7 @@ def annualisation_clock(daily: Optional[dict[str, Any]] = None,
     model is set, 365 when one is (LEAN documentation for
     ``Settings.TradingDaysPerYear``, read 2026-08-27). So a crypto algorithm
     that never calls ``set_brokerage_model`` is scored on an equity clock and
-    every one of those statistics is understated by ``sqrt(365/252) = 1.2034``
+    every one of those statistics is understated by ``sqrt(365/252) = 1.2035``
     — including the Sharpe a human reads off the belt.
 
     OUR OWN numbers do not have this problem and that is worth saying plainly,
@@ -2306,9 +2313,9 @@ def annualisation_clock(daily: Optional[dict[str, Any]] = None,
     between them. Applying that factor to a criterion would be a threshold
     change, which is a versioned human decision and not a builder's.
 
-    THE SEVEN STATES, each its own value, because "could not compare" covers
-    four different facts and collapsing them is how an absence gets read as an
-    agreement:
+    THE SIX STATES, each its own value, because "could not compare" covers
+    three different facts and collapsing them is how an absence gets read as
+    an agreement:
 
       * ``agree`` — the two factors are within ``CLOCK_AGREEMENT_TOLERANCE``.
       * ``engine_understates`` — the engine's clock is SHORTER than the
@@ -2450,7 +2457,7 @@ def psr_inputs(stats: dict, daily: Optional[dict[str, Any]] = None,
         the series it scored was actually observed on. That is a different
         question from the one above and it is the crypto blocker: a 24/7
         series annualised at 252 understates every sqrt-annualised statistic
-        by 1.2034, and no other field on a stored verdict would say so.
+        by 1.2035, and no other field on a stored verdict would say so.
       * ``trading_days_per_year`` and ``target`` — the run's OWN
         ``algorithmConfiguration.tradingDaysPerYear``, and the PSR hurdle that
         follows from it. This is the falsifier for the whole engine-hurdle
@@ -2479,7 +2486,7 @@ def psr_inputs(stats: dict, daily: Optional[dict[str, Any]] = None,
         "target": _stats.lean_psr_target(tdy),
         # WHICH CLOCK, AND DOES THE SERIES AGREE. The field above says what the
         # engine used; this says whether that was the right one for the series
-        # it scored. On a crypto run those differ by 1.2034 and nothing else on
+        # it scored. On a crypto run those differ by 1.2035 and nothing else on
         # a stored verdict would say so.
         "annualisation_clock": clock_block,
         "benchmark_sharpe_published": (
@@ -2522,13 +2529,18 @@ def psr_inputs(stats: dict, daily: Optional[dict[str, Any]] = None,
     # engine changed its formatting.
     published = _annual_vol_fraction(stats)
     _, sd = _stats.mean_std(series)
-    # THE CLOCK IS READ FROM THE RUN, NOT RE-TYPED. This used to be a literal
-    # `sqrt(252.0)` — a hardcoded duplicate of `tdy`, which is read fifty lines
-    # above in this same function. It agreed on every result this fund has
-    # ever stored (252 on 276 of 276) and would have started disagreeing on the
-    # first crypto run: a candidate scored at 365 would have reported
-    # `reproduces: False`, which reads as "the engine changed its formula" when
-    # what actually happened is that the checker used the wrong clock.
+    # THE CLOCK IS READ FROM THE RUN, NOT RE-TYPED. This was a literal
+    # `sqrt(252.0)` — a hardcoded duplicate of the `tradingDaysPerYear` this
+    # same function already read at its top. The duplicate AGREED on every
+    # result this fund has stored, which is exactly why nothing noticed:
+    # MEASURED 2026-08-27, 196 of 196 stored result files carrying an
+    # `algorithmConfiguration` write 252 and no other value appears (359 result
+    # files read in total; reproduce by folding
+    # `lean_workspace/results/*/*.json` through `_engine_clock`). It would have
+    # started disagreeing on the first crypto run: a candidate scored at 365
+    # would have reported `reproduces: False`, which reads as "the engine
+    # changed its formula" when what actually happened is that the checker used
+    # the wrong clock.
     #
     # When the run's configuration did not carry a clock, the DOCUMENTED
     # default is used and the payload SAYS SO (`clock_assumed`), the same way
