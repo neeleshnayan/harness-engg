@@ -34,6 +34,7 @@ from app.fund.custody import CustodyIngest
 from app.fund.signals import SignalRunner
 from app.fund.marketdata import BarsError, fetch_daily_bars
 from app.fund import barcache
+from app.fund import navgap
 from app.fund.events import EventStore, store_backend
 from app.fund.ledger import LedgerError, LedgerService
 from app.fund.money import D, f
@@ -1124,10 +1125,69 @@ def get_nav():
     }
 
 
+#: How many struck snapshots the completeness fold reads. Named rather than
+#: inline because the DAY IT BINDS is the day the gap report silently starts
+#: describing a shorter window than it claims — the payload publishes both this
+#: cap and whether it bound, so the reader can tell.
+NAV_COMPLETENESS_SCAN = 5_000
+
+
+def _nav_strike_history_or_none() -> list[dict[str, Any]] | None:
+    """The full struck-NAV history, or None meaning IT COULD NOT BE READ.
+
+    None is a distinct input value to ``navgap.completeness``, not an empty list
+    the caller patches fields onto afterwards. An empty list is an honest and
+    completely different fact — this fund has never struck a NAV — and the two
+    must never collapse, because "no strikes" reads as "nothing to be missing"
+    and "unreadable" must read as "I cannot say".
+    """
+    try:
+        return _nav.history(limit=NAV_COMPLETENESS_SCAN)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _nav_completeness() -> dict[str, Any]:
+    """The gap verdict over the fund's own NAV record, never raising.
+
+    Deliberately total. ``GET /fund/liveness`` carries this, and the host
+    watchdog restarts Docker, Postgres and the spine when that route stops
+    answering 200 — so an exception here would not surface a bug, it would
+    bounce the stack every five minutes. Any failure becomes the UNREADABLE
+    input, which is the honest answer and the one the reader is built for.
+    """
+    try:
+        rows = _nav_strike_history_or_none()
+        report = navgap.completeness(rows, now=datetime.now(timezone.utc))
+        out = navgap.summary(report)
+        out["scan_limit"] = NAV_COMPLETENESS_SCAN
+        out["scan_limit_bound"] = bool(
+            rows is not None and len(rows) >= NAV_COMPLETENESS_SCAN)
+        return out
+    except Exception as e:  # noqa: BLE001
+        return navgap.summary(
+            navgap.completeness(None, now=datetime.now(timezone.utc))
+        ) | {"scan_limit": NAV_COMPLETENESS_SCAN, "scan_limit_bound": None,
+             "reason": f"{type(e).__name__}: {e}"}
+
+
 @router.get("/fund/nav/history")
 def get_nav_history(limit: int = Query(90, ge=1, le=365)):
-    """Recent struck NAV snapshots, oldest first — for value trend charts."""
-    return {"history": _nav.history(limit=limit)}
+    """Recent struck NAV snapshots, oldest first — plus whether any are MISSING.
+
+    A NAV series with a hole in it looks exactly like a NAV series without one:
+    the chart joins the two points either side and the missing day leaves no
+    trace. This fund struck no NAV at all between 2026-08-24T19:14:46Z and
+    2026-08-26T13:52:04Z — the whole of Tuesday 2026-08-25, a trading day — and
+    nothing noticed, because an append-only log is tamper-EVIDENT and says
+    nothing whatever about being COMPLETE. ``completeness`` is the missing half.
+
+    The fold reads the full history regardless of ``limit``: ``limit`` decides
+    how much series a chart draws, and a hole outside the drawn window is still
+    a hole in the record.
+    """
+    return {"history": _nav.history(limit=limit),
+            "completeness": _nav_completeness()}
 
 
 @router.get("/fund/positions")
@@ -4728,15 +4788,31 @@ def operating_doctrine():
 
 @router.get("/fund/liveness")
 def scheduled_job_liveness():
-    """Which periodic jobs have actually run, and which are overdue.
+    """Which periodic jobs have actually run, and whether the RECORD has holes.
 
     Exists because the harness could not previously tell a control that reported
     nothing from a control that never ran. The risk monitor - the only code that
     trips the drawdown and daily-loss halts - had zero callers, and its silence
     was indistinguishable from a calm book.
+
+    ``nav_record`` is the second half, and it answers a question the heartbeat
+    structurally cannot. The ``nav_strike`` beat says the strike LOOP ran, and it
+    beats on a deliberate no-strike too ("a deliberate no-strike is the job
+    WORKING", ``main.py``) - which is correct, and means a green ``nav_strike``
+    row is not evidence that a NAV was struck. The heartbeat is also in memory,
+    so a process that was not alive during a two-day outage has nothing to say
+    about it. Only the absence of the strikes themselves is durable, and
+    ``navgap`` reads that.
+
+    ``warnings`` is a MEASURED list: empty means this looked and found nothing.
+    An unreadable NAV record produces a warning saying so, never an empty list.
     """
     from app.fund import heartbeat
-    return heartbeat.report()
+    report = heartbeat.report()
+    record = _nav_completeness()
+    report["nav_record"] = record
+    report["warnings"] = list(record.get("warnings") or [])
+    return report
 
 
 @router.get("/fund/judgement")
