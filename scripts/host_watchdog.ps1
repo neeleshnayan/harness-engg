@@ -32,6 +32,24 @@ function Log([string]$msg) {
     Add-Content -Path $log -Value "$ts  $msg"
 }
 
+# --- 0. The Clark agents service on :8000 (the CEO's console engine). --------
+# Added 2026-08-27 after it was found dead with nothing watching it: the
+# studio console 502'd for the CEO and the outage had no timestamp. Runs
+# BEFORE the spine-healthy early exit so it is checked on every cycle. Same
+# plumbing-not-policy rule: this starts a process, nothing else.
+$clarkRoot = "C:\Users\user\Documents\Krypton Fund\Krypton_Clark"
+$clarkUp = $false
+try {
+    $c = Invoke-WebRequest -Uri "http://127.0.0.1:8000/health" -UseBasicParsing -TimeoutSec 8
+    if ($c.StatusCode -eq 200) { $clarkUp = $true }
+} catch {}
+if (-not $clarkUp) {
+    Log "clark agents service (:8000) down - starting uvicorn app.main:app"
+    Start-Process -FilePath (Join-Path $clarkRoot "venv\Scripts\python.exe") `
+        -ArgumentList "-m","uvicorn","app.main:app","--host","127.0.0.1","--port","8000" `
+        -WorkingDirectory $clarkRoot -WindowStyle Hidden
+}
+
 # --- 1. Is the spine well? If yes, exit silently (no log spam on health). ---
 try {
     $r = Invoke-WebRequest -Uri "http://localhost:8090/api/v1/fund/liveness" -UseBasicParsing -TimeoutSec 8
