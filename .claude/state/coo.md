@@ -582,3 +582,8 @@ band -> date -> money -> age, with an exact tail. When you rank items for
 the CEO, say which of the three bands you believe a row is in and on what
 DECLARED fact — a ranking that disagrees with the desk's is now visible
 rather than merely different.
+
+
+## BIND carried from janitor dispatch #2 (2026-08-28), appended by the chair
+
+- Two skill-miner candidates (S2 worktree setup, S6 live-shape auto-curl) overlap chair-adopted rules that exist only as prose in resolve notes; if the batch plan ever prices "write the skill files," these two have the highest measured recurrence (15 wrong-base events; 6 consecutive brief-premise corrections).

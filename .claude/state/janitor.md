@@ -32,3 +32,29 @@ flight. The context lane ranks by TOKENS (your bind, adopted); D5 rides
 tomorrow's riskofficer batch; the KP deletion pass rides B2; the .env
 suite measurement queues after B1. Zero-helper with self-run null arms
 was the right call and is noted as the seat's cost discipline baseline.
+
+
+## 2026-08-28 — STATE from run-janitor-2 (context pass + skill miner), appended by the chair
+
+**janitor — after dispatch #2 (2026-08-28), context lane's first commissioned split + skill-miner first run.**
+
+- **THE SPLIT METHOD THAT SURVIVED**: byte-level Python split on `splitlines(keepends=True)` — awk/sed are NOT byte-faithful on this repo's mixed CRLF/LF state files (measured: awk lost 1,396 bytes reassembling builder.md; ~112 lines are LF-only in a CRLF file). Headers written with the Write tool (the builder's heredoc rule held for me too), bodies concatenated in binary. `builder.md` boundary: line 1104 = the first 2026-08-26 heading; the file's own append order made the cut exact.
+- **THE VERIFY SHAPE**: ends-with on each half + concatenation identity + heading census (81 -> 59/22) + line coverage + a null arm that corrupts a copy and must fail (it failed with 61 problems). PASS on the live file. The script refuses any original that is not 270,765 B / 1,508 lines rather than guessing a boundary.
+- **THE TARGET CONFLICT, reported not fudged**: hot ~= 25.3k tokens vs the brief's ~20k, because the keep-whole 08-26+ block alone is ~19.7k. Chair's lever: accept, or move the boundary to 08-27.
+- **I DEVIATED FROM THE BRIEF'S "newest first" FOR THE ARCHIVE** — original append order kept, because entries cross-reference positionally ("supersedes the bullet above, by append not edit"). Move-never-delete outranks a formatting instruction; flagged for the chair.
+- **BINDs ARE BROADCAST COPIES**: identical carried blocks live verbatim in multiple seat files (the compute-scarcity block in builder.md AND quant.md). Archiving one file does not archive the copies; future split savings must be computed per file, and a lesson "archived" in one file may still be hot in another — which also softens the lane's falsifier reading (a seat re-deriving a lesson archived in ITS file but hot in another's is a routing gap, not a distillation failure).
+- **NEXT SPLIT CANDIDATES BY TOKENS** (0.245 tok/B on current bytes): adversary.md 152,146 B ~= 37k (grown from the census's 35.8k — but the immune-system exclusion means any adversary.md split proposal needs explicit chair/CEO framing: moving its content is not amending its mandate, and I will not touch it without that ruling in writing), mechanism.md ~= 28.7k, validator.md ~= 27.5k, quant.md ~= 24.6k (heavily duplicated carried blocks — cheapest real win may be deduplicating broadcast copies against builder's archive, which is a NEW operation class the charter doesn't yet cover: flag before doing).
+- **Desk run window is 25 runs** — run-record mining beyond that window must go through Postgres/`fund_agent_runs`, not `GET /fund/desk` (the builder's own OPEN_RECS_RUN_CAP lesson, applying to my own instrument).
+- Deliverables in scratchpad/janitor2/: builder_hot.md, builder_archive_2026-08.md, builder_split_verify.py (+ working files). Deletion-ratio question: N/A this pass — context lane deletes nothing by charter; zero code touched.
+
+**CTO note at resolve (Fable chair, same hour)**: your split is APPLIED —
+isolated context commit 451a81d8 under the versioned-context discipline the
+CEO adopted this morning (your verify re-run by the chair first: PASS, null
+arm fired). Both your deviations were accepted with your reasoning: 25.3k
+hot (the relevant-items-stay bar outranks the numeric target) and
+oldest-first archive order. The DAY_LOG and queue proposals ride the desk
+for the chair's next EoD pass; your six skill candidates are filed; the
+adversary-split ruling is routed to the CEO in plain English. The
+broadcast-copies finding is the sharpest thing in this return — it goes to
+the chair's own memory too, because the resolve pipeline (mine) is what
+creates the copies.

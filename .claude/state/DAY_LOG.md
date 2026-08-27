@@ -141,6 +141,27 @@ active and directing throughout.*
   read-through catches that make the seat valuable come from the lessons, not the
   volume. Splitting lessons from map is proposed, not done.
 
+### CONTEXT ESTATE (evening)
+- **VERSIONED CONTEXT CHANGES chartered (CEO: "lets version context changes so
+  we can rollback if things go messy")** — isolated `context:` commits, verify
+  green BEFORE commit, seat veto = one revert, day-log records every
+  restructuring with its hash (CODE_DISCIPLINE amendment, commit f459d9bc).
+- **THE FIRST SPLIT APPLIED under that discipline: state/builder.md — context
+  commit 451a81d8.** Janitor dispatch #2 built it (STANDING LESSONS distilled
+  with citations + 08-26+ verbatim; archive byte-for-byte, oldest-first for
+  positional cross-references); verify PASS with a live null arm; chair re-ran
+  it before applying. A builder's pre-brief read: 66,894 -> ~25,280 tokens
+  (-62%, ~41.6k/dispatch). Rollback: `git revert 451a81d8`.
+- Queued chair work from the same return: DAY_LOG archive-by-reviewed-day
+  (~43.3k, with the OPEN-FOR-FABLE carry-forward sweep) and CTO_REVIEW_QUEUE
+  resolved-entry archival (~34.3k, RESOLVED-marker convention) — both at the
+  next EoD pass. SIX skill candidates filed (S1-S6, all with measured
+  recurrence). The adversary.md-split ruling is on the CEO's desk (due 08-30).
+- **Finding worth its own line: BINDs are BROADCAST COPIES** — the same carried
+  block lives verbatim in multiple seat files, so archiving one file does not
+  archive the copies, and the resolve pipeline (the chair's own) is what
+  creates them.
+
 ### ALSO THIS MORNING
 - KP dev server was serving Aug-26 code (pre-B2) - the scheduled npm ci ran and
   the server cycled; the decided-rows-carry-no-buttons fix is actually rendering

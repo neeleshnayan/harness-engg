@@ -490,3 +490,8 @@ work-layer propagating exactly as designed.
 
 - **`annualisation_clock.state` reads `engine_understates` on a pure US-equity-ETF daily strategy** (job `f44922f7e7b0`: engine 252 vs series 365.25, factor 1.2039), because `daily_returns` is captured on a CALENDAR clock with weekend zeros. **Do not let the state be read as a crypto detector** — it cannot distinguish "24/7 series on an equity clock" from "equity series on a calendar clock". Either carry the capture clock as its own field, or rename the state so the two causes are separable.
 - **`exitrule` `kind="time"` takes only an absolute `on_date`**, so "close N sessions after entry" is not expressible; for any strategy that re-enters faster than the date, a committed time rule is an experiment terminator that becomes instantly-firing for every later entry. If a per-position holding-period exit is wanted, it is a new kind, not a note on an existing one.
+
+
+## BIND carried from janitor dispatch #2 (2026-08-28), appended by the chair
+
+- **Your memory file was SPLIT on 2026-08-28** (context commit 451a81d8): entries 2026-08-20 -> 08-24 moved VERBATIM to `.claude/state/builder_archive_2026-08.md`; their still-operative rules are distilled in the STANDING LESSONS section above, each cited to its source entry. **On this dispatch, review the distillation against your own recall: anything you find missing or blunted, say so — your objection restores the archived item unconditionally, no justification needed.** The archive is the authority wherever a distilled line and its source could disagree. Rollback of the whole split is one `git revert 451a81d8`.
