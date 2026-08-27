@@ -415,3 +415,39 @@ def test_the_reader_hands_the_payload_over_uninterpreted(reader_probe):
     no second place for the interpretation to drift."""
     assert reader_probe["payload"] == {
         "ts": "2026-08-27T11:00:00+00:00", "total_nav_usd": 1885.0}
+
+
+# ============================================ gaps the mutation pass exposed
+def test_a_strike_dated_exactly_now_resumes_and_is_not_called_a_future_one():
+    """MUTANT M16. ``age <= 0`` instead of ``age < 0`` changes NO verdict — both
+    arms serve 0.0 seconds — and changes only the SENTENCE, from "resuming the
+    clock 0s in" to "this clock disagrees with the one that wrote the record".
+
+    That is not an equivalent mutant. The log is where a cause is diagnosed, and
+    a fund that struck a NAV this instant must not be reported as evidence its
+    two clocks disagree. Every other assertion in this file was on the number.
+    """
+    r = S.resume_strike_clock({"ts": _ts(0)}, HOUR, NOW)
+    assert r.basis == S.RESUMED, "a strike dated exactly now is not in the future"
+    assert "FUTURE" not in r.note
+    assert "disagrees" not in r.note
+
+
+def test_the_resumed_value_is_actually_assigned_to_the_accumulator():
+    """MUTANT M28. Computing the resume, logging its note, and then setting the
+    accumulator to zero anyway leaves a log line that says the clock resumed and
+    a worker that did not. The structural guard asserted the CALL and not the
+    ASSIGNMENT, which is the difference between a control and a control's
+    advertisement."""
+    body = _scheduler_body()
+    assert "since_strike = resumed.seconds_served" in body
+    assert "since_strike = 0.0\n                _log" not in body
+
+
+def test_the_strike_block_is_gated_on_the_accumulator_being_due():
+    """MUTANT M31. With the gate removed the worker writes a NAV_STRUCK — the
+    fund's official record of what a unit was worth — on EVERY tick, which at
+    the configured 20-second settle interval is 180 official NAVs an hour."""
+    body = _scheduler_body()
+    assert "\n        if strike_due:\n" in body, (
+        "the strike block is no longer gated on the accumulator being due")
