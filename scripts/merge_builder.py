@@ -121,6 +121,15 @@ SENSITIVE_GLOBS: tuple[str, ...] = (
     "app/fund/autopolicy*.py",
     "app/api/v1/*guard*.py",
     "app/fund/projections/nav.py",  # the fold the whole ledger rests on
+    # THE PROD GATE, added 2026-08-27 after the adversary planted a dormant
+    # env bypass inside `_refuse_prod_unless_reachable` — the function whose
+    # own docstring says "THE ONE GATE" — and it merged as ORDINARY on every
+    # leg while 76/76 of the module's tests stayed green. mode.py raises its
+    # OWN exception classes, so the AST leg (anchored on HTTPException)
+    # cannot see it; the path leg must. The wider class repair (32 control
+    # modules invisible to scan_control_flow) is the builder's ticket; this
+    # line closes the named instance the way *guard* closed ticketguard.
+    "app/fund/mode.py",
 )
 
 #: Sensitive REGIONS inside files that change for many innocent reasons.
