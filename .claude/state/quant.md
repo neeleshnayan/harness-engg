@@ -1015,3 +1015,13 @@ report BOTH: daily-differenced and monthly-aggregated. On Ed's staking
 candidate the same data reads t=+0.99 daily and t=+4.22 monthly, and only
 the second is economically meaningful. Differencing two non-synchronous
 closing prints is a measurement artifact, not risk.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-builder-jan1)
+
+When you assert a constant equals its source, check whether IDENTITY is
+available instead of equality: `a == b` cannot distinguish a read from a
+copy that agrees today. For a Decimal, `a is b` can (Decimals are not
+interned; note `Decimal(d) is d` is True in CPython's C _decimal, so
+`Decimal(x)` is NOT a copy). For a str it cannot (identifier-like literals
+intern) — mutation is the only proof there.

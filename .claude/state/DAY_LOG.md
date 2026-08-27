@@ -371,6 +371,29 @@ but what will be impressive is if can spot what others dont and quickly turn it 
   hook cannot map their subagent types to a parent seat; design the convention honestly or
   render worker counts at return, never fake live.
 
+### THE JANITOR IS SEATED (audition passed, ~12:15Z spine clock)
+
+- **AUDITION: PASS on all four pre-registered criteria, judged before-the-report as
+  written.** (1) 10 deletions, each cited, suite 6387/0 with +8 tests and none dropped;
+  (2) the override census DEMONSTRATED three silent rule-disagreements live on the base
+  (owner-moves mutants green on the unmodified tree — the CEO's "duplicated parts that
+  can override each other", proven, incl. one on HIS OWN desk queue, now derived-and-
+  pinned); (3) 562 TS lines honestly classified to 30 true candidates with the scanner's
+  blind spot named; (4) the context census accurate TO THE DIGIT on all three chair
+  spot-checks. Judgement beyond the brief: it REFUSED the brief's own instruction to
+  delete tradestream.py:117 because the dead branch IS the defect. Seat created:
+  .claude/agents/janitor.md — three lanes, plain identity, weekly + on-demand.
+- **The context lane's first law, from its own baseline**: rank by TOKENS (density
+  varies 3x; builder.md = 63,898 tokens is the costliest cold read; adversary.md is 4th
+  at 885 lines and would never trip a line threshold). ~471k tokens of seat memory
+  total; a builder pays 76k before reading its brief.
+- **One LOOSENING-direction find for tomorrow's riskofficer batch**: the approval guard
+  re-spells its chair-identity set inline twice beside the named allowlist — a fourth
+  identity would approve without the verbatim-instruction requirement. Plus
+  deskcard._VIA_RE admits an identity the guard refuses.
+- jan1 merged (suite on merged tree in flight); lamp closed manually (the auto-close
+  activates at the next spine cycle); 13 debt claims queued for the guide store.
+
 *DATING CORRECTION (chair, recorded not hidden): the afternoon sections below
 carry approximate stamps that ran ~2h fast — the spine clock read 11:18Z when
 "~14:30Z" was being written. The ORDER of events is correct; the run records'

@@ -1419,3 +1419,6 @@ condition raises**: riskmonitor raises on `new_keys` only, so with eleven
 holes live a twelfth emits nothing. Both rules apply to every future alarm
 build; the redesign requirements live in
 docs/reviews/ADVERSARY_P1_NAVALARM_2026-08-27.md.
+
+
+## 2026-08-27 - JAN1 ran under this identity and PASSED the janitor audition; its full STATE lives in .claude/state/janitor.md (the new seat's memory, born from this run). The three EVOLVEs below were applied to BOTH seat files.

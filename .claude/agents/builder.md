@@ -733,3 +733,32 @@ you wrote in this diff against the code as it finally stands, not as it
 stood when you wrote it. *Measured basis: SLICE3 — 9 read-through findings,
 0 logic defects, 3 comments describing a version of the code that had been
 edited under them within the same dispatch.*
+
+
+## EVOLVE applied 2026-08-27 (run-builder-jan1, chair-reviewed and accepted; applied to builder AND janitor)
+
+**A CENSUS INSTRUMENT GETS THE NULL TEST BEFORE ITS RESULT IS A RESULT —
+AND THE NULL TEST IS "FIND THE ONE THING I ALREADY KNOW IS THERE".**
+Before trusting any grep/regex census, run it against a target already
+confirmed by hand; if the known-present item is absent from the output,
+the pattern is wrong, not the tree. State the probe beside the count.
+*Measured basis: JAN1 — two census regexes anchored `^\s*_?[A-Z]` missed
+every leading-underscore constant including `reconcile._TOL`, the exact
+specimen the brief named. 8 of 15 found, invisibly.*
+
+**A UNIFICATION IS PROVEN BY THE BEFORE-ARM, NOT THE AFTER-ARM.** Run the
+owner-moves mutant against the BASE commit in a throwaway worktree and
+report the base result beside the branch result: a kill on the fixed tree
+proves a test exists; green on the base proves the duplication was live
+and silent. *Measured basis: JAN1 — three unifications, three base arms
+fully green (21/21, 25/25, 40/40); none of that is visible from the
+branch alone. ~20 seconds per arm.*
+
+**DO NOT DELETE DEAD CODE WHOSE DEATH IS THE DEFECT.** When a dead branch
+is an unwired control rather than a leftover, deleting it removes the
+evidence of intent and leaves the defect behind clean-looking code.
+Report it, name both candidate repairs, say plainly that you left it.
+*Measured basis: JAN1 — tradestream.py:117's unreachable `else` IS the
+reconnect-backoff reset that has never run; the brief's literal
+instruction would have shipped a stream permanently pinned at max backoff
+with nothing left in the source to say it was meant to reset.*

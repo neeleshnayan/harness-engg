@@ -611,3 +611,16 @@ no-strike* as well as a real one, so its budget bounds the strike CHECK's
 cadence, not the record's. State, for every heartbeat you rely on, which of
 the two it measures — the durable series is the only evidence a NAV was
 struck.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-builder-jan1) — FOR TOMORROW'S BATCH
+
+Audit `_guard_approval` in `app/api/v1/fund.py` for a duplication in the
+LOOSENING direction: the chair-identity set is named in APPROVAL_ALLOWLIST
+and then re-spelled inline at two more sites (~:5548, :5561). Adding a
+fourth chair identity to the allowlist alone would let it approve WITHOUT
+quoting the CEO's instruction verbatim, and record without the
+[instruction] bracket. Also check `deskcard._VIA_RE`: it admits
+`ceo-via-cto`, an identity the guard refuses — a third spelling of the
+channel family that could label a row "chair-adjudicated" which no chair
+could have approved.

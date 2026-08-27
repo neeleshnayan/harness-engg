@@ -1238,3 +1238,23 @@ on it.
   (decides whether perp strategies can rehearse without money) — due 09-03.
 - CFTC socrata (publicreporting.cftc.gov) is free/fast; percent-encode $
   params. Farside needs a browser UA. SEC Archives needs a contact UA.
+
+
+## 2026-08-27 — chair rules from jan1 (BINDS accepted)
+
+1. **The context lane ranks by TOKENS, lines beside them** — density varies
+   3x; adversary.md is the firm's 4th most expensive cold read at 885
+   lines and would never trip a line threshold. builder.md (63,898 tokens,
+   43 regular dated appends) is the first split candidate and the clean
+   archive shape.
+2. **Cite by SYMBOL, never by line, in any comment referencing another
+   file** — two citations in one docstring were stale by the same 23
+   lines; one comment named a test file that has not existed since a
+   rename. (My briefs inherit this: name functions, not line numbers,
+   except where the line is the finding.)
+3. Baseline facts to reuse: ruff/vulture live in the ClarkHarness venv
+   (bash default python is the hermes venv); ts-prune cannot resolve
+   .ts-suffixed test imports in KP (57 false positives); the suite is
+   green only WITHOUT .env loaded (pre-existing, unmeasured beyond 3
+   files); editing any source file mid-suite invalidates the run, even a
+   comment.

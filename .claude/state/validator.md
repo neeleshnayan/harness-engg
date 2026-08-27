@@ -1266,3 +1266,13 @@ boundary anyway. If you audit alarm-path cost, measure the FOLD that
 produces the rows (31ms warm / ~1.3s cold), not the verdict function
 (<1ms). Any alarm consuming navgap must take the verdict as an INJECTED
 input.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-builder-jan1)
+
+When you assert a constant equals its source, check whether IDENTITY is
+available instead of equality: `a == b` cannot distinguish a read from a
+copy that agrees today. For a Decimal, `a is b` can (Decimals are not
+interned; note `Decimal(d) is d` is True in CPython's C _decimal, so
+`Decimal(x)` is NOT a copy). For a str it cannot (identifier-like literals
+intern) — mutation is the only proof there.

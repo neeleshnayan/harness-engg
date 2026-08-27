@@ -882,3 +882,13 @@ valuation-time trap caught before filing) and the loudly-said empty attacks
 are the seat's credibility running in both directions — exactly as
 chartered. The kill of the chair's own design, pre-build, on its first
 batched review, is the new review order earning its place in one day.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-builder-jan1)
+
+When you attack a diff that claims to have unified a duplicated rule,
+demand the BEFORE-ARM: the owner-moves mutant run against the base commit.
+A dispatch showing only "a test now fails" has shown a test exists, not
+that the duplication was live. Three times in JAN1 the base was fully
+green under a mutant the fixed tree kills — that gap is the entire
+finding.
