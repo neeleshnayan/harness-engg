@@ -370,3 +370,30 @@ test("the short form and the long label never disagree about lateness", () => {
       `${d}: short "${b.short}" and tone "${b.tone}" must agree`);
   }
 });
+
+/* ------------------------------- branches the mutation pass found bare ---- */
+
+test("a kind matched CASE-INSENSITIVELY — every live kind is lower-case today", () => {
+  /* M23 SURVIVED. Every one of the 23 kinds on the live desk is already
+   * lower-case, so `.toLowerCase()` was never exercised and deleting it broke
+   * nothing. The day a seat files `kind: "Threshold-Proposal"` — which
+   * nothing prevents, the field is free text — the fold-free version drops it
+   * to `unclassified`. The measured population is not the possible one. */
+  assert.equal(cardGlyph({ kind: "THRESHOLD-PROPOSAL" }).family, "threshold");
+  assert.equal(cardGlyph({ kind: "Harness_Defect" }).family, "defect");
+  assert.equal(cardGlyph({ kind: "Awaits-CEO" }).family, "decision");
+  assert.equal(cardGlyph({ kind: "CHALLENGE" }).basis, "matched");
+});
+
+test("the 'question' keyword is REACHABLE on its own", () => {
+  /* M22 SURVIVED, and the reason is worth the test: every question-bearing
+   * kind in the live record (`policy-question`, `threshold_question`) matches
+   * an EARLIER keyword, so the `question` entry has never fired. It is a
+   * deliberate catch-all for a kind nobody has filed yet, and a table entry
+   * no input reaches is indistinguishable from one that has been deleted. */
+  assert.equal(cardGlyph({ kind: "open-question" }).family, "decision");
+  assert.equal(cardGlyph({ kind: "open-question" }).why, "kind open-question — matched on question");
+  // ...and the precedence over it still holds where it should.
+  assert.match(cardGlyph({ kind: "policy-question" }).why, /matched on policy/);
+  assert.match(cardGlyph({ kind: "threshold_question" }).why, /matched on threshold/);
+});

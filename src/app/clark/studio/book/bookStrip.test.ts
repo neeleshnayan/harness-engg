@@ -180,3 +180,48 @@ test("the strip carries HOW OLD its reading is", () => {
   assert.notEqual(bookStrip(LIVE.nav_live).asOf,
                   bookStrip(LIVE.nav_last_struck).asOf);
 });
+
+/* ------------------------------- branches the mutation pass found bare ---- */
+
+test("a position worth EXACTLY ZERO is dropped, not drawn at zero width", () => {
+  /* M31 SURVIVED. An invisible segment is a lie with no pixels: it counts in
+   * `positionCount`, it appears in the caption, and it occupies none of the
+   * track. The row leaves the strip and its (zero) money lands in the
+   * reconciliation, where it costs nothing and can be seen. */
+  const s = bookStrip({
+    total_nav_usd: 1000,
+    positions: [{ symbol: "SPY", usd_value: 400 },
+                { symbol: "DEAD", usd_value: 0 }],
+    breakdown: { cash: 600 },
+  });
+  assert.equal(s.positionCount, 1, "the zero position is not counted");
+  assert.deepEqual(s.segments.map((x) => x.symbol), ["SPY", null]);
+  assert.ok(!s.segments.some((x) => x.weight === 0),
+            "no segment may have zero width");
+  // A NEGATIVE value is the same refusal — a short marked this way would
+  // otherwise draw a negative-width segment.
+  const neg = bookStrip({ total_nav_usd: 1000,
+    positions: [{ symbol: "SHORT", usd_value: -50 }], breakdown: { cash: 1050 } });
+  assert.equal(neg.positionCount, 0);
+});
+
+test("a fund with EXACTLY ZERO cash draws no void, and says zero not unknown", () => {
+  /* M32 SURVIVED. Three states again: cash absent (unreadable), cash zero
+   * (fully invested), cash positive (a void). The middle one must produce no
+   * segment — a zero-width void is the same pixels as no void — while still
+   * reporting a MEASURED zero on `cashWeight`, which is what separates it
+   * from the unreadable case. */
+  const s = bookStrip({ total_nav_usd: 1000,
+    positions: [{ symbol: "SPY", usd_value: 1000 }], breakdown: { cash: 0 } });
+  assert.equal(s.segments.length, 1, "no cash segment at all");
+  assert.ok(!s.segments.some((x) => x.kind === "cash"));
+  assert.equal(s.cashUsd, 0);
+  assert.equal(s.cashWeight, 0, "a MEASURED zero, not null");
+  assert.match(bookHeadline(s), /0% is cash/);
+  // A NEGATIVE cash figure (an overdrawn account) also draws no void — a bar
+  // cannot have negative width — and the number survives for the caption.
+  const od = bookStrip({ total_nav_usd: 1000,
+    positions: [{ symbol: "SPY", usd_value: 1100 }], breakdown: { cash: -100 } });
+  assert.ok(!od.segments.some((x) => x.kind === "cash"));
+  assert.equal(od.cashUsd, -100);
+});

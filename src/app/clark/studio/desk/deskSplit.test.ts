@@ -26,8 +26,11 @@ import {
   recItems,
   splitDeskItems,
   stageOfItem,
+  deskItemFacts,
   type DeskItem,
 } from "./execDesk.ts";
+import { hoursBetween } from "./cardAnatomy.ts";
+import { cardGlyph } from "./cardGeometry.ts";
 
 /* ------------------------------------------------------------- fixtures -- */
 
@@ -322,4 +325,78 @@ test("rankCoverage states what the ranking could not see", () => {
     total: 3, priced: 2, unpriced: 1, zero: 1,
     dated: 1, undated: 2, unclassified: 1,
   });
+});
+
+/* -------------------- the staleness anchor, and the cap that used to bind -- */
+
+test("waitingSince comes from the ROW, not from the capped runs window", () => {
+  /* M45 SURVIVED the first mutation pass — reverting this to the runs-map
+   * lookup broke nothing, because nothing tested it.
+   *
+   * THE MEASUREMENT that put it here: the live desk carries 324 open
+   * recommendations and a 25-run `runs` payload. The map could date 66 of
+   * them; the ROWS carry `resolved_at` themselves and can date all 324. On
+   * the CEO's own decision list the map dated 7 of 39, so thirty-two cards
+   * he is asked to rank by urgency drew their age spine as UNKNOWN.
+   *
+   * The two AGREE where both exist (66 of 66, zero disagreements), which is
+   * what makes this a wider read of one fact rather than a switch to a second
+   * one — and it is why the fallback below is still correct. */
+  const outsideWindow = recItems(
+    [rec(1, "open", { resolved_at: "2026-08-20T10:00:00Z" })],
+    [/* the runs payload does NOT contain run-1 */ run("run-99", "2026-08-01T00:00:00Z")],
+  );
+  assert.equal(outsideWindow[0].waitingSince, "2026-08-20T10:00:00Z",
+    "a row whose run fell outside the 25-run window must still be dated");
+
+  // The MAP is still the fallback for a spine that predates the annotation.
+  const noRowField = recItems(
+    [rec(2, "open")],
+    [run("run-1", "2026-08-19T09:00:00Z")],
+  );
+  assert.equal(noRowField[0].waitingSince, "2026-08-19T09:00:00Z");
+
+  // ...and neither source datable is `null`, never a substituted "now".
+  const neither = recItems([rec(3, "open")], []);
+  assert.equal(neither[0].waitingSince, null);
+
+  // A blank string on the row is not a date and falls through to the map.
+  const blank = recItems(
+    [rec(4, "open", { resolved_at: "   " })],
+    [run("run-1", "2026-08-18T09:00:00Z")],
+  );
+  assert.equal(blank[0].waitingSince, "2026-08-18T09:00:00Z");
+});
+
+test("an ORDER's card facts carry a kind, so it never wears the unknown mark", () => {
+  /* M46 SURVIVED. A pending order has no `kind` in the record — the field
+   * belongs to recommendations — so `deskItemFacts` supplies `"order"`
+   * knowingly. Without it the only IRREVERSIBLE row on the CEO's desk draws
+   * the "kind not recognised" glyph, which is the one row where an honest
+   * blank is the wrong answer: the item type IS the answer here. */
+  const [o] = orderItems([{
+    order_id: "o-1", side: "buy", qty: 1, symbol: "SPY",
+    ts: "2026-08-27T10:00:00Z", rationale: "because",
+    impact_preview: { notional_usd: 100 },
+  } as never]);
+  const facts = deskItemFacts(o, "2026-08-27T12:00:00Z");
+  assert.equal(facts.kind, "order");
+  assert.equal(cardGlyph(facts).family, "position");
+  assert.equal(cardGlyph(facts).basis, "matched");
+  // The age is the ORDER's own clock, from `ts`.
+  assert.equal(facts.ageHours, 2);
+
+  // A recommendation still reads its own kind.
+  const [r] = recItems([rec(9, "open", { kind: "harness_defect" })],
+                       [run("run-1", "2026-08-27T10:00:00Z")]);
+  assert.equal(deskItemFacts(r, "2026-08-27T12:00:00Z").kind, "harness_defect");
+});
+
+test("hoursBetween refuses a future stamp rather than reporting a negative age", () => {
+  // Two clocks disagreeing is not an age. `null` is the honest answer and it
+  // is the same answer an unreadable stamp gets: we cannot say how long.
+  assert.equal(hoursBetween("2026-08-27T14:00:00Z", "2026-08-27T12:00:00Z"), null);
+  assert.equal(hoursBetween("not-a-time", "2026-08-27T12:00:00Z"), null);
+  assert.equal(hoursBetween(null, "2026-08-27T12:00:00Z"), null);
+  assert.equal(hoursBetween("2026-08-27T10:00:00Z", "2026-08-27T12:00:00Z"), 2);
 });
