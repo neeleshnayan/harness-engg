@@ -776,3 +776,24 @@ def test_extra_keys_ride_ON_TOP_and_cannot_silently_drop_a_field():
     assert out["snapshot"] is True
     assert out["basis"] == md.BASIS_PINNED
     assert out["symbol"] == "SPY"
+
+
+def test_start_and_end_are_the_FIRST_and_LAST_date_not_the_same_one():
+    """M57 SURVIVED the first mutation pass.
+
+    Every existing arm either had ONE date (so first and last coincide) or
+    overrode both keys through ``extra`` on the live branch — so the builder's
+    own derivation was never asserted with a series long enough to tell the
+    two apart. A payload whose ``end`` equals its ``start`` tells a LEAN
+    container the history is one day long.
+    """
+    out = md.bars_payload(md.BASIS_ARCHIVE, symbol="SPY", source="yahoo",
+                          dates=["2026-08-24", "2026-08-25", "2026-08-26"],
+                          closes=[1.0, 2.0, 3.0])
+    assert out["start"] == "2026-08-24"
+    assert out["end"] == "2026-08-26"
+    assert out["start"] != out["end"]
+    # The pinned branch derives them the same way, from the same function.
+    pin = md.bars_payload(md.BASIS_PINNED, symbol="SPY", source="yahoo",
+                          dates=["2020-01-02", "2020-01-03"], closes=[1.0, 2.0])
+    assert (pin["start"], pin["end"]) == ("2020-01-02", "2020-01-03")
