@@ -105,9 +105,9 @@ else:
 
 from app.api.v1 import fund as fund_router  # noqa: E402
 from app.fund import heartbeat
+from app.fund import schedule  # noqa: E402
 from app.fund.demo_seed import seed_if_empty  # noqa: E402
 from app.fund.lease import SchedulerLease  # noqa: E402
-from app.fund import schedule  # noqa: E402
 from app.fund.schedule import StrikeWindow  # noqa: E402
 
 
@@ -266,8 +266,17 @@ async def _scheduler():
         # behaviour (the reset was the first line of the strike block) and it is
         # preserved deliberately: it is what makes a strike that fails cost one
         # interval rather than putting the loop into a retry burst against the
-        # permanent record. It is ALSO why a failed strike is invisible in the
-        # log; see the recommendation filed with this change.
+        # permanent record.
+        #
+        # THE OPEN CONSEQUENCE, stated here because nothing else states it: a
+        # tick that ran and whose ``run_strike`` RAISED is indistinguishable in
+        # the durable record from a tick that decided not to strike. Both leave
+        # no NavStruck and both beat the heartbeat. Two of the fund's ten
+        # over-budget in-session strike gaps have exactly that signature (the
+        # accumulator's phase was preserved across them, so the loop was
+        # running and the write produced nothing). Making that visible means
+        # deciding what a failed official-NAV write should do, which is not a
+        # decision this loop should take on its own.
         since_strike, strike_due = schedule.advance(
             since_strike, elapsed, strike_every)
         # Settlement stays unconditional. It is read-mostly, idempotent, and an

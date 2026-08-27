@@ -76,7 +76,7 @@ class StrikeWindow:
 # ---------------------------------------------------------------- the clock
 #
 # A PERIODIC TICK MUST COUNT TIME, NOT TICKS. The worker's accumulators used to
-# advance by the NOMINAL sleep constant -- ``since_strike += settle_every`` --
+# advance by the NOMINAL sleep constant — ``since_strike += settle_every`` --
 # which is only the truth if the loop body costs nothing. It does not: one pass
 # settles fills, re-screens the universe, snapshots, runs the risk monitor, the
 # exit check, the autopolicy, the factory and proposal reconciles, prunes
@@ -96,20 +96,22 @@ class StrikeWindow:
 #     2026-08-18  3823s  1.062x
 #     2026-08-19  3817s  1.060x
 #
-# The stretch GROWS, because the loop keeps gaining work: 1.6% when the fund
-# was three days old, 20.0% a fortnight later. That last figure is 4321s
-# against a heartbeat budget of 5400s -- the cadence was walking toward its own
-# alarm, and the alarm would have fired on a correct budget and a broken clock.
-# The fix is here rather than in the budget for exactly that reason.
+# The stretch GROWS, because the loop keeps gaining work: 1.6% on the fund's
+# FIRST day of struck NAVs, 20.0% thirteen days later. That last figure is
+# 4321s against the heartbeat's 5400s nav_strike budget, so 1.25x more loop
+# growth fires that alarm — and note WHAT it watches: the beat fires on a
+# deliberate no-strike too, so the budget bounds the strike CHECK's cadence,
+# which is exactly the quantity this defect stretched. The fix is here rather
+# than in the budget for that reason.
 
 #: THE INPUT VALUE for "the strike record could not be read". It exists so the
-#: caller has something to pass that is not ``None`` -- because ``None`` already
+#: caller has something to pass that is not ``None`` — because ``None`` already
 #: means "the log is readable and holds no strike", and a fund that has never
 #: struck a NAV and a log that cannot be read are different facts with different
 #: fixes. Collapsing them is the failure this codebase keeps paying for.
 UNREADABLE = "unreadable"
 
-#: ``ResumedClock.basis`` -- what code branches on, one value per cause.
+#: ``ResumedClock.basis`` — what code branches on, one value per cause.
 NEVER_STRUCK = "never-struck"
 FUTURE = "future"
 OVERDUE = "overdue"
@@ -142,7 +144,7 @@ def advance(seconds_served: float, elapsed: float,
     period is the interval plus at most ONE tick of overshoot, which is the
     tolerance the tests assert against.
 
-    A non-positive interval is NOT a period and is never due -- that is what
+    A non-positive interval is NOT a period and is never due — that is what
     disables a tick (``LEAN_RECONCILE_INTERVAL=0`` is a supported setting).
     A negative ``elapsed`` cannot come from a monotonic clock, and is treated as
     zero rather than winding the accumulator backwards, because the one thing a
