@@ -88,3 +88,43 @@ A production incident traced to an override-class duplicate that the
 census had already swept (and not flagged) kills the census design and
 sends the program back to the drawing board. A quarter with zero janitor
 deletions while the baselines grow means the program is decoration.
+
+## THE CONTEXT LANE (added same day, CEO instruction)
+
+**CEO, verbatim: "Janitor could also sweep through each agents context and
+help us refine on it? we dont want endlessly accumulating context for each
+agent so maybe in periodic janitor runs it helps code + context cleanup" —
+and the binding rider: "lets make it such that relevant items are not
+removed so it needs to triage it really well."**
+
+The janitor's periodic pass gains a second lane: seat-context hygiene.
+The accumulation-debt class (charter section 3) gets its instrument.
+
+**The rules, written against the rider:**
+
+1. **NOTHING IS DELETED — content only MOVES.** A seat's state file splits
+   into the LIVE file (standing rules, the current map, recent STATE
+   appends) and a linked ARCHIVE file (`<seat>_archive_YYYY.md`) holding
+   the rest verbatim. The record survives whole; the read-cost drops. A
+   deletion of seat memory is not a janitor act at any confidence.
+2. **EVERY MOVE IS A CHAIR-REVIEWED DIFF.** The janitor proposes the
+   split; the chair reviews what stays live (the triage the CEO demands);
+   nothing auto-applies — the work-layer evolution rule.
+3. **THE SEAT REVIEWS ITS OWN DISTILLATION.** On its next dispatch after a
+   split, the seat is told the split happened and may object through
+   `## EVOLVE` — the seat knows best which "old" lesson still fires. An
+   objection restores the item to the live file, no questions.
+4. **DISTILLATION RUNS ON THE STRONG MODEL** until the template is stable
+   (the Donna rule: a bad summary misleads quietly).
+5. **FALSIFIER, written at charter time**: one instance of a seat
+   re-deriving a lesson that had been archived out of its live file — or a
+   defect a moved rule would have caught — SUSPENDS the lane pending the
+   CEO's re-decision. Relevant-items-never-removed is the bar, and this is
+   its tripwire.
+
+Composition with the context engine: this lane is CE-2's janitorial
+sibling — working memory (the bounded present tense) is built at resolve;
+the janitor's lane keeps the underlying archives lean and measures the
+read-cost. First pass (jan1, 2026-08-27) is MEASURE-ONLY: per-file
+line/token counts, growth hotspots past the 1,200-line threshold, section
+census of the three largest. The numbers become the lane's baseline.
