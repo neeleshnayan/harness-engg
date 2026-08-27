@@ -59,7 +59,7 @@ import { officerDesk } from "./officerQueues.ts";
  * copy the file here, and update BOTH literals. Three deliberate acts.
  */
 const PINNED_DIGEST =
-  "293d783ec8398f119c2befdd12b9ec0489d59288c1ec9750a0e0e7cb1e9cb1be";
+  "c02655184d8eb8ea58bc6cc27203a6816cba01dc3acd1a63bc0feb7ceeb00500";
 
 const CONTRACT_URL = new URL(
   "../../../../../contract/desk_stage_contract.v1.json", import.meta.url);

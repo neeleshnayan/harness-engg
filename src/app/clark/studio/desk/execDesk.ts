@@ -238,7 +238,7 @@ export function recItems(
  * Three deliberate acts, on purpose.
  */
 export const CONTRACT_DIGEST =
-  "293d783ec8398f119c2befdd12b9ec0489d59288c1ec9750a0e0e7cb1e9cb1be";
+  "c02655184d8eb8ea58bc6cc27203a6816cba01dc3acd1a63bc0feb7ceeb00500";
 
 /** What the live spine's contract digest says about this page's fixture.
  *  `null` = they agree and nothing is rendered. */
