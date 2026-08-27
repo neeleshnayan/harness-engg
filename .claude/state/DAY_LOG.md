@@ -371,6 +371,12 @@ but what will be impressive is if can spot what others dont and quickly turn it 
   hook cannot map their subagent types to a parent seat; design the convention honestly or
   render worker counts at return, never fake live.
 
+*DATING CORRECTION (chair, recorded not hidden): the afternoon sections below
+carry approximate stamps that ran ~2h fast — the spine clock read 11:18Z when
+"~14:30Z" was being written. The ORDER of events is correct; the run records'
+own timestamps are authoritative. Same error class as the cad1 night stamp;
+same remedy: correct loudly, never rewrite.*
+
 ### THE JANITOR AUDITION (CEO, ~14:30Z: "Lets put janitor a permanent seat if he passes audition")
 
 - **jan1's in-flight run IS the audition** (the CDO pattern — judged on its own output).
