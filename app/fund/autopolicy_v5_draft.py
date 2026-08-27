@@ -969,7 +969,13 @@ def _evaluate_into(checks: list[dict[str, Any]], check: Any, order: Any,
               f"this signal")
 
     # --- 7. freshness --------------------------------------------------------
-    age = _number(signal_age_minutes)
+    #
+    # ``lo=0.0``: A NEGATIVE AGE IS A SIGNAL FROM THE FUTURE, and r1's
+    # ``age <= 5.0`` accepted one. Found while writing r2's own never-raises
+    # table, not by the review — a clock skew or a gatherer subtracting the
+    # wrong way round would have bought an arbitrarily stale signal a pass on
+    # the exact check that exists to stop that.
+    age = _number(signal_age_minutes, lo=0.0)
     if age is None:
         check("signal_fresh", False,
               "signal age UNKNOWN — unknown is not fresh; fails closed")
