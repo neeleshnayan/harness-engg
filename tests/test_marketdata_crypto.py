@@ -728,22 +728,96 @@ def test_every_basis_returns_the_SAME_KEY_SET():
 def test_freshness_is_COMPUTED_on_the_non_live_bases_not_blanked():
     """The archive and the cache hold the dates, so how old the series is
     needs no vendor metadata. Blanking it would report "unreadable" for a
-    question we can answer from what we already have."""
+    question we can answer from what we already have.
+
+    THE `stale` ASSERTION ON SPY WAS PINNING A DEFECT and is corrected here.
+    ``CRYPTO_QUOTE_STALE_DAYS`` is a 24/7 clock and its own docstring says
+    *"Deliberately NOT applied to equities"*; the first version of
+    ``_freshness_fields`` called ``series_freshness`` with the default bound
+    and so called a six-day-old SPY leg *"a tape that stopped"*, which an
+    ordinary holiday week produces. An equity now reports its AGE with the
+    verdict ``undetermined`` — strictly more than the nothing these branches
+    used to carry, and strictly less than a bound that does not apply.
+    """
     pin = md.bars_payload(
         md.BASIS_PINNED, symbol="SPY", source="yahoo",
         dates=["2020-01-02", "2020-01-03"], closes=[1.0, 2.0])
-    assert pin["freshness"] == "stale"
+    assert pin["freshness"] == md.FRESHNESS_UNDETERMINED
     assert pin["latest_bar_age_days"] is not None
+    assert pin["latest_bar_age_days"] > 2000, "the AGE is still a fact"
     assert "2020-01-03" in pin["freshness_note"]
+    assert "exchange calendar" in pin["freshness_note"]
+
+    # A CRYPTO PAIR still gets the verdict — this is the population the bound
+    # was measured on (TRX 3.4 years, MATIC and NEAR 3.2, MKR 0.98).
+    coin = md.bars_payload(
+        md.BASIS_PINNED, symbol="TRX/USD", source="alpaca-crypto",
+        dates=["2023-04-18", "2023-04-19"], closes=[1.0, 2.0])
+    assert coin["freshness"] == "stale"
+    assert "it stopped" in coin["freshness_note"]
+    # ...and a CURRENT pair is live, so the crypto arm is not simply always
+    # stale — a test where both answers are the same answer proves nothing.
+    fresh = md.bars_payload(
+        md.BASIS_PINNED, symbol="BTC/USD", source="alpaca-crypto",
+        dates=[_today(), _today()], closes=[1.0, 2.0])
+    assert fresh["freshness"] == "live"
 
     # A point-in-time view is judged against ITS OWN end date. Bars from 2020
     # served under `as_of=2020-01-03` are exactly what was asked for; calling
     # them stale would put a warning on a correct answer.
     arc = md.bars_payload(
-        md.BASIS_ARCHIVE, symbol="SPY", source="yahoo",
+        md.BASIS_ARCHIVE, symbol="BTC/USD", source="yahoo",
         dates=["2020-01-02", "2020-01-03"], closes=[1.0, 2.0])
     assert arc["freshness"] == "live"
     assert arc["latest_bar_age_days"] == 0.0
+    # The equity archive arm reports age 0 too, and still declines the verdict
+    # — the two facts are independent.
+    arc_eq = md.bars_payload(
+        md.BASIS_ARCHIVE, symbol="SPY", source="yahoo",
+        dates=["2020-01-02", "2020-01-03"], closes=[1.0, 2.0])
+    assert arc_eq["latest_bar_age_days"] == 0.0
+    assert arc_eq["freshness"] == md.FRESHNESS_UNDETERMINED
+
+
+def _today() -> str:
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).date().isoformat()
+
+
+def test_the_CRYPTO_STALE_BOUND_never_judges_an_equity():
+    """FOUND BY THE GAUNTLET, and it is a defect this dispatch INTRODUCED.
+
+    Before this diff the pinned and archive branches carried no freshness
+    fields at all, so wiring them up is what newly exposed every equity leg to
+    a bound built for a 24/7 market. Every position in the fund's own book is
+    an equity ETF (SPY, DBC, TLT, DBA, IWM, QQQ, XLF), and a Friday-to-
+    Thursday holiday week is already past three days.
+
+    The rule is asserted by BOUNDARY, not by one example: no equity, at any
+    age, may be called `stale` on this path.
+    """
+    for age_days in (0, 1, 3, 4, 7, 30, 400, 3000):
+        from datetime import date, timedelta
+        d = (date.today() - timedelta(days=age_days)).isoformat()
+        out = md.bars_payload(md.BASIS_PINNED, symbol="SPY", source="yahoo",
+                              dates=[d], closes=[1.0])
+        assert out["freshness"] != "stale", f"{age_days}d equity called stale"
+        assert out["freshness"] != "live", (
+            f"{age_days}d equity called LIVE — this path cannot know that "
+            "either; the verdict is unavailable, not favourable")
+        assert out["freshness"] == md.FRESHNESS_UNDETERMINED
+        assert out["latest_bar_age_days"] == float(age_days)
+
+    # The SAME ages on a crypto pair DO get a verdict, and the verdict turns
+    # at the bound. Without this arm the test above passes on a function that
+    # always returns `undetermined`.
+    from datetime import date, timedelta
+    for age_days, expected in ((0, "live"), (3, "live"), (4, "stale")):
+        d = (date.today() - timedelta(days=age_days)).isoformat()
+        out = md.bars_payload(md.BASIS_PINNED, symbol="BTC/USD",
+                              source="alpaca-crypto", dates=[d], closes=[1.0])
+        assert out["freshness"] == expected, f"BTC/USD at {age_days}d"
+    assert md.CRYPTO_QUOTE_STALE_DAYS == 3.0
 
 
 def test_an_EMPTY_series_is_unreadable_freshness_not_live():

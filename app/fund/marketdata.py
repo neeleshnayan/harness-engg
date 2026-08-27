@@ -399,8 +399,12 @@ def bars_payload(basis: str, *, symbol: str, source: str | None,
             # view of 2025 is not stale, it is what was asked for) and today
             # for a pinned leg (the belt wants live bars and a stale pinned
             # leg is a defect).
-            **_freshness_fields(ds, asof=(ds[-1] if (ds and basis == BASIS_ARCHIVE)
-                                          else None)),
+            #
+            # THE SYMBOL IS PASSED because the VERDICT is not available for
+            # every instrument — see `_freshness_fields`.
+            **_freshness_fields(ds, symbol,
+                                asof=(ds[-1] if (ds and basis == BASIS_ARCHIVE)
+                                      else None)),
         })
 
     if extra:
@@ -408,7 +412,14 @@ def bars_payload(basis: str, *, symbol: str, source: str | None,
     return out
 
 
-def _freshness_fields(dates: list[str] | None,
+#: The age is readable; the VERDICT is not. Its own state because "this
+#: series stopped" and "we cannot say whether this gap is normal" are
+#: different findings, and collapsing them is how a long weekend gets reported
+#: as a dead tape.
+FRESHNESS_UNDETERMINED = "undetermined"
+
+
+def _freshness_fields(dates: list[str] | None, symbol: str | None = None,
                       asof: str | None = None) -> dict[str, Any]:
     """``series_freshness`` flattened onto the three payload keys.
 
@@ -416,12 +427,50 @@ def _freshness_fields(dates: list[str] | None,
     the payload's lives in one place — the live branch above takes the same
     three values off ``Bars``, where ``_from_yahoo`` and friends already
     flattened them the same way.
+
+    THE STALE VERDICT IS FOR CRYPTO ONLY, AND THIS FUNCTION IS WHERE THAT
+    RULE NEARLY GOT LOST. ``CRYPTO_QUOTE_STALE_DAYS`` is three calendar days
+    and its own docstring says why, at length: *"Deliberately NOT applied to
+    equities: there the same question needs an exchange calendar (a
+    Thursday-to-Tuesday gap is normal in a holiday week)"*. The first version
+    of this function called ``series_freshness`` with its default bound and so
+    judged EVERY symbol against a 24/7 clock — measured: a pinned SPY leg
+    whose newest bar is six days old came back ``stale``, *"the series exists
+    and it stopped; it is not a current quote"*, which an ordinary Friday-to-
+    Thursday holiday week produces. Every position in the fund's own book is
+    an equity ETF.
+
+    So a non-crypto series reports its AGE — a fact, computable from the dates
+    alone — with the verdict ``undetermined`` and a note saying which calendar
+    is missing. That is strictly more information than the old behaviour
+    (these branches carried no freshness fields at all) and strictly less
+    confident than a bound that does not apply.
+
+    Widening this to equities means reading ``navgap.HOLIDAYS``, which already
+    owns the calendar. That is the separate piece of work the constant's
+    docstring names, and it is not smuggled in here.
     """
     fresh = series_freshness(dates, asof=asof)
+    if fresh["state"] == "unreadable" or crypto_pair(symbol or "") is not None:
+        # Unreadable is unreadable whatever the instrument — there are no
+        # dates to judge — and a crypto PAIR is exactly the population the
+        # three-day bound was measured on.
+        return {
+            "freshness": fresh["state"],
+            "latest_bar_age_days": fresh["age_days"],
+            "freshness_note": fresh["note"],
+        }
+    age = fresh["age_days"]
     return {
-        "freshness": fresh["state"],
-        "latest_bar_age_days": fresh["age_days"],
-        "freshness_note": fresh["note"],
+        "freshness": FRESHNESS_UNDETERMINED,
+        "latest_bar_age_days": age,
+        "freshness_note": (
+            f"the newest bar is {fresh['latest']}, {age:.0f} day(s) before "
+            f"{fresh['asof']}. Whether that is STALE cannot be answered here: "
+            f"{symbol or 'this symbol'} is not a crypto pair, and an equity "
+            f"gap needs an exchange calendar (a Thursday-to-Tuesday gap is "
+            f"normal in a holiday week). The age is a fact; the verdict is "
+            f"not available on this path"),
     }
 
 

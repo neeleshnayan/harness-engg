@@ -1730,8 +1730,16 @@ def _live_state(act: dict[str, Any]) -> dict[str, Any]:
         # which need not be the one that came back.
         "returned_run_id": (awaiting_rows[0].get("returned_run_id")
                             if awaiting_rows else None),
-        "running_task": (current or {}).get("task"),
-        "running_since": (current or {}).get("since"),
+        # `or None` on both, so a dispatch filed with an EMPTY task string
+        # renders as absent rather than as a blank line where a task belongs.
+        # The Gauntlet's finding: every fixture in the suite defaults a
+        # non-null task, so a working row with none would have reproduced the
+        # exact `running_now: true` / `running_task: null` contradiction this
+        # function exists to prevent — the difference is that `null` now means
+        # "the dispatch stated no task", which is a fact, and the boolean
+        # beside it stays true because the seat IS running either way.
+        "running_task": (current or {}).get("task") or None,
+        "running_since": (current or {}).get("since") or None,
         "live_basis": LIVE_FROM_LIST,
     }
 

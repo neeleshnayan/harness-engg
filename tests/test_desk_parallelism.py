@@ -515,3 +515,38 @@ def test_the_ordinary_path_did_not_move():
     assert idle["running_now"] is False
     assert idle["awaiting_review"] is False
     assert idle["running_task"] is None
+
+
+def test_a_working_row_with_NO_TASK_still_reports_the_seat_as_running():
+    """THE GAUNTLET'S FINDING, and it is about a contradiction, not a crash.
+
+    Every ``_dispatch`` fixture in this file defaults a non-null ``task``, so
+    a dispatch filed without one had never reached ``_live_state``. The two
+    fields must disagree about NOTHING: the seat is running (a dispatch is
+    open), and the task is absent (the dispatch stated none). A row that
+    reported ``running_now: false`` because it could not read a task would be
+    the understatement this whole repair removed, wearing a different cause.
+    """
+    # THE FIXTURE CANNOT REPRESENT THIS SHAPE, so the event is built by hand.
+    # `_dispatch` does `task or f"{seat} {task_id}"`, which coerces an empty
+    # task into a default — a fixture that cannot express the input under test
+    # is the wrong fixture, and the first version of this test passed a `""`
+    # and silently measured the default instead.
+    taskless = Event(aggregate_id="t1", aggregate_type="desk_request",
+                     type=EventType.DESK_DISPATCHED,
+                     payload={"task_id": "t1", "seat": "builder",
+                              "at": "2026-08-27T07:00:00+00:00"},
+                     actor="cto")
+    assert "task" not in taskless.payload, "the fixture omits the key"
+    a = desk._activity(MemStore([taskless]), runs=[])
+    t = desk.seat_telemetry([], a, "2026-08-27")["seats"]["builder"]
+    assert t["running_now"] is True, "an open dispatch is an open dispatch"
+    assert t["running_task"] is None, "an empty task is ABSENT, not a blank"
+    assert t["live_basis"] == desk.LIVE_FROM_LIST
+    # ...and the ordinary row beside it still carries its task, so this is not
+    # a test that would pass on a function that blanked every task.
+    b = desk._activity(MemStore([
+        _dispatch("quant", "t2", at="2026-08-27T07:00:00+00:00", task="a job"),
+    ]), runs=[])
+    assert (desk.seat_telemetry([], b, "2026-08-27")["seats"]["quant"]
+            ["running_task"]) == "a job"

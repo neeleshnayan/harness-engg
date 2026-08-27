@@ -23,12 +23,34 @@ the caller received.
 
 from __future__ import annotations
 
+import os
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.api.v1 import fund as fundapi
-from app.fund import marketdata as md
+# THE IMPORT BELOW WIRES A VENUE AT MODULE SCOPE, AND THAT IS A COLLECTION
+# HAZARD THIS FILE MUST NOT WIDEN. `app/api/v1/fund.py:262` calls
+# `_wire(fundmode.activate(...))` on import; under `FUND_MODE=alpaca-paper`
+# with no credentials it raises `VenueUnavailable`, and a collection-time
+# exception INTERRUPTS THE WHOLE PYTEST RUN — not just this file. Ten test
+# files already carry that fragility (measured, MACH1); this one refuses to
+# be the eleventh.
+#
+# `skip` rather than a try/except that swallows: a file that cannot import
+# what it tests has not passed, and a skip says so with its reason on the
+# report.
+if (os.getenv("FUND_MODE") or "").strip().startswith("alpaca") and not (
+        os.getenv("ALPACA_API_KEY") and os.getenv("ALPACA_SECRET_KEY")):
+    pytest.skip(
+        "FUND_MODE names an Alpaca venue with no credentials, so importing "
+        "app.api.v1.fund raises at module scope and would interrupt the whole "
+        "collection. The route is unreachable in this configuration; the "
+        "module-level tests in test_marketdata_crypto.py still run.",
+        allow_module_level=True)
+
+from app.api.v1 import fund as fundapi  # noqa: E402
+from app.fund import marketdata as md  # noqa: E402
 
 
 GETH = md.Bars(
