@@ -385,19 +385,16 @@ def refusal_predicates(source: str) -> dict[str, Any]:
     for fn in ast.walk(tree):
         if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
-        # ONLY the exceptions that REFUSE A REQUEST, and this narrowing is
-        # measured, not fastidious. The first version treated any conditional
-        # `raise` as a control and produced **289 hits on a seven-file diff
-        # that touched no control at all** — `marketdata.py` raising
-        # `BarsError` on a stale series is a data-quality refusal, not an
-        # approval one, and a gate that fires on every new `raise` inside an
-        # `if` is a gate the chair learns to scroll past. That is the exact
-        # failure the fund.py content pattern exists to avoid, rebuilt one
-        # layer down.
-        raises = [n for n in ast.walk(fn)
-                  if isinstance(n, ast.Raise)
-                  and _raised_name(n) in REFUSAL_EXCEPTIONS]
-        if not raises:
+        # A PURE EARLY EXIT, and deliberately NOT a second copy of "what counts
+        # as a refusal". It only asks whether this function raises at all, so
+        # it cannot disagree with the one place that decides — the
+        # `REFUSAL_EXCEPTIONS` test in the branch loop below.
+        #
+        # It was a second copy, and mutation is what said so: filtering by
+        # exception name in BOTH places made each copy invisible to the tests,
+        # because breaking either one left the other enforcing the same rule.
+        # Two copies of one belief are also two places for it to drift.
+        if not any(isinstance(n, ast.Raise) for n in ast.walk(fn)):
             continue
         guards: set[str] = set()
         for branch in ast.walk(fn):
@@ -411,6 +408,14 @@ def refusal_predicates(source: str) -> dict[str, Any]:
             # honestly claim to see.
             if not isinstance(branch, ast.If):
                 continue
+            # THE ONE PLACE THAT DECIDES WHAT A REFUSAL IS, and the narrowing
+            # is measured rather than fastidious. Counting any conditional
+            # `raise` produced **289 hits on a seven-file diff that touched no
+            # control at all** — `marketdata.py` raising `BarsError` on a stale
+            # price series is a data-quality answer, not an approval one, and a
+            # gate that fires on every new `raise` inside an `if` is a gate the
+            # chair learns to scroll past. That is exactly the failure the
+            # fund.py content pattern exists to avoid, rebuilt one layer down.
             reachable = [n
                          for stmt in list(branch.body) + list(branch.orelse)
                          for n in ast.walk(stmt)
