@@ -159,3 +159,37 @@ applies (two weeks without one mined skill surviving both chair and seat
 review dismantles the lane). First run: after the janitor audition
 resolves, as the seated janitor's third lane — or chair-dispatched if the
 audition fails.
+
+## CONTEXT CHANGES ARE VERSIONED (added 2026-08-28, CEO instruction, verbatim: "lets version context changes so we can rollback if things go messy")
+
+The substrate already exists — the whole `.claude` workspace (seat
+memories, agent definitions, day log, review queue) is tracked in the firm
+git repo, and every resolve commits. What this section adds is the
+discipline that turns "history exists" into "rollback is one command":
+
+1. **A context RESTRUCTURING is its own isolated commit, never bundled.**
+   A split, an archive move, or a distillation commits alone, message
+   prefixed `context:` and naming the seat, the shape, and the verify
+   result — e.g. `context: split state/builder.md into hot + archive
+   (verify green, 0 lines lost)`. Rollback of a messy split is then exactly
+   `git revert <hash>`, touching nothing else. Ordinary STATE/BINDS appends
+   at resolve stay bundled with the resolve commit as today — they are
+   additions, and additions never need untangling.
+2. **The verify script runs BEFORE the commit, and its result is in the
+   message.** A split commits only with the lossless proof green; a verify
+   that cannot prove losslessness is a split that does not commit.
+3. **The seat's veto is a revert, and it stays cheap by construction.**
+   The first brief a seat receives after its split names the split commit
+   hash and invites the veto: if the hot file is missing something the seat
+   needs, the chair reverts the commit (one command, nothing else moves)
+   and the split is re-cut. This is the lane's "relevant items are not
+   removed" rule with an enforcement path instead of a promise.
+4. **The day log records every context restructuring under DECIDED** with
+   the commit hash — so a returning chair can walk the estate's history
+   without `git log` archaeology.
+
+What would change this decision's mind (clause 4): a context rollback that
+`git revert` cannot cleanly perform because a restructuring was bundled
+with other changes — that is the failure this section exists to prevent,
+and one occurrence means the isolation rule was violated, not that the
+mechanism is wrong.
