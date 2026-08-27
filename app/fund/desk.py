@@ -3133,3 +3133,73 @@ def briefings(review_state: Optional[dict[str, dict[str, Any]]] = None,
                if unreadable else "")
             + "."),
     }
+
+
+def open_dispatch_task_ids(store: Any, seat: str) -> list[str]:
+    """Task ids of every dispatch for ``seat`` with no resolution yet.
+
+    THE ONE FUNCTION THE LAMP AUTO-CLOSE CONSUMES (2026-08-27). The fold is
+    the same enter-on-DESK_DISPATCHED / pop-on-DESK_REQUEST_RESOLVED pair
+    ``_activity`` runs — restated here as its own named rule so the recorder
+    and the floor cannot drift apart on what "open" means. Oldest first,
+    because when the recorder closes exactly one lamp it must be the oldest:
+    with two crews out, the run coming back is far more often the one
+    dispatched earlier, and a wrong single-close is repairable while a
+    skipped one burns for a day (measured: 15 stale lamps swept 2026-08-27,
+    root cause a promised auto-close that was never built).
+
+    An unreadable store RAISES to the caller — the recorder treats that as
+    "close nothing and say why", never as "no dispatches" (absence is never
+    zero).
+    """
+    from app.fund.events import EventType
+
+    opened: dict[str, dict[str, Any]] = {}
+    order: list[str] = []
+    for e in store.stream(since_seq=0, limit=100_000):
+        t = e.get("type") if isinstance(e, dict) else getattr(e, "type", None)
+        t = getattr(t, "value", t)
+        p = (e.get("payload") if isinstance(e, dict)
+             else getattr(e, "payload", None)) or {}
+        if t == EventType.DESK_DISPATCHED.value:
+            tid = p.get("task_id")
+            if tid and p.get("seat") == seat and tid not in opened:
+                opened[tid] = p
+                order.append(tid)
+        elif t == EventType.DESK_REQUEST_RESOLVED.value:
+            tid = p.get("request_id")
+            if tid in opened:
+                opened.pop(tid, None)
+    return [tid for tid in order if tid in opened]
+
+
+def plan_lamp_close(open_ids: list[str],
+                    closes: Optional[list[str]]) -> dict[str, Any]:
+    """Which lamps a run record retires — the decision, pure and testable.
+
+    Three regimes, none of them a guess:
+    - explicit ``closes``: exactly the declared ids that ARE open dispatches
+      close; unknown ids are reported back, never silently dropped (a typo'd
+      id must not read as a closed lamp).
+    - no declaration, exactly ONE open: it closes — the common case.
+    - no declaration, zero or several open: NOTHING closes and the note says
+      why. With two crews out, guessing which returned would close the wrong
+      lamp, and a lamp wrongly dark is worse than one wrongly lit.
+    """
+    note = None
+    if closes:
+        targets = [t for t in closes if t in open_ids]
+        unknown = [t for t in closes if t not in open_ids]
+        if unknown:
+            note = (f"{len(unknown)} declared id(s) are not open dispatches "
+                    f"for this seat: {unknown}")
+    elif len(open_ids) == 1:
+        targets = list(open_ids)
+    else:
+        targets = []
+        if open_ids:
+            note = (f"{len(open_ids)} dispatches open for this seat; pass "
+                    "closes_task_ids to say which this run closes")
+    return {"closed": targets,
+            "open_remaining": [t for t in open_ids if t not in targets],
+            "note": note}

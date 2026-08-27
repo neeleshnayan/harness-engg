@@ -2267,6 +2267,18 @@ class AgentRunRecord(BaseModel):
     # It is a list of IDENTIFIERS, never prose: the whole policy rests on the
     # difference. Stored under `meta.serves_requests`.
     serves_requests: Optional[list[str]] = None
+    # WHICH DISPATCH LAMPS THIS RUN CLOSES, by task_id. THE AUTO-CLOSE, made
+    # real 2026-08-27: lamp_on.py's docstring promised close-on-run-record
+    # from the day the hook shipped, and nothing implemented it — 15 lamps
+    # burned stale in one day and the CEO caught it on the floor, twice.
+    # Absent + exactly ONE open dispatch for the seat -> that lamp closes
+    # (the common case). Absent + zero or several open -> NOTHING closes and
+    # the response's `lamp_close` names what remains, because guessing which
+    # of two crews returned would close the wrong lamp. Explicit ids close
+    # exactly those; an id that is not one of the seat's open dispatches is
+    # reported back, never silently dropped and never a 422 — bookkeeping
+    # must not cost a run record.
+    closes_task_ids: Optional[list[str]] = None
     # THE RUN'S OWN OPT-IN TO ROUTING v1. Absent means "validate me under
     # whatever the fleet default is" (`desk.DESK_ROUTING_ENFORCE`, shipped
     # False); >= 1 means this caller has adopted the four-field format and
@@ -2332,9 +2344,11 @@ def record_agent_run(req: AgentRunRecord):
         raise HTTPException(status_code=503, detail="needs FUND_STORE=postgres")
     from app.fund import desk as desk_mod
     from app.fund import deskengine
+    from app.fund.events import Event, EventType
     payload = req.model_dump()
     serves = payload.pop("serves_requests", None)
     declared = payload.pop("routing_version", None)
+    closes = payload.pop("closes_task_ids", None)
     recs = payload.get("recommendations") or []
     # ONE PREDICATE, ASKED ONCE. `enforce` is computed here and handed to the
     # validator; the validator does not re-derive it, because a rule and the
@@ -2431,6 +2445,42 @@ def record_agent_run(req: AgentRunRecord):
                      f"{desk_mod.ROUTING_ENFORCED_FROM_VERSION} to be refused "
                      "on these instead"),
             "errors": findings}
+
+    # THE LAMP AUTO-CLOSE, made real 2026-08-27. The hook's OFF half:
+    # recording a run is the chair's review act, and the review act is what
+    # retires a lamp. Closes through the SAME event the resolve door appends
+    # (a DeskRequestResolved naming the dispatch's task_id — the one thing
+    # `_activity`'s fold pops on), so the floor and the recorder cannot
+    # disagree about what "closed" means. Single-open closes silently;
+    # ambiguity closes NOTHING and says so — with two crews out, guessing
+    # which returned would close the wrong lamp, and a lamp wrongly dark is
+    # worse than one wrongly lit. An unreadable dispatch fold reports itself
+    # and closes nothing: absence is never zero, here as everywhere.
+    lamp_close: dict[str, Any] = {"closed": [], "open_remaining": [],
+                                  "note": None}
+    try:
+        open_ids = desk_mod.open_dispatch_task_ids(_store, req.seat)
+        lamp_close = desk_mod.plan_lamp_close(open_ids, closes)
+        for tid in lamp_close["closed"]:
+            _store.append(Event(
+                aggregate_id=tid, aggregate_type="desk_request",
+                type=EventType.DESK_REQUEST_RESOLVED,
+                payload={"request_id": tid,
+                         "resolution": (f"lamp closed by run record "
+                                        f"{req.run_id}"),
+                         "trace_id": (req.trace_id or "").strip() or tid,
+                         "at": datetime.now(timezone.utc).isoformat(),
+                         "actor": "cto"},
+                actor="cto"))
+    except Exception as e:  # noqa: BLE001
+        # The bookkeeping failed somewhere between fold and append. A run
+        # record must never fail because the lamp bookkeeping did — but the
+        # note must not overclaim either: it says the act failed and where
+        # to look, never "nothing closed" (an append may have landed before
+        # the raise; the floor is the truth to check).
+        lamp_close["note"] = (f"lamp bookkeeping failed mid-act ({e}); "
+                              "verify the floor before trusting these lists")
+    out["lamp_close"] = lamp_close
     return out
 
 
