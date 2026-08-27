@@ -128,3 +128,34 @@ the janitor's lane keeps the underlying archives lean and measures the
 read-cost. First pass (jan1, 2026-08-27) is MEASURE-ONLY: per-file
 line/token counts, growth hotspots past the 1,200-line threshold, section
 census of the three largest. The numbers become the lane's baseline.
+
+## THE SKILL MINER (added same day, CEO instruction, gated on the audition)
+
+**CEO, verbatim: "can we have janitor help us create skills by mapping work
+history and tools used by say quant or pm or builder so its like a RLM."**
+
+The third lane, and it is the SELECTION LOOP (constitution, reimagined-team
+rule 5) given its concrete product. The firm already stores what a
+reinforcement loop needs: run records with verdicts, seat STATEs with
+measured lessons, the instrument shelf, and per-run scratchpad script
+inventories. Nothing yet MINES them into named, reusable skills.
+
+**The lane**: a periodic pass over a seat's work history that proposes
+SKILL CANDIDATES — a named procedure with its measured basis and its
+receipts ("the two-tree kill reproduction", "hidden-test local drafting",
+"the conftest module-swap suite grader") — each filed as a PROPOSAL through
+the desk: chair-reviewed, then applied as a shelf entry, a pre-flight card
+item, or a seat-file addition through the ordinary EVOLVE-shaped path.
+Skills EARN their place by the surviving-verdict record and are struck when
+the record stops supporting them — that is the "RLM" half, run on the
+firm's own outcomes rather than a reward model.
+
+**The rules it inherits, stated so nobody wonders**: proposals-only,
+nothing auto-applies (selection-loop rule); the IMMUNE-SYSTEM EXCLUSION
+stands — the lane may not propose amendments to the adversary's seat
+definition (mining the adversary's INSTRUMENTS onto the shelf is fine; its
+mandate is not the lane's to touch); the selection loop's own falsifier
+applies (two weeks without one mined skill surviving both chair and seat
+review dismantles the lane). First run: after the janitor audition
+resolves, as the seated janitor's third lane — or chair-dispatched if the
+audition fails.
