@@ -949,6 +949,12 @@ def _activity(store: Any, runs: Optional[list[dict[str, Any]]] = None,
     open_by_seat: dict[str, list[tuple[Any, int, dict[str, Any]]]] = {}
     for i, d in enumerate(open_by_task.values()):
         seat = d.get("seat")
+        # `if seat` IS NOT A BEHAVIOUR FIX and the mutation pass proved it:
+        # removing it changes no output, because the loop below reads only the
+        # keys in `REQUEST_KINDS` and never touches a `None` group. It is kept
+        # because the next reader of this dict may iterate it rather than index
+        # it, and a seat named `None` would then be a row on the floor. Stated
+        # rather than left as a guard that looks load-bearing and is not.
         if seat:
             open_by_seat.setdefault(seat, []).append((_ts(d.get("at")), i, d))
 
