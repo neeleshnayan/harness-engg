@@ -1236,3 +1236,44 @@ class TestTheRetiredMutants:
             seen.add(type(c["ok"]))
             assert c["ok"] is True or c["ok"] is False
         assert seen == {bool}
+
+
+# ================================= THE SCOPE AMENDMENT — adversary r2 kill (2026-08-27)
+
+class TestTheLedgerIsOriginBlind:
+    """run-adversary-v5r2 KILLED r2 on ONE CLAUSE: the contract said in-flight
+    means "orders THIS ENVELOPE approved", and following that literally, a
+    CEO-approved unfilled buy stacked to 29.6% of NAV and a v4 exit sell was
+    invisible to the reduce-only bound — both original kills back, all 29
+    checks green (probe p3_scope.py). The contract now scopes the ledger to
+    EVERY committed-unfilled order, whatever approved it. The code was always
+    origin-blind (rows carry no approver field); these tests PIN that a row
+    from a foreign channel enters the bounds, so a future "optimisation" that
+    filters rows by approver kills a named test instead of quietly reopening
+    the incident.
+    """
+
+    def test_a_row_from_a_FOREIGN_channel_enters_the_concentration_bound(self):
+        """The CEO's own unfilled click: same symbol, ANOTHER strategy, an
+        order_id no envelope issued. It must stack — 29.80%, the incident's
+        number, not merely a refusal."""
+        out = run(pending_approved=[pending(oid="ceo-click-77",
+                                            strategy_id="another-strategy")])
+        assert out["approve"] is False
+        assert "post_fill_name_within_concentration" in out["failed"]
+        assert "29.80% of NAV against a 20.00% ceiling (OVER)" in detail(
+            out, "post_fill_name_within_concentration")
+
+    def test_a_FOREIGN_sell_enters_the_reduce_only_bound(self):
+        """v4's exit envelope sells the whole long while a v5 sell for the
+        same book evaluates: the worst corner is a short, and it must refuse
+        even though no row says who approved the exit."""
+        out = run(order("sell", qty=3.7),
+                  book_qty_signed=3.7, venue_qty_signed=3.7,
+                  strategy_qty_signed=3.7, strategy_exposure_usd=296.0,
+                  gross_exposure_usd=296.0,
+                  pending_approved=[pending(oid="v4-exit-1", side="sell",
+                                            qty=3.7,
+                                            strategy_id="exit-rule-owner")])
+        assert out["approve"] is False
+        assert "post_fill_position_not_short" in out["failed"]

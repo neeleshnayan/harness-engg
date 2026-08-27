@@ -68,18 +68,32 @@ WHAT IT DOES NOT DO, and this is deliberate rather than unfinished:
 --------------------------------------------------------------------------------
 THE IN-FLIGHT CONTRACT — the numbered specification the kill asked for.
 
-  (1) DEFINITION. An order is IN FLIGHT when this envelope APPROVED it and the
-      event log carries no TERMINAL event for it — no fill, no cancel, no
-      rejection, no failure. It is neither in the fund's book (nothing filled)
-      nor in the broker's position (the broker holds no unfilled order), so it
-      is invisible to every ledger both v4 and r1 consulted. That invisibility
-      IS the defect.
+  (1) DEFINITION. An order is IN FLIGHT when THE FUND HAS COMMITTED IT — by
+      ANY approver: this envelope, v4's exit envelope, the CEO's own click —
+      and the event log carries no TERMINAL event for it: no fill, no cancel,
+      no rejection, no failure. It is neither in the fund's book (nothing
+      filled) nor in the broker's position (the broker holds no unfilled
+      order), so it is invisible to every ledger both v4 and r1 consulted.
+      That invisibility IS the defect, and it belongs to the ORDER, not to
+      whoever approved it. AMENDED 2026-08-27 (adversary r2 kill,
+      run-adversary-v5r2): the first draft of this clause said "this envelope
+      approved it", and the adversary reproduced BOTH original kills at full
+      size through that narrowing — a CEO-approved unfilled buy stacking to
+      29.6% of NAV, and a v4 exit sell rendered invisible to the reduce-only
+      bound. Measured basis: 14 approve→fill pairs, median 2.8s, 3 of 14 over
+      a full 30s tick, ALL approved by the channel the old clause excluded.
 
-  (2) EVENT SOURCES, for the gatherer that does not exist yet. The set opens on
-      the envelope's own approval record and closes on any terminal event for
-      the same ``order_id``. It must be built from the ORDER AGGREGATE, never
-      from a position fold: a fold cannot represent an order that has not moved
-      anything.
+  (2) EVENT SOURCES, for the gatherer that does not exist yet. The set opens
+      on ANY approval record for an order — status ``approved`` with no
+      terminal event for the same ``order_id``, whatever channel approved it
+      (the natural query; ``projections/orders.py`` already carries the
+      state) — and closes on any terminal event for that ``order_id``. It
+      must be built from the ORDER AGGREGATE, never from a position fold: a
+      fold cannot represent an order that has not moved anything. And
+      ``MAX_PENDING_AGE_MINUTES`` is a STALENESS VERDICT, NEVER A RETENTION
+      WINDOW: the gatherer must report an old row stale — dropping rows older
+      than the constant would turn a refusal into a silent loss and invert
+      the constant's direction (adversary r2, same run).
 
   (3) SHAPE. ``context["pending_approved"]`` is a list of rows, or ``None``.
       ``None`` means THE LEDGER COULD NOT BE READ and refuses; ``[]`` means the

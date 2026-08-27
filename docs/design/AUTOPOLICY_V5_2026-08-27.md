@@ -438,3 +438,58 @@ an envelope that refuses everything.
   (a deliberate short sleeve), that is an argument for the cover path in the
   exit machinery — a control-layer change with its own review — and never an
   argument for relaxing this check.
+
+
+## 10. THE r2 KILL AND THE SCOPE AMENDMENT (2026-08-27, chair-applied on the adversary's blind re-review)
+
+Sections 1–9 stand as written; this section corrects one clause they carry.
+
+**run-adversary-v5r2 (blind, same day r2 landed): KILL — narrow, one clause.**
+The arithmetic was certified closed by execution — both night2 kill scenarios
+refuse on r2 and approve on r1 under r1's own contract; the four-corner
+worst-case fold is exact against exhaustive 2^n enumeration over 4,000 random
+cases; 0 escaped raises over 1,260 hostile cells; 16/16 repair-reverting
+mutants killed by name ("the strongest pin I have graded at this fund").
+
+**The kill: §9.1 items 1–2 (and the module contract's first draft) scoped the
+in-flight ledger to "orders THIS ENVELOPE approved."** Every other
+committed-unfilled order — the CEO's click, v4's exit envelope — sits in the
+identical invisible state, and following the contract literally reproduced
+BOTH original kills at full size with all 29 checks green: a CEO-approved
+unfilled buy stacking to 29.6% of NAV against a 20% ceiling, and a v4 exit
+sell invisible to the reduce-only bound (probe `p3_scope.py`). Reachability
+was measured, not argued: 14 approve→fill pairs in the last 1,000 events,
+median 2.8 s, 3 of 14 spanning a full 30 s autopolicy tick, max 58.8 s — all
+14 approved by the excluded channel. The code needed no change: rows carry no
+approver field, so the narrowing existed only in prose. "The careless
+implementation is correct and the careful one, following §9.1, is wrong."
+
+**The amendment, applied 2026-08-27**: the module's contract items (1) and
+(2) now scope the ledger to EVERY order the fund has committed and not seen
+settle — status approved with no terminal event, whatever approved it — and
+explicitly prohibit implementing `MAX_PENDING_AGE_MINUTES` as a retention
+window (dropping old rows would invert the constant's direction).
+`TestTheLedgerIsOriginBlind` (test_v5_draft_r2.py) pins both directions: a
+foreign-channel buy enters the concentration bound at the incident's own
+29.80%, and a foreign sell enters the reduce-only bound.
+
+**Filed as open defects for the fold build (not spec, real code), from the
+same review:**
+- **v5r2-N1**: `in_flight()` buckets rows by exact string symbol equality; a
+  near-miss spelling drops the row into `other_gross`, out of BOTH the
+  per-name and reduce-only bounds (per-name reads 14.80% while the truth is
+  29.60%). Normalise through the order's own symbol function, or refuse a
+  non-canonical row.
+- **v5r2-N2**: all five dollar caps divide by one gathered `nav_usd`, and v5
+  carries no absolute-dollar ceiling anywhere — at `MAX_PLAUSIBLE_NAV_USD`'s
+  bound the envelope certifies $148bn of HYG as "14.80% of NAV, inside." v4
+  never depended on this because its percentage cap sat behind four checks
+  binding the order to an existing position. The riskofficer is asked to
+  argue for a per-order and per-day dollar floor, not a better ceiling.
+- **v5r2-N3**: `order_mark_usd` and `mark_move_vs_strike_pct` are two
+  independent inputs about one number; coupled errors pass both. Residual.
+
+**Live fact from the same run, escalated to the CEO**: the venue account now
+reports `shorting_enabled: true` and buying power at 3.15× equity, where the
+night2 record read `shorting_enabled: false`. The reduce-only bound's blast
+radius is no longer zero at the venue.
