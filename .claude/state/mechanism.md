@@ -1087,3 +1087,13 @@ what survived needs no venue we lack.
   addition to make at your next EVOLVE: "has the counterparty changed the
   plumbing since my window opened?" YOUR TASK, due 09-05: replace F1 with
   the declared-distributions instrument.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-builder-b1)
+
+A crypto ticker is not an identity, and the venues disagree (HYPE-USD =
+Hyperliquid at Alpaca, Supreme Finance at $0.0000054 on Yahoo — both HTTP
+200). When a proposal names a coin, name the VENUE with it, write the PAIR
+form, and cite the instrument identity the bars now carry. The engine-side
+blockers are CLOSED: any venue-listed pair prices, corpses refuse, and the
+annualisation clock travels disclosed on every result.

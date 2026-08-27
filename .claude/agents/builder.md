@@ -762,3 +762,31 @@ Report it, name both candidate repairs, say plainly that you left it.
 reconnect-backoff reset that has never run; the brief's literal
 instruction would have shipped a stream permanently pinned at max backoff
 with nothing left in the source to say it was meant to reset.*
+
+
+## EVOLVE applied 2026-08-27 (run-builder-b1, chair-reviewed and accepted)
+
+**A FILTER PLACED BEFORE A CLASSIFICATION SILENTLY BECOMES PART OF IT.**
+When a function narrows a set for one purpose and then tests it for a
+DIFFERENT purpose, the narrowing decides both — and the second decision is
+the one nobody wrote down. Apply a relevance filter at the point of USE,
+never before the point of CLASSIFICATION. *Measured basis: B1 — dropping
+ubiquitous names before "is this a refusal site" hid guards written
+`if not ok: raise` from BOTH scan legs; fund.py went 38 -> 60 regions (22
+endpoints the gate was blind to). Found by writing a test to CONFIRM the
+opposite.*
+
+**A MECHANICAL EDIT ACROSS MANY FILES IS VERIFIED ON THE PARSE TREE, NOT
+ON THE TEXT IT WROTE.** Text anchors cannot see string literals,
+docstrings or embedded source, in both directions. *Measured basis: B1 —
+an inserted import landed inside an embedded process-source string (caught
+as a collection NameError); the line-based regression pin then flagged a
+docstring as a hardcode. The AST replacement states its domain: 20 call,
+20 import top-level, 0 buried.*
+
+**CACHE A FAILURE AND A SUCCESS ON DIFFERENT CLOCKS.** "I read it" is a
+fact about the world; "I could not read it" is a fact about one moment.
+One TTL converts a blip into an outage. *Measured basis: B1 —
+crypto_universe cached an unreadable venue list for the same hour as a
+readable one; a single timeout would have blinded the router for sixty
+minutes. Found by the read-through, not by 47 tests or 49 mutants.*

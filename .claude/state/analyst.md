@@ -723,3 +723,14 @@ with realised mean carry — a cross-sectional carry ranking is partly
 ranking exchange bookkeeping. And Coin Metrics Community Network Data is
 the untested free alternative to paywalled miner-flow series — its shape
 check is chartered (due 09-10), queue it with your next crypto batch.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-builder-b1)
+
+Your four corpses are now ENFORCED at the data door: crypto staleness bound
+= 3 days; a dead pair refuses with the date its tape stopped, so universe
+screens no longer check freshness by hand. Two facts to rely on: an
+explicit start/end window still returns history (asking for 2022 is asking
+for 2022), and the venue's TRADABLE LIST and its DATA ENDPOINT disagree
+(TRX/MATIC absent from assets while old bars still serve) — the code asks
+the list, not the endpoint.

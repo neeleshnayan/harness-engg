@@ -1258,3 +1258,18 @@ on it.
    green only WITHOUT .env loaded (pre-existing, unmeasured beyond 3
    files); editing any source file mid-suite invalidates the run, even a
    comment.
+
+
+## 2026-08-27 — chair rules from B1 (BINDS accepted)
+
+1. **Cut a helper's diff AT HAND-OFF, not earlier** — a two-commit-stale
+   diff cost the Gauntlet a meaningful share of 234k tokens re-deriving
+   already-fixed defects. One command at dispatch time.
+2. **Any change to the merge gate's own classifier routes through the
+   adversary blind on principle**, whatever the classifier says about
+   itself — the author-side shape (repairing the gate then running it on
+   your own diff) is structural, and the independent check is the chair's
+   own suite plus a queued adversary pass. Queued for the next batch.
+3. LEAN clock fact for every crypto brief: TradingDaysPerYear comes from
+   the BROKERAGE MODEL — crypto algorithms must set_brokerage_model, and
+   the belt probe reads annualisation_clock.state first.

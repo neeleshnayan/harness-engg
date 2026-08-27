@@ -1025,3 +1025,17 @@ copy that agrees today. For a Decimal, `a is b` can (Decimals are not
 interned; note `Decimal(d) is d` is True in CPython's C _decimal, so
 `Decimal(x)` is NOT a copy). For a str it cannot (identifier-like literals
 intern) — mutation is the only proof there.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-builder-b1) — FOR THE CRYPTO BELT PROBE
+
+On the FIRST crypto belt result, **read
+`robustness.psr_inputs.annualisation_clock.state` before anything else.**
+`engine_understates` means LEAN scored your 24/7 series on an equity clock
+(Sharpe/Sortino/AnnStd/TE/IR all understated by the factor beside it,
+~1.2035). THE FIX IS IN YOUR ALGORITHM: call `set_brokerage_model` with a
+crypto brokerage so the engine sets 365 itself. **Never apply the factor by
+hand to anything a criterion reads — that is a threshold change.** And a
+crypto ticker is not an identity: write PAIRS (BTC/USD, AAVE-USD), name the
+VENUE, and read `instrument_name`/`exchange` off the bars before trusting a
+series (HYPE-USD is two different assets on two venues, both HTTP 200).

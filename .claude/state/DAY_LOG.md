@@ -371,6 +371,29 @@ but what will be impressive is if can spot what others dont and quickly turn it 
   hook cannot map their subagent types to a parent seat; design the convention honestly or
   render worker counts at return, never fake live.
 
+### THE DAY GOES LIVE (B1 merged, spine cycled, ~12:50Z spine clock)
+
+- **B1: 5/5 SHIPPED, merged at df14a63a on the chair's INDEPENDENT suite (6545/0)** — the
+  builder repaired the merge gate then ran it on its own diff and flagged that itself;
+  the chair's own suite is the check, and gate-classifier changes now route through the
+  adversary blind on principle (chair rule, queued).
+- **THE CRYPTO ENGINE BLOCKERS ARE CLOSED, live-verified after the cycle**: AAVE-USD
+  (refused as 'Invalid symbol' this morning) serves from alpaca-crypto; the TRX corpse
+  refuses with the date its tape died; identity travels on every Bars (HYPE-USD measured
+  as TWO assets on two venues at HTTP 200 each — pairs + venue names now mandatory).
+  The annualisation defect is DISCLOSED never rescaled (equity pin: 0 of 196 stored
+  results move); the LEAN clock fact (TradingDaysPerYear comes from the BROKERAGE MODEL)
+  is the quant's first read on the belt probe.
+- **THE LAMP AUTO-CLOSE FIRED LIVE ON ITS FIRST USE**: B1's run record closed its own
+  lamp (closes_task_ids honored, zero lamps open, the floor exactly true). The lifecycle
+  the CEO complained about twice is closed-loop: hook lights, record retires.
+- Session relaunched (e9665769e9a4). Three ticket transitions executed (merge gate x2,
+  test-db namespacing). Suite flake note: jan1's merged tree read 2-failed once and
+  6400/0 on identical re-run — the port-exhaustion class, both runs on the record.
+- **B2 FIRES NOW into the freed slot**: the visual rebuild (the CEO's "visually how it
+  represents") + the accumulated small follow-ups (bars identity fields on the endpoint,
+  ticketExceptions, the 30 dead exports, fmtTokens, the tsc reds, running_now).
+
 ### THE JANITOR IS SEATED (audition passed, ~12:15Z spine clock)
 
 - **AUDITION: PASS on all four pre-registered criteria, judged before-the-report as
