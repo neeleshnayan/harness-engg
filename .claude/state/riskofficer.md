@@ -589,3 +589,15 @@ and a human's to approve — and `navgap.completeness()` gives you the
 verdict without you having to fold anything. Context: the record shows 11
 holes in 76 strikes, including a 12.83h trading-time hole (08-18/19) nobody
 had named and a missing 2026-08-26 closing mark.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-adversary-v5r2)
+
+When you attack the v5 envelope's constants, **the argument to have is not
+the value of `MAX_PLAUSIBLE_NAV_USD` — it is that v5 has no absolute-dollar
+ceiling at all.** All five of its caps divide by one gathered NAV, so a
+single wrong denominator makes every one of them vacuous together; at 1e12
+the envelope certifies $148bn against a $2,002 fund. v4 never depended on
+this because its percentage cap sat behind four checks binding the order to
+a position that already existed. Ask for a dollar floor (per-order and
+per-day), not a better ceiling.

@@ -1312,3 +1312,20 @@ contract; the deletion-scoped dispatch). Both EVOLVEs applied. The
 nav_strike budget/interval mismatch and the alarm-wiring question are on the
 CEO's desk as decisions, not defaults. And your heredoc rule bit the chair
 in this very resolve pass — this append reached you through the Write tool.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-adversary-v5r2)
+
+When you build the `pending_approved` fold, do NOT scope it to autopolicy's
+own approvals. **Scope it to every order the fund has committed and not seen
+settle**: status `approved` with no terminal event, whatever approved it —
+the CEO's click, v4's exit envelope, v5 itself. Measured: 14 approve→fill
+pairs where 6 exceeded 10s and 3 exceeded a full 30s tick, all from the
+channel the draft's first contract excluded. (The contract itself was
+re-scoped by the chair at c5348515 — read it as amended.) And **do not use
+`MAX_PENDING_AGE_MINUTES` as a retention window**: dropping rows older than
+30 minutes turns a refusal into a silent loss and inverts the constant's
+direction. Finally, **normalise the row symbol through the same function the
+order's symbol uses, or refuse a row whose symbol is not canonical** — a
+near-miss spelling drops the row out of the per-name and reduce-only bounds
+entirely (v5r2-N1).

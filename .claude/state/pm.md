@@ -720,3 +720,13 @@ whose signals are all **historic**, when a live container exists for that
 strategy and holds nothing. That is a real disagreement between the fund's
 book and a live engine, not a stale row, and it should be read as live.
 Rows carry `row_basis` saying which of five reasons produced the number.
+
+
+## BIND carried by the chair, 2026-08-27 (from run-adversary-v5r2)
+
+Two live facts to price before the next book review: the venue account now
+reports **`shorting_enabled: true`** (it read false on the night2 record),
+and **buying_power is 6,316.99 against equity 2,005.61 — 3.15× margin
+available**. The fund's mandate bounds gross; the broker no longer does. Say
+which of the two you believe is binding on the book you run. (The flip
+itself is on the CEO's desk as a question — do not assume it was chosen.)

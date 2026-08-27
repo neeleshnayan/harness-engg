@@ -371,6 +371,26 @@ but what will be impressive is if can spot what others dont and quickly turn it 
   hook cannot map their subagent types to a parent seat; design the convention honestly or
   render worker counts at return, never fake live.
 
+### MEASURED + REPAIRED (adversary r2 verdict, ~09:15Z)
+
+- **THE V5 REDESIGN: KILL — narrow, one clause — AND REPAIRED THE SAME HOUR** (c5348515).
+  The adversary certified both original kills CLOSED in the arithmetic (two-tree
+  reproduction; 4,000-case exhaustive property test, 0 mismatches; 16/16 repair-reverting
+  mutants killed by name — "the strongest pin I have graded at this fund") and then
+  reopened both through ONE PROSE CLAUSE: the contract scoped in-flight to "orders THIS
+  envelope approved," excluding the CEO's own clicks and v4's exits — the identical
+  invisible state. Measured reachability: 14 approve→fill windows, 3 spanning a full
+  tick, all from the excluded channel. The chair applied the prescribed one-clause repair
+  + retention-window ban + origin-blind pinning tests (419 green) + memo §10. Filed for
+  the fold build: N1 (exact-string symbol bucketing), N2 (no absolute-dollar ceiling —
+  riskofficer argues for a floor), N3 (mark as two inputs).
+- **ON FIRE-ADJACENT, FOR NEELESH TOMORROW**: the paper venue account now reports
+  **shorting_enabled TRUE with 3.15× buying power** — the night2 record read false, and
+  nobody here changed it knowingly. Question filed to the CEO's desk (due 08-28): which
+  reading changed and why. The mandate bounds gross; the broker no longer does.
+- Probes promoted to the shelf (`scripts/instruments/advr2/`): the ledger-scope
+  instrument, the conftest suite-grader, the shared-denominator sweep.
+
 ### DECIDED (CEO, live session ~08:30-09:00Z — five decisions, all executed same hour)
 
 - **NAV cadence is a DEFECT, not a budget problem** (CEO approved the chair's rec (a)):
