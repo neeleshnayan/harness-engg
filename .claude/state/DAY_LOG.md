@@ -371,6 +371,19 @@ but what will be impressive is if can spot what others dont and quickly turn it 
   hook cannot map their subagent types to a parent seat; design the convention honestly or
   render worker counts at return, never fake live.
 
+### FIXED + FOLDED IN (CEO live, ~09:30Z)
+
+- **The studio console 502 diagnosed and fixed**: the Clark agents service (:8000, a
+  separate process from the spine) was DEAD with nothing watching it. Restarted (health
+  200) and added to the host watchdog's every-cycle check — a dead console now revives in
+  <=5 min with a logged timestamp instead of an error screen for the CEO.
+- **THE READING ROOM's visible half folded into slice3 on the CEO's ask** ("can the
+  current builder bake that in?"): GET /fund/library + PDF serving (traversal-proof,
+  read-only) + a Reading Room section on the CEO desk rendering the six existing
+  data/library PDFs as rows. The durable half of D26 (PG research_notes + ingest) stays
+  chartered separately — explicitly out of this dispatch. Slice3 now carries FOUR CEO
+  additions, priority-ordered, with a named-deferral rule.
+
 ### MEASURED + REPAIRED (adversary r2 verdict, ~09:15Z)
 
 - **THE V5 REDESIGN: KILL — narrow, one clause — AND REPAIRED THE SAME HOUR** (c5348515).
