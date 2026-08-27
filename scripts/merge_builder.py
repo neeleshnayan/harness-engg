@@ -63,6 +63,7 @@ human has to interpret: the verdict is a word and every blocker is a sentence.
 from __future__ import annotations
 
 import argparse
+import builtins
 import json
 import os
 import re
@@ -158,6 +159,26 @@ SENSITIVE_PATTERNS: tuple[tuple[str, str], ...] = (
 _REFUSAL_TEXT = re.compile(
     r"raise\s+HTTPException|status_code\s*=\s*40[0-9]|"
     r"\brefus\w*|\bdeny\b|\bforbid\w*|\bblocked\b")
+
+#: The exceptions that REFUSE A REQUEST, as opposed to the ones that report a
+#: problem. `HTTPException` is the fund's refusal: it is what the approval
+#: path, the redecision guard and every endpoint raise to say no.
+#:
+#: MEASURED, and this is the difference between a check and a nuisance: with
+#: any conditional `raise` counted, the control-flow scan returned **289 hits
+#: on a seven-file diff that touched no control** — `BarsError` on a stale
+#: price series is a data-quality refusal and has nothing to do with approvals.
+#: A guard module raising its OWN class is still covered, by `SENSITIVE_GLOBS`.
+REFUSAL_EXCEPTIONS: tuple[str, ...] = ("HTTPException",)
+
+#: Names too common to carry information. `isinstance`, `get` and `str` appear
+#: in nearly every guard AND in nearly every other line, so a predicate scan
+#: that keeps them is a full-text match wearing a control-flow costume.
+_UBIQUITOUS_NAMES = frozenset(dir(builtins)) | frozenset({
+    "get", "keys", "values", "items", "strip", "lower", "upper", "split",
+    "append", "startswith", "endswith", "isoformat", "value", "name",
+    "self", "cls", "args", "kwargs", "payload", "data", "text", "json",
+})
 
 #: Assignments that MOVE A NUMBER, in any file. A threshold moves only by a
 #: versioned human change with a written reason — in either direction — so a
@@ -352,22 +373,56 @@ def refusal_predicates(source: str) -> dict[str, Any]:
                 found.add(sub.attr)
         return found
 
+    def _raised_name(node: Any) -> str:
+        exc = getattr(node, "exc", None)
+        exc = exc.func if isinstance(exc, ast.Call) else exc
+        if isinstance(exc, ast.Name):
+            return exc.id
+        if isinstance(exc, ast.Attribute):
+            return exc.attr
+        return ""
+
     for fn in ast.walk(tree):
         if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
-        raises = [n for n in ast.walk(fn) if isinstance(n, ast.Raise)]
+        # ONLY the exceptions that REFUSE A REQUEST, and this narrowing is
+        # measured, not fastidious. The first version treated any conditional
+        # `raise` as a control and produced **289 hits on a seven-file diff
+        # that touched no control at all** — `marketdata.py` raising
+        # `BarsError` on a stale series is a data-quality refusal, not an
+        # approval one, and a gate that fires on every new `raise` inside an
+        # `if` is a gate the chair learns to scroll past. That is the exact
+        # failure the fund.py content pattern exists to avoid, rebuilt one
+        # layer down.
+        raises = [n for n in ast.walk(fn)
+                  if isinstance(n, ast.Raise)
+                  and _raised_name(n) in REFUSAL_EXCEPTIONS]
         if not raises:
             continue
         guards: set[str] = set()
         for branch in ast.walk(fn):
-            if not isinstance(branch, (ast.If, ast.IfExp)):
+            # `ast.If` ONLY, and deliberately not `ast.IfExp`. A ternary's
+            # body and orelse are single EXPRESSIONS, not statement lists, so
+            # treating the two alike raised `'Constant' object is not
+            # iterable` on the first real file this ran against — and a
+            # ternary cannot contain a `raise` in any case, because `raise` is
+            # a statement. Whether a ternary's RESULT later feeds a refusal is
+            # cross-statement dataflow, which is outside what a merge gate can
+            # honestly claim to see.
+            if not isinstance(branch, ast.If):
                 continue
-            body = getattr(branch, "body", [])
-            body = body if isinstance(body, list) else [body]
-            reachable = [n for stmt in body + list(getattr(branch, "orelse", []))
-                         for n in ast.walk(stmt) if isinstance(n, ast.Raise)]
+            reachable = [n
+                         for stmt in list(branch.body) + list(branch.orelse)
+                         for n in ast.walk(stmt)
+                         if isinstance(n, ast.Raise)
+                         and _raised_name(n) in REFUSAL_EXCEPTIONS]
             if reachable:
-                guards |= _names_in(branch.test)
+                # BUILTINS AND UNIVERSAL METHOD NAMES DROPPED. `isinstance`,
+                # `get`, `str` and `len` appear in almost every guard and in
+                # almost every other line of the file, so keeping them turns
+                # the predicate leg into a full-text match on the diff.
+                guards |= {n for n in _names_in(branch.test)
+                           if n not in _UBIQUITOUS_NAMES and len(n) > 2}
         if not guards:
             # It raises, but not from a condition — an unconditional raise is
             # not a control this gate can be loosened through, and calling it
@@ -421,11 +476,17 @@ def scan_control_flow(changed: dict[str, set[int]],
                                     f"refuses on "
                                     f"{', '.join(inside[0]['guards'][:6])}"})
                 continue
+            # ASSIGNED OR DEFINED on this line, not merely MENTIONED on it.
+            # The mention test matched prose in docstrings and comments and
+            # was most of the 289-hit flood; the adversary's ask was narrower
+            # and better — *"any changed line that ALTERS a boolean used in a
+            # refusal"* — and altering means assigning or defining.
             touched = sorted(n for n in info["names"]
-                             if re.search(rf"\b{re.escape(n)}\b", text))
+                             if re.match(rf"(?:async\s+)?def\s+{re.escape(n)}\b", text)
+                             or re.match(rf"{re.escape(n)}\s*(?::[^=]+)?=(?!=)", text))
             if touched:
                 hits.append({"path": path, "line": lineno, "text": text,
-                             "why": "changes " + ", ".join(touched[:6])
+                             "why": "assigns or defines " + ", ".join(touched[:6])
                                     + ", which a refusal in this file reads"})
     return {"hits": hits, "unreadable": unreadable}
 

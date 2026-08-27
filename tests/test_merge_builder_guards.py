@@ -175,6 +175,64 @@ def test_an_unconditional_raise_is_not_reported_as_a_control():
     assert refusal_predicates(src)["regions"] == []
 
 
+def test_a_conditional_raise_that_is_NOT_a_refusal_is_not_a_control():
+    """THE 289-HIT REGRESSION, pinned.
+
+    The first version of this scan counted any conditional `raise` and
+    returned 289 hits on a seven-file diff that touched no control at all —
+    `marketdata.py` refusing a stale price series raises `BarsError`, which is
+    a data-quality answer and has nothing to do with approvals. A gate that
+    fires on every new `raise` inside an `if` is one the chair scrolls past,
+    which is the same failure the fund.py content pattern was written to
+    avoid.
+    """
+    src = ("def fetch(symbol, fresh):\n"
+           "    if not fresh:\n"
+           "        raise BarsError('stale')\n"
+           "    return symbol\n")
+    assert refusal_predicates(src)["regions"] == []
+    # ...and the SAME shape raising the fund's refusal IS a control. Without
+    # this half the assertion above would pass on a scan that found nothing
+    # anywhere.
+    http = src.replace("BarsError('stale')", "HTTPException(status_code=403)")
+    assert [r["function"] for r in refusal_predicates(http)["regions"]] == ["fetch"]
+
+
+def test_ubiquitous_names_are_not_treated_as_refusal_predicates():
+    """`isinstance`, `get` and `str` appear in nearly every guard AND in
+    nearly every other line. Keeping them made the predicate leg a full-text
+    match on the diff."""
+    src = ("def f(cfg):\n"
+           "    if not isinstance(cfg.get('x'), str) or len(cfg) == 0:\n"
+           "        raise HTTPException(status_code=422)\n"
+           "    return cfg\n")
+    names = refusal_predicates(src)["names"]
+    assert "cfg" in names
+    for noise in ("isinstance", "str", "len", "get"):
+        assert noise not in names
+
+
+def test_a_name_MENTIONED_in_a_comment_is_not_a_change_to_it():
+    """Most of the 289 were prose. The ask was "alters a boolean used in a
+    refusal", and altering means assigning or defining."""
+    src = ("def f(live):\n"
+           "    if not live:\n"
+           "        raise HTTPException(status_code=403)\n"
+           "    return 1\n"
+           "\n"
+           "\n"
+           "def other():\n"
+           "    # live is checked above, see f()\n"
+           "    return 2\n")
+    mention = scan_control_flow({"app/x.py": {8}}, lambda p: src)
+    assert mention["hits"] == []
+    # ...and an actual assignment to the same name IS caught.
+    src2 = src.replace("    # live is checked above, see f()\n",
+                       "    live = False\n")
+    assign = scan_control_flow({"app/x.py": {8}}, lambda p: src2)
+    assert assign["hits"] and "assigns or defines live" in assign["hits"][0]["why"]
+
+
 def test_a_file_that_does_not_parse_is_UNKNOWN_not_clear():
     got = refusal_predicates("def (:\n")
     assert got["readable"] is False
