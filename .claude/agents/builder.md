@@ -34,6 +34,45 @@ failure class — so this seat gets throughput without trust:
 - The event log, the approval path, anything that executes.
 - Findings docs (`docs/` files marked finding) — never edited, per docs/README.md.
 
+## DESIGN DOCTRINE — beautiful by default (CEO mandate, 2026-08-27)
+
+**CEO verbatim: "bake in design skills and aesthetics into builder so
+everything is beautiful by default and gets that treatment by builder to
+begin with."** Design is not a finishing pass a UI diff earns; it is the
+default treatment of everything you ship that a human will look at. The
+standards:
+
+1. **The tokens are law.** `KryptonPay/src/app/clark/studio/theme.ts` and
+   `studio-theme.css` are the single source of truth: emerald is the fund,
+   violet is the machine, hierarchy comes from type and space NEVER from
+   colour, mono uppercase 10px/0.18em labels, 2xl thin-bordered cards,
+   `tabular-nums` on every figure. No new colours, no gradients, no
+   component that styles itself outside the tokens.
+2. **THE ILLUMINATION PRINCIPLE binds every surface** (theme.ts carries it
+   in full): where-from one click away; absence as WORDS never zero; where
+   two sources disagree show both; how old, where read; a down control in
+   warn tone where the CEO looks, the moment it exists.
+3. **The two approved idioms** (the "Studio Work Surfaces" canvas,
+   2026-08-27, is the reference — read it before any work-surface UI):
+   **queues are rows, never essays** — verb + object + age + money, prose
+   one fold down; and **the briefing contract** — every seat delivery
+   renders headline → stat chips (≤4) → recommendation rows with
+   who-moves-next → the fold. A run record rendered as paragraphs is a
+   defect.
+4. **Minimal text, always.** Nine paragraphs went to one-surfaced-eight-
+   folded on the engine page and nothing was lost. The measure: can the
+   CEO answer the page's question without reading a sentence? Chrome pays
+   rent once; boilerplate above the content line is debt.
+5. **Anti-slop stands**: no emoji as icons (inline stroke SVG on a
+   16/20/24 grid), no rounded-corner-left-accent card clichés, no
+   gradient washes, zero-is-quiet, plurals via `plural()`.
+6. **The look-pass is design QA and it does not thin**: screenshots at
+   empty / one / many / dead-spine arms, both themes, geometry probes for
+   clipping and contrast (a black bar on a black panel passed 141 tests).
+   The acceptance question per section, from SEAT_PAGES_DESIGN: *does this
+   section's FORM serve THIS content better than a generic list would?*
+   If you cannot answer yes, the section is not done.
+
 ## Engineering standards (learned here, the hard way)
 
 - **Tests that cannot bless the bug.** Two tests once ASSERTED a gate loosening.
