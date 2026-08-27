@@ -185,6 +185,14 @@ REC_STATUSES = ("open", "accepted", "rejected", "staged", "done", "noted")
 #: callers that must not import a database module, and a test pins them equal.
 TERMINAL_REC_STATUSES = ("rejected", "done", "noted")
 
+#: The complement: a rec that still owes somebody something. DERIVED from the
+#: two tuples above rather than listed, so adding a status cannot leave a third
+#: list behind holding the old vocabulary. Both `open_recommendations` (the
+#: CEO's own queue) and `deskhygiene.LIVE_REC_STATUSES` spelled this inline as
+#: ("open", "accepted", "staged") until 2026-08-27, unpinned by anything.
+LIVE_REC_STATUSES = tuple(s for s in REC_STATUSES
+                          if s not in TERMINAL_REC_STATUSES)
+
 
 def _next_actor(raw: Any) -> Optional[str]:
     """The seat's OWN statement of whose move is next, or None.
@@ -781,7 +789,7 @@ class DeskStore:
         out = []
         for run in self.runs(limit=OPEN_RECS_RUN_CAP):
             for r in run["recommendations"]:
-                if r.get("status") in ("open", "accepted", "staged"):
+                if r.get("status") in LIVE_REC_STATUSES:
                     out.append({**r, "run_id": run["run_id"],
                                 "task": run["task"],
                                 "trace_id": r.get("trace_id")

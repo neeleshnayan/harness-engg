@@ -74,6 +74,13 @@ POLICY_VERSION = "hygiene v1 (2026-08-23)"
 #: guard's surface for free, and it comes back the day a rule needs it.
 BOOKKEEPING_STATUSES = ("resolved",)
 
+#: Recommendation statuses that still owe somebody something. Mirrored from
+#: `deskstore.LIVE_REC_STATUSES` rather than imported, for the reason
+#: `desk.TERMINAL_STATUSES` already gives — this module must stay importable
+#: without a database — and pinned equal by a test, so the sweeper and the
+#: queue it sweeps cannot disagree about which rows are still live.
+LIVE_REC_STATUSES = ("open", "accepted", "staged")
+
 #: What a rule may produce. `flag` writes nothing at all — it is a proposal for
 #: a human's one click.
 RULE_ACTIONS = ("close_request", "flag")
@@ -432,7 +439,7 @@ def evaluate(*, requests: Iterable[dict[str, Any]],
     for rec in recommendations:
         if not isinstance(rec, dict):
             continue
-        if str(rec.get("status") or "open") not in ("open", "accepted", "staged"):
+        if str(rec.get("status") or "open") not in LIVE_REC_STATUSES:
             continue
         shas = cited_commits(rec.get("text"))
         if not shas or is_ancestor is None:
