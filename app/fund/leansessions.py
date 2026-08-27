@@ -66,6 +66,26 @@ STOP = "stop"
 #: a licence to act on it.
 LEAVE = "leave"
 
+#: A live row whose container may not EXIST YET. Recorded, never touched.
+#:
+#: **THE RACE THIS EXISTS FOR, AND IT IS NEW WITH THE PERIODIC TICK.**
+#: ``start_live`` writes the registry row (state ``starting``) and only then
+#: launches ``docker run`` from a daemon thread — deliberately, because a
+#: container nothing remembers is an orphan and refusing to start is cheaper
+#: than that. So between the row write and the container appearing in
+#: ``docker ps`` there is a window of seconds, and a reconciliation landing
+#: inside it sees an ALIVE row with no container: exactly the shape it is
+#: built to call ``vanished``. It would retire a session that is starting
+#: correctly, release its scope, and leave the container that then appears
+#: unaccounted for — where the NEXT pass would stop it.
+#:
+#: A start-up reconciliation cannot hit this (nothing is mid-start when the
+#: process has just come up), which is why ``grace_seconds`` defaults to 0 and
+#: the start-up caller's behaviour is unchanged to the byte. The periodic
+#: caller passes a real grace, and an UNREADABLE age counts as young: refusing
+#: to judge is recoverable on the next pass and retiring a live session is not.
+YOUNG = "too_young_to_judge"
+
 OWN_OURS = "ours"
 OWN_LEGACY = "legacy"          # unlabelled: started before MODE_LABEL existed
 OWN_FOREIGN = "foreign"        # labelled for a different mode
@@ -144,10 +164,30 @@ def _touchable(own: str) -> bool:
     return own in (OWN_OURS, OWN_LEGACY)
 
 
+def _age_seconds(started_at: Any, now: Any) -> Optional[float]:
+    """How long this row has existed, or ``None`` when it cannot be told.
+
+    ``None`` for an absent or unparseable instant on either side, and for a
+    mixed naive/aware pair (which raises inside ``datetime``). Every caller's
+    safe reading of ``None`` is "too young to judge", so the absent case never
+    licenses the destructive branch.
+    """
+    from datetime import datetime
+    a, b = str(started_at or "").strip(), str(now or "").strip()
+    if not a or not b:
+        return None
+    try:
+        return (datetime.fromisoformat(b) - datetime.fromisoformat(a)).total_seconds()
+    except (TypeError, ValueError):
+        return None
+
+
 def reconcile(rows: Optional[list[dict[str, Any]]],
               containers: Optional[Iterable[dict[str, Any]]],
               *, our_mode: Optional[str] = None,
-              rows_cap: Optional[int] = None) -> dict[str, Any]:
+              rows_cap: Optional[int] = None,
+              now: Optional[str] = None,
+              grace_seconds: float = 0.0) -> dict[str, Any]:
     """What the registry and the docker daemon say, reconciled into actions.
 
     ``rows`` are session rows from the registry (``None`` = unreadable), read
@@ -163,6 +203,14 @@ def reconcile(rows: Optional[list[dict[str, Any]]],
     a container is an orphan. Either one absent and the answer is the empty
     action list WITH ``checked: false`` beside it, never an empty action list
     that looks like agreement.
+
+    ``grace_seconds`` protects a row whose container may not exist YET — see
+    ``YOUNG``. **It defaults to zero, so a caller that does not pass it gets
+    exactly the behaviour this function had before the parameter existed**, and
+    the start-up reconciliation (which cannot race a start) is that caller.
+    ``now`` is the instant to measure against; it is a PARAMETER rather than a
+    clock read here because this module has no IO in it and a function that
+    reads a clock is a function whose tests have to freeze one.
     """
     rows_readable = rows is not None
     containers_readable = containers is not None
@@ -200,14 +248,33 @@ def reconcile(rows: Optional[list[dict[str, Any]]],
                             "row_state": (row or {}).get("state")})
         for r in live_rows:
             sid = str(r.get("session_id") or "")
-            if sid and sid not in seen:
+            if not sid or sid in seen:
+                continue
+            age = _age_seconds(r.get("started_at"), now)
+            # UNREADABLE AGE COUNTS AS YOUNG. The two branches are destructive
+            # and recoverable respectively: refusing to judge costs one pass,
+            # retiring a live session costs the session. Only reachable when a
+            # grace is asked for — at ``grace_seconds=0`` the whole test is
+            # skipped and the behaviour is what it was.
+            if grace_seconds > 0 and (age is None or age < grace_seconds):
                 actions.append({"container": r.get("container"),
                                 "session_id": sid, "ownership": OWN_OURS,
-                                "action": VANISHED,
-                                "row_state": r.get("state")})
+                                "action": YOUNG,
+                                "row_state": r.get("state"),
+                                "age_seconds": age})
+                continue
+            # THE AGE RIDES BOTH BRANCHES, not only the sparing one. A reader
+            # of a ``vanished`` action needs the number the decision turned on,
+            # and a test that asserts only on the spared rows cannot tell a
+            # boundary case from an unparseable instant.
+            actions.append({"container": r.get("container"),
+                            "session_id": sid, "ownership": OWN_OURS,
+                            "action": VANISHED,
+                            "row_state": r.get("state"),
+                            "age_seconds": age})
 
     counts = {k: sum(1 for a in actions if a["action"] == k)
-              for k in (REATTACH, ADOPT, STOP, LEAVE, VANISHED)}
+              for k in (REATTACH, ADOPT, STOP, LEAVE, VANISHED, YOUNG)}
     checked = rows_readable and containers_readable
     return {
         "checked": checked,
@@ -228,6 +295,11 @@ def reconcile(rows: Optional[list[dict[str, Any]]],
                         else len(rows or ()) >= rows_cap),
         "containers_seen": len(parsed) if containers_readable else None,
         "our_mode": our_mode,
+        # THE GRACE THIS PASS APPLIED, published rather than implied. A reader
+        # who sees a live row in neither ``reattach`` nor ``vanished`` has to be
+        # able to find out why, and ``0`` says plainly that no row was spared.
+        "grace_seconds": grace_seconds,
+        "measured_at": now,
         "actions": actions,
         "counts": counts,
         "note": reconcile_note(checked, rows_readable, containers_readable,
@@ -265,10 +337,102 @@ def reconcile_note(checked: bool, rows_readable: bool,
     for label, key in (("re-attached", REATTACH), ("adopted", ADOPT),
                        ("stopped as unaccounted", STOP),
                        ("left alone (another mode)", LEAVE),
-                       ("recorded vanished", VANISHED)):
+                       ("recorded vanished", VANISHED),
+                       ("left alone (too young to judge — a container that is "
+                        "starting has no row in `docker ps` yet)", YOUNG)):
         if counts.get(key):
             parts.append(f"{counts[key]} {label}")
     return "Reconciled " + "; ".join(parts) + "."
+
+
+#: The three things a reader of "when did this last reconcile" can be told, as
+#: ONE field with three values rather than a boolean plus a note the caller
+#: patches. Written this way because the module's own founding incident was a
+#: five-field state assembled by its caller, two of which got corrected and
+#: three of which shipped contradicting the other two.
+RECON_NEVER = "never_run"
+RECON_STALE = "stale"
+RECON_FRESH = "fresh"
+
+
+def reconciliation_status(last: Optional[dict[str, Any]], now: Optional[str],
+                          stale_after_seconds: Optional[float],
+                          interval_seconds: Optional[float] = None
+                          ) -> dict[str, Any]:
+    """When a reconciliation last ACTED, and whether that was recently enough.
+
+    ``last`` is ``None`` when none has run in this process, or
+    ``{"at", "trigger", "report"}`` from ``LeanRunner.reconcile_containers``.
+
+    **"NEVER RUN" IS ITS OWN STATE AND NOT A STALE ONE.** They call for
+    different actions: a stale reading means the worker has stopped ticking; a
+    never-run reading means the start-up pass itself failed, which is louder and
+    is the case where an inherited orphan is still holding a signal token. The
+    fund has shipped a payload whose note said *"nothing has ever run, so there
+    is no liveness question to answer"* on the exact path where the list could
+    not be read; one field with three values is the shape that cannot do that.
+
+    ``stale_after_seconds`` is the CEILING THIS READING IS JUDGED AGAINST and it
+    is published, not implied — a freshness verdict whose bound is invisible is
+    a verdict nobody can check. ``interval_seconds`` is the cadence the bound
+    was derived from, published for the same reason.
+    """
+    ceiling = (None if stale_after_seconds is None
+               else float(stale_after_seconds))
+    base = {
+        "state": RECON_NEVER,
+        "ever_run": False,
+        "at": None,
+        "trigger": None,
+        "age_seconds": None,
+        "stale_after_seconds": ceiling,
+        "interval_seconds": (None if interval_seconds is None
+                             else float(interval_seconds)),
+        "checked": None,
+        "counts": None,
+        "reconcile_note": None,
+        "note": ("No reconciliation has ACTED in this process. The start-up "
+                 "pass either did not run or did not finish, so a LEAN "
+                 "container inherited from an earlier process is neither "
+                 "re-attached nor stopped, and its signal token is still live. "
+                 "This is not the same as a stale reading and must not be read "
+                 "as one."),
+    }
+    if not isinstance(last, dict) or not str(last.get("at") or "").strip():
+        return base
+
+    at = str(last["at"]).strip()
+    report = last.get("report") if isinstance(last.get("report"), dict) else {}
+    age = _age_seconds(at, now)
+    if age is None or ceiling is None:
+        # UNMEASURABLE AGE IS NOT FRESH. It is also not "never run" — one HAS
+        # run, and how long ago is what cannot be told, so the state is stale
+        # and the note says which half is missing.
+        state, stale_note = RECON_STALE, (
+            "A reconciliation acted at {at}, and how long ago that was could "
+            "not be computed (now={now!r}, ceiling={c!r}) — unmeasurable is "
+            "not recent.".format(at=at, now=now, c=ceiling))
+    elif age > ceiling:
+        state, stale_note = RECON_STALE, (
+            f"The last reconciliation acted {age:.0f}s ago, past this "
+            f"reading's own {ceiling:.0f}s ceiling — the worker tick that "
+            f"performs it has stopped, so nothing is watching for an orphaned "
+            f"container between now and the next spine start-up.")
+    else:
+        state, stale_note = RECON_FRESH, (
+            f"The last reconciliation acted {age:.0f}s ago, inside this "
+            f"reading's {ceiling:.0f}s ceiling.")
+
+    return {**base,
+            "state": state,
+            "ever_run": True,
+            "at": at,
+            "trigger": last.get("trigger"),
+            "age_seconds": age,
+            "checked": report.get("checked"),
+            "counts": report.get("counts"),
+            "reconcile_note": report.get("note"),
+            "note": stale_note}
 
 
 def known_since(registry_required: bool, registry_epoch: Optional[str],

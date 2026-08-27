@@ -233,7 +233,11 @@ class TestReconcileTheHappyPaths:
              _con("alien", mode="prod")],
             our_mode="dev")
         assert plan["counts"] == {LS.REATTACH: 1, LS.ADOPT: 1, LS.STOP: 1,
-                                  LS.LEAVE: 1, LS.VANISHED: 1}
+                                  LS.LEAVE: 1, LS.VANISHED: 1, LS.YOUNG: 0}
+        # ``YOUNG: 0`` rather than absent, and ZERO rather than one: no grace
+        # was asked for, so no row was spared — which is the start-up caller's
+        # behaviour and must stay the DEFAULT of this function.
+        assert plan["grace_seconds"] == 0.0
 
 
 class TestReconcileCannotRead:
@@ -615,17 +619,70 @@ class TestRunnerReconciliation:
         read as text rather than imported, for the reason on ``MAIN_SRC``.
 
         The window is bounded on both sides so a ``try`` belonging to some
-        other statement two hundred lines away cannot satisfy it."""
-        assert MAIN_SRC.count("reconcile_containers") == 1
-        i = MAIN_SRC.index("reconcile_containers")
-        window = MAIN_SRC[max(0, i - 400):i + 600]
-        assert "try:" in window
-        assert "except Exception" in window
-        assert "_log.warning" in window
-        # AND IT RUNS BEFORE THE SCHEDULER, not after: a reconciliation that
-        # happens once the strike/exit ticks are already firing would be acting
-        # on a book those ticks had begun to move.
-        assert i < MAIN_SRC.index("_scheduler())")
+        other statement two hundred lines away cannot satisfy it.
+
+        **THERE ARE NOW TWO CALL SITES AND THIS TEST HAD TO BE REPAIRED, NOT
+        RE-COUNTED.** It asserted ``count(...) == 1`` and then took
+        ``index(...)`` — the FIRST occurrence. The worker tick added in
+        2026-08-27 sits inside ``_scheduler``, which is defined ABOVE
+        ``lifespan``, so the first occurrence became the worker's and every
+        assertion below it — including ``i < index("_scheduler())")`` — would
+        have been satisfied by the wrong call while still reading as a proof
+        about start-up. Bumping the count to 2 would have shipped exactly that.
+        Each site is located by a string only IT contains.
+        """
+        sites = [i for i in range(len(MAIN_SRC))
+                 if MAIN_SRC.startswith("reconcile_containers(", i)]
+        assert len(sites) == 2, "a third caller appeared; give it its own arm"
+
+        worker = MAIN_SRC.index('trigger="worker"')
+        # The start-up call is the one that is NOT the worker call. Found by
+        # exclusion rather than by ordinal, so re-ordering the file cannot
+        # silently swap which one each arm below is about.
+        startup = next(i for i in sites
+                       if not (i <= worker <= i + 200))
+        assert startup != worker
+
+        # THE WINDOW IS BOUNDED SO IT CANNOT REACH THE OTHER SITE. Measured
+        # 2026-08-27: the two calls are 4,540 characters apart; the furthest
+        # either one's own ``try:`` sits before it is 435 and the furthest its
+        # ``except`` sits after it is 1,037 (both the worker's, which carries
+        # the longer comment). 700 back and 1,400 forward covers both, and the
+        # pair is under half the gap — a window that could see its sibling
+        # would prove nothing about either, which is the failure this whole
+        # test just had.
+        BACK, FWD = 700, 1400
+        assert sites[1] - sites[0] > BACK + FWD, (
+            "the two call sites have moved close enough that each window could "
+            "see the other; tighten the window or anchor differently")
+        for label, i in (("start-up", startup), ("worker", worker)):
+            window = MAIN_SRC[max(0, i - BACK):i + FWD]
+            assert "try:" in window, label
+            assert "except Exception" in window, label
+            assert "_log.warning" in window, label
+
+        # THE START-UP CALL RUNS BEFORE THE SCHEDULER, not after: a
+        # reconciliation that happens once the strike/exit ticks are already
+        # firing would be acting on a book those ticks had begun to move.
+        assert startup < MAIN_SRC.index("asyncio.create_task(_scheduler())")
+        # ...and the WORKER call is inside the scheduler, which is defined
+        # earlier in the file. Asserted so the two can never be confused again.
+        assert worker < MAIN_SRC.index("async def lifespan")
+
+    def test_the_worker_tick_passes_a_GRACE_and_the_start_up_pass_does_not(self):
+        """THE ONE DIFFERENCE BETWEEN THE TWO CALLS, and it is the difference
+        that makes a periodic pass safe. ``start_live`` writes its registry row
+        before launching ``docker run``, so a pass landing in that window sees
+        a live row with no container. A start-up pass cannot race a start; a
+        five-minute tick can, and will."""
+        i = MAIN_SRC.index('trigger="worker"')
+        assert "RECONCILE_GRACE_SECONDS" in MAIN_SRC[i:i + 200]
+        # And the start-up call passes NOTHING, so it takes the default of 0.
+        sites = [j for j in range(len(MAIN_SRC))
+                 if MAIN_SRC.startswith("reconcile_containers(", j)]
+        startup = next(j for j in sites if not (j <= i <= j + 200))
+        assert MAIN_SRC[startup:startup + 60].startswith(
+            "reconcile_containers()")
 
 
 # ================== the real docker read, and the real registry read

@@ -198,22 +198,35 @@ ORPHAN_CHECK = False
 
 #: What that costs, in one sentence, on the payload.
 #:
-#: REWRITTEN 2026-08-27, because half of what it described was fixed and a note
-#: that still claims a closed gap is a stale claim on a page the CEO reads. The
-#: previous version ended "Closing this needs the runner to reconcile its
-#: session table against `docker ps` on start-up" — which the runner now does.
-#: What is left is the narrower, true residual: the reconciliation is a START-UP
-#: event, and this fold is not one.
+#: REWRITTEN TWICE, both times because a note that still claims a closed gap is
+#: a stale claim on a page the CEO reads.
+#:
+#: 2026-08-27 (first): the original ended "Closing this needs the runner to
+#: reconcile its session table against `docker ps` on start-up" — which the
+#: runner had started doing.
+#:
+#: 2026-08-27 (second): the replacement said "What remains is the window
+#: BETWEEN start-ups", and the deterministic worker now reconciles on a
+#: `LEAN_RECONCILE_INTERVAL` tick, so that window is bounded by the interval
+#: instead of by the spine's uptime. What is left is genuinely narrower and
+#: genuinely still open, and it is stated as a bound rather than as a gap: this
+#: FOLD still reads a list rather than the daemon, so its reading can be one
+#: tick out of date. The freshness of that list is published — a reader can ask
+#: GET /fund/lean/live/reconciliation for `last_acted`, which says when a
+#: reconciliation last ACTED and whether that was recent enough.
 ORPHAN_NOTE = (
     "Nothing in this fold asks Docker what is running — it reads the runner's "
     "session list. A LEAN container outlives the spine process that started it "
     "(leanrunner._run_live runs `docker run` from a daemon thread); since "
-    "2026-08-27 that list is durable and the runner reconciles it against "
-    "`docker ps` at spine START-UP, so such a container is re-attached or "
-    "stopped then. What remains is the window BETWEEN start-ups: a container "
-    "that goes quiet mid-session leaves a row until the next start-up or a "
-    "call to GET /fund/lean/live/reconciliation, and no fact in the event log "
-    "separates a silent orphan from a dead engine.")
+    "2026-08-27 that list is durable, the runner reconciles it against "
+    "`docker ps` at spine START-UP, and the deterministic worker repeats that "
+    "reconciliation on a timer, so the window in which a container can be "
+    "unaccounted for is bounded by LEAN_RECONCILE_INTERVAL rather than by how "
+    "long the spine has been up. What remains is that this fold reads the "
+    "list and not the daemon, so it can be one tick stale; "
+    "GET /fund/lean/live/reconciliation reports `last_acted` — when a "
+    "reconciliation last acted, and whether that was recent enough — so a "
+    "reader can see how stale rather than having to assume.")
 
 
 class EngineContext:

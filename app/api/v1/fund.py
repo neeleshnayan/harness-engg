@@ -1569,9 +1569,23 @@ def lean_live_reconciliation():
     """
     from app.fund import leansessions
     runner = _lean()
-    return leansessions.reconcile(runner.registry_rows_or_none(),
-                                  runner.docker_live_containers(),
-                                  our_mode=runner._our_mode())
+    return {
+        **leansessions.reconcile(runner.registry_rows_or_none(),
+                                 runner.docker_live_containers(),
+                                 our_mode=runner._our_mode(),
+                                 # THE OTHER SIDE'S CAP, NAMED. The runner's own
+                                 # pass passes this and the endpoint did not, so
+                                 # ``rows_cap`` rendered null here — which reads
+                                 # as "no cap" on a read that has one.
+                                 rows_cap=runner.registry_page_size()),
+        # WHEN ONE LAST ACTED, so an absence is visible. This endpoint is the
+        # read-only twin and CHANGES NOTHING; without this field a reader could
+        # not tell a fund whose worker reconciles every five minutes from one
+        # whose worker died an hour ago, because both answer this endpoint
+        # identically. Folded by ``leansessions.reconciliation_status`` from one
+        # input, so "never run" cannot be reported as a stale zero.
+        "last_acted": runner.last_reconciliation(),
+    }
 
 
 @router.delete("/fund/lean/live/{session_id}")
