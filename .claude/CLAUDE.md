@@ -26,6 +26,35 @@ two success criteria:
 The gate currently only knows the second. Fixing that is part of gate v5, together
 with the benchmark-blindness fix (see docs/BENCHMARK_BLIND_WALKFORWARD_2026-08-18.md).
 
+**AMENDED 2026-08-27 (CEO decision, recorded verbatim across four live
+messages): CRYPTO IS THE FIRST ASSET CLASS AND THE CORE BUSINESS
+OBJECTIVE.** *"we gotta focus on crypto; understand what strategies are
+deployed today, how can we create our own strategy that works given current
+market conditions, what are our blockers and how can we start in crypto as
+our first asset and run our team e2e. this is the fastest space to improve
+our harness, battle-test it and demonstrate something substantial in next
+2-3 weeks"* — and — *"me and you among other trivialities need to laser
+focus on this as our core business objective then once we have operational
+experience with this we move to say equities."* Two riders, same session:
+**coin selection is first-class** (*"selecting the right coins are also
+key"* — a proposal whose universe is "crypto" has not selected a universe),
+and **venue is open, not fixed** (*"we are not limited by exchange, alpaca
+is what we started out with; we can have connectors to different
+exchanges"* — connector engineering is the chair's; real-money venue choice
+stays the CEO's click).
+
+The chair's reading of scope, flagged for the CEO's second look: research,
+generation, and harness work laser-focus on crypto; the EXISTING equity
+paper book keeps running as the live premia measurement (Friday's exits,
+the P1 evidence, the demo-v1 process story) until the CEO says otherwise —
+refocusing research is not unwinding positions. Equities return as an
+asset class after crypto operational experience, on his word. Program
+charter with dates: docs/design/CRYPTO_PROGRAM_2026-08-27.md. What would
+change this decision's mind (recorded at decision time): the 2-3 week
+demonstration failing to produce one crypto candidate through the full
+chain, or a measured showing that the crypto loop is slower to battle-test
+the harness than the equity loop it displaced.
+
 ## Who decides what
 
 | Owner | Owns |

@@ -371,6 +371,24 @@ but what will be impressive is if can spot what others dont and quickly turn it 
   hook cannot map their subagent types to a parent seat; design the convention honestly or
   render worker counts at return, never fake live.
 
+### DECIDED — CRYPTO IS THE CORE BUSINESS OBJECTIVE (CEO, ~11:20Z, constitution amended)
+
+- **CEO, verbatim: "we gotta focus on crypto... run our team e2e... demonstrate something
+  substantial in next 2-3 weeks" + "laser focus on this as our core business objective
+  then once we have operational experience with this we move to say equities" + "selecting
+  the right coins are also key" + "we are not limited by exchange... we can have
+  connectors to different exchanges."** Recorded as a dated Identity amendment in
+  CLAUDE.md with the chair's scope reading flagged second-look: research/harness
+  laser-focus crypto; the equity paper book KEEPS RUNNING as the live measurement
+  (Friday's exits, P1, demo v1) — refocusing research is not unwinding positions.
+- **Program chartered with dates**: docs/design/CRYPTO_PROGRAM_2026-08-27.md — W1
+  landscape (analyst, in flight, + universe & venue sections on the CEO's riders), W2
+  generation (Ed #7, in flight, universe+venue named per proposal), W3 blockers (sqrt252
+  + 16-coin into B1; belt E2E probe = the next heavy slot; connectors as demanded), W4
+  the full-chain run with loop latency measured. Targets: first crypto candidate to the
+  belt ~Sep 3; the substantial demonstration Sep 10-17. Falsifiers written at charter.
+- Both in-flight crypto agents received the coin-selection and venue riders mid-run.
+
 ### DECIDED + DISPATCHED (CEO crypto challenge, ~11:05Z)
 
 - **CEO, verbatim: "Why are we not exploring crypto - are we declaring that space is dead
