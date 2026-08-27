@@ -301,24 +301,37 @@ export function deskLanes(input: LaneInput): Lane[] {
     anchor: { kind: "rec", runId: r.run_id, recId: r.rec_id },
   }));
 
-  /* ---- c. approved, awaiting the chair's dispatch ---------------------- */
+  /* ---- c. the chair's request queue: approved AND open ------------------ */
+  // ROUTING v2 (2026-08-28, the adversary's kill of the half-shipped state):
+  // the spine's router sends OPEN requests to the chair too, and this lane's
+  // v1 predicate (`status === "approved"`) left 13 live open asks rendering
+  // in zero of five lanes on the CEO's page — visible on the full desk,
+  // invisible on his. Both statuses are the chair's move now; the DETAIL line
+  // distinguishes them, and — the adversary's second warning — an OPEN row
+  // must never take the "approved — no actor" branch, which is why the
+  // detail is computed per status rather than from `approved_by` alone.
 
-  const approved = requests.filter((r) => r.status === "approved");
-  const dispatchRows: LaneRow[] = approved.map((r) => ({
+  const chairs = requests.filter(
+    (r) => r.status === "approved" || r.status === "open");
+  const dispatchRows: LaneRow[] = chairs.map((r) => ({
     key: `req:${r.request_id}`,
     text: r.task ?? r.subject ?? "this ask recorded no subject",
-    // A cleared ask is the chair's by construction — the constitution's own
-    // chain: a seat files, the CEO approves, the CHAIR triggers. Written as a
-    // constant rather than read from a field because no field carries it and
-    // inventing one would be worse than naming the rule.
+    // A cleared or open ask is the chair's by construction — routing v2's
+    // rule: open -> chair (triage), approved -> chair (dispatch). Written as
+    // a constant because no field carries it.
     actor: "chair",
-    actorWhy: "approved asks are dispatched by the chair; the approval is not "
-      + "itself a trigger",
+    actorWhy: r.status === "approved"
+      ? "approved asks are dispatched by the chair; the approval is not "
+        + "itself a trigger"
+      : "open asks route to the chair under routing v2 — triage, then the "
+        + "COO batch, then the CEO decides batches",
     seat: r.seat ?? r.serves ?? null,
     at: r.approved_at ?? r.at ?? null,
-    detail: r.approved_by
-      ? `approved by ${r.approved_by}`
-      : "approved — the approval event recorded no actor",
+    detail: r.status === "open"
+      ? "open — awaiting the chair's triage (never shown as approved)"
+      : r.approved_by
+        ? `approved by ${r.approved_by}`
+        : "approved — the approval event recorded no actor",
     anchor: { kind: "request", requestId: r.request_id },
   }));
 
@@ -391,11 +404,16 @@ export function deskLanes(input: LaneInput): Lane[] {
     },
     {
       id: "dispatch",
-      label: "Approved, awaiting dispatch",
-      lede: "You approved these asks; the chair fires them. An approval is "
-        + "recorded on the log and triggers nothing by itself.",
+      label: "The chair's request queue",
+      // Routing v2: open asks route to the chair for triage AND approved
+      // asks await the chair's dispatch — one queue, two statuses, each row
+      // saying which it is. The old label ("Approved, awaiting dispatch")
+      // described only half the lane once the router moved.
+      lede: "Open asks the chair triages, and asks you approved that the "
+        + "chair fires. An approval is recorded on the log and triggers "
+        + "nothing by itself; an open row is never shown as approved.",
       count: laneCount(load?.requests_approved_undispatched, dispatchRows.length,
-        "the chair's dispatch queue", read),
+        "the chair's request queue", read),
       rows: dispatchRows,
       openByDefault: false,
       withdrawn: 0,

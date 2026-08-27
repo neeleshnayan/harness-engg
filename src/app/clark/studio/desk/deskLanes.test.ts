@@ -190,9 +190,24 @@ test("the dispatch lane is the chair's, and every row says so", () => {
   });
   const d = laneById(ls, "dispatch");
   assert.equal(d.count.value, 65);
-  assert.equal(d.rows.length, 1, "only APPROVED asks are awaiting dispatch");
-  assert.equal(d.rows[0].actor, "chair");
-  assert.equal(d.rows[0].detail, "approved by ceo");
+  // ROUTING v2 (2026-08-28): the lane is the chair's REQUEST QUEUE — open
+  // asks (the chair triages) AND approved asks (the chair dispatches). The
+  // v1 predicate left 13 live open asks in zero of five lanes on the CEO's
+  // page, measured by the adversary (run-adversary-night2).
+  assert.equal(d.rows.length, 2, "approved AND open asks are the chair's");
+  const approvedRow = d.rows.find((r) => r.detail.startsWith("approved by"));
+  const openRow = d.rows.find((r) => r.detail.startsWith("open"));
+  assert.ok(approvedRow && openRow, "both statuses render, each labeled");
+  assert.equal(approvedRow!.actor, "chair");
+  assert.equal(approvedRow!.detail, "approved by ceo");
+  assert.equal(openRow!.actor, "chair");
+  // THE ADVERSARY'S SECOND WARNING, pinned: an OPEN row must NEVER take the
+  // "approved — the approval event recorded no actor" branch. 13 live rows
+  // satisfied that branch's predicate the night this was written.
+  assert.equal(openRow!.detail,
+    "open — awaiting the chair's triage (never shown as approved)");
+  assert.ok(!openRow!.detail.includes("approved —"),
+    "an open ask never renders as approved-without-actor");
   assert.match(d.rows[0].actorWhy!, /the approval is not itself a trigger/,
     "the constitution's chain must be on the row: a seat files, the CEO "
     + "approves, the CHAIR triggers");

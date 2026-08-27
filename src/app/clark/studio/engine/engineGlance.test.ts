@@ -715,3 +715,19 @@ test("foldedCaveats survives an absent view, exactly like its siblings", () => {
   assert.deepEqual(foldedCaveats(null), []);
   assert.deepEqual(foldedCaveats(undefined), []);
 });
+
+
+test("the unclassified caveat's tone is WARN, pinned BY NAME (adversary night2: flipping it passed 141/141)", () => {
+  // The tone partition is the page's whole safety property: warn caveats
+  // cannot reach the fold. The fixture-comparison test pins only the
+  // families its fixture populates, and `unclassified` was not among them -
+  // the adversary flipped it warn->quiet and every test stayed green. This
+  // pin asserts the tone by name so that mutant dies.
+  const v = view();
+  v.ledger.counts.unclassified = 2;
+  const cs = engineCaveats(v);
+  const un = cs.find((c) => c.key === "unclassified");
+  assert.ok(un, "an unclassified count produces a caveat");
+  assert.equal(un!.tone, "warn",
+    "a lifecycle state our vocabulary has no word for is a WARN, never quiet");
+});
