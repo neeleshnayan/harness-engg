@@ -718,6 +718,80 @@ def _within_window(dispatched_at: Any, window_floor: Any) -> bool:
     return a >= b
 
 
+def idle_activity() -> dict[str, Any]:
+    """The activity envelope for a seat the fold produced no row for.
+
+    ONE constructor, because there were two and they disagreed. ``_activity``
+    emits seven keys per seat; the desk payload's fallback for a roster agent
+    the fold never reached emitted four — so adding a seat to ``ROSTER``
+    without adding it to ``REQUEST_KINDS`` silently served an activity object
+    missing ``task_id``, ``returned_run_id`` and ``review_detectable``, and
+    every consumer of those keys would have read absent-as-undefined on that
+    seat alone. Nothing hits it today (all eleven roster agents are in
+    ``REQUEST_KINDS``, verified against the live payload 2026-08-27), which is
+    exactly why it would have stayed wrong: the branch nobody exercises is the
+    branch nobody patches.
+
+    The counts are ZERO here and that is a measurement, not an absence: this
+    seat appears in the roster and the dispatch fold found no open dispatch
+    for it. "The fold could not be read" does not exist as a state — the fold
+    is over the event stream, which either streams or raises.
+    """
+    return {
+        "status": "idle",
+        "task": None,
+        "since": None,
+        "task_id": None,
+        "returned_run_id": None,
+        "review_detectable": None,
+        "open_dispatches": [],
+        "working_count": 0,
+        "awaiting_review_count": 0,
+        "last_delivered": None,
+    }
+
+
+def _dispatch_state(w: dict[str, Any], run_by_key: dict[str, str],
+                    recorder_read: bool, window_floor: Any) -> dict[str, Any]:
+    """One OPEN dispatch, resolved to its state — the unit the seat fold is
+    built from.
+
+    Extracted so that the seat's headline dispatch and every other open
+    dispatch it holds are computed by the SAME code from the SAME inputs. They
+    were not: the headline was computed inline and there was nothing else, so
+    "the builder is working" was a claim about one dispatch presented as a
+    claim about a seat. See ``_activity``'s parallelism note.
+    """
+    # EXACT identifiers only, in the order that matches most on the live
+    # log: the dispatch's own trace first (17 of 24), its task_id second
+    # (8 of 24, the older convention where the two were the same string).
+    keys = [k for k in (w.get("trace_id"), w.get("task_id")) if k]
+    back = None
+    for k in keys:
+        back = run_by_key.get(k)
+        if back:
+            break
+    return {
+        "status": "awaiting_review" if back else "working",
+        "task": w.get("task"),
+        "since": w.get("at"),
+        "task_id": w.get("task_id"),
+        # The run that came back, so the chair can open it and review.
+        "returned_run_id": back,
+        # Whether the spine could TELL a returned dispatch from a running
+        # one FOR THIS DISPATCH. Per-dispatch and not per-payload: a
+        # dispatch carrying no identifier is undetectable even with a
+        # fully readable recorder, and reporting it as detectable would
+        # dress "we never looked" as "nothing came back". A positive match is
+        # its own proof, so it short-circuits every other condition.
+        "review_detectable": (
+            True if back else
+            (recorder_read and bool(keys)
+             and _within_window(w.get("at"), window_floor))
+        ),
+    }
+
+
 def _activity(store: Any, runs: Optional[list[dict[str, Any]]] = None,
               runs_limit: Optional[int] = None) -> dict[str, dict[str, Any]]:
     """What each seat is doing RIGHT NOW, folded from dispatch/resolve events.
@@ -763,6 +837,41 @@ def _activity(store: Any, runs: Optional[list[dict[str, Any]]] = None,
 
     ``runs_limit`` is the cap ``runs`` was fetched under, so a truncated list
     can be told from a complete one. See ``window_floor`` below.
+
+    A SEAT CAN HOLD MORE THAN ONE OPEN DISPATCH, AND THIS FOLD USED TO REPORT
+    THE LAST ONE AS THOUGH IT WERE THE SEAT (added 2026-08-27, from the CEO's
+    own observation on the floor, verbatim: *"1 builder working but 2 in
+    reality"*). Two builders concurrently is a versioned permission — the
+    constitution allows it on disjoint write scopes — so the payload has been
+    describing a permitted state falsely, not an impossible one. The event
+    loop already accumulated every open dispatch in ``open_by_task``;
+    ``working_on`` was a lossy projection of it that kept only the newest.
+
+    THE ADDITIVE FIELDS, and what each one is for:
+
+      ``open_dispatches``       every dispatch for this seat with no recorded
+                                resolution, NEWEST FIRST, each carrying its own
+                                ``status``/``task``/``since``/``task_id``/
+                                ``returned_run_id``/``review_detectable``.
+      ``working_count``         how many of those are WORKING.
+      ``awaiting_review_count`` how many have RETURNED and await the chair.
+
+    Both counts are folded here rather than left to each caller's
+    ``filter(...).length``, because several fields describing one condition
+    must be computed once from one input — a consumer that recounts is a
+    second implementation of the rule, and the two drift.
+
+    THE HEADLINE FIELDS ARE UNCHANGED AND THEY CAN NOW BE READ AS UNDERSTATING.
+    ``status``/``task``/``since``/``task_id``/``returned_run_id``/
+    ``review_detectable`` still describe ``working_on`` exactly as before, so
+    no existing consumer moves. But ``working_on`` is retired when the NEWEST
+    dispatch resolves, so a seat holding an older open dispatch reports
+    ``status: "idle"`` while ``working_count`` is 1. **The list is the truth
+    and the headline is the compatibility surface.** A test pins that exact
+    disagreement so it cannot go quiet, and ``seat_telemetry``'s
+    ``running_now`` — which reads the headline — inherits the understatement
+    and is NOT repaired here; that is a behaviour change to a field other
+    surfaces read, and it is filed rather than smuggled into an additive diff.
     """
     from app.fund.events import EventType
 
@@ -833,39 +942,52 @@ def _activity(store: Any, runs: Optional[list[dict[str, Any]]] = None,
         dated = [(t, s) for s in resolved if (t := _ts(s)) is not None]
         window_floor = min(dated)[1] if dated else None
 
+    # EVERY still-open dispatch, grouped by seat. `open_by_task` is the fold's
+    # own accumulator — a dispatch enters on DESK_DISPATCHED and is popped on
+    # its resolution — so this is the same population `working_on` was drawn
+    # from, read without the projection that threw the rest of it away.
+    open_by_seat: dict[str, list[tuple[Any, int, dict[str, Any]]]] = {}
+    for i, d in enumerate(open_by_task.values()):
+        seat = d.get("seat")
+        if seat:
+            open_by_seat.setdefault(seat, []).append((_ts(d.get("at")), i, d))
+
     out = {}
     for seat in list(REQUEST_KINDS.values()):
         row = seats.get(seat, {})
         w = row.get("working_on")
-        # EXACT identifiers only, in the order that matches most on the live
-        # log: the dispatch's own trace first (17 of 24), its task_id second
-        # (8 of 24, the older convention where the two were the same string).
-        keys = [k for k in ((w or {}).get("trace_id"), (w or {}).get("task_id"))
-                if k]
-        back = None
-        for k in keys:
-            back = run_by_key.get(k)
-            if back:
-                break
+        headline = _dispatch_state(w, run_by_key, recorder_read,
+                                   window_floor) if w else None
+        # NEWEST FIRST, with an EXPLICIT tie-break. Two dispatches fired in the
+        # same session can carry the same stamp, and a sort on the stamp alone
+        # then returns whatever order the stream happened to give — which is a
+        # contract nobody wrote down. The second key is the position in the
+        # event stream, so equal stamps break toward the later EVENT. A
+        # dispatch whose `at` cannot be parsed sorts oldest rather than
+        # raising: `None` and a datetime are not orderable in Python, and a
+        # payload builder is the worst place to discover that.
+        _FLOOR = _ts("0001-01-01T00:00:00+00:00")
+        ordered = sorted(open_by_seat.get(seat, []),
+                         key=lambda t: (t[0] or _FLOOR, t[1]), reverse=True)
+        opens = [_dispatch_state(d, run_by_key, recorder_read, window_floor)
+                 for _, _, d in ordered]
         out[seat] = {
-            "status": ("awaiting_review" if back else "working") if w else "idle",
+            **idle_activity(),
+            "status": headline["status"] if headline else "idle",
             "task": (w or {}).get("task"),
             "since": (w or {}).get("at"),
             "task_id": (w or {}).get("task_id"),
             # The run that came back, so the chair can open it and review.
-            "returned_run_id": back,
-            # Whether the spine could TELL a returned dispatch from a running
-            # one FOR THIS DISPATCH. Per-dispatch and not per-payload: a
-            # dispatch carrying no identifier is undetectable even with a
-            # fully readable recorder, and reporting it as detectable would
-            # dress "we never looked" as "nothing came back". None when the
-            # seat is idle — there is nothing to detect. A positive match is
-            # its own proof, so it short-circuits every other condition.
+            "returned_run_id": headline["returned_run_id"] if headline else None,
+            # None when the seat's HEADLINE is idle — there is nothing to
+            # detect. Per-dispatch detectability for the rest lives on each
+            # row of `open_dispatches`, where it belongs.
             "review_detectable": (
-                True if back else
-                (recorder_read and bool(keys)
-                 and _within_window((w or {}).get("at"), window_floor))
-            ) if w else None,
+                headline["review_detectable"] if headline else None),
+            "open_dispatches": opens,
+            "working_count": sum(1 for o in opens if o["status"] == "working"),
+            "awaiting_review_count": sum(
+                1 for o in opens if o["status"] == "awaiting_review"),
             "last_delivered": row.get("last_delivered"),
         }
     return out
@@ -1862,10 +1984,12 @@ def view(store: Any, deskstore: Any = None,
     open_recs = [_annotated(r, index) for r in open_recs]
     killed = [a for a in artifacts if a["status"] == "killed"]
     return {
-        "roster": [{**r, "activity": activity.get(r["agent"],
-                                             {"status": "idle", "task": None,
-                                              "since": None,
-                                              "last_delivered": None})}
+        # `idle_activity()` and not a literal: the literal here was four keys
+        # against the fold's ten, so a roster agent outside `REQUEST_KINDS`
+        # served a differently-shaped activity object to the same consumers.
+        # Called per row rather than hoisted — each seat must own its dict, or
+        # a caller that annotates one annotates them all.
+        "roster": [{**r, "activity": activity.get(r["agent"], idle_activity())}
                    for r in ROSTER],
         "protocol": [
             "every artifact is falsifiable or it is rejected",
