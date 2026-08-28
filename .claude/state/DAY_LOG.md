@@ -178,6 +178,23 @@ active and directing throughout.*
   Leg B v2), builder HEAVY (crypto SecurityType unblock + fold floor + freshness
   guard + total_orders + merge-gate class repair, base a68b9ee4).
 
+### THE WEEKEND CHARTER (CEO 'Yup yup', ~15:35Z - binding for the co-CTO)
+- **Tonight**: HYG delivery falsifier at 00:00 ET (decisive either way). CEO
+  warned: an in-condition close fires a BUY ~09:35 IST SATURDAY, 2h expiry,
+  fills Monday open if clicked. Opus closes the build stack (crypto merge,
+  fixes, dossier store, Engine Room + dot + Lab merge, Reading Room).
+- **Sat-Sun, the strategic swing**: Ed BTC/ETH/SOL batch -> adversary -> quant
+  on the unblocked belt -> a NATIVE crypto candidate judged by Sunday night.
+  Dossier backfill -> Reading Room populated -> demo pack v1. Chair decisions
+  pre-made: archive gap backfills RETROSPECTIVELY; weekend chain runs under
+  standing dispatch rules.
+- **Mon 08-31**: P2/P3 evaluators by 12:00Z (Fable-owed). Market reopens: P1
+  first real marks (ETH-beta noise, read nothing into it). Tue 09-01: demo v1.
+- **Named risks**: SecurityType fix may land as the shim fallback (disclosed,
+  still judgeable); HYG may miss again (costs a probe, not the story); Sep 8
+  is the biggest money day ahead (TLT close + phase-2) - do not forget.
+- **VAULT PUSH executed on the CEO's word** ('Yup yup lets push').
+
 ### THE BASELINE FRAMING (CEO, ~14:40Z, verbatim)
 - 'agree we need to show how we are managing a crypto portfolio and performance
   metrics and risk everything. That builds our baseline that we expand and tune
