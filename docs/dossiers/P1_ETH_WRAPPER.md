@@ -6,7 +6,7 @@ every quote verbatim from the filed artifact it cites. Stages append; nothing
 is rewritten.**
 
 ```
-PROPOSED ✓ → REVIEWED ✓ → IMPLEMENTED ✓ → BELTED ✓ → DECIDED ✓ → SIZED ✓ → DEPLOYED … → LIVE ·
+PROPOSED ✓ → REVIEWED ✓ → IMPLEMENTED ✓ → BELTED ✓ → DECIDED ✓ → SIZED ✓ → DEPLOYED ✓ → LIVE ✓
 ```
 
 ---
@@ -93,7 +93,24 @@ the proposal passes the pre-trade risk gate and lands on his desk as one
 click. Monitoring commitment carried: TOTAL RETURN vs ETHA; Ed's replacement
 falsifier due 2026-09-05.
 
-## LIVE — not yet
+## DEPLOYED — 2026-08-28, the CEO's click
+
+Order b3eaf236 proposed by the chair (neelesh-via-cto, seq 1966). **The
+autopolicy DECLINED it (seq 1967) — correctly**: the v4 envelope auto-
+approves only pre-committed, risk-reducing sells, and a BUY waits for the
+human. **Approved by the CEO himself (actor neelesh, seq 1968, via the
+monitor tab)**; submitted (seq 1969, arrival 23.75); FILLED (seq 1972):
+**3.171247 shares @ $23.76 = $75.35, zero fees.** The machine refusing
+what is not its to approve, and the human click doing exactly what the
+governance chain says it does, are both part of this record.
+
+## LIVE — since 2026-08-28T14:18Z
+
+The fund's FIRST crypto position. Monitored by: the 30% stop (overnight-gap
+limitation accepted in writing), the 2026-11-26 mandatory re-decision, and
+the wrapper falsifier (trailing 3-month TOTAL-RETURN spread vs ETHA; Ed's
+declared-distributions replacement falsifier due 2026-09-05). Judged on
+total return vs ETHA at every PM review.
 
 *(This dossier was assembled by the chair from the record on 2026-08-28 as
 the lifecycle pilot; the builder's renderer takes over its maintenance when
