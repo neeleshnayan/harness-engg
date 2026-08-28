@@ -178,6 +178,20 @@ active and directing throughout.*
   Leg B v2), builder HEAVY (crypto SecurityType unblock + fold floor + freshness
   guard + total_orders + merge-gate class repair, base a68b9ee4).
 
+### P1 IS LIVE (the fund's first crypto position, ~14:18Z)
+- Order b3eaf236: proposed neelesh-via-cto -> **AutopolicyDeclined (CORRECT -
+  buys are not the envelope's to approve)** -> approved by the CEO himself
+  (seq 1968, monitor tab) -> FILLED 3.171247 ETH @ 23.76 = $75.35, zero fees.
+  **The full chain closed: Ed -> adversary -> belt -> CEO decision -> Stan
+  sizing -> chair staging (exits pre-committed) -> machine refusal by design
+  -> human click -> fill.** Dossier at LIVE. The demo-to-Vishesh story is
+  complete and every link is quotable from the record.
+- CEO desk feedback (third ask, verbatim): 'never able to find what you are
+  asking me to look on priority' - chair discipline adopted (everything the
+  chair names in chat gets blocks:true at filing + a stated location) and the
+  NOW strip (chair-flagged spotlight, max 3 cards, top of the desk, clears on
+  decision) queued for the next build slot.
+
 ### THE CEO'S BATCH RULING + P1 STAGED (afternoon)
 - **DECIDED (CEO, verbatim): the safety locks PARK FOR PROD** ('Since only I
   hqave access to our system we might not need the safety lock just yet but
