@@ -178,6 +178,36 @@ active and directing throughout.*
   Leg B v2), builder HEAVY (crypto SecurityType unblock + fold floor + freshness
   guard + total_orders + merge-gate class repair, base a68b9ee4).
 
+### TODAY'S CHARTER (CEO instruction ~14:30Z: top 10; Fable decides, the co-CTO runs)
+1. **Builder crypto-belt unblock returns -> verify + merge** (critical path; Tier-2
+   for the co-CTO ONLY if suites green on merged tree and no protected surface -
+   the SecurityType change touches leanrunner: if in doubt, queue for Fable).
+2. **HYG v2 bar falsifier, 00:00 ET tonight** (~09:35 IST Sat): first BAR line must
+   name the PREVIOUS session at its settled close. Either outcome recorded; a miss
+   = quant re-cuts the delivery finding.
+3. **Builder batch 2 brief drafted + queued**: TCA session-boundary class (F1),
+   approve-order guard ordering (F8), E1 market_session stamp (CEO-approved),
+   Leg B v2 reported-only wiring (CEO-approved), per-symbol mark rider.
+4. **Dossier store spec into the same batch**: fund_dossier_sections append-only +
+   Strategy Book page + the NOW strip (chair-flagged, max 3, clears on decision).
+5. **Backfill dispatch prepared** (runs after the store lands): every lineage to
+   date, killed first-class.
+6. **Ed crypto batch fired** (generation trigger: admissible pipeline below floor
+   after P1 deployed): BTC/ETH/SOL menu entries for the unblocked belt.
+7. **Donna EoD run** (Sonnet trial run 2 - judgement pass mandatory) + archive.
+8. **Day log + queue archival** (janitor's two proposals, chair-executed under the
+   versioned-context discipline; ~78k tokens).
+9. **Grace dispatch**: critical-path re-read after today (P1 live, belt unblocking,
+   TCA barred) - where does the next unit of anything go; token-economy read on the
+   Fable-decides/Opus-runs split the CEO ordered.
+10. **Vishesh demo pack v1**: walkthrough script around the P1 dossier + the
+    autonomous-fire audit + the live book. AWAITING THE CEO: the vault-push word
+    (~60 commits), the QuantConnect org account (his own act).
+
+**Division while tokens are managed (CEO instruction): Fable = discuss/decide
+sessions; the co-CTO (Opus) runs execution under its charter (Tier 1/2 only,
+queue everything else). The charter's non-negotiables unchanged.**
+
 ### P1 IS LIVE (the fund's first crypto position, ~14:18Z)
 - Order b3eaf236: proposed neelesh-via-cto -> **AutopolicyDeclined (CORRECT -
   buys are not the envelope's to approve)** -> approved by the CEO himself
