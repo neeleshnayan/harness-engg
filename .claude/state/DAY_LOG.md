@@ -142,6 +142,21 @@ active and directing throughout.*
   volume. Splitting lessons from map is proposed, not done.
 
 ### THE MORNING AFTER (Fri, chair live)
+- **DECIDED (CEO, chat): P1 IS PURSUED** ('yes on 1') - the ETH wrapper proceeds
+  on the post-staking evidence. Chain: Stan's sizing (in flight) -> chair stages
+  with exits pre-committed -> CEO clicks the deploy.
+- **DECIDED (CEO + chair verification): the shorting question is ANSWERED** -
+  the CEO never touched it; live config reads no_shorting=false / max margin 4x
+  = ALPACA'S PAPER DEFAULT. Residual: flip no_shorting=true as a pure tightening
+  (long-only mandate), awaiting the CEO's explicit confirm on the account change.
+- FRED key verified present in .env - that half of the accounts item was already
+  done; only the QuantConnect org remains (account creation is the CEO's).
+- **THE CEO'S STATED NEED (verbatim): 'What I need soon is a meaningful crypto
+  strategy going live; I have to demo how our system is working to vishesh
+  e2e.'** P1 is the vehicle: live this week on his click, with the full chain
+  (Ed -> adversary -> belt -> gate -> decision -> sizing -> deploy -> book) on
+  the record as the demo story. Direct crypto-pair candidate rides the
+  unblocked belt next.
 - **STAGE A COMPLETED ITSELF OVERNIGHT - the fund's first fully autonomous
   exit->approval->fill chain.** Three time exits (IWM/XLF/QQQ, sleeve_e2e_harness)
   fired 00:00:09-10 UTC; auto-policy-v4 approved all three ("every envelope
