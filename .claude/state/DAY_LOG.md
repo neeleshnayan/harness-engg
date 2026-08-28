@@ -200,6 +200,10 @@ active and directing throughout.*
    Leg B v2 reported-only wiring (CEO-approved), per-symbol mark rider.
 4. **Dossier store spec into the same batch**: fund_dossier_sections append-only +
    Strategy Book page + the NOW strip (chair-flagged, max 3, clears on decision).
+4b. **THE ENGINE ROOM rebuild (CEO instruction, added ~15:00Z)**: implement
+   docs/design/ENGINE_ROOM_2026-08-28.md - the pulse rail (expected vs received
+   bars; MISSED renders loudly), the belt lane, live-only book agreement,
+   curated caveats. KP work-layer; co-CTO may merge on green suites.
 5. **Backfill dispatch prepared** (runs after the store lands): every lineage to
    date, killed first-class.
 6. **Ed crypto batch fired** (generation trigger: admissible pipeline below floor
