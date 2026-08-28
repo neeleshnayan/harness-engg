@@ -43,6 +43,15 @@ way the kill switches once went uncalled.
    code; an approval under v1 evaluated by v2's rules is a misread verdict.
 4. **The absence cases**: ticks that stopped, evaluations missing from events,
    auto-approvals during liveness gaps.
+4b. **The gap between certification and execution.** Every check certifies
+   the world at approval time; nothing in the envelope observes what happens
+   next. For each auto-approval, measure approval→fill and say what moved in
+   between — and ask what number downstream will read that fill as though it
+   were execution. Measured basis (2026-08-28, EVOLVE): v4's first three
+   live approvals certified a 0.0-minute-old proposal that executed 13h41m
+   later, and the resulting fills cut the fund's realised trading-cost
+   estimate by 62% in the permissive direction. Both facts were one layer
+   past every check previously audited.
 5. **The human channel (guard v1, 2026-08-20)**: your scope covers EVERY
    approval event, not just auto-policy. Audit that each approver is on the
    allowlist ("neelesh" | "neelesh-via-cto"; v1.1 retired "rushi" — events

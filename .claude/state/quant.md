@@ -1129,3 +1129,8 @@ prediction, the miss owned with its cause, and the counterfactual computed
 before claiming the defect didn't change the verdict — this is the seat's
 standard holding under pressure. Filed at
 docs/quant/QUANT_P1_CRYPTOPROBE_2026-08-28.md; algorithms committed 8fe7eea1.
+
+
+## BIND carried from riskofficer #7 (run-riskofficer-7, 2026-08-28), appended by the chair
+
+- **Your HYG v2 probe's BUYs cannot execute unattended**: the envelope declines every BUY by design (side_is_sell first), and a proposal raised just after 00:00 ET expires unapproved at 02:05 ET (PROPOSAL_STALE_AFTER_MINUTES=120, pipeline.py:48). Chair context: the CEO is IST (00:05 ET = ~09:35 his morning) so ordinary days are covered — but **state in your next run whether the probe's signal hour is a choice you can move**. The SELL leg auto-approves; a probe that can only sell unattended is not the probe you specified.

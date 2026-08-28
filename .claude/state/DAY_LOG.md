@@ -178,6 +178,26 @@ active and directing throughout.*
   Leg B v2), builder HEAVY (crypto SecurityType unblock + fold floor + freshness
   guard + total_orders + merge-gate class repair, base a68b9ee4).
 
+### THE FIRST FIRE, AUDITED (afternoon)
+- **Riskofficer #7: all three auto-approvals CLEAN** - 15 checks re-verified
+  independently (predate margins 81.8/91.9/101.3s; marks 0.045-0.216% off the
+  strike; post-state reconcile 0/14; real alpaca-paper fills, +$2.00 on
+  $500.72 round trip). No OrderApproved has ever carried neelesh-via-cto.
+- **The two real findings are in the MONEY layer**: F1 the overnight fills cut
+  the realised trading-cost number 2.35 -> 0.89 bps at reliable:true (the
+  'backtests are conservative' verdict is NOT EARNED; builder fix queued,
+  Grace barred from citing it); F2 the envelope has no market-clock concept
+  (disclosure recommended, never a block). F3 /fund/risk/limits STILL
+  unguarded at the fourth ask -> CEO's desk; F4 exits endpoints unguarded +
+  the margin question ANSWERED (not a time value - authorship);
+  resume/acknowledge/rebases NOW guarded (Grace's blocker 1 closed).
+- Channel CLEAN: 119/119 sweep rows cited, 6/6 spot-checks verify; the 19
+  refusals were a working control firing at a human without the right button
+  (chair lesson: pair every refusal with its remedy's affordance). HYG v2 BUY
+  expiry noted with the chair's IST correction (00:05 ET = the CEO's
+  morning). Also this hour: strategy-lifecycle dossier design chartered + P1
+  pilot filed (94d3a647).
+
 ### P1 THROUGH THE FULL CHAIN (night)
 - **The crypto program's first candidate completed the whole chain SIX DAYS
   EARLY** (charter said ~Sep 3): Ed proposed -> adversary SURVIVED -> quant

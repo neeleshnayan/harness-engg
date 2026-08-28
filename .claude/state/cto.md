@@ -1291,3 +1291,8 @@ on it.
    among the holes; the note names the count) with the history recorded in
    the docstrings. Date-embedding assertions against real-clock folds are
    a defect class; sweep candidates at the next janitor pass.
+
+
+## 2026-08-28 — BIND from riskofficer #7, and the lesson is the chair's
+
+- **When a guard's remedy requires a different action, the surface must offer that action.** Nineteen refusals in seventeen minutes were ONE control firing correctly at a human who could not execute its remedy ("Strike NAV first") from the button he was holding. The record fills with retries and the next reader mistakes operability for attack. Applies to every refusal surface the chair stages: pair the refusal with its remedy's affordance.

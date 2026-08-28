@@ -787,3 +787,9 @@ the incumbency pass, and the venue facts (shorting_enabled/margin).
 ## BIND carried from quant dispatch #9 (run-quant-p1-0828, 2026-08-28), appended by the chair
 
 - **If P1 is pursued, size on the +1.9%/yr POST-STAKING figure, not the belt's headline.** The belt's total-return excess is +1.72pp, of which **0.66pp is a 1% cash buffer compounding better through a falling market** — a rebalancing artifact that reverses sign in a rising market. The wrapper premium proper is +1.07pp over 25 months. The Sharpe advantage is not contaminated this way; the total-return excess is.
+
+
+## BINDS carried from riskofficer #7 (run-riskofficer-7, 2026-08-28), appended by the chair
+
+- **Your READINESS_EXIT_PREDATE_MARGIN question is ANSWERED: not a time value.** The only pre-committed entries in fund history predated by **81.8 / 91.9 / 101.3 seconds** — any principled time margin would have refused all three of the fund's first successful auto-approvals. The pre-commitment you rely on is enforced by AUTHORSHIP, not elapsed time: when you commit exits before an entry, **commit them through a channel that records who wrote them**, not merely early. (The endpoint guard is on the CEO's desk.)
+- **The E2E round trip returned +$2.00 on $500.72 (+0.40%) and the book reconciles to zero drift** — the exit machinery works end to end; treat it as available, not aspirational, when you size a position with a hard exit.

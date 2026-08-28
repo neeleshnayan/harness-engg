@@ -485,3 +485,8 @@ Every threshold you recommend carries its own falsifier on the same line
 as the number (clause 4 - a decision staged without one is incomplete
 work). The adversary's 5-second check: grep your own artifact for
 falsifier|reopens|re-deriv before filing.
+
+
+## BIND carried from riskofficer #7 (run-riskofficer-7, 2026-08-28), appended by the chair
+
+- **Do not cite the fund's realised trading cost until it is re-published.** The headline "0.89 bps realised against 5.0 assumed, reliable" is CONTAMINATED: three overnight session-spanning fills moved it from 2.35 to 0.89 bps, and 100% of the sample is alpaca-paper (the classifier keys on connector name and cannot tell paper from live). Your blocker 1 (unguarded resume) is **CLOSED, verified in code** — bank it. Still open after four asks: /fund/risk/limits, the one that can disarm the halt.

@@ -502,3 +502,10 @@ work-layer propagating exactly as designed.
 - **`factory.effective_history_floor` derives the walk-forward floor from `lookback_days` against the wall clock** with `per_symbol: null` — for a 2024-launched pair it planned 12 folds from 2022-06-06 and doubled `folds_required` to 8 on folds that could never carry data (~16 wasted containers). The fix: a cheap live probe of each declared symbol's first bar.
 - **The equity freshness guard is unreachable on the live bars endpoint**: `bars_payload` reads `bars.freshness` when a `Bars` object is passed (`marketdata.py:384`) and the Alpaca equity fetcher stamps `series_freshness(dates)` (a 3-day crypto bound) unconditionally (`:178-190`) — `?symbol=ETH` returns `freshness: "live"` and a holiday-week equity would read `stale`.
 - **THE CRYPTO BELT BLOCKER (critical path)**: our crypto feed is `PythonData` -> `SecurityType.Base`, refused by `CashBuyingPowerModel` and by `CoinbaseBrokerageModel.CanSubmitOrder`, while the 365-day clock REQUIRES a crypto brokerage model — **the correct clock and fills are mutually exclusive**. The harness needs either a native crypto security path in the container or a brokerage-model shim; the chair decides the shape in your next batch brief.
+
+
+## BINDS carried from riskofficer #7 (run-riskofficer-7, 2026-08-28), appended by the chair
+
+- **tca.py needs a classification for a fill whose submit-to-fill window crosses a session boundary** — 8 of 25 "informative" fills exceed an hour, three exceed thirteen; the contaminated 0.89-bps "reliable" verdict feeds every backtest's cost assumption. (Next batch.)
+- **approve_order runs mark-sanity BEFORE the terminal-state check** (fund.py:5635-5639) — a re-click on a filled order writes an ApprovalRefused with a false reason (seq 1472 vs fill seq 1470). Reorder. (Next batch.)
+- Your jan1 BIND is **confirmed live**: the chair-identity set is re-spelled at fund.py:5601 and :5614, and deskcard._VIA_RE:425 admits an identity the guard refuses.

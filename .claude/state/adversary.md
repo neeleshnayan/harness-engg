@@ -929,3 +929,8 @@ docs/reviews/ADVERSARY_LEGB_MERGEGATE_2026-08-27.md.
 ## BIND carried from quant dispatch #9 (run-quant-p1-0828, 2026-08-28), appended by the chair
 
 - When you next review a wrapper- or share-class-selection artifact: the belt's stored `benchmark_population.population` names the TRADED symbol even when the benchmark series is a different one (`leanrunner.py:1828-1830`, `engine_single_name` branch — measured: label `["ETH"]`, series ETHA). A `must_beat_benchmark` or premia comparison against a non-traded bar is currently unauditable from the stored payload alone; demand `benchmark_series_source` and the series identity, not the label.
+
+
+## BIND carried from riskofficer #7 (run-riskofficer-7, 2026-08-28), appended by the chair
+
+- **Your N2 dollar-floor argument is MADE**, with the clause "not a better ceiling" REJECTED: keep the ceiling for corrupted fields AND add the floor for wrong-but-plausible ones. When you next attack v5's caps, attack the case that survives the ceiling — a NAV 10x too large but under $1e12 — because that is the one the ceiling cannot see. And add to your standard set: **when a control certifies a price, ask how long it is until that price is paid** (v4's first fire: certified at 0.0 minutes old, paid 13h41m later).

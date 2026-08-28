@@ -640,3 +640,44 @@ every check.
 ## BINDS carried from quant dispatch #8 (run-quant-hygv2-0828, 2026-08-28), appended by the chair
 
 - The first HYG engine signals (strategy e545c8ca, `hyg_fast_flip_probe_v2`) will arrive roughly **three per week, just after 00:00 ET, in alternating buy/sell pairs about one session apart**, each capped at $50. A BUY declined followed by an approved SELL would propose a short the fund cannot exit (the exit machinery only sells); the pre-trade refusal of that is expected behaviour and should be audited as a working control, not an incident. Also on your next batch: the chair stopped v1's session and committed v2's exits as neelesh-via-cto (2026-08-28) — audit that channel as always.
+
+
+## 2026-08-28 — STATE from run-riskofficer-7 (v4's first live fire), appended by the chair
+
+**2026-08-28 — dispatch 7 (run-riskofficer-7): v4's FIRST LIVE FIRE, audited. Three approvals CLEAN.**
+
+POPULATION seq 1-1950. OrderApproved: auto-policy-v1 x1 (seq 256), **auto-policy-v4 x3 (seq 1936/1938/1940)**, neelesh x16, rushi x16, rushi-via-cto x4. Code v4 == event v4, no drift. **No OrderApproved has ever carried neelesh-via-cto.**
+
+**THE THREE: CLEAN, all 15 checks re-verified against the world.** Rules seq 1548/1550/1552 @13:37:55; positions seq 1562/1567/1568 @13:39:16/27/36 -> **predate margins 81.8/91.9/101.3s**. Marks vs strike seq 1807: 0.045/0.017/0.216%. Post-state /fund/venue/reconcile 0 symbols out of sync. **Real Alpaca-paper fills** (avg != arrival), P&L **+$2.00 on $500.72 over 2 days**. Approved 00:00:11-13Z (20:00 ET, CLOSED); filled/observed 13:41:13-17Z (09:41 ET); submit_to_fill_s 49,263.
+
+**F1 HIGH LIVE, LOOSENING** — /fund/tca ate the overnight fills as execution cost. **n=25 mean 0.89 bps; minus the three, n=22 mean 2.35 bps.** XLF alone -36.10. `reliable: true` (bar 20, costassumption.py:41), verdict "backtests are conservative" against FUND_SLIPPAGE_BPS=5.0. tca.py has no session-boundary class. **RE-CHECK FIRST NEXT DISPATCH.**
+**F2 HIGH LIVE** — autopolicy.py (872 lines) + test_autopolicy.py (59 tests): ZERO market_open/is_open/session/clock. The fund wrote that rule twice elsewhere — NAV strike main.py:483-499, signal runner signals.py:216-224 ("queues it to fill on an opening auction nobody reviewed"). **Do NOT recommend blocking**: a fired exit fires once (autopolicy.py:185-192) and expires at 120min (pipeline.py:48) — queueing to the open is the only way it executes. E1 = record market_session, block nothing.
+**F3 HIGH LIVE, FOURTH ASK** — /fund/risk/limits fund.py:7394-7399 still UNGUARDED; riskmonitor.py:643-658 no guard, no reason, cur_dict.update swallows unknown keys. **resume (:7493), halt/acknowledge, both rebases NOW GUARDED — dispatch-2 F4 half and Grace's blocker 1 CLOSED.** halt (:7400) unguarded is CORRECT (tightening).
+**F4 MED-HIGH** — /fund/exits (:5181) and /fund/exits/override (:5286) unguarded, free-text actor; the second disarms a stop. **ANSWERED READINESS_EXIT_PREDATE_MARGIN: NOT a time value.** A 5- or 15-min margin would have refused all three first auto-approvals (81.8/91.9/101.3s measured). The threat is AUTHORSHIP; fix with the existing guard on the exit endpoints.
+**F5 MED** — tca.py:125-137 `informative` keys on connector NAME; permitted_connectors=("alpaca",) for BOTH paper and live (mode.py:243-262). 100% of the "reliable" cost sample is alpaca-paper. **v5 draft CLEAN on this (autopolicy_v5_draft.py:297-310, 915-926 read venue_kind + real_money).**
+**F6 MED** — mark_corroborated bounds the move, never the AGE. Strike was 4h59m old; nav_strike NOT in REQUIRED_HEARTBEATS (autopolicy.py:170); /fund/liveness reports 11 holes, worst 36.7h.
+**F7 MED** — **25.0% of NAV auto-approved in 3.59s** against a 20% PER-ORDER cap. Dispatch-2 F5 now demonstrated live at $502.16. Still do NOT recommend a hard block; DEFER only.
+**F8 LOW** — mark-sanity runs BEFORE the terminal check (fund.py:5635-5639): seq 1472 wrote an ApprovalRefused on an order filled at seq 1470, 3.7s earlier.
+**F9 LOW LATENT, 0 occurrences** — allowlist re-spelled inline at fund.py:5601 and :5614 (jan1 BIND CONFIRMED); deskcard._VIA_RE:425 admits `ceo-via-cto`, which the guard refuses.
+
+**CLEAN, said loudly**: 119/119 sweep rows carry a citation, 6 spot-checked all verify (test count exactly 59). **The 14 supersession_readable: null are INTENDED** — all status noted; fund.py:2784-2787 states the three-valued contract; **no false has ever been written**. 18 AutopolicyDeclined all correct. 19 ApprovalRefused = **one control firing correctly 19 times at a human who could not execute its remedy** — a retry pattern, not a probe; NavStruck seq 1480 cleared it legitimately. Fee-term exposure ZERO (charges_anything: false) and **no v4 check can be loosened by a fee accrual** — accrual tightens the only NAV-relative one. freshness HAS fired (seq 1509-1511).
+
+**N2 MADE, one clause rejected.** v5 gathers nav once (:854), five caps divide by it. **v4 never needed it because its four position checks bind the order to a broker-confirmed holding — a corrupt NAV makes v4's cap vacuous but cannot manufacture size.** Sharpenings: MIN(pct, $) as TWO recorded checks not one; the floor must not derive from NAV. **REJECTED "not a better ceiling"** — keep both: the ceiling catches absurd (1e308), the floor catches wrong-but-plausible ($20k for a $2k fund), and only the second is likely. Values are the CEO's; operating envelope they must clear: largest auto-approved order **$169.16**, largest auto-approved day **$502.16**, engine probe $50/signal.
+
+**HYG v2**: session cac66668c056 live, strategy e545c8ca, exits loss_pct 2.0 + time 2026-09-04 set 2026-08-27T18:48:44/45Z by neelesh-via-cto (**brief said 08-28; record says 08-27**), no HYG position so they predate by construction. **Every BUY will be DECLINED on side_is_sell and left pending — working control.** THE REAL PROBLEM AS FILED: signals fire just after 00:00 ET, proposals expire at 120min -> a BUY expires at 02:05 ET unapproved.
+
+**METHOD THAT PAID**: (1) compare a check's claim against an INDEPENDENT event — liveness_exit_check is corroborated by seq 1931/1933/1935; the other two liveness checks are **structurally unverifiable after the fact** (heartbeat.py:22-28, in-memory by design) and I said so rather than passing them. (2) Ask what a control's number does DOWNSTREAM: the approvals were clean and the fills poisoned the cost model — the money was one layer past the envelope. (3) **Guard sweeps must respect function boundaries** — my 60-lines-after-decorator scan gave a FALSE POSITIVE that /fund/risk/limits was guarded.
+
+**NEXT**: (1) F1 — has the cost verdict been re-published excluding session-spanning fills? (2) F2 — did market_session land on the payload? (3) F3 fifth ask. (4) F4 — guard on /fund/exits? (5) First HYG BUY: audit the decline AND whether it expired unapproved. (6) GET /fund/autopolicy — ninth ask. (7) F8's guard ordering.
+
+**CTO note at resolve (Fable chair, same day)**: the audit's shape is the
+seat at its best — a clean verdict said cleanly, and the real exposure found
+one layer PAST the thing audited. Your F1 re-publish and F8 ordering are the
+builder's next batch (chair-owed); the three control-layer guards ride to
+the CEO with your measurements attached; your margin answer is carried to
+Stan verbatim. ONE CHAIR CORRECTION on the HYG expiry: the CEO is IST —
+00:05 ET is ~09:35 his morning, so the click path is reachable on ordinary
+days; your disclosure stands for travel days. Your own false-positive
+confession (the 60-line guard sweep) and the two liveness checks you refused
+to pass are why this channel is trusted. Filed at
+docs/riskofficer/RISKOFFICER_7_2026-08-28.md.
