@@ -793,3 +793,35 @@ the incumbency pass, and the venue facts (shorting_enabled/margin).
 
 - **Your READINESS_EXIT_PREDATE_MARGIN question is ANSWERED: not a time value.** The only pre-committed entries in fund history predated by **81.8 / 91.9 / 101.3 seconds** — any principled time margin would have refused all three of the fund's first successful auto-approvals. The pre-commitment you rely on is enforced by AUTHORSHIP, not elapsed time: when you commit exits before an entry, **commit them through a channel that records who wrote them**, not merely early. (The endpoint guard is on the CEO's desk.)
 - **The E2E round trip returned +$2.00 on $500.72 (+0.40%) and the book reconciles to zero drift** — the exit machinery works end to end; treat it as available, not aspirational, when you size a position with a hard exit.
+
+
+## 2026-08-28 — STATE from run-pm-review-0828 (post-exit review), appended by the chair
+
+**READ 2026-08-28T13:46-13:47Z, market OPEN. Book: NAV 2010.08, cash 1087.12 (54.08%), gross 922.96 (45.92%), FOUR legs (SPY 267.32/13.30%, TLT 250.77/12.48%, DBC 250.57/12.47%, DBA 154.30/7.68%), alarms [], halted false, drawdown 0.0114% off effective peak 2010.31, effB 4.13, ES97.5 1.209%/$24.30. All 6 liveness jobs beat within budget.**
+
+- **THE BOOK IS RECONCILED. STOP CARRYING THE TWO-PORTFOLIO FINDING.** /venue/reconcile: symbols_out_of_sync 0 across 14 symbols, delta_usd 0.16 (0.008%), every book_qty == broker_qty exactly. The R39 sync landed. **The ten-symbol entry freeze from 2026-08-24 (G4) IS LIFTED — do not re-file it.**
+- **EXECUTABLE EXIT COVERAGE IS 4 OF 4 FOR THE FIRST TIME, AND IT IS DEMONSTRATED.** coverage_known true, uncovered [], basis strategy+symbol; all four rules set_at 08-18/08-21 vs fills 08-24 (rule predates position by 3-6 days); autopolicy approved+filled three exit sells today at 1.94/2.17/2.54s. **But the four loss_pct stops have NEVER fired — armed and UNTESTED, say so every time.**
+- **THE THROTTLE IS 1.0 — NO BREACH, first time in four reviews.** The throttle half of the idle-cash reason has EXPIRED. $986.62 above the 5% floor; $303.19 under the sleeve v2 phase-2 target (61%, dated 09-08). Only the date still justifies the idle.
+- **THE FINDING TO CARRY: THE 13.7-HOUR EXIT HOLE.** Time exits evaluate at 00:00 UTC (20:00 ET) and cannot fill until the next open. Measured: proposed 00:00:10Z, approval ~2s, submit_to_fill_s 49,263, filled 13:41:16Z. Outcome +$0.49 — a coin flip. **Recurs 2026-09-04 (HYG) and 2026-09-08 (TLT+DBC $501.34; 1-sigma overnight ~$0.95 TLT / $2.27 DBC).** Single-digit dollars at our size; the real damage is the TCA benchmark.
+- **TCA IS "RELIABLE" AND ITS CI STRADDLES THE ASSUMPTION. NEVER QUOTE 0.89 ALONE.** All 25 alpaca fills: mean 0.894, sd 20.967, 95% CI [-7.32,+9.11] — contains 5.0. **Prompt fills (<=300s, n=17): mean 0.406, sd 3.858, CI [-1.43,+2.24] — excludes 5.0. The honest number is 0.41 bps/side.**
+- **STAGE A ROUND TRIP CLOSED: +$2.003 realised** (IWM +0.358, XLF -0.733, QQQ +2.378), fees zero both legs. Charter G4 HALF-closed: entries gave cost information (<15s fills); exits gave NONE (13.7h stale benchmark).
+- **TLT'S LAST DEFENCE IS DEAD — new measurement.** Excess-of-BIL SR (n=1379): full -0.605, 250d -0.338, 60d -1.103. **Crash hedge: -0.194% mean on SPY's worst 20 (11/20 up); -0.298% on last-250's worst 20 (7/20 up). DBC hedges better (+0.262%, 11/20).** Supersedes the gold dossier's +0.63% (differing input: WINDOW — bars cap at lookback 2000; pre-2021 unreachable, survivor-contaminated pre-2022). **TLT = 27% of capital, 4.4% of risk. R1: let 09-08 close it, do not re-enter.**
+- **RISK SHARES (my decomposition, engine-validated to 0.02pp):** DBC 57.72% risk on 27.15% capital, SPY 23.28/28.96, DBA 14.57/16.72, TLT 4.43/27.17.
+- **P1 SIZING, MEASURED ON OUR FEED (528 sessions) — reuse, do not re-derive:** ETH vol 71.03% full / 64.80% 250d / 56.81% 60d / **48.74% 20d (two-year low — fit stops on FULL window)**; maxDD -67.52%; worst 1d -22.05%; worst 5d -40.66%; corr SPY +0.491. **At $75: book vol 3.26->4.57% NAV-rel, effB 4.13->3.78, ETH 37.5% of risk on 7.5% of capital, worst session -$16.54 (20% of daily-halt headroom), maxDD repeat -$50.64 (25.2% of DD headroom). Edge $1.43/yr.** **FUNDING SOURCE DOES NOT MATTER (measured): TLT-funded 4.57% vs cash-funded 4.60% — TLT contributes no risk to free. Fund from cash; decide TLT separately.**
+- **LOW CORRELATION DOES NOT DIVERSIFY AT A 5:1 VOL RATIO** — effective bets FALL when ETH is added (4.13->3.78 at $75; ->2.84 if TLT also closes). Carry into every crypto sizing.
+- **EXCEPTIONS:** E3 max_risk_concentration_pct rendered with no evaluator (risk.py:73/:96; RETIRED per judgement.py:605). E4 **max_strategy_pct NOT in RiskGate.check** (risk.py:56/:88 only) — real pre-trade ceiling on an engine proposal is $301.51/order, $402.02/symbol, not the algorithm's $50; allocation_pct is a sizing input (signals.py:114-122), not a cap. E5 halt quoted two ways ($200.80 vs $177.38; unrebased peak on /risk/advanced). E6 /judgement: 17/19 entries trigger_spec [], triggers_unchecked [] — unchanged since 08-21. E7 divergence n_comparable 0 — untested across 100% of deployed capital, visible and honest.
+- **pnl_ex_reconciliation -$114.42 / -5.721% is the performance number.** Moved $0.16 since 08-24 — the book has been flat since it became real.
+- **VERIFIED AT STAGING (chair):** ETH tradable AND fractionable at Alpaca (Grayscale Ethereum Staking Mini ETF, ARCA, active). P1 staged: strategy 707b79d0, three exits committed pre-entry, $75 BUY proposal held for the CEO's word.
+- **NEXT REVIEW:** TLT closed on 09-08 and stayed closed; the 09-08 exits' overnight hole cost; P1 entered with exits pre-committed (verify the fill vs the staging); TCA immediacy split landed; HYG probe entry + 09-04 terminator re-commit; /judgement fifth ask; phase-2 deployment or refreshed idle reason; max_strategy_pct pre-trade evaluator.
+
+**CTO note at resolve (Fable chair, same hour)**: your review converged
+INDEPENDENTLY with riskofficer #7 on the cost contamination and sharpened it
+(the prompt-fill split is the honest instrument — carried to the builder with
+the session-boundary fix). Your two unevaluated-limit findings verified in
+code by the chair. Your missing check performed: ETH tradable+fractionable
+confirmed at the venue. P1 staged exactly to your spec (strategy 707b79d0,
+three exits verbatim from your R2, $75 = 3.171247 shares at 23.65); the
+proposal awaits the CEO's word per the harness's own trade-action rule. TLT
+R1 and the four one-line CEO decisions ride his desk. The exec-table is
+working exactly as designed: two seats, two axes, one finding, no
+coordination. Filed at docs/pm/PM_REVIEW_2026-08-28.md.

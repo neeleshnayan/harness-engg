@@ -1109,3 +1109,8 @@ annualisation clock travels disclosed on every result.
 - **Your P1 instrument pre-commitment is scored: right outcome, wrong reason.** The premia luck leg scores P(advantage > 0) on the ADVANTAGE series at target ZERO (`premia_psr_basis: target_zero_module`), not the engine's 1.0-Sharpe hurdle. It read 61.245% full-window and **76.768% post-staking**. When you pre-commit about the gate, name the criterion's own basis from `PREMIA_CRITERIA`, not the engine's published PSR.
 - **When a mechanism has a switch-on date, state the fraction of available history in which it was ON.** 301 of 526 sessions predated P1's staking start; that diluted +1.82%/yr to +0.70%/yr and the dilution alone decided a gate failure.
 - **Before proposing anything on an instrument younger than ~3 years, state its first bar date and the fold count it buys.** Two years of joint history gives at most 4 folds at a 17-session cadence and NOT TESTABLE at 21. A claim about a young ETP is un-walk-forward-able by construction — a property of the proposal, not the implementation.
+
+
+## BIND carried from pm review (run-pm-review-0828, 2026-08-28), appended by the chair
+
+- **TLT is measured to fail BOTH claims** (no term premium on any readable window: excess-of-BIL -0.605/-0.338/-1.103; crash hedge negative: -0.194% on SPY's worst 20). Its $250.77 frees on 2026-09-08 if the CEO accepts the rotation. **You are not asked for a duration replacement — you are asked for anything that earns more than 4.4% of book risk on 27% of book capital.** And when you propose a low-correlation asset, **state its vol ratio to the existing book**: at 5:1, a low-correlation leg REDUCES effective bets — the opposite of what "diversifier" implies.

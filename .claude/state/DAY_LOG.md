@@ -178,6 +178,34 @@ active and directing throughout.*
   Leg B v2), builder HEAVY (crypto SecurityType unblock + fold floor + freshness
   guard + total_orders + merge-gate class repair, base a68b9ee4).
 
+### THE CEO'S BATCH RULING + P1 STAGED (afternoon)
+- **DECIDED (CEO, verbatim): the safety locks PARK FOR PROD** ('Since only I
+  hqave access to our system we might not need the safety lock just yet but
+  park it for PROD / rest is approved') — docs/PROD_UNLOCK_CHECKLIST.md
+  created: risk-limits guard, exits guards + margin registration, no_shorting
+  flip, confirmEcho, the F9 latent pair. Falsifier written in: a second
+  person, real money, or an unexplained guarded-class write reopens everything
+  immediately.
+- **APPROVED in the same ruling**: E1 market-session disclosure (builder
+  queue); R1 TLT closes 09-08 and is NOT re-entered; R4 the overnight exit
+  gap ACCEPTED IN WRITING at current size; R6 the $301.51 engine ceiling
+  accepted in writing (Stage B3 may proceed on the real path); R3 Leg B v2
+  ships REPORTED-ONLY (P2 Leg B resolved); R7 the 09-08 phase-2 date stands
+  as the idle-cash reason.
+- **STAN'S REVIEW RESOLVED** (first reconciled book: executable exit coverage
+  4/4 demonstrated; TLT fails both claims on new measurement; TCA precision
+  trap converged independently with riskofficer #7 — prompt-fill cost 0.41
+  bps, CI excludes the 5.0 assumption). STATE + 7 BINDS carried; ETH
+  tradability verified by the chair (tradable + fractionable, ARCA).
+- **P1 IS ON THE CEO'S DESK**: strategy 707b79d0 registered, three exits
+  committed PRE-proposal (30% stop / 2026-11-26 re-decision / total-return
+  thesis falsifier), BUY proposed order b3eaf236 ($75.19 @ 23.71,
+  pending_approval, risk gate passed). Dossier at DEPLOYED-staged.
+- **Lifecycle design amended (CEO)**: dossiers become POSTGRES-DURABLE
+  (append-only fund_dossier_sections; document-at-any-date = a query) with a
+  FULL BACKFILL of every lineage iterated to date, killed ones first-class.
+  Builder ships the store next slot; backfill dispatch follows.
+
 ### THE FIRST FIRE, AUDITED (afternoon)
 - **Riskofficer #7: all three auto-approvals CLEAN** - 15 checks re-verified
   independently (predate margins 81.8/91.9/101.3s; marks 0.045-0.216% off the

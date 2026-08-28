@@ -1336,3 +1336,8 @@ will never say that.**
 ## BINDS carried from quant dispatch #9 (run-quant-p1-0828, 2026-08-28), appended by the chair
 
 - **Two counters render absence as zero, both yours to price**: `folds_before_data_path_reach` reported **0** while 3 of 12 folds placed no trades at all; and `robustness.total_orders` counted an order the brokerage declared INVALID (measured: 1 order, 0 fills), which is the field `min_orders` reads. **Census how many stored candidates have `total_orders` above their fill count** (chair-accepted, due 2026-09-01).
+
+
+## BIND carried from pm review (run-pm-review-0828, 2026-08-28), appended by the chair
+
+- The fund's cost verdict reports `reliable: true` at n=25 while its 95% CI **contains the assumption it claims to beat** (mean 0.894, sd 20.967, CI [-7.32,+9.11] vs assumed 5.0). **`reliable` is a sample-size flag being read as a precision claim.** Audit whether any other endpoint labels a statistic reliable on count alone — your per-observation-precision rule is the instrument.

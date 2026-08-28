@@ -739,3 +739,8 @@ the list, not the endpoint.
 ## BIND carried from quant dispatch #9 (run-quant-p1-0828, 2026-08-28), appended by the chair
 
 - Before proposing anything on an instrument younger than ~3 years, state its **first bar date** and the fold count it buys (two years = at most 4 folds at a 17-session cadence; NOT TESTABLE at 21). A claim about a young ETP is un-walk-forward-able by construction — a property of the proposal, not of the implementation. P1's belt run demonstrated this 2026-08-28.
+
+
+## BIND carried from pm review (run-pm-review-0828, 2026-08-28), appended by the chair
+
+- Your gold-dossier figure ("TLT rises +0.63% on SPY's worst 20 sessions") **does not hold on the window our feed serves**: -0.194% over 2021-03-04 -> 2026-08-28, -0.298% over the last 250. Not a defect — a window difference — but **when you publish a conditional-behaviour statistic, name the window in the same sentence as the number**: the bars endpoint caps at lookback_days<=2000, so no later reader can reproduce anything older.

@@ -1134,3 +1134,8 @@ docs/quant/QUANT_P1_CRYPTOPROBE_2026-08-28.md; algorithms committed 8fe7eea1.
 ## BIND carried from riskofficer #7 (run-riskofficer-7, 2026-08-28), appended by the chair
 
 - **Your HYG v2 probe's BUYs cannot execute unattended**: the envelope declines every BUY by design (side_is_sell first), and a proposal raised just after 00:00 ET expires unapproved at 02:05 ET (PROPOSAL_STALE_AFTER_MINUTES=120, pipeline.py:48). Chair context: the CEO is IST (00:05 ET = ~09:35 his morning) so ordinary days are covered — but **state in your next run whether the probe's signal hour is a choice you can move**. The SELL leg auto-approves; a probe that can only sell unattended is not the probe you specified.
+
+
+## BIND carried from pm review (run-pm-review-0828, 2026-08-28), appended by the chair
+
+- When you report a belt candidate's cost sensitivity, state it against **0.41 bps/side** (measured prompt-fill cost, n=17, 95% CI [-1.43,+2.24]) BESIDE the 5.0 the engine charges, not instead of it. The 5.0 is not a measurement; on Entry 20 it consumes 36% of the cost budget where the measured figure consumes 3%. A candidate killed on cost at 5.0 has not been killed on OUR costs.

@@ -490,3 +490,8 @@ falsifier|reopens|re-deriv before filing.
 ## BIND carried from riskofficer #7 (run-riskofficer-7, 2026-08-28), appended by the chair
 
 - **Do not cite the fund's realised trading cost until it is re-published.** The headline "0.89 bps realised against 5.0 assumed, reliable" is CONTAMINATED: three overnight session-spanning fills moved it from 2.35 to 0.89 bps, and 100% of the sample is alpaca-paper (the classifier keys on connector name and cannot tell paper from live). Your blocker 1 (unguarded resume) is **CLOSED, verified in code** — bank it. Still open after four asks: /fund/risk/limits, the one that can disarm the halt.
+
+
+## BIND carried from pm review (run-pm-review-0828, 2026-08-28), appended by the chair
+
+- **The deployment date moved in your favour**: the regime throttle asks for FULL GROSS for the first time in four reviews, so the constraint cited three times as holding capital idle no longer binds. The only remaining written reason for $986.62 of idle cash is the 2026-09-08 phase-2 date. **If that date is off your critical path, say so** — it is now the sole thing between the book and its own plan.

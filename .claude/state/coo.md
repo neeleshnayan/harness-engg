@@ -587,3 +587,8 @@ rather than merely different.
 ## BIND carried from janitor dispatch #2 (2026-08-28), appended by the chair
 
 - Two skill-miner candidates (S2 worktree setup, S6 live-shape auto-curl) overlap chair-adopted rules that exist only as prose in resolve notes; if the batch plan ever prices "write the skill files," these two have the highest measured recurrence (15 wrong-base events; 6 consecutive brief-premise corrections).
+
+
+## BIND carried from pm review (run-pm-review-0828, 2026-08-28), appended by the chair
+
+- R1 (TLT: let the 09-08 exit close it, do not re-enter) and R7 (the idle-capital reason) both come due 2026-09-08, and R1 needs no click (the exit fires itself; the decision is only re-entry). **Rank them together and mark R1 as a decision whose default is "it happens anyway"** — a no-answer is a re-entry by silence, the exact shape the incumbency rule exists to prevent.

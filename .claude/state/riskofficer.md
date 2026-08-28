@@ -681,3 +681,8 @@ days; your disclosure stands for travel days. Your own false-positive
 confession (the 60-line guard sweep) and the two liveness checks you refused
 to pass are why this channel is trusted. Filed at
 docs/riskofficer/RISKOFFICER_7_2026-08-28.md.
+
+
+## BIND carried from pm review (run-pm-review-0828, 2026-08-28), appended by the chair
+
+- When you audit the next dated-exit approvals (09-04, 09-08): approval and execution were **13.7 hours apart** on the first three — the envelope's freshness and mark checks applied to the approval instant, and the fill printed against a different market. **Ask whether the envelope's staleness bound applies to approval or to fill** — and note the PM's measured magnitudes (1-sigma overnight ~$0.95 TLT / $2.27 DBC on the 09-08 pair).
