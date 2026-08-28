@@ -200,6 +200,11 @@ active and directing throughout.*
    Leg B v2 reported-only wiring (CEO-approved), per-symbol mark rider.
 4. **Dossier store spec into the same batch**: fund_dossier_sections append-only +
    Strategy Book page + the NOW strip (chair-flagged, max 3, clears on decision).
+4c. **THE READING ROOM (CEO instruction, ~15:10Z)**: implement
+   docs/design/READING_ROOM_2026-08-28.md - the firm in writing: five shelves
+   (dossiers with stage rails, Donna's daily record, research, reviews/audits,
+   canon), editorial design, and the CURATED INVESTOR VIEW (default internal;
+   CEO marks visibility; toggle renders only the curated set). Work-layer.
 4b. **THE ENGINE ROOM rebuild (CEO instruction, added ~15:00Z)**: implement
    docs/design/ENGINE_ROOM_2026-08-28.md - the pulse rail (expected vs received
    bars; MISSED renders loudly), the belt lane, live-only book agreement,
