@@ -141,6 +141,28 @@ active and directing throughout.*
   read-through catches that make the seat valuable come from the lessons, not the
   volume. Splitting lessons from map is proposed, not done.
 
+### THE MORNING AFTER (Fri, chair live)
+- **STAGE A COMPLETED ITSELF OVERNIGHT - the fund's first fully autonomous
+  exit->approval->fill chain.** Three time exits (IWM/XLF/QQQ, sleeve_e2e_harness)
+  fired 00:00:09-10 UTC; auto-policy-v4 approved all three ("every envelope
+  check passed - auto-approving a pre-committed, risk-reducing close", seqs
+  1936/1938/1940); submitted; ALL THREE FILLED on alpaca paper (IWM 0.558 @
+  299.71, XLF 2.862 @ 58.09, QQQ 0.235 @ 719.76; seqs 1942-1944). Riskofficer
+  batch dispatched to audit every one against its recorded evaluation.
+- **THE HOST REBOOTED ~13:04 UTC** - spine, dev server, and the HYG v2 live
+  session died. Recovered in runbook order: postgres up, spine relaunched
+  (liveness 200), KP dev server up, HYG v2 relaunched (session cac66668c056).
+- **HYG v2 GOT NO BAR OVERNIGHT** (session was alive 19:16 UTC -> reboot; the
+  predicted 00:00-ET-plus-30-min bar never appeared; feed verified healthy and
+  carrying the 08-27 row). CANNOT TELL yet whether the delivery fix failed live
+  or the container died quietly - the BAR heartbeat only fires ON a bar, the
+  exact blind-spot half v2 did not close. Tonight's 00:00 ET is the decisive
+  observation; the quant re-cuts the finding if it misses again.
+- Morning bench: riskofficer (auto-approval audit + via-cto channel + HYG bridge
+  + N2), Stan (post-exit book review + incumbency + conditional P1 sizing +
+  Leg B v2), builder HEAVY (crypto SecurityType unblock + fold floor + freshness
+  guard + total_orders + merge-gate class repair, base a68b9ee4).
+
 ### P1 THROUGH THE FULL CHAIN (night)
 - **The crypto program's first candidate completed the whole chain SIX DAYS
   EARLY** (charter said ~Sep 3): Ed proposed -> adversary SURVIVED -> quant
