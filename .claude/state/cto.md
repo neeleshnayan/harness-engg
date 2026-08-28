@@ -1296,3 +1296,14 @@ on it.
 ## 2026-08-28 — BIND from riskofficer #7, and the lesson is the chair's
 
 - **When a guard's remedy requires a different action, the surface must offer that action.** Nineteen refusals in seventeen minutes were ONE control firing correctly at a human who could not execute its remedy ("Strike NAV first") from the button he was holding. The record fills with retries and the next reader mistakes operability for attack. Applies to every refusal surface the chair stages: pair the refusal with its remedy's affordance.
+
+
+## 2026-08-28 — standing instruction (CEO, verbatim): 'Keep me honest and clear'
+Given at the P1-live moment, atop the plain-English mandate. Operational
+meaning the chair holds itself to: lead with what is true before what is
+flattering (the gate FAILED P1 and the CEO heard that first); absence and
+untested state stated every time (armed-but-never-fired stops, barred TCA
+number); every number carries its caveat in the same sentence, not a
+footnote. The crypto program's bar is the full portfolio-management surface
+(performance + risk + audit) as the per-asset-class template - not a
+strategy count.

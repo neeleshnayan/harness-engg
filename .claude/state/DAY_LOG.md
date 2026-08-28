@@ -178,6 +178,16 @@ active and directing throughout.*
   Leg B v2), builder HEAVY (crypto SecurityType unblock + fold floor + freshness
   guard + total_orders + merge-gate class repair, base a68b9ee4).
 
+### THE BASELINE FRAMING (CEO, ~14:40Z, verbatim)
+- 'agree we need to show how we are managing a crypto portfolio and performance
+  metrics and risk everything. That builds our baseline that we expand and tune
+  as we move to different asset classes. Keep me honest and clear.'
+- Chair's reading: the crypto demonstration's success criterion is the FULL
+  PORTFOLIO-MANAGEMENT SURFACE on crypto - positions, performance attribution,
+  risk, exits, audit - as the reusable template per asset class; not merely a
+  strategy live. 'Keep me honest and clear' recorded as a standing instruction
+  on every CEO-facing surface.
+
 ### TODAY'S CHARTER (CEO instruction ~14:30Z: top 10; Fable decides, the co-CTO runs)
 1. **Builder crypto-belt unblock returns -> verify + merge** (critical path; Tier-2
    for the co-CTO ONLY if suites green on merged tree and no protected surface -
