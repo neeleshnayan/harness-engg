@@ -205,7 +205,11 @@ active and directing throughout.*
    (dossiers with stage rails, Donna's daily record, research, reviews/audits,
    canon), editorial design, and the CURATED INVESTOR VIEW (default internal;
    CEO marks visibility; toggle renders only the curated set). Work-layer.
-4b. **THE ENGINE ROOM rebuild (CEO instruction, added ~15:00Z)**: implement
+4b. **THE ENGINE ROOM rebuild (CEO instruction, added ~15:00Z; AMENDED ~15:20Z)**:
+   now includes the NAV STATUS DOT (green pulsing = session running, red = none,
+   grey = spine unreachable - unknown never renders as a value) and the LAB
+   MERGE: one Engine page, sub-views Bench -> Belt -> Live, governance gates
+   rendered explicitly in the flow. implement
    docs/design/ENGINE_ROOM_2026-08-28.md - the pulse rail (expected vs received
    bars; MISSED renders loudly), the belt lane, live-only book agreement,
    curated caveats. KP work-layer; co-CTO may merge on green suites.
