@@ -6,7 +6,7 @@ every quote verbatim from the filed artifact it cites. Stages append; nothing
 is rewritten.**
 
 ```
-PROPOSED ✓ → REVIEWED ✓ → IMPLEMENTED ✓ → BELTED ✓ → DECIDED ✓ → SIZED … → DEPLOYED · → LIVE ·
+PROPOSED ✓ → REVIEWED ✓ → IMPLEMENTED ✓ → BELTED ✓ → DECIDED ✓ → SIZED ✓ → DEPLOYED … → LIVE ·
 ```
 
 ---
@@ -64,20 +64,34 @@ ceo). Honest framing preserved from the belt stage: the gate said the window
 is too young, and the decision consciously overrides on the mechanism
 evidence.
 
-## SIZED — pending (Stan, in flight 2026-08-28)
+## SIZED — 2026-08-28 (Stan, run-pm-review-0828)
 
-Conditional sizing memo dispatched the same morning. Basis bound in advance:
-size on the **+1.9%/yr post-staking figure**, not the belt's +1.72pp headline
-(0.66pp of which is a cash-buffer rebalancing artifact that reverses sign in
-a rising market). A NEW ~70%-vol ETH position — the fund holds no ETHA, so
-the wrapper is a free improvement on a position being chosen, not a swap.
+**$75 (3.73% of NAV), funded from cash** — measured, not defaulted: funding
+from a TLT trim gives identical book vol because TLT contributes no risk to
+free. ETH measured on the fund's own feed (528 sessions): vol 71.03%
+full-window (the 20-day reading is a two-year LOW — stops fitted on the full
+window), maxDD −67.52%, worst session −22.05%. At $75 the book's vol goes
+3.26%→4.57%, effective bets FALL 4.13→3.78 (low correlation does not
+diversify at a 5:1 vol ratio), and ETH carries **37.5% of book risk on 7.5%
+of invested capital**. **The expectancy stated plainly: the wrapper edge is
+$1.43/yr against $50.64 of measured downside — the premium is the right
+instrument, not the reason; the reason is crypto operational experience (the
+2026-08-27 crypto-first amendment).** Exits specified: 30% stop (with the
+overnight-gap limitation written in as an accepted risk), 2026-11-26
+mandatory re-decision, and the wrapper's own falsifier (trailing 3-month
+TOTAL-RETURN spread vs ETHA turns negative → re-underwrite as a naked ETH
+bet).
 
-## DEPLOYED — not yet
+## DEPLOYED — staged 2026-08-28, awaiting the CEO's click
 
-Requires: Stan's sizing → chair stages through the ordinary propose path
-with exits committed BEFORE entry → the CEO's click. Monitoring commitment
-carried from review: judged on TOTAL RETURN vs ETHA; Ed's replacement
-falsifier (declared distributions) due 2026-09-05.
+Chair staging complete the same hour: venue tradability VERIFIED (ETH
+tradable + fractionable at Alpaca, ARCA, active); live strategy registered
+(`707b79d0-a2a8-4147-9b62-3823dc5daa81`); **all three exits committed BEFORE
+any proposal exists** (event log, actor neelesh-via-cto). The $75 BUY
+(3.171247 shares at the $23.65 mark) is ready to propose on the CEO's word —
+the proposal passes the pre-trade risk gate and lands on his desk as one
+click. Monitoring commitment carried: TOTAL RETURN vs ETHA; Ed's replacement
+falsifier due 2026-09-05.
 
 ## LIVE — not yet
 

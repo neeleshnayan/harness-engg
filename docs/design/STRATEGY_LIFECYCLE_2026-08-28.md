@@ -70,3 +70,29 @@ What would change this decision's mind (clause 4): if maintaining the
 dossier view costs more than one chair-hour a week after the renderer ships,
 or if a dossier is ever caught DISAGREEING with the underlying record (the
 drift failure), the design reverts to per-desk artifacts pending re-design.
+
+## AMENDED same day (CEO, verbatim): durable in Postgres, with backfill
+
+**"Also on the strategy page I was thinking we make it durable via postgres
+so we can historically review each stratgey document"** and **"YOu can
+backfill for those we have iterated till now?"**
+
+Both adopted into the build plan:
+
+1. **The dossier's storage of record is Postgres, append-only**: a
+   `fund_dossier_sections` table — (dossier_id, stage, section_seq,
+   filed_at, author, body, citations) — where each desk crossing appends one
+   row and nothing updates. Historical review falls out for free: the
+   document AT any past date is the fold of sections filed by that date, so
+   "what did we believe about this strategy on day X" is a query, not an
+   archaeology. The markdown files in `docs/dossiers/` become RENDERS of
+   the store (kept in git as before — two independent histories of the same
+   record); the studio Strategy Book reads the store.
+2. **Backfill is commissioned**: one record-mining dispatch assembles
+   dossiers for every lineage the firm has iterated to date — Ed's batch
+   entries (killed and surviving), the analyst theses, HYG v1/v2, the E2E
+   harness sleeve, the deployed premia sleeves, Entry 20 and the gate-era
+   candidates — each with its verbatim verdicts and terminal state. Runs
+   after the builder ships the store, so the backfill lands durable
+   directly. The killed lineages are the point: that is the reviewable
+   failure corpus the CEO asked for.
