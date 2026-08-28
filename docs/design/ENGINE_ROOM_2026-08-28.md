@@ -74,3 +74,28 @@ collapsed line. (3) A session with a missed expected bar renders MISSED
 within 30 minutes of the miss (pin the fold with a fixture). (4) The belt
 lane shows yesterday's P1 run correctly from the stored record. (5) KP
 suite + tsc green; no spine changes beyond read-only additions if any.
+
+## AMENDED same day (CEO): the status dot + the Lab merge
+
+**1. The engine dot (nav-level, visible from every tab).** The nav's Engine
+item carries a status dot: **green pulsing** = at least one LEAN session
+running; **red steady** = none running; **grey** = the spine is unreachable —
+unknown is its own state and must never render as red or as stale green
+(absence is not a value). Fed by the session list on the studio's existing
+polling cadence; the dot's tooltip names the session(s) and the last-bar age.
+
+**2. Lab folds under Engine — one page, the factory as a flow (CEO: "run
+your tests and leans run on one page and final deployed on another -
+seemless end to end").** The merged page's sub-views, left to right, ARE the
+lifecycle:
+
+    BENCH (author + backtest — today's Lab) → THE BELT (candidates + gate
+    verdicts, the new belt lane grown into a full view) → LIVE (the Engine
+    Room: pulse rail, signals, agreement)
+
+The nav gains one Engine entry with three sub-tabs and loses Lab. **The
+governance boundaries render as explicit GATES in the flow, not seams to be
+smoothed**: between Belt and Live sits the gate verdict and the CEO's click,
+drawn as a visible gate the flow passes through — the friction is the
+product, and the demo is better for showing it. A strategy's position in
+the flow mirrors its dossier stage; each stage links to the dossier.
